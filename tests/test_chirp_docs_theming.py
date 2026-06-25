@@ -85,7 +85,7 @@ class TestViewRegistry:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/tutorials/")
+            resp = await docs_client.get("/chirp/docs/tutorials/")
             return resp.text
 
         html = asyncio.run(_fetch())
@@ -97,7 +97,7 @@ class TestViewRegistry:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/build-apps/pages-navigation/routes/")
+            resp = await docs_client.get("/chirp/docs/build-apps/pages-navigation/routes/")
             return resp.text
 
         html = asyncio.run(_fetch())
@@ -111,7 +111,7 @@ class TestViewRegistry:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/tutorials/")
+            resp = await docs_client.get("/chirp/docs/tutorials/")
             return resp.text
 
         html = asyncio.run(_fetch())
@@ -124,6 +124,63 @@ class TestViewRegistry:
         assert "chirp-theme-directive-card" in html
 
 
+class TestThemeHeroContract:
+    def test_doc_hero_markup(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/docs/get-started/installation/")
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert "chirpui-hero--page-editorial chirpui-hero--solid chirp-theme-docs-layout__hero" in html
+        assert "chirpui-hero__inner" in html
+        assert "chirpui-hero__metadata" in html
+
+    def test_local_stylesheet_imports_skin_slices(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/docs-theme/local/styles.css")
+            return resp.text
+
+        css = asyncio.run(_fetch())
+        assert "@import url(\"skin/fonts.css\")" in css
+        assert "@import url(\"skin/hero.css\")" in css
+        assert "@import url(\"effects.css\")" in css
+
+    def test_generated_preset_css(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/docs-theme/generated/theme-preset.css")
+            return resp.text
+
+        css = asyncio.run(_fetch())
+        assert "--chirpui-prose-max-width: 80ch" in css
+        assert "--font-family-sans:" in css
+        assert "Inter" in css
+
+
+class TestThemeEffects:
+    def test_default_effects(self, docs_config) -> None:
+        assert docs_config.theme.effects.code == "flat"
+        assert docs_config.theme.effects.cards == "flat"
+        assert docs_config.theme.effects.hero == "wash"
+
+    def test_doc_page_effect_attributes(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/docs/get-started/installation/")
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert 'data-fura-effects-code","flat"' in html
+        assert 'data-fura-effects-cards","flat"' in html
+        assert 'data-fura-effects-hero","wash"' in html
+
+
 class TestDocsTheme:
     def test_packaged_stylesheets(self, docs_config) -> None:
         from furatena.catalog.theme import DocsTheme
@@ -131,6 +188,7 @@ class TestDocsTheme:
         theme = DocsTheme.from_docs_config(docs_config)
         assert any("/docs-assets/theme." in href for href in theme.stylesheet_hrefs)
         assert any("tokens.css" in href for href in theme.stylesheet_hrefs)
+        assert any("theme-preset.css" in href for href in theme.stylesheet_hrefs)
 
 
 @pytest.fixture(scope="module")
@@ -144,6 +202,27 @@ def docs_client():
         autodoc=False,
     )
     return TestClient(docs.create_app())
+
+
+class TestNativeShell:
+    def test_shell_extends_fura_frame_not_chirp(self) -> None:
+        shell = (APP_ROOT / "theme" / "shell.html").read_text(encoding="utf-8")
+        assert 'extends "layouts/fura_shell.html"' in shell
+        assert "chirp/layouts/shell.html" not in shell
+
+    def test_doc_page_has_document_frame(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/docs/get-started/installation/")
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert html.lstrip().startswith("<!DOCTYPE html>")
+        assert 'lang="' in html
+        assert 'data-chirp="htmx"' in html
+        assert 'id="main"' in html
+        assert "__chirpuiShellRuntimeInitialized" in html or "htmx:configRequest" in html
 
 
 class TestThemeHtmlContract:
@@ -231,7 +310,7 @@ class TestThemeHtmlContract:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/get-started/installation/")
+            resp = await docs_client.get("/chirp/docs/get-started/installation/")
             return resp.text
 
         html = asyncio.run(_fetch())
@@ -249,6 +328,13 @@ class TestThemeHtmlContract:
 
         html = asyncio.run(_fetch())
         assert "fura-shell-nav" in html
+        assert "Furatena" in html
+        assert 'brand-word">Chirp' not in html
+        assert "chirp-theme-shell__header" in html
+        assert "chirp-theme-shell__nav-dropdown" in html
+        assert "chirp-theme-shell__mega" in html
+        assert "chirp-theme-home__hero-stage" in html
+        assert "chirp-theme-home__product-visual" in html
         assert "chirp-theme-shell__nav-link" in html
 
     def test_doc_page_toc_contract(self, docs_client) -> None:
@@ -259,7 +345,7 @@ class TestThemeHtmlContract:
             return resp.text
 
         html = asyncio.run(_fetch())
-        assert 'data-chirp-docs="toc"' in html
+        assert 'data-fura-docs="toc"' in html
         assert "data-toc-item=" in html
         assert "toc-progress-bar" in html
         assert "toc-scroll-container" in html
@@ -281,11 +367,11 @@ class TestThemeHtmlContract:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/get-started/read-through/")
+            resp = await docs_client.get("/chirp/docs/get-started/read-through/")
             return resp.text
 
         html = asyncio.run(_fetch())
-        assert 'data-chirp-docs="toc"' in html
+        assert 'data-fura-docs="toc"' in html
         assert "data-toc-item=" in html
         assert "In this collection" in html
 

@@ -1,13 +1,13 @@
 <li class="chirp-theme-directive-steps__step{% if optional %} step-optional{% end %}{% if extra_class %} {{ extra_class }}{% end %}"
     id="{{ step_id }}">
 <a class="step-marker" href="#{{ step_id }}" aria-label="Step {{ step_number }}">{{ step_number }}</a>
-{% if title %}<h{{ heading_level }} class="step-title">{{ title }}</h{{ heading_level }}>{% end %}
+{% if title %}<h{{ heading_level }} class="step-title">{{ title | safe }}</h{{ heading_level }}>{% end %}
 {% if optional or duration %}
 <div class="step-metadata">
 {% if optional %}<span class="step-badge step-badge-optional">Optional</span>{% end %}
 {% if duration %}<span class="step-duration">{{ duration }}</span>{% end %}
 </div>
 {% end %}
-{% if description %}<p class="step-description">{{ description }}</p>{% end %}
+{% if description %}<p class="step-description">{{ description | safe }}</p>{% end %}
 {{ body | safe }}
 </li>

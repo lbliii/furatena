@@ -1,12 +1,67 @@
-{% extends "shell.html" %}
-{% from "chirpui/layout.html" import container, page_header %}
+{% extends "layouts/docs_app.html" %}
+{% from "chirpui/layout.html" import cluster, container %}
 
-{% block page_root %}
-<div id="page-root">
-{% block page_content %}
-{% call container(max_width="48rem", cls="fura-page") %}
-{% call page_header("404", subtitle=error_message) %}{% end %}
-<p><a href="/">Return home</a> or open the <a href="/docs/">documentation hub</a>.</p>
+{% block app_content %}
+{% block error_content %}
+{% call container(max_width="52rem", cls="fura-error") %}
+<section class="fura-error__hero" aria-labelledby="error-headline">
+  <p class="fura-error__status" aria-hidden="true">{{ error_status | default(404) }}</p>
+  <h1 id="error-headline" class="fura-error__headline">{{ error_headline | default("Page not found") }}</h1>
+  <p class="fura-error__lead">{{ error_message | default(error_lead) }}</p>
+  {% if error_path %}
+  <p class="fura-error__path">
+    Requested path:
+    <code>{{ error_path }}</code>
+  </p>
+  {% end %}
+  {% if error_allowed_methods | default([]) | length > 0 %}
+  <p class="fura-error__methods">
+    Allowed methods:
+    {% for method in error_allowed_methods %}
+    <code>{{ method }}</code>{% if not loop.last %}, {% end %}
+    {% end %}
+  </p>
+  {% end %}
+</section>
+
+{% if error_show_search | default(true) %}
+<section class="fura-error__panel" aria-labelledby="error-search-heading">
+  <div class="fura-error__panel-head">
+    <h2 id="error-search-heading">Search the catalog</h2>
+    <p>Try a different query or browse suggested matches below.</p>
+  </div>
+  <form class="fura-error__search-form" role="search" aria-label="Recover from missing page">
+    <label class="fura-error__search-label" for="error-search-input">Search docs</label>
+    <input id="error-search-input"
+           class="fura-error__search-input"
+           name="q"
+           type="search"
+           value="{{ error_query | default('') }}"
+           placeholder="Search documentation…"
+           autocomplete="off"
+           spellcheck="false"
+           hx-get="/errors/suggest"
+           hx-trigger="input changed delay:200ms, search"
+           hx-target="#error-suggest-panel"
+           hx-swap="innerHTML">
+  </form>
+  <div id="error-suggest-panel" class="fura-error__suggest-panel" aria-live="polite">
+    {% include "partials/error_suggest_panel.html" %}
+  </div>
+</section>
+{% end %}
+
+<section class="fura-error__panel" aria-labelledby="error-recovery-heading">
+  <div class="fura-error__panel-head">
+    <h2 id="error-recovery-heading">Quick recovery</h2>
+  </div>
+  {% call cluster(gap="sm", cls="fura-error__recovery") %}
+    {% for link in error_recovery_links | default([]) %}
+    <a class="chirpui-btn{% if loop.first %} chirpui-btn--primary{% else %} chirpui-btn--secondary{% end %}"
+       href="{{ link.href }}"{{ route_link_attrs(link.href) | html_attrs }}>{{ link.label }}</a>
+    {% endfor %}
+  {% end %}
+</section>
 {% end %}
 {% end %}
 {% end %}

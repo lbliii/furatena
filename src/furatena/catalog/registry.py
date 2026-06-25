@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from furatena.catalog.catalog_nav import CatalogNavConfig
 from furatena.catalog.graph import build_federated_backlinks, normalize_internal_url
 from furatena.catalog.graph_schema import build_graph_edges
 from furatena.catalog.loader import DocCatalog
@@ -46,7 +47,7 @@ def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...
         return (
             MountConfig(
                 id="chirp",
-                label="Chirp Documentation",
+                label="Furatena Documentation",
                 content_root=repo_root / "site" / "content",
                 default=True,
             ),
@@ -100,6 +101,8 @@ class CatalogRegistry:
         serve_mode: ServeMode = ServeMode.AUTHOR,
         workers: int | None = None,
         i18n_config: DocsI18nConfig | None = None,
+        catalog_nav: CatalogNavConfig | None = None,
+        site_mark: str = "𒀭",
     ) -> None:
         self.repo_root = repo_root
         self.app_root = app_root or repo_root
@@ -110,6 +113,8 @@ class CatalogRegistry:
         self.auto_reload = auto_reload
         self.active_channel = channel or active_channel_id()
         self.i18n_config = i18n_config or DocsI18nConfig()
+        self.catalog_nav = catalog_nav
+        self.site_mark = site_mark
         self.frozen_dir = frozen_dir
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
@@ -154,6 +159,7 @@ class CatalogRegistry:
             federated_slug_urls=self._federated_slug_urls,
             workers=self._workers,
             i18n_config=self.i18n_config,
+            catalog_nav=self.catalog_nav if mount.default else None,
         )
         if cached_autodoc is not None and mount.default and self.frozen_dir is not None:
             shard._frozen_shard_dir = self.frozen_dir / "mounts" / mount.id
@@ -187,6 +193,7 @@ class CatalogRegistry:
                     content_root=mount.content_root,
                     mount=mount.id,
                     lazy_html=self.lazy_html,
+                    catalog_nav=self.catalog_nav if mount.default else None,
                 )
                 shard.enable_author_overlay(
                     autodoc_config=self.autodoc_config if mount.default else None,
@@ -201,6 +208,7 @@ class CatalogRegistry:
                     content_root=mount.content_root,
                     mount=mount.id,
                     lazy_html=self.lazy_html,
+                    catalog_nav=self.catalog_nav if mount.default else None,
                 )
                 shard._federated_slug_urls = self._federated_slug_urls
                 self._shards[mount.id] = shard
@@ -356,8 +364,20 @@ class CatalogRegistry:
         return self._shards[node.mount]
 
     @property
+    def default_mount(self) -> MountConfig:
+        return next((m for m in self.mounts if m.default), self.mounts[0])
+
+    @property
     def channels(self):
-        default = next((s for s in self._shards.values() if s.mount == "chirp"), next(iter(self._shards.values())))
+        return self.channels_for(self.default_mount.id)
+
+    def channels_for(self, mount_id: str | None = None):
+        """Release/version channels for one mount shard."""
+        if mount_id and mount_id in self._shards:
+            return self._shards[mount_id].channels
+        default = self._shards.get(self.default_mount.id)
+        if default is None:
+            default = next(iter(self._shards.values()))
         return default.channels
 
     @property
@@ -441,7 +461,7 @@ class CatalogRegistry:
 
     def trail(self, node: DocNode) -> list[dict[str, str]]:
         crumbs = self._shard_for_node(node).trail(node)
-        if node.mount != "chirp" or len(self.mounts) == 1:
+        if node.mount == self.default_mount.id or len(self.mounts) == 1:
             return crumbs
         mount = next(m for m in self.mounts if m.id == node.mount)
         portal = [{"label": "Portal", "href": "/portal/"}]
@@ -478,7 +498,11 @@ class CatalogRegistry:
         lang: str | None = None,
     ) -> list[dict[str, Any]]:
         if len(self.mounts) == 1:
-            return self._shards[self.mounts[0].id].catalog_rail_items(active_url, lang=lang)
+            return self._shards[self.mounts[0].id].catalog_rail_items(
+                active_url,
+                lang=lang,
+                home_mark=self.site_mark,
+            )
         mount_rail = self._catalog_rail_for_mount(active_url)
         if mount_rail is not None:
             return mount_rail
@@ -486,7 +510,7 @@ class CatalogRegistry:
             {
                 "title": "Home",
                 "href": "/",
-                "mark": "ᗢ",
+                "mark": self.site_mark,
                 "active": active_url == "/",
             },
             {
@@ -523,9 +547,7 @@ class CatalogRegistry:
         if active_url:
             mount = self._resolve_mount(active_url)
             shard = self._shards.get(mount.id)
-            if shard is not None and (
-                mount.default or active_url.startswith("/shared")
-            ):
+            if shard is not None:
                 return shard.docs_section_nav(active_url, lang=lang)
         return self.nav_tree(active_url=active_url, lang=lang)
 

@@ -1,0 +1,30 @@
+{#- Fura document shell — minimal HTML frame for Furatena hypermedia apps.
+
+    Replaces ``chirp/layouts/shell.html`` so docs runtime does not depend on
+    Bengal's Chirp layout package. Page chrome lives in views inside ``#page-root``;
+    this file only owns the document frame, htmx bootstrap, and shell blocks.
+-#}
+{# target: body #}
+{# outlet: main #}
+<!DOCTYPE html>
+<html lang="{% block lang %}en{% end %}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% end %}</title>
+  {% block head %}{% end %}
+  {% block scripts %}
+  <script src="/docs-vendor/htmx.min.js" data-chirp="htmx"></script>
+  <script src="/docs-vendor/htmx-ext-sse.js"></script>
+  {% end %}
+</head>
+<body>
+  {% block shell %}
+  <main id="main">
+    {% block content %}{% end %}
+  </main>
+  {% end %}
+  {% block sse_scope %}{% end %}
+  {% block body_after %}{% end %}
+</body>
+</html>

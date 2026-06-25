@@ -10,7 +10,7 @@
         :aria-selected="(active === '{{ tab.id }}').toString()"
         {% if tab.disabled %}disabled aria-disabled="true"{% end %}>
 {% if tab.icon %}<span class="chirp-theme-directive-tabs__icon" aria-hidden="true">{{ tab.icon | safe }}</span>{% end %}
-<span class="chirp-theme-directive-tabs__label">{{ tab.label }}</span>
+<span class="chirp-theme-directive-tabs__label">{{ tab.label | safe }}</span>
 {% if tab.badge %}<span class="chirpui-badge">{{ tab.badge }}</span>{% end %}
 </button>
 {% end %}

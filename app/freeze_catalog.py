@@ -9,11 +9,12 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-REPO = ROOT.parent.parent
+REPO = ROOT.parent
 if str(REPO / "src") not in sys.path:
     sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.assets import bundle_css, copy_fonts, copy_tree_files, write_assets_manifest
+from furatena.catalog.vendor_paths import VENDOR_FILES, vendor_dir
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.embeddings import EmbeddingIndex
@@ -32,11 +33,12 @@ from furatena.catalog.renderer_fingerprint import (
     renderer_fingerprint,
     write_renderer_fingerprint,
 )
+from furatena.catalog.theme_pack import load_theme_pack
 from furatena.catalog.seo import docs_base_url
 from furatena.catalog.workers import resolve_workers
 
 MOUNTS_CONFIG = ROOT / "mounts.yaml"
-AUTODOC_CONFIG = REPO / "site" / "config" / "_default" / "autodoc.yaml"
+AUTODOC_CONFIG = REPO / "config" / "autodoc.yaml"
 
 
 def _write_frozen_page(
@@ -158,11 +160,17 @@ def _freeze_assets(out_dir: Path) -> None:
             ),
         )
         branding_prefix = "branding"
+    vendor_prefix = None
+    vendor_src = Path(vendor_dir())
+    if vendor_src.is_dir() and all((vendor_src / name).is_file() for name in VENDOR_FILES):
+        copy_tree_files(vendor_src, assets_dir / "vendor", names=VENDOR_FILES)
+        vendor_prefix = "vendor"
     write_assets_manifest(
         out_dir,
         theme_href=f"theme.{digest}.css",
         fonts_prefix=fonts_prefix,
         branding_prefix=branding_prefix,
+        vendor_prefix=vendor_prefix,
     )
 
 
@@ -221,7 +229,13 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    renderer_fp = renderer_fingerprint(ROOT)
+    renderer_fp = renderer_fingerprint(
+        ROOT,
+        theme_id=docs_config.theme.id,
+        skin_pack_root=(
+            load_theme_pack(docs_config.theme.use).root if docs_config.theme.use else None
+        ),
+    )
     stored_renderer = read_renderer_fingerprint(out_dir)
     renderer_changed = full_rebuild or stored_renderer != renderer_fp
     mounts_to_freeze = [mount.id for mount in registry.mounts] if full_rebuild else dirty_mount_ids(

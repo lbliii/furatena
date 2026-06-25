@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from furatena.catalog.autodoc import generate_autodoc_nodes
+from furatena.catalog.catalog_nav import CatalogNavConfig, resolve_doc_sections, section_index_slug
 from furatena.catalog.context import NodeStub
 from furatena.catalog.ast_store import document_from_json
 from furatena.catalog.content_ir import content_ir_from_record
@@ -118,6 +119,7 @@ class DocCatalog:
         inventory_store=None,
         workers: int | None = None,
         i18n_config: DocsI18nConfig | None = None,
+        catalog_nav: CatalogNavConfig | None = None,
     ) -> None:
         self.content_root = content_root
         self.auto_reload = auto_reload
@@ -157,6 +159,7 @@ class DocCatalog:
         self._last_invalidations: dict[str, tuple[str, ...]] = {}
         self._workers = resolve_workers(workers)
         self.i18n_config = i18n_config or DocsI18nConfig()
+        self.catalog_nav = catalog_nav
         self._doc_nodes_lang: str | None = None
         self._load()
 
@@ -611,7 +614,8 @@ class DocCatalog:
             effective_lang = self.i18n_config.default_language
         if self._doc_nodes is not None and self._doc_nodes_lang == effective_lang:
             return self._doc_nodes
-        if self.mount == "chirp":
+        has_docs_tree = (self.content_root / "docs").is_dir()
+        if has_docs_tree:
             candidates = [
                 n
                 for n in self.nodes
@@ -776,34 +780,20 @@ class DocCatalog:
             section = node.section
             sections.setdefault(section, []).append(node)
 
-        section_labels = {
-            "get-started": "Get Started",
-            "about": "About",
-            "build-apps": "Build Apps",
-            "tutorials": "Tutorials",
-            "examples": "Examples",
-            "quality": "Quality",
-            "reference": "Reference",
-            "api": "API Reference",
-        }
+        resolved_sections = resolve_doc_sections(
+            sections_map=sections,
+            slug_prefix=slug_prefix,
+            nav_config=self.catalog_nav,
+            get_index_node=self.get_by_slug,
+        )
 
         items: list[dict[str, Any]] = []
-        section_order = [
-            "get-started",
-            "about",
-            "build-apps",
-            "tutorials",
-            "examples",
-            "quality",
-            "reference",
-            "api",
-        ]
-
-        for section_id in section_order:
+        for section in resolved_sections:
+            section_id = section.id
             pages = sections.get(section_id, [])
             if not pages:
                 continue
-            index_slug = f"{slug_prefix}docs/{section_id}"
+            index_slug = section_index_slug(slug_prefix, section_id)
             index_node = self.get_by_slug(index_slug)
             section_href = index_node.url if index_node else pages[0].url
             section_urls = {section_href, *(p.url for p in pages)}
@@ -818,7 +808,7 @@ class DocCatalog:
             )
             items.append(
                 {
-                    "title": section_labels.get(section_id, section_id.replace("-", " ").title()),
+                    "title": section.label,
                     "href": section_href,
                     "open": section_active,
                     "active": section_href == active_url,
@@ -826,7 +816,7 @@ class DocCatalog:
                 }
             )
 
-        release_node = self.get_by_slug(f"{slug_prefix}releases")
+        release_node = self.get_by_slug(f"{slug_prefix}releases".strip("/"))
         if release_node:
             items.append(
                 {
@@ -887,51 +877,54 @@ class DocCatalog:
         active_url: str | None = None,
         *,
         lang: str | None = None,
+        home_mark: str = "𒀭",
     ) -> list[dict[str, Any]]:
         """Top-level section shortcuts for the docs catalog icon rail."""
-        icons = {
-            "get-started": "book-open",
-            "about": "info",
-            "build-apps": "hammer",
-            "tutorials": "graduation-cap",
-            "examples": "stack",
-            "quality": "check-circle",
-            "reference": "book-open",
-            "api": "code",
-            "releases": "rocket",
-        }
-        marks = {
-            "get-started": "01",
-            "about": "02",
-            "build-apps": "03",
-            "tutorials": "04",
-            "examples": "05",
-            "quality": "06",
-            "reference": "07",
-            "api": "08",
-            "releases": "09",
-        }
+        effective_lang = lang
+        if effective_lang is None and self.i18n_config.enabled:
+            effective_lang = self.i18n_config.default_language
+        slug_prefix = _docs_slug_prefix(effective_lang, self.i18n_config)
+        sections: dict[str, list[DocNode]] = {}
+        for node in self.doc_nodes(lang=effective_lang):
+            if node.slug == "docs":
+                continue
+            sections.setdefault(node.section, []).append(node)
+
+        resolved_sections = resolve_doc_sections(
+            sections_map=sections,
+            slug_prefix=slug_prefix,
+            nav_config=self.catalog_nav,
+            get_index_node=self.get_by_slug,
+        )
+
         items: list[dict[str, Any]] = [
             {
                 "title": "Home",
                 "href": "/",
-                "mark": "ᗢ",
+                "mark": home_mark,
                 "active": active_url == "/",
             }
         ]
-        for section in self.nav_tree(active_url=active_url, lang=lang):
-            href = section.get("href")
-            if not href:
+        for section in resolved_sections:
+            pages = sections.get(section.id, [])
+            if not pages:
                 continue
-            section_id = section.get("title", "").lower().replace(" ", "-")
-            slug_tail = href.strip("/").rsplit("/", 1)[-1]
+            index_slug = section_index_slug(slug_prefix, section.id)
+            index_node = self.get_by_slug(index_slug)
+            href = index_node.url if index_node else pages[0].url
             items.append(
                 {
-                    "title": section["title"],
+                    "title": section.label,
                     "href": href,
-                    "mark": marks.get(slug_tail, section.get("title", "?")[:1]),
-                    "icon": icons.get(slug_tail),
-                    "active": bool(section.get("active") or section.get("open")),
+                    "mark": section.mark,
+                    "icon": section.icon,
+                    "active": bool(
+                        active_url == href
+                        or (
+                            active_url is not None
+                            and active_url.startswith(href.rstrip("/") + "/")
+                        )
+                    ),
                 }
             )
         items.append(
@@ -984,6 +977,7 @@ class DocCatalog:
         content_root: Path | None = None,
         mount: str = "chirp",
         lazy_html: bool = True,
+        catalog_nav: CatalogNavConfig | None = None,
     ) -> DocCatalog:
         """Load pre-rendered pages from a freeze export (fast production startup)."""
         graph_path = frozen_dir / "catalog.json"
@@ -1022,6 +1016,7 @@ class DocCatalog:
         catalog._ast_documents = {}
         catalog._last_invalidations = {}
         catalog.i18n_config = DocsI18nConfig()
+        catalog.catalog_nav = catalog_nav
         catalog._doc_nodes_lang = None
         catalog._workers = 1
         catalog.source_config = MountSourceConfig()

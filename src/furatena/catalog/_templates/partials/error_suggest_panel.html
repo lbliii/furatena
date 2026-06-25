@@ -1,0 +1,18 @@
+{% block error_suggest_panel %}
+{% if keyword_hits | default(hits | default([])) | length > 0 %}
+<h3 class="fura-error__suggest-kicker">Did you mean?</h3>
+{% set hits = keyword_hits | default(hits | default([])) %}
+{% include "partials/error_suggest.html" %}
+{% end %}
+
+{% if semantic_hits | default([]) | length > 0 %}
+<h3 class="fura-error__suggest-kicker fura-error__suggest-kicker--semantic">Related pages</h3>
+{% set hits = semantic_hits %}
+{% include "partials/error_suggest.html" %}
+{% end %}
+
+{% if (keyword_hits | default(hits | default([])) | length == 0) and (semantic_hits | default([]) | length == 0) %}
+{% set hits = [] %}
+{% include "partials/error_suggest.html" %}
+{% end %}
+{% end %}

@@ -1,0 +1,98 @@
+/* Effect preset application — opt-in Bengal glow/elevation via data-fura-effects-*.
+ *
+ * Preset names are set on <html> from docs.yaml theme.effects (see tokens.css for
+ * derived variables). Default is flat docs chrome; glow/subtle/elevated re-enable
+ * vendored Bengal utilities without editing theme/assets/. */
+@layer docs.overrides {
+  /* Code: subtle — card elevation on wrappers, no animation */
+  html[data-fura-effects-code="subtle"] .chirp-theme-docs-layout .code-block-wrapper,
+  html[data-fura-effects-code="subtle"] .chirp-theme-docs-layout__content .rosettes {
+    box-shadow: var(--fura-effect-code-wrapper-shadow);
+  }
+
+  /* Code: glow — Bengal code-border-glow on pre blocks */
+  html[data-fura-effects-code="glow"] .chirp-theme-docs-layout .code-block-wrapper,
+  html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes {
+    box-shadow: var(--fura-effect-code-wrapper-shadow);
+    animation: var(--fura-effect-code-wrapper-animation, none);
+  }
+
+  html[data-fura-effects-code="glow"] .chirp-theme-docs-layout .code-block-wrapper pre,
+  html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes > pre,
+  html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes .code-block-wrapper,
+  html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes .code-block-wrapper pre,
+  html[data-fura-effects-code="glow"] .chirp-theme-directive-tabs .fura-tab-panel > pre,
+  html[data-fura-effects-code="glow"] .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper,
+  html[data-fura-effects-code="glow"] .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper pre {
+    box-shadow: var(--fura-effect-code-inner-shadow);
+    animation: var(--fura-effect-code-inner-animation);
+  }
+
+  /* Hero: minimal — structure only, no wash or accent rail */
+  html[data-fura-effects-hero="minimal"] .chirp-theme-docs-layout__hero {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  html[data-fura-effects-hero="minimal"] .chirp-theme-docs-layout__hero::before {
+    display: none;
+  }
+
+  html[data-fura-effects-hero="minimal"] .chirp-theme-docs-layout__hero .chirpui-hero__metadata {
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html[data-fura-effects-code="glow"] .chirp-theme-docs-layout .code-block-wrapper,
+    html[data-fura-effects-code="glow"] .chirp-theme-docs-layout .code-block-wrapper pre,
+    html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes,
+    html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes > pre,
+    html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes .code-block-wrapper,
+    html[data-fura-effects-code="glow"] .chirp-theme-docs-layout__content .rosettes .code-block-wrapper pre,
+    html[data-fura-effects-code="glow"] .chirp-theme-directive-tabs .fura-tab-panel > pre,
+    html[data-fura-effects-code="glow"] .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper,
+    html[data-fura-effects-code="glow"] .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper pre {
+      animation: none;
+    }
+  }
+}
+
+@layer docs.directives {
+  /* Cards: elevated — Bengal elevation tokens on directive cards */
+  html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-card,
+  html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-resource-card {
+    box-shadow: var(--fura-effect-card-shadow);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-card:hover,
+  html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-resource-card:hover {
+    box-shadow: var(--fura-effect-card-hover-shadow);
+    transform: translateY(-1px);
+  }
+
+  html[data-fura-effects-cards="elevated"] .chirp-theme-directive-tabs {
+    box-shadow: var(--fura-effect-card-shadow);
+  }
+
+  html[data-fura-effects-cards="elevated"] .chirp-theme-directive-dropdown.chirpui-collapse {
+    box-shadow: var(--fura-effect-dropdown-shadow);
+  }
+
+  html[data-fura-effects-cards="elevated"] .chirp-theme-directive-dropdown.chirpui-collapse:hover {
+    box-shadow: var(--fura-effect-dropdown-hover-shadow);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-card,
+    html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-resource-card {
+      transition: none;
+    }
+
+    html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-card:hover,
+    html[data-fura-effects-cards="elevated"] .chirp-theme-directive-card.chirpui-resource-card:hover {
+      transform: none;
+    }
+  }
+}

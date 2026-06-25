@@ -9,7 +9,8 @@ from patitas.directives.contracts import DirectiveContract
 from patitas.directives.options import AdmonitionOptions
 from patitas.nodes import Directive
 
-from furatena.catalog.directives.kida_render import render_directive
+from furatena.catalog.directives.html import render_inline_text
+from furatena.catalog.directives.kida_render import as_markup, render_directive
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -85,7 +86,7 @@ class AdmonitionHandler:
                 "callout",
                 variant=_VARIANT.get(node.name, "info"),
                 admonition_name=node.name,
-                title=node.title,
+                title=as_markup(render_inline_text(node.title or "")),
                 body=rendered_children,
                 extra_class=opts.class_ or "",
             )

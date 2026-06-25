@@ -12,7 +12,8 @@ from patitas.directives.contracts import DirectiveContract
 from patitas.directives.options import StyledOptions
 from patitas.nodes import Directive
 
-from furatena.catalog.directives.kida_render import render_doc_tabs
+from furatena.catalog.directives.html import render_inline_text
+from furatena.catalog.directives.kida_render import as_markup, render_doc_tabs
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -180,7 +181,14 @@ class TabSetHandler:
                 tab_id = f"tab-{index}-{sync_slug}"
             else:
                 tab_id = f"tab-{index}-{_slug(item.title)}-{digest}"
-            tabs.append((tab_id, item.title, item.badge, item.selected))
+            tabs.append(
+                (
+                    tab_id,
+                    as_markup(render_inline_text(item.title)),
+                    item.badge,
+                    item.selected,
+                )
+            )
             panels.append(item.content)
             icons.append(item.icon)
         sb.append(

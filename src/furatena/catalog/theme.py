@@ -7,7 +7,10 @@ from pathlib import Path
 
 from furatena.catalog.assets import bundle_css, load_assets_manifest
 from furatena.catalog.config import DocsConfig, ThemeConfig
-from furatena.catalog.theme_assets import packaged_theme_assets
+from furatena.catalog.theme_assets import packaged_theme_assets_from_root
+from furatena.catalog.theme_pack import resolve_theme_paths
+from furatena.catalog.theme_preset import write_theme_preset
+from furatena.catalog.vendor_paths import VENDOR_FILES, vendor_dir
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,11 +41,16 @@ class DocsTheme:
         theme_cfg = docs.theme
         theme_dir = docs.theme_dir
         cache_dir = docs.root / ".docs-cache"
-        packaged = packaged_theme_assets(theme_cfg.id, docs.root)
+        skin = resolve_theme_paths(docs)
+        packaged = packaged_theme_assets_from_root(theme_cfg.id, skin.app_assets_root)
 
         stylesheet_hrefs: list[str] = []
         static_mounts: list[ThemeAssets] = []
         reload_dirs: list[Path] = [theme_dir]
+        if skin.pack is not None:
+            reload_dirs.append(skin.pack.root)
+        if skin.docs_core is not None:
+            reload_dirs.append(skin.docs_core.root)
 
         manifest = load_assets_manifest(frozen_dir) if frozen_dir is not None else None
         if manifest and manifest.get("theme_css"):
@@ -63,13 +71,20 @@ class DocsTheme:
                     static_mounts.append(
                         ThemeAssets(url_prefix="/docs-theme/branding", directory=branding_dir)
                     )
+            vendor_prefix = manifest.get("vendor_prefix")
+            if vendor_prefix:
+                frozen_vendor = assets_dir / vendor_prefix
+                if frozen_vendor.is_dir():
+                    static_mounts.append(
+                        ThemeAssets(url_prefix="/docs-vendor", directory=frozen_vendor)
+                    )
         elif packaged is not None:
             css_dir, fonts_dir, branding_dir = packaged
             entry = css_dir / "style.css"
             bundle_path, digest = bundle_css(entry, cache_dir=cache_dir)
             static_mounts.append(ThemeAssets(url_prefix="/docs-assets", directory=cache_dir))
             stylesheet_hrefs.append(f"/docs-assets/theme.{digest}.css")
-            if fonts_dir is not None:
+            if fonts_dir is not None and skin.fonts_dir is None:
                 static_mounts.append(ThemeAssets(url_prefix="/docs-theme/fonts", directory=fonts_dir))
             if branding_dir is not None:
                 static_mounts.append(
@@ -77,7 +92,7 @@ class DocsTheme:
                 )
 
         if not any(mount.url_prefix == "/docs-theme/branding" for mount in static_mounts):
-            fallback = packaged_theme_assets(theme_cfg.id, docs.root)
+            fallback = packaged_theme_assets_from_root(theme_cfg.id, skin.app_assets_root)
             if fallback is not None:
                 _css, _fonts, branding_dir = fallback
                 if branding_dir is not None:
@@ -85,37 +100,46 @@ class DocsTheme:
                         ThemeAssets(url_prefix="/docs-theme/branding", directory=branding_dir)
                     )
 
-        tokens_path = _resolve_theme_file(docs.root, theme_cfg.tokens)
-        styles_path = _resolve_theme_file(docs.root, theme_cfg.styles)
-        if tokens_path is not None:
+        preset_path = write_theme_preset(theme_cfg, cache_dir=cache_dir)
+        if preset_path.is_file():
             static_mounts.append(
-                ThemeAssets(url_prefix="/docs-theme/tokens", directory=tokens_path.parent)
+                ThemeAssets(url_prefix="/docs-theme/generated", directory=cache_dir)
             )
-            rel = tokens_path.name
-            stylesheet_hrefs.append(f"/docs-theme/tokens/{rel}")
-            reload_dirs.append(tokens_path.parent)
-        if styles_path is not None:
+            stylesheet_hrefs.append("/docs-theme/generated/theme-preset.css")
+            reload_dirs.append(cache_dir)
+
+        static_mounts.append(
+            ThemeAssets(url_prefix="/docs-theme/tokens", directory=skin.tokens.parent)
+        )
+        stylesheet_hrefs.append(f"/docs-theme/tokens/{skin.tokens.name}")
+        reload_dirs.append(skin.tokens.parent)
+
+        static_mounts.append(
+            ThemeAssets(url_prefix="/docs-theme/local", directory=skin.styles.parent)
+        )
+        stylesheet_hrefs.append(f"/docs-theme/local/{skin.styles.name}")
+        stylesheet_hrefs.append(f"/docs-theme/local/{skin.directives.name}")
+        reload_dirs.append(skin.styles.parent)
+
+        if skin.fonts_dir is not None:
             static_mounts.append(
-                ThemeAssets(url_prefix="/docs-theme/local", directory=styles_path.parent)
+                ThemeAssets(url_prefix="/docs-theme/fonts", directory=skin.fonts_dir)
             )
-            rel = styles_path.name
-            stylesheet_hrefs.append(f"/docs-theme/local/{rel}")
-            directives_path = styles_path.parent / "directives.css"
-            if directives_path.is_file():
-                stylesheet_hrefs.append("/docs-theme/local/directives.css")
-            reload_dirs.append(styles_path.parent)
+            reload_dirs.append(skin.fonts_dir)
 
         template_roots: list[Path] = []
-        theme_templates = _resolve_theme_dir(docs.root, theme_cfg.templates)
-        if theme_templates is not None:
-            template_roots.append(theme_templates)
-            reload_dirs.append(theme_templates)
+        if skin.templates is not None:
+            template_roots.append(skin.templates)
+            reload_dirs.append(skin.templates)
         template_roots.append(theme_dir)
 
-        js_dir = (docs.root / "theme" / "js").resolve()
-        if js_dir.is_dir():
-            static_mounts.append(ThemeAssets(url_prefix="/docs-theme/local/js", directory=js_dir))
-            reload_dirs.append(js_dir)
+        static_mounts.append(ThemeAssets(url_prefix="/docs-theme/local/js", directory=skin.js_dir))
+        reload_dirs.append(skin.js_dir)
+
+        vendor_root = Path(vendor_dir())
+        if vendor_root.is_dir() and all((vendor_root / name).is_file() for name in VENDOR_FILES):
+            if not any(mount.url_prefix == "/docs-vendor" for mount in static_mounts):
+                static_mounts.append(ThemeAssets(url_prefix="/docs-vendor", directory=vendor_root))
 
         return cls(
             config=theme_cfg,
@@ -126,30 +150,15 @@ class DocsTheme:
         )
 
 
-def _resolve_theme_dir(root: Path, rel: str) -> Path | None:
-    path = Path(rel)
-    if not path.is_absolute():
-        path = root / path
-    path = path.resolve()
-    return path if path.is_dir() else None
-
-
-def _resolve_theme_file(root: Path, rel: str) -> Path | None:
-    path = Path(rel)
-    if not path.is_absolute():
-        path = root / path
-    path = path.resolve()
-    return path if path.is_file() else None
-
-
 # Re-export for freeze/tests that import the legacy private helpers.
 def _packaged_theme_assets(theme_id: str, docs_root: Path | None = None) -> tuple[Path, Path | None, Path | None] | None:
     if docs_root is None:
         return None
-    return packaged_theme_assets(theme_id, docs_root)
+    return packaged_theme_assets_from_root(theme_id, docs_root / "theme" / "assets")
 
 
 def _packaged_theme_js(theme_id: str, docs_root: Path | None = None) -> Path | None:
     if docs_root is None:
         return None
-    return packaged_theme_js(theme_id, docs_root)
+    js_dir = (docs_root / "theme" / "js").resolve()
+    return js_dir if js_dir.is_dir() else None

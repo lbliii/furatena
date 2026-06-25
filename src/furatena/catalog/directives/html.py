@@ -27,11 +27,19 @@ def rewrite_doc_links(html: str) -> str:
 _CODE_PLACEHOLDER = "\x00CODE{index}\x00"
 
 
+def render_inline_text(text: str) -> str:
+    """Render directive titles and labels with basic inline markdown."""
+    return _render_inline_markdown(text)
+
+
 def render_inline_cell(cell_content: str) -> str:
     """Render list-table cell text with basic inline markdown."""
     if cell_content.strip() == "-":
         return '<span class="table-empty">—</span>'
+    return _render_inline_markdown(cell_content)
 
+
+def _render_inline_markdown(cell_content: str) -> str:
     code_spans: list[str] = []
 
     def stash_code(match: re.Match[str]) -> str:

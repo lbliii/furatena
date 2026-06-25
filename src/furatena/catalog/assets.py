@@ -81,6 +81,7 @@ def write_assets_manifest(
     theme_href: str,
     fonts_prefix: str | None = None,
     branding_prefix: str | None = None,
+    vendor_prefix: str | None = None,
 ) -> Path:
     """Write ``assets/manifest.json`` for preview/deploy serves."""
     assets_dir = out_dir / "assets"
@@ -90,6 +91,7 @@ def write_assets_manifest(
         "theme_css": theme_href,
         "fonts_prefix": fonts_prefix,
         "branding_prefix": branding_prefix,
+        "vendor_prefix": vendor_prefix,
     }
     path = assets_dir / "manifest.json"
     path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

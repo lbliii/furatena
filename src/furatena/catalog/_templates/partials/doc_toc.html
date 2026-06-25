@@ -1,4 +1,4 @@
-{# On-page table of contents — chirp-theme contract for ChirpDocsTOC scroll spy. #}
+{# On-page table of contents — chirp-theme contract for FuraDocsTOC scroll spy. #}
 {% from "partials/doc_toc_nodes.html" import doc_toc_node %}
 {% from "partials/docs_nav_icons.html" import docs_icon %}
 
@@ -8,7 +8,7 @@
 
 {% if items | length > 0 %}
 {% let nested_items = build_toc_tree(items) %}
-<div class="chirpui-nav-tree toc-sidebar chirp-theme-doc-toc" data-chirp-docs="toc">
+<div class="chirpui-nav-tree toc-sidebar chirp-theme-doc-toc" data-fura-docs="toc">
   <div class="chirp-theme-doc-toc__context">
     <span class="chirp-theme-doc-toc__context-mark" aria-hidden="true">{{ docs_icon('list', 16) }}</span>
     <div class="chirp-theme-doc-toc__context-copy">

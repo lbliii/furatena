@@ -1,0 +1,153 @@
+@layer docs.overrides {
+  /*
+   * Lagoon landing surface — app home hero, product visual, and proof metrics.
+   * Structural layout lives in docs-core chirp-theme.css; this file adds skin tone.
+   */
+
+  body.fura-surface--app .chirp-theme-home {
+    min-height: calc(100svh - 3.5rem);
+  }
+
+  .chirp-theme-home__spine {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .chirp-theme-home__spine::before {
+    content: "";
+    position: absolute;
+    inset: -2rem 0 auto;
+    block-size: min(28rem, 55vh);
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(
+        circle at 12% 0%,
+        color-mix(in srgb, var(--chirpui-accent) 14%, transparent),
+        transparent 52%
+      ),
+      radial-gradient(
+        circle at 88% 8%,
+        color-mix(in srgb, var(--chirpui-accent-secondary) 10%, transparent),
+        transparent 46%
+      );
+  }
+
+  .chirp-theme-home__hero {
+    border-radius: var(--chirpui-radius-lg, 0.75rem);
+    border: 1px solid color-mix(in srgb, var(--chirpui-border) 82%, transparent);
+    box-shadow: var(--fura-effect-hero-shadow, var(--chirpui-elevation-theme-sm));
+  }
+
+  .chirp-theme-home__hero-points li {
+    backdrop-filter: blur(6px);
+  }
+
+  .chirp-theme-home__product-visual {
+    box-shadow:
+      var(--chirpui-elevation-theme-lg),
+      0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 8%, transparent);
+  }
+
+  .chirp-theme-home__visual-cta {
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .chirp-theme-home__visual-cta:hover,
+  .chirp-theme-home__visual-cta:focus-visible {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--chirpui-accent) 42%, var(--chirpui-border));
+    box-shadow: var(--chirpui-elevation-theme-md);
+  }
+
+  .chirp-theme-home__proof {
+    padding-inline: clamp(1rem, 2vw, 1.5rem);
+  }
+
+  .chirp-theme-home__metric-grid .chirpui-metric-card {
+    border: 1px solid color-mix(in srgb, var(--chirpui-border) 88%, transparent);
+    background: color-mix(in srgb, var(--chirpui-surface) 92%, transparent);
+    box-shadow: var(--fura-effect-card-shadow, none);
+  }
+
+  .chirp-theme-home__metric-grid .chirpui-stat__value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chirp-theme-home__content {
+    max-width: min(var(--chirpui-container-max), calc(100vw - 1.5rem));
+    margin-inline: auto;
+    padding: clamp(1.5rem, 3vw, 2.5rem) clamp(1rem, 2vw, 1.5rem) var(--space-12);
+  }
+
+  @media (max-width: 1024px) {
+    .chirp-theme-home__hero-stage {
+      gap: clamp(1.25rem, 4vw, 2rem);
+    }
+
+    .chirp-theme-home__product-visual {
+      min-height: 22rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .chirp-theme-home__hero .chirpui-hero__title {
+      max-width: none;
+      font-size: clamp(2.35rem, 9vw, 3.25rem);
+    }
+
+    .chirp-theme-home__hero-points {
+      gap: 0.5rem;
+    }
+
+    .chirp-theme-home__proof {
+      padding-inline: 1rem;
+    }
+  }
+
+  .chirp-theme-develop__grid {
+    display: grid;
+    gap: 0.65rem;
+    padding-inline: clamp(1rem, 2vw, 1.5rem);
+  }
+
+  .chirp-theme-develop__grid .chirp-theme-shell__mega-item {
+    border: 1px solid color-mix(in srgb, var(--chirpui-border) 88%, transparent);
+    border-radius: var(--chirpui-radius-md, 0.5rem);
+    background: color-mix(in srgb, var(--chirpui-surface) 94%, transparent);
+  }
+
+  .chirp-theme-develop__preview {
+    padding-inline: clamp(1rem, 2vw, 1.5rem);
+  }
+
+  .chirp-theme-develop__preview-meta {
+    display: grid;
+    gap: 0.35rem;
+    margin-block-end: 0.85rem;
+    font-size: var(--chirpui-font-sm);
+    color: var(--chirpui-text-muted);
+  }
+
+  .chirp-theme-develop__preview-meta p {
+    margin: 0;
+  }
+
+  .chirp-theme-develop__sample {
+    margin: 0;
+    padding: 1rem;
+    max-block-size: min(32rem, 55vh);
+    overflow: auto;
+    border: 1px solid var(--chirpui-border);
+    border-radius: var(--chirpui-radius-md, 0.5rem);
+    background: color-mix(in srgb, var(--chirpui-bg) 92%, var(--chirpui-surface));
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}

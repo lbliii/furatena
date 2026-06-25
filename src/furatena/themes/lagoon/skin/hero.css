@@ -1,0 +1,41 @@
+@layer docs.overrides {
+  /*
+   * Docs hero — structural parity with chirp-ui docs (section accent rail).
+   * Colors come from lagoon tokens (--color-primary*) in tokens.css.
+   */
+  .chirp-theme-docs-layout__hero {
+    padding: 0.6rem 0 0.9rem 1.05rem;
+    border: 0;
+    border-radius: 0;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-primary-light) 46%, transparent),
+      transparent 72%
+    );
+    box-shadow: var(--fura-effect-hero-shadow, none);
+  }
+
+  .chirp-theme-docs-layout__hero::before {
+    content: "";
+    position: absolute;
+    inset: 0.75rem auto 0.9rem 0;
+    width: 0.25rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+  }
+
+  .chirp-theme-docs-layout__hero .chirpui-hero__inner {
+    padding: 0;
+  }
+
+  .chirp-theme-docs-layout__hero .chirpui-hero__inner::before {
+    display: none;
+  }
+
+  .chirp-theme-docs-layout__hero .chirpui-hero__metadata {
+    border-radius: 999px;
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    border: 0;
+  }
+}

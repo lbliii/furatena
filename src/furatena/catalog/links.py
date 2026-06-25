@@ -10,6 +10,51 @@ from kida.template import Markup
 
 _OPENING_A_RE = re.compile(r'<a\s+href="(/[^"#][^"]*)"([^>]*)>', re.IGNORECASE)
 _URI_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+_ASSET_PATH_SUFFIXES = (".json", ".txt", ".xml", ".inv")
+_ASSET_PATHS = frozenset(
+    {
+        "/objects.inv",
+        "/inventories.json",
+        "/meta.json",
+        "/surface.json",
+        "/sitemap.xml",
+    }
+)
+
+
+def is_shell_boost_href(href: str) -> bool:
+    """Return False for machine-readable exports that must not use htmx shell boost."""
+    if not isinstance(href, str) or not href.startswith("/") or href.startswith("//"):
+        return False
+    path = href.split("?", 1)[0].split("#", 1)[0]
+    if path in _ASSET_PATHS:
+        return False
+    return not any(path.endswith(suffix) for suffix in _ASSET_PATH_SUFFIXES)
+
+
+def shell_boost_attrs() -> dict[str, object]:
+    """Default htmx attrs for in-app doc navigation."""
+    return {
+        "hx-boost": "true",
+        "hx-target": "#main",
+        "hx-swap": "innerHTML",
+        "hx-select": "#page-root",
+        "hx-sync": "#main:replace",
+    }
+
+
+def shell_unboost_attrs() -> dict[str, object]:
+    """Opt out of inherited ``#main`` htmx boost for full-page asset responses."""
+    return {"hx-boost": "false"}
+
+
+def shell_link_attrs(href: str) -> dict[str, object]:
+    """Route-aware shell attrs for templates and ``boost_doc_links``."""
+    if not isinstance(href, str) or not href.startswith("/") or href.startswith("//"):
+        return {}
+    if is_shell_boost_href(href):
+        return shell_boost_attrs()
+    return shell_unboost_attrs()
 
 
 def _render_attr_string(attrs: dict[str, object]) -> str:

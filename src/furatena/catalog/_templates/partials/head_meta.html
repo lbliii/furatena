@@ -19,7 +19,7 @@
 {% end %}
 {% end %}
 {% else %}
-<meta name="description" content="Chirp documentation — hypermedia docs as data, HTML over the wire.">
-<meta property="og:title" content="Furatena">
-<meta property="og:description" content="Chirp documentation — hypermedia docs as data, HTML over the wire.">
+<meta name="description" content="{{ site_description | default('Furatena documentation — markdown indexed live, served as htmx fragments.') }}">
+<meta property="og:title" content="{{ site_name | default('Furatena') }}">
+<meta property="og:description" content="{{ site_description | default('Furatena documentation — markdown indexed live, served as htmx fragments.') }}">
 {% end %}

@@ -6,13 +6,13 @@
   L1: minimal #main outlet + boost contract (Page.mounted → #page-root)
   L3: page chrome lives in views (docs layout, site nav, hero) inside #page-root
 #}
-{% extends "chirp/layouts/shell.html" %}
+{% extends "layouts/fura_shell.html" %}
 {% from "chirpui/shell_frame.html" import shell_runtime_script, shell_outlet_attrs %}
 {% from "chirpui/toast.html" import toast_container %}
 
 {% block lang %}{{ html_lang | default('en') }}{% end %}
 
-{% block title %}{% if node is defined and node %}{{ node.title }}{% else %}Furatena{% end %}{% end %}
+{% block title %}{% if error_title is defined %}{{ error_title }}{% elif node is defined and node %}{{ node.title }}{% else %}{{ site_name | default('Furatena') }}{% end %}{% end %}
 
 {% block head %}
 {% if csrf_token is defined %}
@@ -21,14 +21,14 @@
 <link rel="stylesheet" href="/static/chirpui.css">
 <link rel="stylesheet" href="/static/chirpui-transitions.css">
 <script nonce="{{ csp_nonce() }}">
-(function(){var T=["system","light","dark","oled"];var t=localStorage.getItem("chirpui-theme");if(T.indexOf(t)<0){t="system";}var s=localStorage.getItem("chirpui-style")||"default";document.documentElement.setAttribute("data-theme",t);document.documentElement.setAttribute("data-style",s);})();
+(function(){var T=["system","light","dark","oled"];var t=localStorage.getItem("chirpui-theme");if(T.indexOf(t)<0){t="system";}var s=localStorage.getItem("chirpui-style")||"default";var root=document.documentElement;root.setAttribute("data-theme",t);root.setAttribute("data-style",s);root.setAttribute("data-fura-effects-code","{{ fura_effects_code | default('flat') }}");root.setAttribute("data-fura-effects-cards","{{ fura_effects_cards | default('flat') }}");root.setAttribute("data-fura-effects-hero","{{ fura_effects_hero | default('wash') }}");})();
 </script>
 {% block head_extra %}
 {% include "partials/docs_head_assets.html" %}
 {% end %}
 {% end %}
 
-{% block body_before %}
+{% block shell %}
 <script nonce="{{ csp_nonce() }}">
 document.body.classList.add("chirp-theme-shell", "fura-root", "fura-surface--{{ chirp_docs_surface | default('app') }}");
 {% if node is defined and node %}
@@ -38,9 +38,6 @@ document.body.setAttribute("data-fura-slug", "{{ node.slug }}");
 document.body.classList.add("chirp-theme-shell--rail-only");
 {% endif %}
 </script>
-{% end %}
-
-{% block shell %}
 {% include "partials/search_modal.html" %}
 <main id="main" class="fura-main"
       data-chirp-scroll="auto" tabindex="-1"

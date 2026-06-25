@@ -39,7 +39,7 @@ def embedding_index(registry: CatalogRegistry) -> EmbeddingIndex:
 
 class TestWave8GraphPlatform:
     def test_node_ids_include_mount_and_edition(self, registry: CatalogRegistry) -> None:
-        node = registry.get("/docs/get-started/installation/")
+        node = registry.get("/chirp/docs/get-started/installation/")
         assert node is not None
         assert node.mount == "chirp"
         assert node.node_id == make_node_id("chirp", registry.active_channel, node.slug)
@@ -59,7 +59,7 @@ class TestWave8GraphPlatform:
         assert EdgeKind.PARENT.value in kinds
 
     def test_backlinks_scoped_to_mount(self, registry: CatalogRegistry) -> None:
-        chirp_node = registry.get("/docs/about/architecture/")
+        chirp_node = registry.get("/chirp/docs/about/architecture/")
         assert chirp_node is not None
         for ref in registry.backlinks_for(chirp_node):
             target = registry.get(ref["href"])
@@ -69,7 +69,7 @@ class TestWave8GraphPlatform:
     def test_portal_mounts_lists_shards(self, registry: CatalogRegistry) -> None:
         mounts = registry.portal_mounts()
         ids = {item["id"] for item in mounts}
-        assert ids == {"chirp", "shared"}
+        assert ids == {"chirp", "furatena", "shared"}
 
 
 class TestWave8LazyFrozen:

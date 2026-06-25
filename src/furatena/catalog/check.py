@@ -62,7 +62,7 @@ def check_broken_internal_links(catalog: CatalogLike) -> list[str]:
             href = normalize_internal_url(str(link["href"]))
             if href is None or not should_validate_catalog_link(href, catalog):
                 continue
-            target = _resolve_catalog_target(catalog, href)
+            target = _resolve_catalog_target(catalog, href, source=node)
             if target is None:
                 location = _format_location(node, link.get("line"))
                 label = link.get("text") or href
@@ -216,7 +216,7 @@ def check_cross_edition_links(
             href = normalize_internal_url(str(link["href"]))
             if href is None or not should_validate_catalog_link(href, catalog):
                 continue
-            target = _resolve_catalog_target(catalog, href)
+            target = _resolve_catalog_target(catalog, href, source=node)
             if target is None:
                 continue
             if target.edition == node.edition:
@@ -288,6 +288,11 @@ def check_catalog(
         )
         errors.extend(view_errors)
         warnings.extend(view_warnings)
+        from furatena.catalog.theme_lint import check_theme_assets
+
+        theme_errors, theme_warnings = check_theme_assets(docs)
+        errors.extend(theme_errors)
+        warnings.extend(theme_warnings)
     errors.extend(check_dcp_schema(catalog))
     return sorted(errors), sorted(warnings)
 
@@ -301,13 +306,69 @@ def check_dcp_schema(catalog: CatalogLike) -> list[str]:
     return validate_catalog_graph(catalog)
 
 
-def _resolve_catalog_target(catalog: CatalogLike, href: str) -> DocNode | None:
-    """Resolve an internal href, including common ``/_index/`` aliases."""
+def _mount_prefixed_href(catalog: CatalogLike, href: str, mount_id: str) -> str | None:
+    """When *mount_id* uses a URL prefix, map default-path links to that mount."""
+    mounts = getattr(catalog, "mounts", None)
+    if not mounts:
+        return None
+    mount = next((item for item in mounts if item.id == mount_id), None)
+    if mount is None or not mount.url_prefix:
+        return None
+    prefix = mount.url_prefix.rstrip("/")
+    normalized = href if href.startswith("/") else f"/{href}"
+    if normalized == prefix or normalized.startswith(f"{prefix}/"):
+        return None
+    return f"{prefix}{normalized}"
+
+
+def _resolve_catalog_target(
+    catalog: CatalogLike,
+    href: str,
+    *,
+    source: DocNode | None = None,
+) -> DocNode | None:
+    """Resolve an internal href, including mount prefixes and ``/_index/`` aliases."""
     target = catalog.get(href)
     if target is not None:
         return target
+    if source is not None:
+        prefixed = _mount_prefixed_href(catalog, href, source.mount)
+        if prefixed is not None:
+            target = catalog.get(prefixed)
+            if target is not None:
+                return target
+    mounts = getattr(catalog, "mounts", None)
+    if mounts:
+        for mount in mounts:
+            if source is not None and mount.id == source.mount:
+                continue
+            prefixed = _mount_prefixed_href(catalog, href, mount.id)
+            if prefixed is None:
+                continue
+            target = catalog.get(prefixed)
+            if target is not None:
+                return target
     if href.endswith("/_index/"):
-        return catalog.get(href[: -len("_index/")])
+        shortened = href[: -len("_index/")]
+        target = catalog.get(shortened)
+        if target is not None:
+            return target
+        if source is not None:
+            prefixed = _mount_prefixed_href(catalog, shortened, source.mount)
+            if prefixed is not None:
+                target = catalog.get(prefixed)
+                if target is not None:
+                    return target
+            if mounts:
+                for mount in mounts:
+                    if mount.id == source.mount:
+                        continue
+                    prefixed = _mount_prefixed_href(catalog, shortened, mount.id)
+                    if prefixed is None:
+                        continue
+                    target = catalog.get(prefixed)
+                    if target is not None:
+                        return target
     return None
 
 

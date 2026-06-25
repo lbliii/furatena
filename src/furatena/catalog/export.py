@@ -166,9 +166,9 @@ def surface_json() -> dict[str, Any]:
     }
 
 
-def llms_full_txt(catalog: DocCatalog) -> str:
+def llms_full_txt(catalog: DocCatalog, *, site_name: str = "Furatena") -> str:
     """Full LLM-safe corpus for agents (Patitas ``render_llm`` when AST is available)."""
-    lines = ["# Chirp Documentation (full corpus)", ""]
+    lines = [f"# {site_name} Documentation (full corpus)", ""]
     documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None)
     for node in catalog.doc_nodes():
         lines.extend((f"## {node.title}", ""))
@@ -301,13 +301,14 @@ def search_json_for_query(
     }
 
 
-def tools_manifest(catalog: DocCatalog, *, base_url: str = "") -> dict[str, Any]:
+def tools_manifest(catalog: DocCatalog, *, base_url: str = "", site_name: str = "Furatena") -> dict[str, Any]:
     """Stable MCP-style tool schema over the documentation catalog."""
     origin = base_url.rstrip("/")
+    tool_slug = "-".join(part for part in site_name.lower().split() if part) or "furatena"
     return {
         "schema_version": 1,
-        "name": "chirp-docs",
-        "description": "Search and retrieve Chirp documentation from the live catalog graph.",
+        "name": f"{tool_slug}-docs",
+        "description": f"Search and retrieve {site_name} documentation from the live catalog graph.",
         "catalog_url": f"{origin}/catalog.json" if origin else "/catalog.json",
         "search_url": f"{origin}/search.json" if origin else "/search.json",
         "llms_url": f"{origin}/llms.txt" if origin else "/llms.txt",

@@ -6,7 +6,26 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DOCS_TEMPLATES = Path(__file__).resolve().parents[1] / "_templates"
-DIRECTIVES_CSS = Path(__file__).resolve().parents[2] / "theme" / "directives.css"
+
+
+def _default_directives_css() -> Path:
+    """Resolve lagoon ``directives.css`` from the installed skin pack."""
+    from furatena.catalog.theme_pack import load_theme_pack
+
+    try:
+        path = load_theme_pack("lagoon").file("directives.css")
+        if path.is_file():
+            return path
+    except (LookupError, TypeError, ValueError):
+        pass
+    repo = Path(__file__).resolve().parents[4]
+    app_css = repo / "app" / "theme" / "directives.css"
+    if app_css.is_file():
+        return app_css
+    return Path(__file__).resolve().parents[2] / "themes" / "lagoon" / "directives.css"
+
+
+DIRECTIVES_CSS = _default_directives_css()
 
 
 @dataclass(frozen=True, slots=True)

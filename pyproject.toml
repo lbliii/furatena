@@ -28,7 +28,7 @@ classifiers = [
     "Topic :: Text Processing :: Markup",
 ]
 dependencies = [
-    "bengal-chirp[forms,sessions]>=0.8.1",
+    "bengal-chirp[forms,sessions]>=0.8.2",
     "chirp-ui>=0.11.0",
     "patitas[syntax]>=0.4.0",
     "pyyaml>=6.0",
@@ -47,6 +47,9 @@ dev = [
 [project.scripts]
 fura = "furatena.cli.main:main"
 
+[project.entry-points."furatena.themes"]
+lagoon = "furatena.themes.lagoon:PACK"
+
 [project.urls]
 Homepage = "https://github.com/lbliii/furatena"
 Repository = "https://github.com/lbliii/furatena"
@@ -55,16 +58,31 @@ Documentation = "https://github.com/lbliii/furatena/tree/main/docs"
 [tool.uv]
 python-preference = "only-managed"
 
-# Local Chirp development — point at your checkout until the next PyPI release.
-# Adjust the path for your machine or remove when consuming released chirp only.
-[tool.uv.sources]
-bengal-chirp = { path = "/Users/llane/conductor/workspaces/chirp/surabaya-v6", editable = true }
+# Optional: local Chirp co-development. Uncomment and set path on your machine.
+# [tool.uv.sources]
+# bengal-chirp = { path = "../chirp", editable = true }
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-"furatena.catalog" = ["py.typed", "schemas/*.json", "_templates/**/*.html"]
+"furatena.catalog" = [
+  "py.typed",
+  "schemas/*.json",
+  "_templates/**/*.html",
+  "vendor/*.js",
+]
+"furatena.themes.lagoon" = [
+  "*.css",
+  "skin/*.css",
+  "js/*.js",
+  "assets/fonts/*.woff2",
+]
+"furatena.themes.furatena" = [
+  "assets/css/**/*.css",
+  "assets/icons/**/*.svg",
+  "assets/icons/**/*.md",
+]
 
 [tool.ruff]
 line-length = 100

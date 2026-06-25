@@ -7,11 +7,10 @@
 #   compose     — multi-node view enrichment (collection read-throughs)
 #   theme       — tokens + styles + optional theme/templates/ shadow dir
 #   templates/  — sparse project overrides (wins over theme + framework)
+#   site        — product branding (name, home hero, top navigation copy)
 
 shell: shell.html
 
-# View kind → template. Keys match built-in kinds in catalog/view_kinds.py.
-# Override a single view: templates/views/doc.html (see VIEWS.md).
 views:
   doc: views/doc.html
   doc_list: views/doc_list.html
@@ -22,29 +21,61 @@ views:
   portal: views/portal.html
   default: views/doc.html
 
-# Per-slug view overrides (catalog slug, not URL)
-# overrides:
-#   docs/get-started/installation: views/landing.html
-
 compose:
   collection:
     data: ../data/collections.yaml
 
+# Outer catalog icon rail — optional explicit section order and metadata.
+# Omit ``sections`` to auto-detect top-level ``docs/<section>/`` folders from content.
+catalog:
+  sections:
+    - id: get-started
+      icon: book-open
+    - concepts
+    - authoring
+    - theming
+    - operations
+    - reference
+    - about
+
+site:
+  name: Furatena
+  tagline: Hypermedia documentation catalog
+  description: >
+    Furatena documentation — markdown indexed into a live graph, served as htmx
+    fragments inside a persistent shell.
+  mark: "𒀭"
+  home:
+    cta_primary:
+      label: Get started
+      href: /docs/get-started/
+    cta_secondary:
+      label: CLI reference
+      href: /docs/reference/cli/
+    visual:
+      title: Docs as data, HTML on demand.
+      description: >
+        Markdown indexed into a live graph — pages and fragments served through an
+        htmx shell without a static export loop.
+
 theme:
-  id: chirp
-  tokens: theme/tokens.css
-  styles: theme/styles.css
-  templates: theme/templates   # optional shadow dir for partials/directives
+  use: lagoon
+  id: furatena
+  templates: theme/templates
+  effects:
+    code: flat
+    cards: flat
+    hero: wash
+  measure:
+    prose: 80ch
+    reading: 76ch
+    docs: 80ch
+    container: 90rem
+  fonts:
+    sans: Inter
+    display: Inter
 
 mounts: mounts.yaml
 
 rewrites: ../data/url_rewrites.yaml
 inventories: inventories.yaml
-
-# Uncomment to enable multilingual docs (see I18N.md):
-# i18n:
-#   default_language: en
-#   languages:
-#     - { code: en, name: English }
-#     - { code: es, name: Español }
-# locales_dir: locales

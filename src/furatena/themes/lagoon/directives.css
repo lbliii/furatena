@@ -1,0 +1,1163 @@
+/* Directive skin — chirp-ui/Alpine markup styled with chirp-theme tokens. */
+@layer docs.directives {
+  /*
+   * Tabs (tab-set, code-tabs)
+   * Maps Alpine/chirpui-tabs onto the packaged theme's .tabs / .code-tabs look.
+   */
+  .chirp-theme-directive-tabs {
+    position: relative;
+    margin: var(--space-6, 1.5rem) 0;
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background-color: var(--color-bg-primary, var(--chirpui-surface));
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs > .chirpui-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--color-border-light, var(--chirpui-border));
+    background-color: var(--color-bg-secondary, var(--chirpui-surface-subtle, var(--chirpui-surface)));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem))
+      var(--radius-lg, var(--chirpui-radius-lg, 0.75rem)) 0 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab {
+    display: block;
+    flex: 0 0 auto;
+    margin-bottom: -1px;
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    color: var(--color-text-tertiary, var(--chirpui-text-muted));
+    font-weight: var(--weight-medium, 500);
+    font-size: var(--text-sm, 0.875rem);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab:hover {
+    color: var(--color-text-primary, var(--chirpui-text));
+    background-color: var(--color-bg-hover, color-mix(in srgb, var(--chirpui-accent) 8%, transparent));
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab--active {
+    color: var(--color-primary, var(--chirpui-accent));
+    background-color: var(--color-primary-light, color-mix(in srgb, var(--chirpui-accent) 12%, transparent));
+    font-weight: var(--weight-semibold, 600);
+    border-bottom-color: transparent;
+    position: relative;
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab--active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 40%, transparent) 0%,
+      var(--color-primary, var(--chirpui-accent)) 50%,
+      color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 40%, transparent) 100%
+    );
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panels {
+    padding: var(--space-4, 1rem);
+  }
+
+  /*
+   * Tab panels rely on Alpine x-show (inline display toggling). Do not set
+   * display:none here — it wins over x-show when Alpine clears inline style
+   * on the active panel, which hides every non-first tab ("By hand", etc.).
+   * x-cloak lives in styles.css (global Alpine guard).
+   */
+
+  .chirp-theme-directive-tabs .fura-tab-panel {
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs--code {
+    border-radius: var(--radius-md, var(--chirpui-radius-md, 0.5rem));
+  }
+
+  .chirp-theme-directive-tabs--code > .chirpui-tabs {
+    background: transparent;
+    padding-inline: var(--space-2, 0.5rem);
+    border-radius: var(--radius-md, var(--chirpui-radius-md, 0.5rem))
+      var(--radius-md, var(--chirpui-radius-md, 0.5rem)) 0 0;
+  }
+
+  .chirp-theme-directive-tabs--code .fura-tab-panels {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs--code .fura-tab-panel pre {
+    margin: 0;
+    border: none;
+    border-radius: 0 0 var(--radius-md, var(--chirpui-radius-md, 0.5rem))
+      var(--radius-md, var(--chirpui-radius-md, 0.5rem));
+  }
+
+  .chirp-theme-directive-tabs .chirpui-badge {
+    margin-inline-start: 0.35rem;
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Inline code in directive titles, labels, and captions */
+  :is(
+    .chirp-theme-directive-dropdown .chirpui-collapse__trigger-text,
+    .chirp-theme-directive-dropdown__description,
+    .chirp-theme-directive-admonition .chirpui-callout__title,
+    .chirp-theme-directive-steps__step .step-title,
+    .chirp-theme-directive-steps__step .step-description,
+    .chirp-theme-directive-tabs__label,
+    .chirp-theme-directive-card .chirpui-card__title,
+    .chirp-theme-directive-card .chirpui-card__body .chirpui-text-muted,
+    .chirp-theme-directive-related .chirpui-callout__title,
+    .chirp-theme-directive-table__caption,
+    .chirp-theme-directive-glossary__list dt
+  ) code {
+    padding: 0.125em 0.375em;
+    border-radius: var(--radius-sm, 0.25rem);
+    background-color: var(--color-bg-code, var(--chirpui-code-bg));
+    font-family: var(--font-mono, var(--chirpui-font-mono, ui-monospace, monospace));
+    font-size: 0.9em;
+    font-weight: var(--weight-normal, 400);
+    color: var(--color-code-text, var(--color-text-primary, var(--chirpui-text)));
+    white-space: nowrap;
+  }
+
+  /*
+   * Dropdown — chirpui-collapse styled like packaged details.dropdown
+   */
+  .chirp-theme-directive-dropdown.chirpui-collapse {
+    margin: var(--space-6, 1.5rem) 0;
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border: 1px solid var(--color-border, var(--chirpui-border));
+    border-inline-start: 4px solid var(--color-accent, var(--chirpui-accent));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background-color: var(--color-bg-secondary, var(--chirpui-surface-subtle, var(--chirpui-surface)));
+    box-shadow: var(--fura-effect-dropdown-shadow, none);
+    overflow: clip;
+    transition:
+      box-shadow 0.2s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .chirp-theme-directive-dropdown.chirpui-collapse:hover {
+    box-shadow: var(--fura-effect-dropdown-hover-shadow, none);
+  }
+
+  .chirp-theme-directive-dropdown.chirpui-collapse[open] {
+    background-color: var(--color-bg-primary, var(--chirpui-surface));
+    box-shadow: var(--fura-effect-dropdown-hover-shadow, none);
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger {
+    list-style: none;
+    cursor: pointer;
+    font-weight: var(--weight-semibold, 600);
+    font-size: var(--text-base, 1rem);
+    line-height: 1.35;
+    color: var(--color-text-primary, var(--chirpui-text));
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 0.75rem);
+    padding: 0;
+    position: relative;
+    user-select: none;
+    background: transparent;
+    transition: color 0.15s ease;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Suppress chirp-ui default chevron; theme uses __chevron in markup. */
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger::after {
+    content: none;
+    display: none;
+  }
+
+  .chirp-theme-directive-dropdown__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    align-self: center;
+    width: 1.625rem;
+    height: 1.625rem;
+    margin-inline-start: auto;
+    border-radius: var(--radius-full, 999px);
+    border: 1px solid var(--color-border-light, var(--chirpui-border-subtle, var(--chirpui-border)));
+    background-color: var(--color-bg-primary, var(--chirpui-surface));
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    font-size: 1.125rem;
+    font-weight: var(--weight-semibold, 600);
+    line-height: 1;
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--chirpui-on-accent, #fff) 35%, transparent);
+    transition:
+      transform 0.2s ease,
+      border-color 0.15s ease,
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .chirp-theme-directive-dropdown.chirpui-collapse[open] .chirp-theme-directive-dropdown__chevron {
+    transform: rotate(90deg);
+    border-color: color-mix(in srgb, var(--color-accent, var(--chirpui-accent)) 35%, var(--chirpui-border));
+    background-color: color-mix(in srgb, var(--color-accent, var(--chirpui-accent)) 10%, var(--chirpui-surface));
+    color: var(--color-accent, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger:hover {
+    color: var(--color-accent, var(--chirpui-accent));
+    background: transparent;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger:hover .chirp-theme-directive-dropdown__chevron {
+    border-color: color-mix(in srgb, var(--color-accent, var(--chirpui-accent)) 40%, var(--chirpui-border));
+    background-color: color-mix(in srgb, var(--color-accent, var(--chirpui-accent)) 8%, var(--chirpui-surface));
+    color: var(--color-accent, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger:focus-visible {
+    outline: 2px solid var(--color-accent, var(--chirpui-accent));
+    outline-offset: 3px;
+    border-radius: var(--radius-sm, 0.25rem);
+  }
+
+  .chirp-theme-directive-dropdown__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--radius-md, 0.5rem);
+    color: var(--color-accent, var(--chirpui-accent));
+    background: color-mix(in srgb, var(--color-accent, var(--chirpui-accent)) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-accent, var(--chirpui-accent)) 18%, transparent);
+  }
+
+  .chirp-theme-directive-dropdown__icon svg {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .chirp-theme-directive-dropdown__copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger-text {
+    letter-spacing: -0.01em;
+  }
+
+  .chirp-theme-directive-dropdown__description {
+    display: block;
+    font-size: var(--text-sm, 0.875rem);
+    font-weight: var(--weight-normal, 400);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    line-height: 1.45;
+  }
+
+  .chirp-theme-directive-dropdown__badge {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0.125rem 0.55rem;
+    font-size: var(--text-xs, 0.75rem);
+    font-weight: var(--weight-medium, 500);
+    line-height: 1.35;
+    color: var(--color-text-inverse, var(--chirpui-on-accent));
+    background-color: var(--color-accent, var(--chirpui-accent));
+    border-radius: var(--radius-full, 999px);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content {
+    margin: var(--space-4, 1rem) 0 0;
+    padding: var(--space-4, 1rem) 0 0;
+    border-top: 1px solid var(--color-border, var(--chirpui-border));
+    animation: fura-dropdown-content-in 0.22s ease-out;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content > :first-child {
+    margin-top: 0;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content > :last-child {
+    margin-bottom: 0;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content ul,
+  .chirp-theme-directive-dropdown .chirpui-collapse__content ol {
+    padding-inline-start: var(--space-6, 1.5rem);
+    margin: var(--space-3, 0.75rem) 0;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content ul {
+    list-style-type: disc;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content ol {
+    list-style-type: decimal;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content li {
+    margin: var(--space-1, 0.25rem) 0;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content p {
+    border-inline-start: none;
+    padding-inline-start: 0;
+    background: transparent;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content .chirp-theme-directive-dropdown.chirpui-collapse {
+    margin-block: var(--space-3, 0.75rem);
+    font-size: var(--text-sm, 0.875rem);
+  }
+
+  @keyframes fura-dropdown-content-in {
+    from {
+      opacity: 0;
+      transform: translateY(-0.35rem);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .chirp-theme-directive-dropdown--success {
+    border-inline-start-color: var(--color-success, var(--chirpui-success, #22c55e));
+  }
+
+  .chirp-theme-directive-dropdown--success .chirpui-collapse__trigger {
+    color: var(--color-success-text, var(--chirpui-text));
+  }
+
+  .chirp-theme-directive-dropdown--success .chirp-theme-directive-dropdown__icon {
+    color: var(--color-success, var(--chirpui-success));
+    background: color-mix(in srgb, var(--color-success, var(--chirpui-success)) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-success, var(--chirpui-success)) 22%, transparent);
+  }
+
+  .chirp-theme-directive-dropdown--success .chirp-theme-directive-dropdown__badge {
+    background-color: var(--color-success, var(--chirpui-success));
+  }
+
+  .chirp-theme-directive-dropdown--success.chirpui-collapse[open] {
+    background-color: var(--color-success-bg, color-mix(in srgb, var(--chirpui-success) 8%, var(--chirpui-surface)));
+  }
+
+  .chirp-theme-directive-dropdown--warning {
+    border-inline-start-color: var(--color-warning, var(--chirpui-warning, #eab308));
+  }
+
+  .chirp-theme-directive-dropdown--warning .chirpui-collapse__trigger {
+    color: var(--color-warning-text, var(--chirpui-text));
+  }
+
+  .chirp-theme-directive-dropdown--warning .chirp-theme-directive-dropdown__icon {
+    color: var(--color-warning, var(--chirpui-warning));
+    background: color-mix(in srgb, var(--color-warning, var(--chirpui-warning)) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-warning, var(--chirpui-warning)) 22%, transparent);
+  }
+
+  .chirp-theme-directive-dropdown--warning .chirp-theme-directive-dropdown__badge {
+    background-color: var(--color-warning, var(--chirpui-warning));
+    color: var(--color-text-primary, var(--chirpui-text));
+  }
+
+  .chirp-theme-directive-dropdown--warning.chirpui-collapse[open] {
+    background-color: var(--color-warning-bg, color-mix(in srgb, var(--chirpui-warning) 10%, var(--chirpui-surface)));
+  }
+
+  .chirp-theme-directive-dropdown--danger {
+    border-inline-start-color: var(--color-error, var(--chirpui-danger, #ef4444));
+  }
+
+  .chirp-theme-directive-dropdown--danger .chirpui-collapse__trigger {
+    color: var(--color-error-text, var(--chirpui-text));
+  }
+
+  .chirp-theme-directive-dropdown--danger .chirp-theme-directive-dropdown__icon {
+    color: var(--color-error, var(--chirpui-danger));
+    background: color-mix(in srgb, var(--color-error, var(--chirpui-danger)) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-error, var(--chirpui-danger)) 22%, transparent);
+  }
+
+  .chirp-theme-directive-dropdown--danger .chirp-theme-directive-dropdown__badge {
+    background-color: var(--color-error, var(--chirpui-danger));
+  }
+
+  .chirp-theme-directive-dropdown--danger.chirpui-collapse[open] {
+    background-color: var(--color-error-bg, color-mix(in srgb, var(--chirpui-danger) 8%, var(--chirpui-surface)));
+  }
+
+  .chirp-theme-directive-dropdown--info {
+    border-inline-start-color: var(--color-info, var(--chirpui-info, var(--chirpui-accent)));
+  }
+
+  .chirp-theme-directive-dropdown--info .chirpui-collapse__trigger {
+    color: var(--color-info-text, var(--chirpui-text));
+  }
+
+  .chirp-theme-directive-dropdown--info .chirp-theme-directive-dropdown__icon {
+    color: var(--color-info, var(--chirpui-info, var(--chirpui-accent)));
+    background: color-mix(in srgb, var(--color-info, var(--chirpui-info, var(--chirpui-accent))) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-info, var(--chirpui-info, var(--chirpui-accent))) 22%, transparent);
+  }
+
+  .chirp-theme-directive-dropdown--info .chirp-theme-directive-dropdown__badge {
+    background-color: var(--color-info, var(--chirpui-info, var(--chirpui-accent)));
+  }
+
+  .chirp-theme-directive-dropdown--info.chirpui-collapse[open] {
+    background-color: var(--color-info-bg, color-mix(in srgb, var(--chirpui-accent) 8%, var(--chirpui-surface)));
+  }
+
+  /*
+   * Steps — lagoon timeline markers and connectors
+   */
+  .chirp-theme-directive-steps.steps {
+    margin-block: var(--space-8, 2rem);
+    --step-marker-size: 2rem;
+    --step-line-width: 2px;
+    --step-spacing: var(--space-8, 2rem);
+  }
+
+  .chirp-theme-directive-steps.steps > ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .chirp-theme-directive-steps.steps > ol > li,
+  .chirp-theme-directive-steps__step {
+    position: relative;
+    padding-inline-start: calc(var(--step-marker-size) + var(--space-4, 1rem));
+    margin-bottom: var(--step-spacing);
+  }
+
+  .chirp-theme-directive-steps.steps > ol > li:last-child,
+  .chirp-theme-directive-steps__step:last-child {
+    margin-bottom: 0;
+  }
+
+  .chirp-theme-directive-steps.steps > ol > li::after,
+  .chirp-theme-directive-steps__step::after {
+    content: "";
+    position: absolute;
+    left: calc(var(--step-marker-size) / 2);
+    top: var(--step-marker-size);
+    bottom: calc(var(--step-spacing) * -1);
+    width: var(--step-line-width);
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 55%, var(--chirpui-border)) 0%,
+      var(--color-border, var(--chirpui-border)) 100%
+    );
+    transform: translateX(-50%);
+    opacity: 0.65;
+  }
+
+  .chirp-theme-directive-steps.steps > ol > li:last-child::after,
+  .chirp-theme-directive-steps__step:last-child::after {
+    display: none;
+  }
+
+  .chirp-theme-directive-steps .step-marker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--step-marker-size);
+    height: var(--step-marker-size);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full, 999px);
+    border: 2px solid var(--color-primary, var(--chirpui-accent));
+    background: var(--color-bg-primary, var(--chirpui-surface));
+    color: var(--color-primary, var(--chirpui-accent));
+    font-weight: var(--weight-bold, 700);
+    font-size: var(--text-sm, 0.875rem);
+    text-decoration: none;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease,
+      box-shadow 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .chirp-theme-directive-steps .step-marker:hover {
+    background: var(--color-primary, var(--chirpui-accent));
+    color: var(--chirpui-on-accent, #fff);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 16%, transparent);
+  }
+
+  .chirp-theme-directive-steps__step.step-optional > .step-marker {
+    border-style: dashed;
+    border-color: var(--color-text-muted, var(--chirpui-text-muted));
+    color: var(--color-text-muted, var(--chirpui-text-muted));
+  }
+
+  .chirp-theme-directive-steps__step .step-title {
+    margin: 0 0 var(--space-2, 0.5rem);
+    font-size: var(--text-lg, 1.125rem);
+    font-weight: var(--weight-bold, 700);
+    color: var(--color-text-primary, var(--chirpui-text));
+    letter-spacing: -0.01em;
+  }
+
+  .chirp-theme-directive-steps__step .step-description {
+    margin: 0 0 var(--space-3, 0.75rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    line-height: 1.55;
+  }
+
+  .chirp-theme-directive-steps__step .step-metadata {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    margin-bottom: var(--space-2, 0.5rem);
+  }
+
+  .chirp-theme-directive-steps__step .step-badge-optional {
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-full, 999px);
+    font-size: var(--text-xs, 0.75rem);
+    font-weight: var(--weight-medium, 500);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-warning, var(--chirpui-warning));
+    background: color-mix(in srgb, var(--color-warning, var(--chirpui-warning)) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-warning, var(--chirpui-warning)) 28%, transparent);
+  }
+
+  .chirp-theme-directive-steps__step .step-duration {
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-muted, var(--chirpui-text-muted));
+  }
+
+  /*
+   * Figure — framed media with caption
+   */
+  .chirp-theme-directive-figure.figure {
+    margin-block: var(--space-6, 1.5rem);
+    padding: var(--space-3, 0.75rem);
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    box-shadow: var(--fura-effect-card-shadow, none);
+  }
+
+  .chirp-theme-directive-figure.figure img,
+  .chirp-theme-directive-figure .figure__img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md, var(--chirpui-radius-md, 0.5rem));
+  }
+
+  .chirp-theme-directive-figure .figure__caption {
+    margin-top: var(--space-3, 0.75rem);
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    text-align: center;
+    line-height: 1.45;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chirp-theme-directive-tabs .chirpui-tab,
+    .chirp-theme-directive-dropdown__chevron,
+    .chirp-theme-directive-dropdown .chirpui-collapse__content,
+    .chirp-theme-directive-glossary__chevron,
+    .chirp-theme-directive-card.chirpui-card,
+    .chirp-theme-directive-card.chirpui-resource-card,
+    .chirp-theme-directive-steps .step-marker {
+      transition: none;
+      animation: none;
+    }
+
+    .chirp-theme-directive-card.chirpui-card--link:hover,
+    .chirp-theme-directive-card.chirpui-resource-card:hover,
+    a.chirp-theme-directive-card.chirpui-card--link:hover {
+      transform: none;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .chirp-theme-directive-dropdown.chirpui-collapse {
+      padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+      margin: var(--space-4, 1rem) 0;
+    }
+
+    .chirp-theme-directive-dropdown .chirpui-collapse__trigger {
+      font-size: var(--text-sm, 0.875rem);
+    }
+
+    .chirp-theme-directive-dropdown .chirpui-collapse__content {
+      margin-top: var(--space-3, 0.75rem);
+      padding-top: var(--space-3, 0.75rem);
+    }
+  }
+
+  /* Code blocks — Rosettes + server-rendered code-block-wrapper */
+  .chirp-theme-docs-layout__content .rosettes {
+    position: relative;
+    margin-block: var(--space-6, 1.5rem);
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-radius: var(--radius-2xl, 1rem);
+    background-color: var(--color-bg-code, var(--chirpui-code-bg));
+    box-shadow: var(--fura-effect-code-wrapper-shadow, var(--elevation-card, var(--chirpui-shadow-sm)));
+    overflow: visible;
+  }
+
+  [data-theme="dark"] .chirp-theme-docs-layout__content .rosettes {
+    border-color: var(--color-border-light, var(--chirpui-border));
+  }
+
+  .chirp-theme-docs-layout__content .rosettes > pre {
+    margin-block: 0;
+    border: none;
+    border-radius: inherit;
+    box-shadow: var(--fura-effect-code-inner-shadow, none);
+    animation: var(--fura-effect-code-inner-animation, none);
+  }
+
+  .chirp-theme-docs-layout__content .rosettes .code-block-wrapper {
+    margin: 0;
+    border: none;
+    box-shadow: var(--fura-effect-code-inner-shadow, none);
+    animation: var(--fura-effect-code-inner-animation, none);
+    border-radius: inherit;
+    /* Keep visible so copy-button ::after tooltips can paint above the block. */
+    overflow: visible;
+  }
+
+  .chirp-theme-docs-layout__content .rosettes .code-block-wrapper pre {
+    border-radius: inherit;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .chirp-theme-docs-layout__content .rosettes .code-header-inline {
+    overflow: visible;
+    z-index: 2;
+  }
+
+  /* Code-tabs panels: Rosettes wrapper or bare pre both get theme chrome */
+  .chirp-theme-directive-tabs .fura-tab-panel > .rosettes,
+  .chirp-theme-directive-tabs .fura-tab-panel > pre {
+    margin: 0;
+    border-radius: 0 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem);
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel > pre {
+    border: none;
+    box-shadow: var(--fura-effect-code-inner-shadow, none);
+    animation: var(--fura-effect-code-inner-animation, none);
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel > .rosettes {
+    border: none;
+    border-radius: 0 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem);
+    box-shadow: var(--fura-effect-code-wrapper-shadow, none);
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper {
+    margin: 0;
+    border: none;
+    border-radius: 0 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem);
+    box-shadow: var(--fura-effect-code-inner-shadow, none);
+    animation: var(--fura-effect-code-inner-animation, none);
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper pre {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel .code-header-inline {
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    overflow: visible;
+    z-index: 2;
+  }
+
+  /*
+   * Admonitions — lagoon callout surfaces
+   */
+  .chirp-theme-directive-admonition.chirpui-callout {
+    margin-block: var(--space-6, 1.5rem);
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-inline-start-width: 4px;
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    box-shadow: var(--fura-effect-card-shadow, none);
+  }
+
+  .chirp-theme-directive-admonition .chirpui-callout__title {
+    font-weight: var(--weight-semibold, 600);
+    letter-spacing: -0.01em;
+  }
+
+  .chirp-theme-directive-admonition .chirpui-callout__body > :first-child {
+    margin-top: 0;
+  }
+
+  .chirp-theme-directive-admonition .chirpui-callout__body > :last-child {
+    margin-bottom: 0;
+  }
+
+  .chirp-theme-directive-admonition--note,
+  .chirp-theme-directive-admonition--info,
+  .chirp-theme-directive-admonition--important,
+  .chirp-theme-directive-admonition--seealso {
+    border-inline-start-color: var(--color-info, var(--chirpui-info, var(--chirpui-accent)));
+    background: color-mix(in srgb, var(--color-info, var(--chirpui-accent)) 8%, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-admonition--tip,
+  .chirp-theme-directive-admonition--success {
+    border-inline-start-color: var(--color-success, var(--chirpui-success));
+    background: color-mix(in srgb, var(--color-success, var(--chirpui-success)) 8%, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-admonition--example {
+    border-inline-start-color: var(--color-border-strong, var(--chirpui-border));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+  }
+
+  .chirp-theme-directive-admonition--warning,
+  .chirp-theme-directive-admonition--caution {
+    border-inline-start-color: var(--color-warning, var(--chirpui-warning));
+    background: color-mix(in srgb, var(--color-warning, var(--chirpui-warning)) 10%, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-admonition--danger,
+  .chirp-theme-directive-admonition--error {
+    border-inline-start-color: var(--color-error, var(--chirpui-danger));
+    background: color-mix(in srgb, var(--color-error, var(--chirpui-danger)) 8%, var(--chirpui-surface));
+  }
+
+  /*
+   * Cards — lagoon card grid and child-cards
+   */
+  .chirp-theme-directive-cards {
+    margin-block: var(--space-6, 1.5rem);
+  }
+
+  .chirp-theme-directive-card.chirpui-card,
+  .chirp-theme-directive-card.chirpui-resource-card {
+    block-size: 100%;
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background: var(--color-bg-primary, var(--chirpui-surface));
+    box-shadow: var(--fura-effect-card-shadow, none);
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .chirp-theme-directive-card.chirpui-card--link:hover,
+  .chirp-theme-directive-card.chirpui-resource-card:hover,
+  a.chirp-theme-directive-card.chirpui-card--link:hover {
+    border-color: color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 35%, var(--chirpui-border));
+    box-shadow: var(
+      --fura-effect-card-hover-shadow,
+      0 2px 8px color-mix(in srgb, var(--chirpui-text) 8%, transparent)
+    );
+    transform: translateY(-1px);
+  }
+
+  .chirp-theme-directive-card .chirpui-card__icon {
+    color: var(--color-primary, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-cards--children {
+    gap: var(--space-3, 0.75rem);
+  }
+
+  .chirp-theme-directive-card--child {
+    padding: var(--space-4, 1rem);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .chirp-theme-directive-card--child .chirpui-card__title {
+    font-weight: var(--weight-semibold, 600);
+    letter-spacing: -0.01em;
+  }
+
+  .chirp-theme-directive-card--child .chirpui-card__body {
+    padding-top: var(--space-2, 0.5rem);
+  }
+
+  .chirp-theme-directive-card--page {
+    border-inline-start: 3px solid var(--color-primary, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-card--section {
+    border-inline-start: 3px solid var(--color-accent, var(--chirpui-accent-secondary));
+  }
+
+  /*
+   * Related links — compact callout list
+   */
+  .chirp-theme-directive-related.chirpui-callout {
+    margin-block: var(--space-6, 1.5rem);
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-inline-start: 4px solid var(--color-primary, var(--chirpui-accent));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    box-shadow: var(--fura-effect-card-shadow, none);
+  }
+
+  .chirp-theme-directive-related .chirpui-callout__title {
+    font-weight: var(--weight-semibold, 600);
+    letter-spacing: -0.01em;
+  }
+
+  .chirp-theme-directive-related__links {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--space-2, 0.5rem);
+  }
+
+  .chirp-theme-directive-related__links a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    font-weight: var(--weight-medium, 500);
+    text-decoration: none;
+    color: var(--color-text-link, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-related__links a::before {
+    content: "→";
+    color: var(--color-text-muted, var(--chirpui-text-muted));
+  }
+
+  .chirp-theme-directive-related__links a:hover {
+    color: var(--color-text-link-hover, var(--chirpui-accent-hover));
+  }
+
+  /*
+   * Glossary — description list and collapsible variant
+   */
+  .chirp-theme-directive-glossary,
+  .chirp-theme-directive-glossary.chirpui-description-list {
+    margin-block: var(--space-6, 1.5rem);
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border: 1px solid var(--color-border, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    box-shadow: var(--fura-effect-card-shadow, none);
+  }
+
+  .chirp-theme-directive-glossary__list dt,
+  .chirp-theme-directive-glossary .chirpui-description-list__term {
+    font-weight: var(--weight-semibold, 600);
+    color: var(--color-text-primary, var(--chirpui-text));
+  }
+
+  .chirp-theme-directive-glossary__list dd,
+  .chirp-theme-directive-glossary .chirpui-description-list__detail {
+    margin-bottom: var(--space-3, 0.75rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    line-height: 1.55;
+  }
+
+  .chirp-theme-directive-glossary--collapsed {
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border-inline-start: 4px solid var(--color-primary, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-glossary__summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 0.75rem);
+    font-weight: var(--weight-semibold, 600);
+    user-select: none;
+  }
+
+  .chirp-theme-directive-glossary__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .chirp-theme-directive-glossary__summary-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chirp-theme-directive-glossary__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 1.625rem;
+    height: 1.625rem;
+    border-radius: var(--radius-full, 999px);
+    border: 1px solid var(--color-border-light, var(--chirpui-border-subtle, var(--chirpui-border)));
+    background: var(--color-bg-primary, var(--chirpui-surface));
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    font-size: 1.125rem;
+    font-weight: var(--weight-semibold, 600);
+    line-height: 1;
+    transition:
+      transform 0.2s ease,
+      border-color 0.15s ease,
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .chirp-theme-directive-glossary--collapsed[open] .chirp-theme-directive-glossary__chevron {
+    transform: rotate(90deg);
+    border-color: color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 35%, var(--chirpui-border));
+    background: color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 10%, var(--chirpui-surface));
+    color: var(--color-primary, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-glossary__content {
+    margin-top: var(--space-4, 1rem);
+    padding-top: var(--space-4, 1rem);
+    border-top: 1px solid var(--color-border, var(--chirpui-border));
+  }
+
+  .chirp-theme-directive-glossary__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem);
+    margin-top: var(--space-2, 0.5rem);
+  }
+
+  .chirp-theme-directive-glossary__tag {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-full, 999px);
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    background: var(--color-bg-primary, var(--chirpui-surface));
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+  }
+
+  .chirp-theme-glossary-term {
+    border-bottom: 1px dotted var(--color-primary, var(--chirpui-accent));
+    text-decoration: none;
+    cursor: help;
+  }
+
+  /*
+   * Embeds — framed media blocks
+   */
+  .chirp-theme-directive-embed {
+    margin-block: var(--space-6, 1.5rem);
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg));
+    overflow: hidden;
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    box-shadow: var(--fura-effect-card-shadow, none);
+  }
+
+  .chirp-theme-directive-embed--youtube iframe {
+    display: block;
+    border-radius: inherit;
+  }
+
+  .chirp-theme-directive-embed--gist {
+    padding: var(--space-3, 0.75rem);
+  }
+
+  /*
+   * Tables (list-table)
+   */
+  .chirp-theme-directive-table {
+    margin-block: var(--space-6, 1.5rem);
+    overflow-x: auto;
+  }
+
+  .chirp-theme-directive-table__caption {
+    margin: 0 0 var(--space-2, 0.5rem);
+    font-size: var(--text-sm, 0.875rem);
+    font-weight: var(--weight-semibold, 600);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+  }
+
+  .chirp-theme-directive-table.chirpui-table {
+    width: 100%;
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    background: var(--color-bg-primary, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-table .chirpui-table__head .chirpui-table__th {
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    font-weight: var(--weight-semibold, 600);
+    color: var(--color-text-primary, var(--chirpui-text));
+    border-bottom: 1px solid var(--color-border, var(--chirpui-border));
+  }
+
+  .chirp-theme-directive-table .chirpui-table__th,
+  .chirp-theme-directive-table .chirpui-table__td {
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    border-bottom: 1px solid var(--color-border-light, var(--chirpui-border-subtle, var(--chirpui-border)));
+    vertical-align: top;
+  }
+
+  .chirp-theme-directive-table .chirpui-table__row:last-child .chirpui-table__td {
+    border-bottom: none;
+  }
+
+  .chirp-theme-directive-table .table-empty {
+    color: var(--color-text-muted, var(--chirpui-text-muted));
+  }
+
+  /*
+   * Version callouts — lagoon surfaces (override packaged glow)
+   */
+  .chirp-theme-directive-version.version-directive {
+    margin-block: var(--space-6, 1.5rem);
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-inline-start-width: 4px;
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    box-shadow: var(--fura-effect-card-shadow, none);
+    animation: none;
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-version.version-directive::before {
+    display: none;
+  }
+
+  .chirp-theme-directive-version.version-directive:hover::before {
+    display: none;
+  }
+
+  .chirp-theme-directive-version--since {
+    border-inline-start-color: var(--color-success, var(--chirpui-success));
+    background: color-mix(in srgb, var(--color-success, var(--chirpui-success)) 8%, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-version--deprecated {
+    border-inline-start-color: var(--color-warning, var(--chirpui-warning));
+    background: color-mix(in srgb, var(--color-warning, var(--chirpui-warning)) 10%, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-version--changed {
+    border-inline-start-color: var(--color-info, var(--chirpui-info, var(--chirpui-accent)));
+    background: color-mix(in srgb, var(--color-info, var(--chirpui-accent)) 8%, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-version .version-badge {
+    box-shadow: none;
+    border-radius: var(--radius-full, 999px);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: var(--text-xs, 0.75rem);
+  }
+
+  .chirp-theme-directive-version .version-badge:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .chirp-theme-directive-version .version-directive-content > :first-child {
+    margin-top: var(--space-3, 0.75rem);
+  }
+
+  /*
+   * literalinclude figures
+   */
+  .chirp-theme-directive-figure--code {
+    margin-block: var(--space-6, 1.5rem);
+    padding: var(--space-3, 0.75rem);
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+    box-shadow: var(--fura-effect-card-shadow, none);
+  }
+
+  .chirp-theme-directive-figure--code .code-block-wrapper,
+  .chirp-theme-directive-figure--code .rosettes .code-block-wrapper {
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-figure--code .code-header-inline,
+  .chirp-theme-directive-figure--code .rosettes .code-header-inline {
+    overflow: visible;
+    z-index: 2;
+  }
+
+  .chirp-theme-directive-figure--code .chirp-theme-directive-figure__caption,
+  .chirp-theme-directive-figure--code > figcaption {
+    margin-bottom: var(--space-2, 0.5rem);
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+  }
+
+  .chirp-theme-directive-dropdown--minimal {
+    border: none;
+    border-inline-start: 3px solid var(--color-border, var(--chirpui-border));
+    background-color: transparent;
+    padding-inline-start: var(--space-4, 1rem);
+    box-shadow: none;
+  }
+
+  .chirp-theme-directive-dropdown--minimal:hover,
+  .chirp-theme-directive-dropdown--minimal.chirpui-collapse[open] {
+    box-shadow: none;
+  }
+
+  .chirp-theme-directive-dropdown--minimal.chirpui-collapse[open] {
+    background-color: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+  }
+
+  .chirp-theme-directive-dropdown--minimal .chirp-theme-directive-dropdown__icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    background: transparent;
+    border-color: transparent;
+  }
+}
