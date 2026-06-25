@@ -1,0 +1,33 @@
+{% block error_suggest %}
+{% if hits | length > 0 %}
+<ul class="fura-error__suggest-list" role="listbox" aria-label="Suggested pages">
+  {% for hit in hits %}
+  {% set hit_href = search_hit_url(hit) %}
+  {% set hit_heading = search_hit_heading(hit) %}
+  <li class="fura-error__suggest-item">
+    <a class="fura-error__suggest-link"
+       href="{{ hit_href }}"
+       role="option"{{ route_link_attrs(hit_href) | html_attrs }}>
+      <span class="fura-error__suggest-title">{{ hit.node.title }}</span>
+      {% if hit.semantic_score > 0 and hit.keyword_score == 0 %}
+      <span class="fura-error__suggest-badge fura-error__suggest-badge--semantic">Related</span>
+      {% elif hit.node.section %}
+      <span class="fura-error__suggest-badge">{{ hit.node.section }}</span>
+      {% end %}
+      {% if hit_heading %}
+      <span class="fura-error__suggest-snippet">{{ hit_heading }}</span>
+      {% elif hit.snippet %}
+      <span class="fura-error__suggest-snippet">{{ hit.snippet }}</span>
+      {% elif hit.node.description %}
+      <span class="fura-error__suggest-snippet">{{ hit.node.description }}</span>
+      {% end %}
+    </a>
+  </li>
+  {% end %}
+</ul>
+{% elif search_query %}
+<p class="fura-error__suggest-empty">No close matches for “{{ search_query }}”.</p>
+{% else %}
+<p class="fura-error__suggest-empty">Start typing to search the catalog.</p>
+{% end %}
+{% end %}

@@ -1,13 +1,28 @@
 terms:
+  - term: Furatena
+    definition: Hypermedia documentation catalog — markdown indexed into a live graph, served as htmx fragments inside a persistent shell.
+    tags: [furatena, product]
+  - term: Fura
+    definition: CLI shorthand for Furatena (`fura serve`, `fura check`, `fura freeze`, …).
+    tags: [furatena, cli]
+  - term: Itoco
+    definition: Optional internal name for the Furatena catalog graph.
+    tags: [furatena, architecture]
+  - term: DocNode
+    definition: One indexed page in the catalog graph — slug, URL, Content IR, and rendered HTML.
+    tags: [catalog, architecture]
+  - term: Content IR
+    definition: Patitas structure captured at index time — headings, links, and directives on each DocNode.
+    tags: [catalog, dual-ir]
+  - term: DCP
+    definition: Document Catalog Protocol — JSON schema for the `/catalog.json` v3 export.
+    tags: [catalog, protocol]
+  - term: Mount
+    definition: A federated content corpus in mounts.yaml with its own content_root and optional URL prefix.
+    tags: [federation, catalog]
   - term: Hypermedia
     definition: A style of application where the server sends HTML that includes controls and links, and the client swaps fragments instead of owning application state.
     tags: [architecture, concepts]
-  - term: DocCatalog
-    definition: The in-memory documentation graph built from markdown under `content/chirp/`, with one `DocNode` per page.
-    tags: [docs, architecture]
-  - term: Fragment
-    definition: A Chirp return type that renders a partial HTML response, typically for htmx swaps.
-    tags: [chirp, hypermedia]
   - term: Boosted navigation
     definition: htmx-enhanced link following that swaps a selected fragment into a persistent shell without a full page reload.
     tags: [htmx, navigation]
@@ -17,3 +32,6 @@ terms:
   - term: Rosettes
     definition: The syntax highlighter integrated with Patitas for code blocks in documentation.
     tags: [markdown, code]
+  - term: Fragment
+    definition: A Chirp return type that renders a partial HTML response, typically for htmx swaps.
+    tags: [chirp, hypermedia]

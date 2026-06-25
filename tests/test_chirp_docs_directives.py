@@ -24,10 +24,10 @@ class TestDirectiveTranslation:
         assert "chirp-theme-directive-tabs" in html
         assert "chirpui-tabs" in html
         assert "x-data=" in html
-        assert "chirpDocsTabSet(" in html
-        assert 'x-data="chirpDocsTabSet(' not in html or "tab-a" in html.split('x-data=')[1][:120]
-        assert "x-data='chirpDocsTabSet(" in html
-        assert 'chirpDocsTabSet("tab-a"' in html
+        assert "furaDocsTabSet(" in html
+        assert 'x-data="furaDocsTabSet(' not in html or "tab-a" in html.split('x-data=')[1][:120]
+        assert "x-data='furaDocsTabSet(" in html
+        assert 'furaDocsTabSet("tab-a"' in html
         assert ':class="{ \'chirpui-tab--active\'' in html
         assert 'class="chirpui-tab chirpui-tab--active"' not in html
         assert 'class="tabs"' not in html
@@ -243,6 +243,25 @@ class TestDirectiveTranslation:
         assert "chirp-theme-directive-dropdown__description" in html
         assert 'class="dropdown"' not in html
 
+    def test_dropdown_title_renders_inline_code(self) -> None:
+        from furatena.catalog.directives.dropdown import DropdownHandler, DropdownOptions
+        from patitas.nodes import Directive
+        from patitas.stringbuilder import StringBuilder
+
+        node = Directive(
+            location=None,  # type: ignore[arg-type]
+            name="dropdown",
+            title="Why test `is deferred`, not the value itself",
+            options=DropdownOptions(color="warning"),
+            children=(),
+        )
+        sb = StringBuilder()
+        DropdownHandler().render(node, "<p>Body</p>", sb)
+        html = sb.build()
+        assert "<code>is deferred</code>" in html
+        assert "`is deferred`" not in html
+        assert "chirp-theme-directive-dropdown__chevron" in html
+
     def test_steps_use_theme_step_structure(self) -> None:
         html = render_directive(
             "step",
@@ -425,7 +444,7 @@ import pkg
             ctx_mod.reset_render_context(token)
         assert "chirp-theme-directive-glossary" in html
         assert "Hypermedia" in html
-        assert "DocCatalog" in html
+        assert "DocNode" in html
         assert "chirp-theme-directive-glossary__tag" in html
 
 
@@ -459,7 +478,7 @@ class TestDocsDirectivePages:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/get-started/installation/")
+            resp = await docs_client.get("/chirp/docs/get-started/installation/")
             return resp.text
 
         html = asyncio.run(_fetch())

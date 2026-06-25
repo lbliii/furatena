@@ -1,30 +1,85 @@
 {% extends "layouts/docs_app.html" %}
-{% from "chirpui/hero.html" import hero %}
-{% from "chirpui/layout.html" import grid %}
-{% from "chirpui/card.html" import card %}
+{% from "chirpui/button.html" import btn %}
+{% from "chirpui/layout.html" import cluster %}
+{% from "chirpui/metric_grid.html" import metric_grid, metric_card %}
 {% from "partials/doc_link.html" import doc_link %}
 
 {% block app_content %}
-<div class="chirp-theme-home__hero-stage">
-  {% call hero(title=node.title, subtitle=node.description, background="mesh", cls="chirp-theme-home__hero") %}
-    {% slot actions %}
-    {{ doc_link("/docs/", "Browse documentation") }}
+{% let home = site_home %}
+{% let visual = home.visual %}
+<section class="chirp-theme-home__spine" aria-label="{{ home.aria_label }}">
+  <div class="chirp-theme-home__hero-stage">
+    <div class="chirp-theme-home__hero-copy">
+      <section class="chirpui-hero chirpui-hero--page chirpui-hero--page-editorial chirpui-hero--solid chirp-theme-home__hero">
+        <div class="chirpui-hero__inner">
+          <div class="chirpui-hero__eyebrow">{{ site_tagline }}</div>
+          <h1 class="chirpui-hero__title">{{ node.title }}</h1>
+          <p class="chirpui-hero__subtitle">{{ node.description }}</p>
+          <div class="chirpui-hero__actions">
+            {% call cluster(gap="sm", cls="chirp-theme-home__actions") %}
+              {{ btn(home.cta_primary.label, href=home.cta_primary.href, variant="primary") }}
+              {{ btn(home.cta_secondary.label, href=home.cta_secondary.href, variant="secondary") }}
+            {% end %}
+          </div>
+          <div class="chirpui-hero__metadata"></div>
+          <div class="chirpui-hero__content">
+            <ul class="chirp-theme-home__hero-points" aria-label="Product strengths">
+              {% for point in home.hero_points %}
+              <li>{{ point }}</li>
+              {% end %}
+            </ul>
+          </div>
+          <div class="chirpui-hero__footer"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="chirp-theme-home__product-visual" aria-label="{{ visual.aria_label }}">
+      <div class="chirp-theme-home__visual-topbar" aria-hidden="true">
+        <span></span><span></span><span></span>
+      </div>
+      <nav class="chirp-theme-home__visual-nav" aria-label="Preview sections">
+        {% for tag in visual.proof_tags %}
+        <span>{{ tag }}</span>
+        {% end %}
+      </nav>
+      <div class="chirp-theme-home__visual-hero">
+        <p class="chirp-theme-home__visual-eyebrow">{{ visual.eyebrow }}</p>
+        <h2>{{ visual.title }}</h2>
+        <p>{{ visual.description }}</p>
+      </div>
+      <div class="chirp-theme-home__visual-proof" aria-label="Preview proof points">
+        {% for tag in visual.proof_tags %}
+        <span>{{ tag }}</span>
+        {% end %}
+      </div>
+      <div class="chirp-theme-home__visual-compose">
+        <article class="chirp-theme-home__visual-feature">
+          <span>{{ visual.feature_title }}</span>
+          <p>{{ visual.feature_body }}</p>
+        </article>
+        <a class="chirp-theme-home__visual-cta" href="{{ visual.cta_href }}"{{ route_link_attrs(visual.cta_href) | html_attrs }}>
+          <strong>{{ visual.cta_label }}</strong>
+          <span>{{ home.cta_primary.label }}</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {% if home.metrics %}
+  <section class="chirp-theme-home__proof" aria-label="{{ site_name }} proof points">
+    {% call metric_grid(cols=3, gap="md", cls="chirp-theme-home__metric-grid") %}
+      {% for metric in home.metrics %}
+      {{ metric_card(metric.value, metric.label, hint=metric.hint) }}
+      {% end %}
     {% end %}
+  </section>
   {% end %}
-</div>
+</section>
 
 <div class="chirp-theme-home__content">
   <article class="prose chirp-theme-page__content">
     {{ node | doc_body | boost_doc_links | safe }}
   </article>
-
-  {% call grid(cols=2, gap="md", cls="chirp-theme-home__cards") %}
-    {% call card(title="Browse docs", subtitle="Boosted navigation keeps the shell mounted") %}
-      <p>{{ doc_link("/docs/", "Open the documentation hub") }} and click around — only the content island swaps.</p>
-    {% end %}
-    {% call card(title="Machine-readable index", subtitle="Generated at request time") %}
-      <p><a href="/llms.txt">llms.txt</a> lists every indexed page without a build step.</p>
-    {% end %}
-  {% end %}
 </div>
 {% end %}

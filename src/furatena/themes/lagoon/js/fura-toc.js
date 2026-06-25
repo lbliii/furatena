@@ -1,0 +1,665 @@
+/**
+ * Enhanced Table of Contents (TOC) JavaScript
+ *
+ * Lifecycle: initialized only via FuraDocs.enhance (docs-enhance.js) on
+ * htmx:afterSettle. Do not self-bootstrap — #page-root is ephemeral.
+ *
+ * Uses native <details>/<summary> for collapsible groups (no JS required for toggle).
+ * This script enhances with:
+ * - Active item tracking with auto-scroll
+ * - Scroll progress indicator
+ * - Auto-expand active section on scroll
+ * - Compact mode toggle
+ * - Full keyboard navigation
+ * - State persistence in localStorage
+ */
+
+(function() {
+  'use strict';
+
+  // Ensure utils are available
+  if (!window.FuraDocsUtils) {
+    console.error('FuraDocsUtils not loaded - fura-toc.js requires fura-utils.js');
+    return;
+  }
+
+  const { throttleScroll, debounce } = window.FuraDocsUtils;
+
+  /**
+   * Resolve a reduced-motion check. Prefers a shared FuraDocsUtils helper and
+   * falls back to a local matchMedia read so toc.js stays correct even when
+   * loaded standalone. (#164's reduced-motion guard for toc.js lives here —
+   * toc.js owns its own scrollIntoView/scrollTo call sites this wave.)
+   */
+  function prefersReducedMotion() {
+    if (typeof window.FuraDocsUtils.prefersReducedMotion === 'function') {
+      return window.FuraDocsUtils.prefersReducedMotion();
+    }
+    return (
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+  }
+
+  function resolveRoot(root) {
+    if (root && root.nodeType === 1) {
+      return root;
+    }
+    return document.getElementById('page-root') || document;
+  }
+
+  // ============================================================================
+  // State Management
+  // ============================================================================
+
+  let currentActiveIndex = -1;
+  let isCompactMode = false;
+  let collapsedGroups = new Set();
+
+  // Cache DOM elements for the active page scope
+  let tocItems = [];
+  let progressBar = null;
+  let progressPosition = null;
+  let tocNav = null;
+  let tocGroups = [];
+  let tocScrollContainer = null;
+  let headings = [];
+  let activeRoot = null;
+
+  // Store handlers for cleanup (recreated on every init)
+  let scrollHandler = null;
+  let hashChangeHandler = null;
+  let resizeHandler = null;
+  let keyboardHandler = null;
+  let settingsMenuClickHandler = null;
+
+  /**
+   * Load state from localStorage
+   */
+  function loadState() {
+    try {
+      const savedState = localStorage.getItem('toc-state');
+      if (savedState) {
+        const state = JSON.parse(savedState);
+        isCompactMode = state.compact || false;
+        // Don't restore collapsed state - start fresh with all collapsed
+        collapsedGroups = new Set();
+
+        if (isCompactMode && tocNav) {
+          tocNav.setAttribute('data-toc-mode', 'compact');
+        }
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  /**
+   * Save state to localStorage
+   */
+  function saveState() {
+    try {
+      localStorage.setItem('toc-state', JSON.stringify({
+        compact: isCompactMode,
+        collapsed: Array.from(collapsedGroups)
+      }));
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+
+  // ============================================================================
+  // Progress Bar & Active Item Tracking
+  // ============================================================================
+
+  /**
+   * Update scroll progress indicator
+   */
+  function updateProgress() {
+    const scrollTop = window.scrollY;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = Math.min((scrollTop / docHeight) * 100, 100);
+
+    // Update progress bar
+    if (progressBar) {
+      progressBar.style.height = `${progress}%`;
+    }
+
+    // Update progress position indicator
+    if (progressPosition) {
+      progressPosition.style.top = `${progress}%`;
+    }
+  }
+
+  /**
+   * Update active TOC item based on scroll position
+   *
+   * Performance: Batches all DOM reads before DOM writes to avoid forced reflows.
+   * This prevents the browser from recalculating layout multiple times per frame.
+   */
+  function updateActiveItem() {
+    if (!headings.length) return;
+
+    const viewportOffset = 120; // Offset from top of viewport
+
+    // ========================================
+    // PHASE 1: Batch all DOM reads
+    // ========================================
+
+    // Read all heading positions in one batch (avoids interleaved read/write).
+    // Use spyElement so collapsed accordion members track by their summary.
+    const headingRects = headings.map(heading => ({
+      top: (heading.spyElement || heading.element).getBoundingClientRect().top,
+      heading: heading
+    }));
+
+    // Read container rect once (if needed for scroll-into-view)
+    let containerRect = null;
+    if (tocScrollContainer) {
+      containerRect = tocScrollContainer.getBoundingClientRect();
+    }
+
+    // Find active heading (closest one above viewport offset)
+    let activeIndex = 0;
+    for (let i = headingRects.length - 1; i >= 0; i--) {
+      if (headingRects[i].top <= viewportOffset) {
+        activeIndex = i;
+        break;
+      }
+    }
+
+    // Only update if changed
+    if (activeIndex === currentActiveIndex) return;
+    currentActiveIndex = activeIndex;
+
+    // ========================================
+    // PHASE 2: Batch all DOM writes
+    // ========================================
+
+    // Collect class changes to apply
+    const activeHeading = headings[activeIndex];
+    const activeLink = activeHeading ? activeHeading.link : null;
+    const activeParentGroup = activeLink ? activeLink.closest('details.toc-group') : null;
+    const activeSectionGroup = activeParentGroup
+      ? activeParentGroup.closest('details.toc-group[data-toc-section]')
+      : null;
+    const preserveSectionGroups = (
+      activeSectionGroup
+      && activeSectionGroup.closest('.toc-sidebar')
+      && activeSectionGroup.closest('.toc-sidebar').getAttribute('data-section-filtering') === 'true'
+    );
+
+    // Remove active class from all links
+    headings.forEach((heading, index) => {
+      if (index === activeIndex) {
+        heading.link.classList.add('active');
+      } else {
+        heading.link.classList.remove('active');
+      }
+    });
+
+    // Handle group expand/collapse (using native [open] attribute)
+    if (activeParentGroup) {
+      // Active link is inside a collapsible group
+      // Collect ALL ancestor groups (nested groups need parent groups open too)
+      const ancestorGroups = new Set();
+      let currentGroup = activeParentGroup;
+      while (currentGroup) {
+        ancestorGroups.add(currentGroup);
+        // Find next ancestor group
+        const parent = currentGroup.parentElement?.closest('details.toc-group');
+        currentGroup = parent;
+      }
+
+      // Expand all ancestor groups (from active up to root)
+      ancestorGroups.forEach(group => {
+        if (!group.open) {
+          const groupId = getGroupId(group);
+          expandGroup(group, groupId);
+        }
+      });
+
+      // Collapse groups that are NOT ancestors of active item
+      tocGroups.forEach(group => {
+        if (ancestorGroups.has(group)) {
+          return;
+        }
+
+        // Track TOCs swap between top-level section groups as you scroll.
+        // Within the active track section, keep nested subsection groups expanded
+        // so the sidebar shows the full article TOC instead of only the section header.
+        if (preserveSectionGroups && activeSectionGroup.contains(group)) {
+          const activeSectionGroupId = getGroupId(group);
+          if (!group.open) {
+            expandGroup(group, activeSectionGroupId);
+          }
+          return;
+        }
+
+        const otherGroupId = getGroupId(group);
+        if (group.open) {
+          collapseGroup(group, otherGroupId);
+        }
+      });
+    } else {
+      // Active link is a standalone item (not in a group)
+      // Collapse ALL groups to keep the minimal view
+      tocGroups.forEach(group => {
+        const groupId = getGroupId(group);
+        if (group.open) {
+          collapseGroup(group, groupId);
+        }
+      });
+    }
+
+    // Scroll active link into view if needed (using cached containerRect)
+    if (tocScrollContainer && activeLink && containerRect) {
+      const linkRect = activeLink.getBoundingClientRect();
+      if (linkRect.top < containerRect.top || linkRect.bottom > containerRect.bottom) {
+        activeLink.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'nearest' });
+      }
+    }
+  }
+
+  /**
+   * Update on scroll (progress + active item)
+   */
+  function updateOnScroll() {
+    updateProgress();
+    updateActiveItem();
+  }
+
+  // ============================================================================
+  // Collapsible Groups (Native <details>/<summary>)
+  // The browser handles expand/collapse natively. These functions are for
+  // programmatic control during scroll spy (auto-expand active group).
+  // ============================================================================
+
+  /**
+   * Get unique group ID from the details element
+   */
+  function getGroupId(group) {
+    const link = group.querySelector('[data-toc-item]');
+    return link ? link.getAttribute('data-toc-item') : null;
+  }
+
+  /**
+   * Collapse a TOC group (programmatic - for scroll spy)
+   */
+  function collapseGroup(group, groupId) {
+    group.removeAttribute('open');
+    if (groupId) {
+      collapsedGroups.add(groupId);
+    }
+    saveState();
+  }
+
+  /**
+   * Expand a TOC group (programmatic - for scroll spy)
+   */
+  function expandGroup(group, groupId) {
+    group.setAttribute('open', '');
+    if (groupId) {
+      collapsedGroups.delete(groupId);
+    }
+    saveState();
+  }
+
+  /**
+   * Initialize group toggle handlers
+   * With native <details>/<summary>, the browser handles click toggling.
+   * We just need to track state changes for persistence.
+   */
+  function initGroupToggles() {
+    tocGroups.forEach(group => {
+      const groupId = getGroupId(group);
+
+      // Listen for native toggle events (for state persistence)
+      group.addEventListener('toggle', () => {
+        if (group.open) {
+          if (groupId) collapsedGroups.delete(groupId);
+        } else {
+          if (groupId) collapsedGroups.add(groupId);
+        }
+        saveState();
+      });
+    });
+  }
+
+  // ============================================================================
+  // Control Buttons
+  // ============================================================================
+
+  /**
+   * Initialize control buttons and settings menu
+   */
+  function initControlButtons(scope) {
+    // Direct toggle-all button (new editorial style)
+    const toggleAllBtn = scope.querySelector('[data-toc-action="toggle-all"]');
+    if (toggleAllBtn) {
+      toggleAllBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Check if any group is expanded
+        const anyExpanded = tocGroups.some(group => group.open);
+
+        if (anyExpanded) {
+          // Collapse all
+          tocGroups.forEach(group => {
+            const groupId = getGroupId(group);
+            collapseGroup(group, groupId);
+          });
+          toggleAllBtn.setAttribute('aria-expanded', 'false');
+          toggleAllBtn.setAttribute('aria-label', 'Expand all sections');
+        } else {
+          // Expand all
+          tocGroups.forEach(group => {
+            const groupId = getGroupId(group);
+            expandGroup(group, groupId);
+          });
+          toggleAllBtn.setAttribute('aria-expanded', 'true');
+          toggleAllBtn.setAttribute('aria-label', 'Collapse all sections');
+        }
+      });
+    }
+
+    // Legacy: Settings menu toggle
+    const settingsBtn = scope.querySelector('[data-toc-action="toggle-settings"]');
+    const settingsMenu = scope.querySelector('.toc-settings-menu');
+
+    if (settingsBtn && settingsMenu) {
+      settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = settingsMenu.hasAttribute('hidden');
+
+        if (isHidden) {
+          settingsMenu.removeAttribute('hidden');
+          settingsBtn.setAttribute('aria-expanded', 'true');
+        } else {
+          settingsMenu.setAttribute('hidden', '');
+          settingsBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // Close menu when clicking outside
+      if (settingsMenuClickHandler) {
+        document.removeEventListener('click', settingsMenuClickHandler);
+      }
+      settingsMenuClickHandler = (e) => {
+        if (!settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) {
+          settingsMenu.setAttribute('hidden', '');
+          settingsBtn.setAttribute('aria-expanded', 'false');
+        }
+      };
+      document.addEventListener('click', settingsMenuClickHandler);
+    }
+
+    // Legacy: Expand all sections
+    const expandAllBtn = scope.querySelector('[data-toc-action="expand-all"]');
+    if (expandAllBtn) {
+      expandAllBtn.addEventListener('click', () => {
+        tocGroups.forEach(group => {
+          const groupId = getGroupId(group);
+          expandGroup(group, groupId);
+        });
+        if (settingsMenu) settingsMenu.setAttribute('hidden', '');
+      });
+    }
+
+    // Legacy: Collapse all sections
+    const collapseAllBtn = scope.querySelector('[data-toc-action="collapse-all"]');
+    if (collapseAllBtn) {
+      collapseAllBtn.addEventListener('click', () => {
+        tocGroups.forEach(group => {
+          const groupId = getGroupId(group);
+          collapseGroup(group, groupId);
+        });
+        if (settingsMenu) settingsMenu.setAttribute('hidden', '');
+      });
+    }
+  }
+
+  // ============================================================================
+  // Smooth Scroll to Sections
+  // ============================================================================
+
+  /**
+   * If the jump target lives inside a collapsed accordion item
+   * (<details class="chirpui-accordion__item">), open every ancestor
+   * <details> so the symbol is actually visible after the scroll.
+   * Used by the autodoc symbol rail (#160).
+   */
+  function expandAncestorDetails(target) {
+    let el = target.parentElement;
+    while (el) {
+      if (el.tagName === 'DETAILS' && !el.open) {
+        el.open = true;
+      }
+      el = el.parentElement;
+    }
+  }
+
+  /**
+   * Initialize smooth scroll on TOC links
+   *
+   * Symbol-rail links (data-symbol-link) point at member anchors nested inside
+   * accordion <details>; opening the accordion before measuring offsetTop keeps
+   * the scroll position correct once the member body expands.
+   */
+  function initSmoothScroll() {
+    tocItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const id = item.getAttribute('data-toc-item').slice(1);
+        const target = document.getElementById(id);
+
+        if (target) {
+          // Expand the member's accordion item first so the layout is settled
+          // before we read offsetTop (symbol rail).
+          if (item.hasAttribute('data-symbol-link')) {
+            expandAncestorDetails(target);
+          }
+
+          const offsetTop = target.offsetTop - 100; // Account for fixed header
+          window.scrollTo({
+            top: offsetTop,
+            behavior: prefersReducedMotion() ? 'auto' : 'smooth'
+          });
+
+          // Mark clicked symbol active immediately (scroll spy confirms on settle)
+          if (item.hasAttribute('data-symbol-link')) {
+            tocItems.forEach(link => link.classList.remove('active'));
+            item.classList.add('active');
+          }
+
+          // Update URL without jumping
+          history.replaceState(null, '', '#' + id);
+        }
+      });
+    });
+  }
+
+  // ============================================================================
+  // Keyboard Navigation
+  // ============================================================================
+
+  let focusedIndex = -1;
+  let allLinks = [];
+
+  /**
+   * Handle keyboard navigation in TOC
+   */
+  function handleKeydown(e) {
+    const scope = activeRoot || document;
+    // Only handle if focus is within TOC
+    if (!scope.querySelector('.toc-sidebar:focus-within')) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusedIndex = Math.min(focusedIndex + 1, allLinks.length - 1);
+      allLinks[focusedIndex]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      focusedIndex = Math.max(focusedIndex - 1, 0);
+      allLinks[focusedIndex]?.focus();
+    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+      allLinks[focusedIndex]?.click();
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      focusedIndex = 0;
+      allLinks[0]?.focus();
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      focusedIndex = allLinks.length - 1;
+      allLinks[focusedIndex]?.focus();
+    }
+  }
+
+  /**
+   * Initialize keyboard navigation
+   */
+  function initKeyboardNavigation() {
+    allLinks = Array.from(tocItems);
+
+    // Track focused link
+    allLinks.forEach((link, index) => {
+      link.addEventListener('focus', () => {
+        focusedIndex = index;
+      });
+    });
+
+    keyboardHandler = handleKeydown;
+    document.addEventListener('keydown', keyboardHandler);
+  }
+
+  // ============================================================================
+  // Initialization
+  // ============================================================================
+
+  /**
+   * Initialize the TOC within a page root (default #page-root).
+   */
+  function initTOC(root) {
+    activeRoot = resolveRoot(root);
+    const scope = activeRoot;
+
+    // Cache DOM elements
+    tocItems = Array.from(scope.querySelectorAll('[data-toc-item]'));
+    progressBar = scope.querySelector('.toc-progress-bar');
+    progressPosition = scope.querySelector('.toc-progress-position');
+    tocNav = scope.querySelector('.toc-nav');
+    tocGroups = Array.from(scope.querySelectorAll('details.toc-group'));
+    tocScrollContainer = scope.querySelector('.toc-scroll-container');
+
+    const tocHost = scope.querySelector('.toc-sidebar') || tocNav;
+    if (!tocItems.length || !tocHost) return;
+    if (tocHost.dataset.tocBound === 'true') return;
+
+    // Resolve heading targets before binding — bail without stamping if missing.
+    headings = tocItems.map(item => {
+      const id = item.getAttribute('data-toc-item').slice(1);
+      const element = document.getElementById(id);
+      if (!element) return null;
+      // For symbol-rail anchors nested inside a collapsed accordion <details>,
+      // the body div has no reliable position when closed. Spy on the enclosing
+      // <details> (its <summary> is always laid out) so scroll tracking stays
+      // monotonic across members. (#160)
+      const spyElement = element.closest('details') || element;
+      return { id, element, spyElement, link: item };
+    }).filter(Boolean);
+
+    if (!headings.length) return;
+
+    tocHost.dataset.tocBound = 'true';
+    currentActiveIndex = -1;
+    focusedIndex = -1;
+
+    // Load saved state
+    loadState();
+
+    // Initialize all features
+    initGroupToggles();
+    initControlButtons(scope);
+    initSmoothScroll();
+    initKeyboardNavigation();
+
+    // Recreate window listeners on every init (cleanup tears them down).
+    scrollHandler = throttleScroll(updateOnScroll);
+    window.addEventListener('scroll', scrollHandler, { passive: true });
+
+    hashChangeHandler = updateActiveItem;
+    window.addEventListener('hashchange', hashChangeHandler);
+
+    resizeHandler = debounce(updateActiveItem, 250);
+    window.addEventListener('resize', resizeHandler, { passive: true });
+
+    // Initial update after layout settles
+    updateOnScroll();
+  }
+
+  /**
+   * Tear down window/document listeners and release the active page scope.
+   */
+  function cleanup(root) {
+    const scope = resolveRoot(root);
+
+    if (scrollHandler) {
+      window.removeEventListener('scroll', scrollHandler);
+      scrollHandler = null;
+    }
+    if (hashChangeHandler) {
+      window.removeEventListener('hashchange', hashChangeHandler);
+      hashChangeHandler = null;
+    }
+    if (resizeHandler) {
+      window.removeEventListener('resize', resizeHandler);
+      resizeHandler = null;
+    }
+    if (keyboardHandler) {
+      document.removeEventListener('keydown', keyboardHandler);
+      keyboardHandler = null;
+    }
+    if (settingsMenuClickHandler) {
+      document.removeEventListener('click', settingsMenuClickHandler);
+      settingsMenuClickHandler = null;
+    }
+
+    const tocHost = scope.querySelector('.toc-sidebar') || scope.querySelector('.toc-nav');
+    if (tocHost) {
+      delete tocHost.dataset.tocBound;
+    }
+
+    currentActiveIndex = -1;
+    focusedIndex = -1;
+    tocItems = [];
+    progressBar = null;
+    progressPosition = null;
+    tocNav = null;
+    tocGroups = [];
+    tocScrollContainer = null;
+    headings = [];
+    allLinks = [];
+    activeRoot = null;
+  }
+
+  // ============================================================================
+  // Registration — FuraDocs.enhance in docs-enhance.js calls init/cleanup.
+  // ============================================================================
+
+  window.FuraDocsTOC = {
+    init: initTOC,
+    cleanup: cleanup,
+    updateActiveItem: updateActiveItem,
+    expandAll: () => {
+      tocGroups.forEach(group => {
+        const groupId = getGroupId(group);
+        expandGroup(group, groupId);
+      });
+    },
+    collapseAll: () => {
+      tocGroups.forEach(group => {
+        const groupId = getGroupId(group);
+        collapseGroup(group, groupId);
+      });
+    }
+  };
+})();

@@ -1,0 +1,99 @@
+"""Wave 24 landing surface — home contract, mobile nav, develop previews."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO = Path(__file__).resolve().parents[1]
+APP_ROOT = REPO / "app"
+
+sys.path.insert(0, str(REPO / "src"))
+
+
+@pytest.fixture(scope="module")
+def docs_client():
+    from furatena.catalog.docs_app import DocsApp
+    from chirp.testing import TestClient
+
+    docs = DocsApp.from_paths(
+        APP_ROOT / "docs.yaml",
+        repo_root=REPO,
+        autodoc=False,
+    )
+    return TestClient(docs.create_app())
+
+
+class TestLandingSurface:
+    def test_home_includes_lagoon_stylesheet_stack(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/")
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert "/docs-theme/local/styles.css" in html
+        assert "chirp-theme-home__hero-stage" in html
+        assert "chirp-theme-home__product-visual" in html
+
+    def test_home_includes_mobile_shell_nav(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/")
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert 'id="fura-shell-mobile-nav"' in html
+        assert "chirp-theme-shell__mobile-toggle" in html
+
+    def test_doc_page_keeps_catalog_shell_without_mobile_site_drawer(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/docs/get-started/installation/")
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert "chirp-theme-doc-catalog" in html
+        assert 'id="fura-shell-mobile-nav"' not in html
+
+
+class TestDevelopExports:
+    def test_develop_index_lists_exports(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/develop/")
+            assert resp.status == 200
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert "chirp-theme-develop" in html
+        assert 'href="/develop/catalog/"' in html
+        assert 'href="/develop/llms/"' in html
+
+    def test_develop_preview_links_to_raw_export(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get("/develop/llms/")
+            assert resp.status == 200
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert 'href="/llms.txt"' in html
+        assert "chirp-theme-develop__sample" in html
+
+    def test_raw_llms_export_still_served(self, docs_client) -> None:
+        import asyncio
+
+        async def _fetch() -> None:
+            resp = await docs_client.get("/llms.txt")
+            assert resp.status == 200
+            assert b"# Furatena Documentation" in resp.body
+
+        asyncio.run(_fetch())

@@ -61,7 +61,7 @@ class TestAutodoc:
 
     def test_docstrings_with_angle_brackets_render_as_html(self) -> None:
         nodes = generate_autodoc_nodes(AUTODOC_CONFIG, repo_root=REPO)
-        node = next(n for n in nodes if n.slug == "api/chirp/templating/oob_registry")
+        node = next(n for n in nodes if n.slug == "api/furatena/catalog/code_blocks")
         assert "&lt;pre&gt;" not in node.body_html
         assert "<pre>" in node.body_html
 

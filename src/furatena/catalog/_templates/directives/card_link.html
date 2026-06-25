@@ -3,7 +3,7 @@
 {% set card_class = "chirp-theme-directive-card" ~ (" " ~ extra_class if extra_class else "") %}
 {% call card_link(href=href, title=title, cls=card_class) %}
 {% slot header_badge %}{% if badge_text %}{{ badge_macro(badge_text) }}{% end %}{% end %}
-{% slot header_subtitle %}{% if subtitle %}<p class="chirpui-text-muted chirpui-font-sm">{{ subtitle }}</p>{% end %}{% end %}
+{% slot header_subtitle %}{% if subtitle %}<p class="chirpui-text-muted chirpui-font-sm">{{ subtitle | safe }}</p>{% end %}{% end %}
 {% if icon_html %}<div class="chirpui-card__icon" aria-hidden="true">{{ icon_html | safe }}</div>{% end %}
 {{ body | safe }}
 {% end %}

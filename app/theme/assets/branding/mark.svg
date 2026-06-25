@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title>Furatena</title>
+  <!-- Bold Muisca tunjo silhouettes: flat gold plaques, no ornament -->
+
+  <!-- Fura -->
+  <path
+    fill="#D4A017"
+    d="M 14 10
+       H 26
+       L 30 6
+       L 34 14
+       L 28 18
+       V 78
+       H 12
+       V 18
+       L 6 14
+       L 10 6
+       Z"
+  />
+
+  <!-- Tena -->
+  <path
+    fill="#D4A017"
+    d="M 66 10
+       H 78
+       L 82 6
+       L 86 14
+       L 80 18
+       V 78
+       H 64
+       V 18
+       L 58 14
+       L 62 6
+       Z"
+  />
+
+  <!-- Shared emerald -->
+  <path
+    fill="#0E7490"
+    d="M 50 58
+       L 62 74
+       L 50 90
+       L 38 74
+       Z"
+  />
+</svg>

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from patitas.directives.options import DirectiveOptions
 from patitas.nodes import Directive
 
-from furatena.catalog.directives.html import render_inline_cell
+from furatena.catalog.directives.html import render_inline_cell, render_inline_text
 from furatena.catalog.directives.kida_render import as_markup, render_directive
 
 if TYPE_CHECKING:
@@ -86,7 +86,7 @@ class ListTableHandler:
                 headers=headers,
                 body_rows=body_rows,
                 widths=widths or None,
-                caption=node.title or "",
+                caption=as_markup(render_inline_text(node.title)) if node.title else "",
                 extra_class=opts.css_class or "",
             )
         )

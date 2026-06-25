@@ -148,6 +148,9 @@ def _register_stub_filters_and_globals(env: Environment) -> None:
         "search_hit_heading": lambda hit: None,
         "csp_nonce": lambda: "",
         "csrf_token": lambda: "",
+        "fura_effects_code": lambda: "flat",
+        "fura_effects_cards": lambda: "flat",
+        "fura_effects_hero": lambda: "wash",
     }
     for name, func in stubs.items():
         if name not in env.globals:

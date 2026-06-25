@@ -1,0 +1,33 @@
+@layer docs.tokens {
+  @font-face {
+    font-family: "Inter";
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: url("/docs-theme/fonts/inter-400.woff2") format("woff2");
+  }
+
+  @font-face {
+    font-family: "Inter";
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+    src: url("/docs-theme/fonts/inter-600.woff2") format("woff2");
+  }
+
+  @font-face {
+    font-family: "Inter";
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url("/docs-theme/fonts/inter-700.woff2") format("woff2");
+  }
+
+  @font-face {
+    font-family: "Outfit";
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url("/docs-theme/fonts/outfit-700.woff2") format("woff2");
+  }
+}

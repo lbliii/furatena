@@ -1,17 +1,17 @@
 # Autodoc Configuration
 # ======================
-# Generates API documentation from Chirp's Python source
+# Generates API documentation from Furatena's Python source
 
 autodoc:
   # GitHub repository for source links (owner/repo format)
-  github_repo: "lbliii/chirp"
+  github_repo: "lbliii/furatena"
   github_branch: "main"
 
   # Python API Documentation
   python:
     enabled: true
     source_dirs:
-      - "@chirp"  # Installed Chirp package (see furatena.catalog.autodoc)
+      - "src/furatena"
 
     docstring_style: auto  # Auto-detect docstring format
 
@@ -20,7 +20,7 @@ autodoc:
     output_prefix: "api"
 
     # Display name for sidebar and page headings
-    display_name: "Chirp API Reference"
+    display_name: "Furatena API Reference"
 
     # Exclude test, cache, build artifacts
     exclude:
@@ -44,10 +44,10 @@ autodoc:
     include_private: false  # Skip _private methods
     include_special: false  # Skip __special__ methods
 
-  # CLI Documentation (Chirp has no CLI)
+  # CLI Documentation (Furatena CLI is documented in prose, not autodoc)
   cli:
     enabled: false
 
-  # OpenAPI Documentation (Chirp is not a JSON API framework)
+  # OpenAPI Documentation (not applicable)
   openapi:
     enabled: false

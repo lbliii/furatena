@@ -1,0 +1,214 @@
+@layer docs.overrides {
+  /*
+   * Page actions — chirp-ui Alpine popover anchored to the hero Actions button.
+   * Packaged chirp-theme styles target native [popover]; these position the
+   * chirpuiPopover panel beside the trigger.
+   */
+  .chirp-theme-page-actions.chirpui-popover {
+    display: inline-flex;
+    justify-content: flex-end;
+    position: relative;
+  }
+
+  .chirp-theme-page-actions .chirpui-popover__panel.chirp-theme-page-actions__menu {
+    position: absolute;
+    inset: unset;
+    left: auto;
+    right: 0;
+    top: calc(100% + 0.5rem);
+    margin: 0;
+    min-width: unset;
+    width: min(22rem, calc(100vw - 1rem));
+    padding: 0.55rem;
+    display: grid;
+    gap: 0.22rem;
+    font-size: inherit;
+    line-height: inherit;
+    overflow-wrap: normal;
+    /* Packaged chirp-theme styles target native [popover]; Alpine owns show/hide. */
+    opacity: 0;
+    transform: none;
+    transition: none;
+  }
+
+  .chirp-theme-page-actions[data-open="true"] .chirpui-popover__panel.chirp-theme-page-actions__menu {
+    opacity: 1;
+  }
+
+  .chirp-theme-page-actions[data-align-x="start"] .chirpui-popover__panel.chirp-theme-page-actions__menu {
+    left: 0;
+    right: auto;
+  }
+
+  .chirp-theme-page-actions[data-align-y="top"] .chirpui-popover__panel.chirp-theme-page-actions__menu {
+    top: auto;
+    bottom: calc(100% + 0.5rem);
+  }
+
+  .chirp-theme-page-actions__chevron--open {
+    transform: rotate(180deg);
+  }
+
+  /* Folder disclosure — mirror packaged theme when aria-expanded sync lags HTMX swap. */
+  .chirp-theme-docs-nav__section.is-active
+    > .chirp-theme-docs-nav__section-header
+    > .chirp-theme-docs-nav__toggle
+    .chirp-theme-docs-nav__folder--closed {
+    display: none;
+  }
+
+  .chirp-theme-docs-nav__section.is-active
+    > .chirp-theme-docs-nav__section-header
+    > .chirp-theme-docs-nav__toggle
+    .chirp-theme-docs-nav__folder--open {
+    display: inline-flex;
+  }
+
+  /*
+   * Packaged chirp-theme sets `display: grid` on section-links, which beats the
+   * UA [hidden] rule and causes a expand-then-collapse flicker before docs-nav.js
+   * applies inline display:none on HTMX page swaps.
+   */
+  .chirp-theme-docs-nav__section-links[hidden] {
+    display: none !important;
+  }
+
+  /*
+   * Section anchor links — hover-reveal chain icon left of h2–h6.
+   * Injected by docs-enhance heading-anchors on #page-root.
+   */
+  .chirp-theme-docs-layout__content,
+  .chirp-theme-track-section__body,
+  .chirp-theme-page__content,
+  .chirp-theme-home__content {
+    padding-inline-start: 1.85rem;
+  }
+
+  .chirp-theme-docs-layout__content .heading-anchor,
+  .chirp-theme-track-section__body .heading-anchor,
+  .chirp-theme-page__content .heading-anchor,
+  .chirp-theme-home__content .heading-anchor {
+    position: relative;
+    scroll-margin-top: 5.5rem;
+  }
+
+  .chirp-theme-docs-layout__content .copy-link,
+  .chirp-theme-track-section__body .copy-link,
+  .chirp-theme-page__content .copy-link,
+  .chirp-theme-home__content .copy-link {
+    position: absolute;
+    left: -1.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: var(--chirpui-radius-sm, 0.375rem);
+    color: var(--chirpui-text-muted);
+    opacity: 0;
+    cursor: pointer;
+    text-decoration: none !important;
+    background: transparent !important;
+    transition:
+      opacity 0.15s ease,
+      color 0.15s ease,
+      background-color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .chirp-theme-docs-layout__content .copy-link::after,
+  .chirp-theme-track-section__body .copy-link::after,
+  .chirp-theme-page__content .copy-link::after,
+  .chirp-theme-home__content .copy-link::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .chirp-theme-docs-layout__content .heading-anchor:hover .copy-link,
+  .chirp-theme-docs-layout__content .copy-link:focus-visible,
+  .chirp-theme-track-section__body .heading-anchor:hover .copy-link,
+  .chirp-theme-track-section__body .copy-link:focus-visible,
+  .chirp-theme-page__content .heading-anchor:hover .copy-link,
+  .chirp-theme-page__content .copy-link:focus-visible,
+  .chirp-theme-home__content .heading-anchor:hover .copy-link,
+  .chirp-theme-home__content .copy-link:focus-visible {
+    opacity: 0.72;
+  }
+
+  .chirp-theme-docs-layout__content .copy-link:hover,
+  .chirp-theme-track-section__body .copy-link:hover,
+  .chirp-theme-page__content .copy-link:hover,
+  .chirp-theme-home__content .copy-link:hover {
+    opacity: 1;
+    color: var(--chirpui-accent);
+    background: color-mix(in srgb, var(--chirpui-accent) 10%, transparent) !important;
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  .chirp-theme-docs-layout__content .copy-link.copied,
+  .chirp-theme-track-section__body .copy-link.copied,
+  .chirp-theme-page__content .copy-link.copied,
+  .chirp-theme-home__content .copy-link.copied {
+    opacity: 1;
+    color: var(--chirpui-success, #16a34a);
+  }
+
+  .chirp-theme-docs-layout__content .copy-link svg,
+  .chirp-theme-track-section__body .copy-link svg,
+  .chirp-theme-page__content .copy-link svg,
+  .chirp-theme-home__content .copy-link svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .chirp-theme-docs-layout__content .copy-link:focus-visible,
+  .chirp-theme-track-section__body .copy-link:focus-visible,
+  .chirp-theme-page__content .copy-link:focus-visible,
+  .chirp-theme-home__content .copy-link:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--chirpui-accent) 45%, transparent);
+    outline-offset: 2px;
+  }
+
+  /* Steps use the numbered marker as the anchor — no duplicate link chrome. */
+  .steps .step-title .copy-link {
+    display: none !important;
+  }
+
+  @media (max-width: 768px) {
+    .chirp-theme-docs-layout__content,
+    .chirp-theme-track-section__body,
+    .chirp-theme-page__content,
+    .chirp-theme-home__content {
+      padding-inline-start: 0;
+    }
+
+    .chirp-theme-docs-layout__content .copy-link,
+    .chirp-theme-track-section__body .copy-link,
+    .chirp-theme-page__content .copy-link,
+    .chirp-theme-home__content .copy-link {
+      position: static;
+      transform: none;
+      margin-inline-start: 0.35rem;
+      opacity: 0.45;
+      vertical-align: middle;
+    }
+
+    .chirp-theme-docs-layout__content .copy-link:hover,
+    .chirp-theme-track-section__body .copy-link:hover,
+    .chirp-theme-page__content .copy-link:hover,
+    .chirp-theme-home__content .copy-link:hover {
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chirp-theme-docs-layout__content .copy-link,
+    .chirp-theme-track-section__body .copy-link,
+    .chirp-theme-page__content .copy-link,
+    .chirp-theme-home__content .copy-link {
+      transition: none;
+    }
+  }
+}

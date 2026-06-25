@@ -1,0 +1,25 @@
+{% extends "layouts/docs_app.html" %}
+{% from "chirpui/layout.html" import stack %}
+{% from "partials/shell_nav_mega.html" import shell_mega_item %}
+
+{% block app_content %}
+<section class="chirp-theme-home chirp-theme-develop" aria-label="Developer exports">
+  <div class="chirp-theme-home__spine">
+    <section class="chirpui-hero chirpui-hero--page chirpui-hero--page-editorial chirp-theme-home__hero">
+      <div class="chirpui-hero__inner">
+        <div class="chirpui-hero__eyebrow">{{ site_nav.develop.overview_kicker }}</div>
+        <h1 class="chirpui-hero__title">{{ site_nav.develop.overview_title }}</h1>
+        <p class="chirpui-hero__subtitle">{{ site_nav.develop.overview_blurb }}</p>
+      </div>
+    </section>
+
+    <section class="chirp-theme-develop__grid" aria-label="Machine-readable exports">
+      {% call stack(gap="sm") %}
+        {% for export in develop_exports %}
+        {{ shell_mega_item(export.preview_href, export.label, export.description, export.icon) }}
+        {% end %}
+      {% end %}
+    </section>
+  </div>
+</section>
+{% end %}

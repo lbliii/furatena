@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-REPO = ROOT.parent.parent
+REPO = ROOT.parent
 if str(REPO / "src") not in sys.path:
     sys.path.insert(0, str(REPO / "src"))
 
@@ -16,7 +16,7 @@ from furatena.catalog.static_export import StaticExportOptions, export_static_si
 
 DOCS_CONFIG = ROOT / "docs.yaml"
 FROZEN_DIR = ROOT / "frozen"
-AUTODOC_CONFIG = REPO / "site" / "config" / "_default" / "autodoc.yaml"
+AUTODOC_CONFIG = REPO / "config" / "autodoc.yaml"
 DEFAULT_SITE_URL = "https://lbliii.github.io/chirp"
 DEFAULT_BASE_PATH = "/chirp"
 

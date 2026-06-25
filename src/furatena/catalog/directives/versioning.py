@@ -9,7 +9,8 @@ from patitas.directives.options import DirectiveOptions, StyledOptions
 from patitas.nodes import Directive
 
 from furatena.catalog.context import get_render_context
-from furatena.catalog.directives.kida_render import render_directive
+from furatena.catalog.directives.html import render_inline_text
+from furatena.catalog.directives.kida_render import as_markup, render_directive
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -145,7 +146,7 @@ class RelatedHandler:
                     if opts.limit > 0:
                         links = links[: opts.limit]
 
-        title = opts.section_title or node.title or "Related"
+        title = as_markup(render_inline_text(opts.section_title or node.title or "Related"))
         sb.append(
             render_directive(
                 "related",

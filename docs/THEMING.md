@@ -10,7 +10,7 @@ and directives.
 
 When you run `./app/run` or `fura serve`, the app watches your work and refreshes without a static export loop:
 
-- **CSS** (`theme/tokens.css`, `theme/styles.css`, bundled assets) — browser hot-swap via Chirp dev reload (no full page flash).
+- **CSS** (lagoon skin + docs-core bundle) — browser hot-swap via Chirp dev reload (no full page flash).
 - **HTML / Kida templates** — full browser refresh (template env is rebuilt on reload).
 - **Markdown** — handled by the docs author pipeline (htmx partial swaps on the open page, not a full reload). See [README.md](README.md#dev-workflow).
 
@@ -20,10 +20,10 @@ Edit CSS or templates and save — you should see changes within a second or two
 
 | Tier | What you change | Where | Effort |
 |------|-----------------|-------|--------|
-| **1. Tokens** | CSS variables (`--chirpui-accent`, fonts) | `theme/tokens.css` | ~5 min |
-| **2. Skin** | Layout spacing, hero, TOC, search chrome | `theme/styles.css` | ~1 hour |
+| **1. Tokens** | CSS variables (`--chirpui-accent`, fonts) | lagoon pack `tokens.css` (or override) | ~5 min |
+| **2. Skin** | Layout spacing, hero, TOC, search chrome | lagoon pack `styles.css` + `skin/*` | ~1 hour |
 | **3. Templates** | Markup for views, partials, directives | See loader stack below | ~1 day |
-| **4. Theme package** | Ship a reusable theme others can `use:` | Python package + `docs.yaml` | days |
+| **4. Theme package** | Ship a reusable theme others can `use:` | `furatena.themes` entry point + optional overrides | days |
 
 Tier 1–2 should cover most rebrands. If tier 3 is required for a visual change, the default theme may need improvement — not a fork of the whole app.
 
@@ -43,11 +43,27 @@ Configure paths in `docs.yaml`:
 
 ```yaml
 theme:
+  use: lagoon
   id: chirp
-  tokens: theme/tokens.css
-  styles: theme/styles.css
   templates: theme/templates   # optional shadow dir
+  overrides:                   # optional per-path wins over pack
+    tokens: theme/tokens.css
 ```
+
+Registered packs: `fura theme list` — **docs-core** via `theme.id` (built-in: `chirp`), **skin** via `theme.use` (built-in: `lagoon`).
+
+### Scaffold a custom skin
+
+```bash
+fura theme init              # writes app/theme-skin/ by default
+fura theme init my-brand/    # custom directory
+```
+
+The scaffold includes `tokens.css`, `styles.css`, `skin/*`, and a branding README. Wire overrides in `docs.yaml` (see generated README) or register a `furatena.themes` entry point for a reusable pack.
+
+### Develop export previews
+
+Machine-readable exports (`/catalog.json`, `/llms.txt`, …) stay canonical for agents. Human-readable previews live under **`/develop/`** and **`/develop/{id}/`** with truncated samples and download links to the raw URLs.
 
 ### What lives where
 
@@ -55,12 +71,49 @@ theme:
 |----------|------|----------|
 | `templates/` | Project overrides | `partials/head_meta.html`, `views/doc.html` |
 | `theme/templates/` | Theme overrides of framework | `directives/child_cards.html`, `partials/docs_sidebar.html` |
-| `theme/` | Theme-owned surfaces | `shell.html`, `views/doc.html`, `tokens.css` |
+| `theme/` | App shell, views, branding | `shell.html`, `views/doc.html`, `assets/branding/` |
+| `src/furatena/themes/lagoon/` | Installable skin pack | `tokens.css`, `skin/*`, `js/*`, fonts |
+| `src/furatena/themes/chirp/` | Installable docs-core bundle | `assets/css/style.css`, icons |
 | `theme/views/` | Registered view templates | `doc.html`, `home.html`, `collection.html` |
 | `templates/views/` | Project view overrides | `views/doc.html` (sparse) |
 | `catalog/_templates/` | Framework plumbing (do not edit in apps) | `directives/*`, `partials/*`, `search.html` |
 
 **Override one file without forking:** drop `templates/partials/docs_sidebar.html` in your project, or `theme/templates/partials/docs_sidebar.html` in your theme pack.
+
+## Error pages
+
+HTML errors share one framework template (`catalog/_templates/error.html`) rendered through the app shell. Handlers cover **404**, **403**, **405**, **413**, and **500** with status-specific copy, recovery links, and hypermedia recovery on missing pages.
+
+| Status | Search panel | Extra context |
+|--------|--------------|---------------|
+| **404** | Yes — path-derived query + live `/errors/suggest` fragment | Keyword “Did you mean?” + semantic “Related pages” |
+| **403** | No | Access denied message |
+| **405** | No | Allowed HTTP methods from the `Allow` header |
+| **413** | No | Payload limit message |
+| **500** | No | Generic server error |
+
+### Hypermedia recovery (404)
+
+On a missing page the template:
+
+1. Derives a search query from the URL path (e.g. `/docs/reference/routing/` → “reference routing”).
+2. Prefills an htmx search input that swaps `#error-suggest-panel` via **`GET /errors/suggest?q=`**.
+3. Splits hybrid results into **keyword** and **semantic-only** groups (TF-IDF chunk retrieval).
+4. On boosted navigation, swaps `#page-root` and OOB-updates head meta via `partials/error_meta_oob.html`.
+
+### Override the error page
+
+Shadow the template like any other framework partial:
+
+```
+theme/templates/error.html          ← wins over catalog/_templates/error.html
+theme/templates/partials/error_suggest_panel.html
+templates/error.html                ← project-level override (highest priority)
+```
+
+The default template exposes an **`{% block error_content %}`** hook. Copy `error.html` into your shadow dir and edit that block, or replace the whole file — keep `layouts/docs_app.html` if you want the site nav and boost contract.
+
+Registered in `fura check` via `Template("error.html")`; shadow files are picked up automatically when `theme.templates` is configured in `docs.yaml`.
 
 ## Views vs shell
 
@@ -68,7 +121,8 @@ See [VIEWS.md](VIEWS.md) for the full guide. Summary:
 
 | Concept | File | Purpose |
 |---------|------|---------|
-| **Shell** | `theme/shell.html` | Persistent frame — `#main`, htmx boost, search modal |
+| **Document frame** | `catalog/_templates/layouts/fura_shell.html` | Native HTML shell — doctype, htmx, `#main` blocks |
+| **Shell** | `theme/shell.html` | Fura app shell — effects bootstrap, theme CSS, search modal |
 | **View** | `theme/views/*.html` | Full `#page-root` page for a catalog node |
 | **View kind** | front matter `layout:` / `kind:` | Author label that selects a view via `docs.yaml` |
 
@@ -85,17 +139,73 @@ View resolution (`ViewRegistry`):
 Linked stylesheets (in order):
 
 1. `chirpui.css` — component baseline (do not theme here)
-2. `/docs-assets/theme.{hash}.css` — bundled chirp-theme skin
-3. `/docs-theme/tokens/tokens.css` — your brand variables
-4. `/docs-theme/local/styles.css` — project overrides (`@layer docs.overrides`)
-5. `/docs-theme/local/directives.css` — directive skin for chirp-ui/Alpine markup (`@layer docs.directives`)
+2. `/docs-assets/theme.{hash}.css` — bundled docs-core (`theme.id: chirp`)
+3. `/docs-theme/tokens/tokens.css` — skin pack brand variables (lagoon)
+4. `/docs-theme/generated/theme-preset.css` — measure + font stacks from `docs.yaml`
+5. `/docs-theme/local/styles.css` — skin overrides (`@layer docs.overrides`)
+6. `/docs-theme/local/directives.css` — directive skin for chirp-ui/Alpine markup (`@layer docs.directives`)
 
 Author mode bundles CSS on first serve (cached in `.docs-cache/`). Freeze copies hashed assets to `frozen/assets/` and writes `renderer.fingerprint` beside the catalog export.
 
+## Effect presets
+
+Visual effects from the legacy Bengal bundle (glow, elevation, neumorphic shadows) are **opt-in**
+via `docs.yaml` — not stripped by default overrides anymore.
+
+```yaml
+theme:
+  use: lagoon              # furatena.themes entry point (built-in lagoon skin)
+  id: chirp                 # packaged docs-core bundle selector
+  templates: theme/templates
+  overrides:                # optional — paths relative to app root
+    tokens: theme/tokens.css
+  effects:
+    code: flat      # flat | subtle | glow
+    cards: flat     # flat | elevated
+    hero: wash      # wash | minimal
+  measure:
+    prose: 80ch
+    reading: 76ch
+    docs: 80ch
+    container: 90rem
+  fonts:
+    sans: Inter
+    display: Inter
+```
+
+These set `data-fura-effects-*` on `<html>` at boot and emit `/docs-theme/generated/theme-preset.css`
+for reading width + font stacks. Brand colors stay in `theme/tokens.css`.
+
+| Preset | What it does |
+|--------|----------------|
+| `code: flat` | Current flat docs code blocks (default) |
+| `code: subtle` | `--elevation-card` on code wrappers |
+| `code: glow` | Bengal `code-border-glow` animation on `pre` |
+| `cards: elevated` | Card/tab/dropdown elevation + hover lift |
+| `hero: wash` | Lagoon gradient + accent rail (default) |
+| `hero: minimal` | No wash or rail — metadata pill only |
+
+To try glow locally, set `theme.effects.code: glow` in `app/docs.yaml` and hard-refresh.
+
+Packaged bundle module status: [`BUNDLE_INVENTORY.md`](../src/furatena/themes/chirp/assets/css/BUNDLE_INVENTORY.md).
+
+## Token map (Tier 1)
+
+| Concern | Variables |
+|---------|-----------|
+| Brand | `--chirpui-accent`, `--chirpui-accent-secondary`, `--chirpui-on-accent` |
+| Surfaces | `--chirpui-bg`, `--chirpui-surface`, `--chirpui-border` |
+| Hero wash | `--color-primary`, `--color-primary-light` (structure in `styles.css`) |
+| Code | `--color-bg-code`, `--chirpui-code-bg` |
+| Measure | `--chirpui-prose-max-width`, `--chirpui-docs-reading-measure`, `--chirpui-container-max` |
+| Effects | `--fura-effect-code-*`, `--fura-effect-card-*` (set by presets) |
+
+Edit `theme/tokens.css` only — never `:root` without a theme selector (breaks dark mode).
+
 ## Directive skin contract
 
-Furatena is self-contained at runtime: theme CSS/icons are vendored under
-`theme/assets/`; enhancement scripts live in `theme/js/` (`ChirpDocsTOC`, `ChirpDocsNav`, `ChirpDocsUtils`).
+Furatena is self-contained at runtime: docs-core CSS/icons ship in `furatena.themes.chirp`;
+skin scripts live in the lagoon pack (`theme.use`).
 Each surface follows:
 
 ```
@@ -118,7 +228,7 @@ Page chrome inside `#page-root` is ephemeral — it swaps on boosted navigation.
 **Single lifecycle:**
 
 ```
-htmx:afterSettle → syncDocsChrome() → ChirpDocs.enhance.refresh(#page-root)
+htmx:afterSettle → syncDocsChrome() → FuraDocs.enhance.refresh(#page-root)
 ```
 
 Cold load: `docs-enhance.js` bootstraps the same `refresh()` after defer scripts load.
@@ -133,7 +243,7 @@ Registered modules (`theme/js/docs-enhance.js`):
 | `toc` | Scroll-spy + active section (`fura-toc.js`) | `#page-root` |
 | `docs-nav` | Sidebar disclosure (`fura-nav.js`) | `#page-root` |
 
-Add a module with `ChirpDocs.enhance.register(name, { enhance, cleanup })`.
+Add a module with `FuraDocs.enhance.register(name, { enhance, cleanup })`.
 
 Shell-only glue (search modal, mobile drawer, version select, author poll) lives in
 `partials/docs_runtime_scripts.html` and re-syncs on `htmx:afterSettle`.
@@ -147,7 +257,7 @@ All registered Patitas directives follow the directive skin contract:
 | note, tip, warning, … | `callout.html` | `chirp-theme-directive-admonition--*` |
 | cards / card | `card_grid.html`, `card_link.html` | `chirp-theme-directive-cards`, `chirp-theme-directive-card` |
 | child-cards | `child_cards.html` | `chirp-theme-directive-cards--children` |
-| tab-set / code-tabs | `tabs.html` | `chirp-theme-directive-tabs` (+ Alpine sync via `chirpDocsTabSet`) |
+| tab-set / code-tabs | `tabs.html` | `chirp-theme-directive-tabs` (+ Alpine sync via `furaDocsTabSet`) |
 | dropdown | `accordion.html` | `chirp-theme-directive-dropdown` |
 | steps / step | `steps.html`, `step.html` | `chirp-theme-directive-steps` |
 | since / deprecated / changed | `version_callout.html` | `version-directive`, `chirp-theme-directive-version` |

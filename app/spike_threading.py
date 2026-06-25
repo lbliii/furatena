@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-REPO = ROOT.parent.parent
+REPO = ROOT.parent
 if str(REPO / "src") not in sys.path:
     sys.path.insert(0, str(REPO / "src"))
 
@@ -27,7 +27,7 @@ from furatena.catalog.export import catalog_graph
 from furatena.catalog.registry import CatalogRegistry, load_mounts
 
 MOUNTS_CONFIG = ROOT / "mounts.yaml"
-AUTODOC_CONFIG = REPO / "site" / "config" / "_default" / "autodoc.yaml"
+AUTODOC_CONFIG = REPO / "config" / "autodoc.yaml"
 
 
 @dataclass(frozen=True, slots=True)

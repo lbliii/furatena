@@ -6,24 +6,13 @@ import re
 from pathlib import Path
 
 from furatena.catalog.graph import normalize_internal_url
-from furatena.catalog.links import _OPENING_A_RE, boost_internal_links
+from furatena.catalog.links import _OPENING_A_RE, boost_internal_links, shell_link_attrs
 
 _DOCS_DIRECTIVES = Path(__file__).resolve().parent / "_templates" / "directives"
 _LITERAL_A_TAG_RE = re.compile(r"<a\s+([^>]*?)>", re.IGNORECASE | re.DOTALL)
 _HREF_ATTR_RE = re.compile(r"""href\s*=\s*["'](/[^"'#]+)["']""", re.IGNORECASE)
 
 
-def shell_link_attrs(href: str) -> dict[str, object]:
-    """htmx shell attrs used by ``DocsApp._route_link_attrs`` for internal paths."""
-    if isinstance(href, str) and href.startswith("/") and not href.startswith("//"):
-        return {
-            "hx-boost": "true",
-            "hx-target": "#main",
-            "hx-swap": "innerHTML",
-            "hx-select": "#page-root",
-            "hx-sync": "#main:replace",
-        }
-    return {}
 
 
 def check_body_link_boost(

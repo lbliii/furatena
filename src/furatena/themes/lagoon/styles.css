@@ -1,0 +1,10 @@
+/* Project-level docs view overrides — wins over packaged theme via layer order. */
+@layer docs.tokens, docs.overrides, docs.directives;
+
+@import url("effects.css");
+@import url("skin/fonts.css");
+@import url("skin/shell.css");
+@import url("skin/hero.css");
+@import url("skin/chrome.css");
+@import url("skin/error.css");
+@import url("skin/home.css");

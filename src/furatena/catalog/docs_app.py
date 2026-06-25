@@ -8,9 +8,11 @@ from pathlib import Path
 from typing import Any
 
 from furatena.catalog.config import DocsConfig, load_docs_config
+from furatena.catalog.develop_exports import DEVELOP_EXPORTS, DevelopExport, develop_export
 from furatena.catalog.embeddings import EmbeddingIndex
+from furatena.catalog.error_experience import build_error_context, recovery_hits_for_query
 from furatena.catalog.export import catalog_graph, llms_full_txt, meta_json, search_json, surface_json, tools_manifest
-from furatena.catalog.links import boost_internal_links
+from furatena.catalog.links import boost_internal_links, shell_link_attrs
 from furatena.catalog.incremental import is_partial_reload
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.semantic import retrieve_node, semantic_search_json
@@ -47,7 +49,7 @@ from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_
 from furatena.catalog.versions import channel_context
 from furatena.catalog.views import ViewRegistry
 from chirp import App, AppConfig, Fragment, OOB, Page, Request, Response, Template
-from chirp.errors import NotFound
+from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
 from chirp.ext.chirp_ui import use_chirp_ui
 from chirp.i18n import get_locale, set_locale
 from chirp.middleware.static import StaticFiles
@@ -59,11 +61,13 @@ def _static_cache_control(url_prefix: str, mode: ServeMode) -> str:
     """Cache-Control for docs theme static mounts."""
     if url_prefix.startswith("/docs-assets"):
         return _IMMUTABLE_CACHE
+    if url_prefix == "/docs-vendor":
+        return _IMMUTABLE_CACHE
     if url_prefix == "/docs-theme/branding":
         return _IMMUTABLE_CACHE if mode == ServeMode.PREVIEW else "public, max-age=86400"
     if url_prefix.startswith("/docs-theme/js"):
         return "public, max-age=86400"
-    if url_prefix in ("/docs-theme/local", "/docs-theme/tokens", "/docs-theme/fonts"):
+    if url_prefix in ("/docs-theme/local", "/docs-theme/tokens", "/docs-theme/fonts", "/docs-theme/generated"):
         return _IMMUTABLE_CACHE if mode == ServeMode.PREVIEW else "public, max-age=300"
     return "public, max-age=3600"
 
@@ -103,6 +107,8 @@ class DocsApp:
             serve_mode=self.serve.mode,
             workers=resolve_workers(workers),
             i18n_config=config.i18n,
+            catalog_nav=config.catalog,
+            site_mark=config.site.mark,
         )
         semantic_path = (frozen or config.root / "frozen") / "semantic.json"
         self.embedding_index = EmbeddingIndex.load(semantic_path) or EmbeddingIndex.from_nodes(
@@ -144,6 +150,9 @@ class DocsApp:
         app.template_global("csrf_token")(lambda: "")
         app.template_global("fura_author")(lambda: self.serve.auto_reload)
         app.template_global("docs_stylesheets")(lambda: self.theme.stylesheet_hrefs)
+        app.template_global("fura_effects_code")(lambda: self.config.theme.effects.code)
+        app.template_global("fura_effects_cards")(lambda: self.config.theme.effects.cards)
+        app.template_global("fura_effects_hero")(lambda: self.config.theme.effects.hero)
         app.template_filter("doc_body")(self.body_html)
         app.template_filter("boost_doc_links")(self._boost_doc_links)
         app.template_filter("node_toc_items")(node_toc_items)
@@ -159,6 +168,7 @@ class DocsApp:
         )
         app.template_filter("search_shell_nav")(search_nav_attrs)
         app.template_filter("highlight_search")(highlight_search_terms)
+        app.template_global("route_link_attrs")(self._shell_route_link_attrs)
 
         for assets in self.theme.static_mounts:
             app.add_middleware(
@@ -181,22 +191,21 @@ class DocsApp:
     def _boost_doc_links(self, html: str) -> str:
         return boost_internal_links(html, self._route_link_attrs)
 
+    def _shell_route_link_attrs(
+        self,
+        href: str | None,
+        *,
+        boost: bool = True,
+        external: bool = False,
+        disabled: bool = False,
+        **_kwargs: object,
+    ) -> dict[str, object]:
+        if href is None or disabled or not boost or external:
+            return {}
+        return shell_link_attrs(href)
+
     def _route_link_attrs(self, href: str) -> dict[str, object]:
-        base = self.app._mutable_state.template_globals.get("route_link_attrs")
-        shell_attrs = {
-            "hx-boost": "true",
-            "hx-target": "#main",
-            "hx-swap": "innerHTML",
-            "hx-select": "#page-root",
-            "hx-sync": "#main:replace",
-        }
-        if base is not None:
-            attrs = base(href, fallback=shell_attrs)
-            if attrs:
-                return attrs
-        if isinstance(href, str) and href.startswith("/") and not href.startswith("//"):
-            return dict(shell_attrs)
-        return {}
+        return shell_link_attrs(href)
 
     def _ensure_catalog(self) -> None:
         self.catalog.refresh_if_stale()
@@ -277,6 +286,26 @@ class DocsApp:
         host = request.headers.get("host") if request is not None else None
         return docs_base_url(host)
 
+    def _theme_effects_context(self) -> dict[str, str]:
+        effects = self.config.theme.effects
+        return {
+            "fura_effects_code": effects.code,
+            "fura_effects_cards": effects.cards,
+            "fura_effects_hero": effects.hero,
+        }
+
+    def _site_context(self) -> dict[str, Any]:
+        site = self.config.site
+        return {
+            "site": site,
+            "site_name": site.name,
+            "site_tagline": site.tagline,
+            "site_description": site.description,
+            "site_mark": site.mark,
+            "site_home": site.home,
+            "site_nav": site.navigation,
+        }
+
     def _page_context(
         self,
         node,
@@ -324,10 +353,14 @@ class DocsApp:
             "backlinks": self.catalog.backlinks_for(node),
             "canonical_url": page_url,
             "og_image_url": og_image_url(base, node),
-            "json_ld": json_ld_script(json_ld_article(node=node, page_url=page_url)),
-            **channel_context(self.catalog.channels, self.catalog.active_channel),
+            "json_ld": json_ld_script(
+                json_ld_article(node=node, page_url=page_url, site_name=self.config.site.name)
+            ),
+            **self._site_context(),
+            **channel_context(self.catalog.channels_for(node.mount), self.catalog.active_channel),
             **self._locale_template_context(request=request, node=node, locale_match=locale_match),
             **fallback_context(locale_match, config=self.config.i18n),
+            **self._theme_effects_context(),
         }
         ctx.update(self.views.compose(node, self.catalog))
         ctx.update(self._view_chrome_context(view_name, node, ctx))
@@ -479,7 +512,9 @@ class DocsApp:
             "page_count": len(self.catalog.doc_nodes(lang=page_lang)),
             "node": None,
             **channel_context(self.catalog.channels, self.catalog.active_channel),
+            **self._site_context(),
             **self._locale_template_context(request=request),
+            **self._theme_effects_context(),
         }
 
     def _is_author_reload(self, request: Request) -> bool:
@@ -546,6 +581,48 @@ class DocsApp:
         view_name = ctx["active_view"]
         return self._render_view(view_name, request, **ctx)
 
+    def _render_error(self, request: Request, exc: Exception | None, *, status: int):
+        ctx = build_error_context(self, request, status=status, exc=exc)
+        main = Page.mounted("error.html", **ctx)
+        if request.is_htmx and request.is_boosted and not request.is_history_restore:
+            return OOB(
+                main,
+                Fragment("partials/error_meta_oob.html", "error_meta_oob", **ctx),
+            )
+        return main, status
+
+    def _develop_export_sample(self, export: DevelopExport, *, limit: int = 12_000) -> str:
+        self._ensure_catalog()
+        if export.id == "catalog":
+            body = json.dumps(catalog_graph(self.catalog), indent=2)
+        elif export.id == "llms":
+            lines = [f"# {self.config.site.name} Documentation", ""]
+            for node in self.catalog.doc_nodes():
+                desc = node.description.strip() if node.description else ""
+                if desc:
+                    lines.append(f"- [{node.title}]({node.url}): {desc}")
+                else:
+                    lines.append(f"- [{node.title}]({node.url})")
+            body = "\n".join(lines) + "\n"
+        elif export.id == "llms-full":
+            body = llms_full_txt(self.catalog, site_name=self.config.site.name)
+        elif export.id == "search":
+            body = json.dumps(search_json(self.catalog), indent=2)
+        elif export.id == "tools":
+            body = json.dumps(
+                tools_manifest(self.catalog, site_name=self.config.site.name),
+                indent=2,
+            )
+        elif export.id == "meta":
+            body = json.dumps(meta_json(self.catalog), indent=2)
+        elif export.id == "surface":
+            body = json.dumps(surface_json(), indent=2)
+        else:
+            body = ""
+        if len(body) > limit:
+            return body[:limit] + "\n\n… (truncated preview — download raw export for full payload)\n"
+        return body
+
     def _register_routes(self, app: App) -> None:
         @app.route("/portal/", referenced=True)
         def portal(request: Request):
@@ -559,6 +636,26 @@ class DocsApp:
             ctx["chirp_docs_surface"] = self.views.surface(view_name)
             ctx.update(self._view_chrome_context(view_name, ctx.get("node"), ctx))
             return self._render_view(view_name, request, **ctx)
+
+        @app.route("/develop/", referenced=True)
+        def develop_index(request: Request):
+            ctx = {
+                **self._shell_context(request=request),
+                "develop_exports": DEVELOP_EXPORTS,
+            }
+            return self._render_view("views/develop.html", request, **ctx)
+
+        @app.route("/develop/{export_id}/", referenced=True)
+        def develop_export_preview(request: Request, export_id: str):
+            item = develop_export(export_id)
+            if item is None:
+                raise NotFound(f"Develop export not found: {export_id}")
+            ctx = {
+                **self._shell_context(request=request),
+                "develop_export": item,
+                "develop_sample": self._develop_export_sample(item),
+            }
+            return self._render_view("views/develop_export.html", request, **ctx)
 
         @app.route("/")
         def home(request: Request):
@@ -578,6 +675,28 @@ class DocsApp:
             if node is None:
                 raise NotFound(f"Shared page not found: /shared/{slug}/")
             return self._render_node(node, request)
+
+        for mount in self.catalog.mounts:
+            prefix = (mount.url_prefix or "").rstrip("/")
+            if not prefix or mount.default or mount.id == "shared":
+                continue
+
+            def _register_prefixed_mount(mount_id: str, mount_prefix: str) -> None:
+                @app.route(f"{mount_prefix}/")
+                @app.route(f"{mount_prefix}/{{slug:path}}", referenced=True)
+                def prefixed_mount(request: Request, slug: str = ""):
+                    self._ensure_catalog()
+                    path = request.path
+                    node = self.catalog.get(path)
+                    if node is None and not path.endswith("/"):
+                        node = self.catalog.get(f"{path}/")
+                    if node is None:
+                        raise NotFound(f"Page not found: {path}")
+                    return self._render_node(node, request)
+
+                prefixed_mount.__name__ = f"mount_{mount_id.replace('-', '_')}"
+
+            _register_prefixed_mount(mount.id, prefix)
 
         @app.route("/docs/_author/stale")
         def author_stale(request: Request):
@@ -704,6 +823,20 @@ class DocsApp:
                 return main
             return Template("search.html", **ctx)
 
+        @app.route("/errors/suggest")
+        def error_suggest(request: Request):
+            self._ensure_catalog()
+            query = (request.query.get("q") or "").strip()
+            keyword_hits, semantic_hits = recovery_hits_for_query(self, query, limit=6) if query else ((), ())
+            return Fragment(
+                "partials/error_suggest_panel.html",
+                "error_suggest_panel",
+                search_query=query,
+                keyword_hits=keyword_hits,
+                semantic_hits=semantic_hits,
+                hits=keyword_hits,
+            )
+
         @app.route("/search/suggest")
         def search_suggest(request: Request):
             self._ensure_catalog()
@@ -735,7 +868,11 @@ class DocsApp:
         @app.route("/tools.json", referenced=True)
         def tools_json(request: Request):
             self._ensure_catalog()
-            body = tools_manifest(self.catalog, base_url=self._site_base(request))
+            body = tools_manifest(
+                self.catalog,
+                base_url=self._site_base(request),
+                site_name=self.config.site.name,
+            )
             return Response(json.dumps(body, indent=2)).with_header(
                 "Content-Type", "application/json; charset=utf-8"
             )
@@ -830,7 +967,7 @@ class DocsApp:
         @app.route("/llms.txt", referenced=True)
         def llms_txt():
             self._ensure_catalog()
-            lines = ["# Chirp Documentation", ""]
+            lines = [f"# {self.config.site.name} Documentation", ""]
             for node in self.catalog.doc_nodes():
                 desc = node.description.strip() if node.description else ""
                 if desc:
@@ -843,7 +980,7 @@ class DocsApp:
         @app.route("/llms-full.txt", referenced=True)
         def llms_full():
             self._ensure_catalog()
-            body = llms_full_txt(self.catalog)
+            body = llms_full_txt(self.catalog, site_name=self.config.site.name)
             return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
 
         @app.route("/meta.json", referenced=True)
@@ -869,16 +1006,48 @@ class DocsApp:
 
         self._register_localized_routes(app)
 
-        @app.error(404)
-        def not_found():
-            ctx = {
-                **self._shell_context(),
-                "error_message": "That page is not in the catalog.",
-            }
-            return (
-                Page.mounted("error.html", **ctx),
-                404,
+        @app.route("/favicon.ico", referenced=False)
+        def favicon():
+            branding_dir = next(
+                (
+                    mount.directory
+                    for mount in self.theme.static_mounts
+                    if mount.url_prefix == "/docs-theme/branding"
+                ),
+                None,
             )
+            if branding_dir is None:
+                raise NotFound("Favicon not configured.")
+            icon = branding_dir / "favicon.ico"
+            if not icon.is_file():
+                icon = branding_dir / "favicon.svg"
+            if not icon.is_file():
+                raise NotFound("Favicon not found.")
+            content_type = "image/x-icon" if icon.suffix == ".ico" else "image/svg+xml"
+            return Response(icon.read_bytes()).with_header("Content-Type", content_type)
+
+        @app.error(404)
+        @app.error(NotFound)
+        def not_found(request: Request, exc: Exception | None = None):
+            return self._render_error(request, exc, status=404)
+
+        @app.error(403)
+        def forbidden(request: Request, exc: Exception | None = None):
+            return self._render_error(request, exc, status=403)
+
+        @app.error(405)
+        @app.error(MethodNotAllowed)
+        def method_not_allowed(request: Request, exc: Exception | None = None):
+            return self._render_error(request, exc, status=405)
+
+        @app.error(413)
+        @app.error(PayloadTooLarge)
+        def payload_too_large(request: Request, exc: Exception | None = None):
+            return self._render_error(request, exc, status=413)
+
+        @app.error(500)
+        def server_error(request: Request, exc: Exception | None = None):
+            return self._render_error(request, exc, status=500)
 
     def _register_localized_routes(self, app: App) -> None:
         """Register ``/{lang}/docs/...`` routes for non-default locales."""
@@ -960,6 +1129,8 @@ class DocsApp:
             ):
                 Template(view)
             Template("error.html")
+            Template("partials/error_suggest_panel.html")
+            Template("partials/error_meta_oob.html")
             Template("search.html")
             Template("layouts/docs_catalog.html")
             Template("layouts/docs_app.html")

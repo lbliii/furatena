@@ -146,6 +146,17 @@ def generate_autodoc_nodes(
     return nodes
 
 
+_VENV_EXCLUDE_PATTERNS = frozenset({"*/.venv/*", "*/venv/*"})
+
+
+def _exclude_patterns_for_source(source_dir: str, exclude: list[str]) -> list[str]:
+    """Drop venv excludes when scanning an installed ``@package`` tree."""
+    raw = str(source_dir).strip()
+    if not raw.startswith("@"):
+        return exclude
+    return [pattern for pattern in exclude if pattern not in _VENV_EXCLUDE_PATTERNS]
+
+
 def _resolve_source_dir(source_dir: str, *, repo_root: Path) -> Path | None:
     raw = str(source_dir).strip()
     if raw.startswith("@"):
@@ -174,13 +185,16 @@ def _python_nodes(
     output_prefix = str(python_cfg.get("output_prefix") or "api").strip("/")
     display_name = str(config.get("python", {}).get("display_name") or "API Reference")
     exclude = list(python_cfg.get("exclude") or [])
-    extractor = PythonExtractor(exclude_patterns=exclude, config=python_cfg)
 
     elements: list[Any] = []
     for source_dir in python_cfg.get("source_dirs") or []:
         source_path = _resolve_source_dir(str(source_dir), repo_root=repo_root)
         if source_path is None:
             continue
+        extractor = PythonExtractor(
+            exclude_patterns=_exclude_patterns_for_source(str(source_dir), exclude),
+            config=python_cfg,
+        )
         elements.extend(extractor.extract(source_path))
 
     modules = [element for element in elements if element.element_type == "module"]

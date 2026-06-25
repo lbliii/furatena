@@ -72,7 +72,7 @@ def render_doc_tabs(
     ]
     tab_ids = [tab["id"] for tab in tabs]
     tab_x_data = Markup(
-        f"chirpDocsTabSet({json.dumps(initial)}, {json.dumps(sync_key)}, {json.dumps(tab_ids)})"
+        f"furaDocsTabSet({json.dumps(initial)}, {json.dumps(sync_key)}, {json.dumps(tab_ids)})"
     )
     return render_directive(
         "tabs",

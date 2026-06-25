@@ -1,0 +1,34 @@
+{% extends "layouts/docs_app.html" %}
+{% from "chirpui/button.html" import btn %}
+{% from "chirpui/layout.html" import cluster %}
+
+{% block app_content %}
+<section class="chirp-theme-home chirp-theme-develop" aria-label="{{ develop_export.label }} preview">
+  <div class="chirp-theme-home__spine">
+    <section class="chirpui-hero chirpui-hero--page chirp-theme-home__hero">
+      <div class="chirpui-hero__inner">
+        <div class="chirpui-hero__eyebrow">Develop export</div>
+        <h1 class="chirpui-hero__title">{{ develop_export.label }}</h1>
+        <p class="chirpui-hero__subtitle">{{ develop_export.description }}</p>
+        <div class="chirpui-hero__actions">
+          {% call cluster(gap="sm", cls="chirp-theme-home__actions") %}
+            {{ btn("Download raw", href=develop_export.raw_href, variant="primary") }}
+            {{ btn("All exports", href="/develop/", variant="secondary") }}
+          {% end %}
+        </div>
+      </div>
+    </section>
+
+    <section class="chirp-theme-develop__preview" aria-label="Export preview">
+      <header class="chirp-theme-develop__preview-meta">
+        <p>
+          <strong>Canonical URL:</strong>
+          <a href="{{ develop_export.raw_href }}"{{ route_link_attrs(develop_export.raw_href, boost=false) | html_attrs }}>{{ develop_export.raw_href }}</a>
+        </p>
+        <p><strong>Content-Type:</strong> {{ develop_export.content_type }}</p>
+      </header>
+      <pre class="chirp-theme-develop__sample"><code>{{ develop_sample }}</code></pre>
+    </section>
+  </div>
+</section>
+{% end %}

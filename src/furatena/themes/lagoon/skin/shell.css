@@ -1,0 +1,369 @@
+@layer docs.overrides {
+  /*
+   * Furatena uses a minimal root shell (#main → #page-root). Catalog chrome
+   * (icon rail, section nav, TOC) is page-level composition inside views,
+   * using body.chirp-theme-shell--rail-only for full-viewport catalog layout.
+   */
+
+  /* Hide Alpine widgets until x-data binds (tabs, etc.). */
+  [x-cloak] {
+    display: none !important;
+  }
+
+  .fura-main {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 100dvh;
+    overflow-x: clip;
+    max-width: 100%;
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--chirpui-surface) 92%, transparent),
+        transparent 28rem
+      ),
+      var(--chirpui-bg);
+    color: var(--chirpui-text);
+  }
+
+  /* Catalog shell uses #main.fura-main, not .chirp-theme-shell__main. Zero the
+     `@layer pages { main { padding-block } }` inset so rail-only layout fills the
+     viewport instead of 100svh catalog chrome sitting inside padded main (#131). */
+  body.chirp-theme-shell--rail-only .fura-main {
+    padding-block: 0;
+  }
+
+  /* Daytime lagoon atmosphere — explicit light + system-in-light only. */
+  html[data-theme="light"] body.fura-root {
+    background:
+      radial-gradient(
+        circle at 14% -6%,
+        color-mix(in srgb, var(--chirpui-accent) 9%, transparent),
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 92% 4%,
+        color-mix(in srgb, var(--chirpui-accent-secondary) 6%, transparent),
+        transparent 34%
+      ),
+      var(--chirpui-bg);
+  }
+
+  @media (prefers-color-scheme: light) {
+    html[data-theme="system"] body.fura-root {
+      background:
+        radial-gradient(
+          circle at 14% -6%,
+          color-mix(in srgb, var(--chirpui-accent) 9%, transparent),
+          transparent 40%
+        ),
+        radial-gradient(
+          circle at 92% 4%,
+          color-mix(in srgb, var(--chirpui-accent-secondary) 6%, transparent),
+          transparent 34%
+        ),
+        var(--chirpui-bg);
+    }
+  }
+
+  .fura-main > #page-root {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    font-size: var(--chirpui-font-base);
+  }
+
+  .fura-main > #page-root > .chirp-theme-docs-layout,
+  .fura-main > #page-root > .chirp-theme-home {
+    flex: 1;
+    min-height: 0;
+  }
+
+  body.chirp-theme-shell--rail-only .chirp-theme-docs-layout {
+    min-height: 100svh;
+    overflow-x: clip;
+    max-width: 100%;
+  }
+
+  body.chirp-theme-shell--rail-only .chirp-theme-doc-catalog {
+    block-size: 100svh;
+    box-sizing: border-box;
+    max-inline-size: 100%;
+  }
+
+  body.chirp-theme-shell--rail-only .chirp-theme-doc-catalog__primary {
+    box-sizing: border-box;
+    max-inline-size: 100%;
+    /* Rail hover labels fly out to the right — clip here tucks them behind the
+       section nav column in the catalog grid. */
+    overflow: visible;
+    position: relative;
+    z-index: 2;
+  }
+
+  .chirp-theme-doc-catalog-rail .chirpui-filter-rail,
+  .chirp-theme-doc-catalog-rail .chirpui-filter-rail__list {
+    inline-size: 100%;
+    max-inline-size: 100%;
+  }
+
+  body.chirp-theme-shell--rail-only .chirp-theme-docs-layout__sidebar,
+  body.chirp-theme-shell--rail-only .chirp-theme-docs-layout__toc {
+    top: 0;
+    max-height: 100svh;
+  }
+
+  body.chirp-theme-shell--rail-only .chirp-theme-docs-layout__main {
+    padding-block-start: 0.75rem;
+  }
+
+  body.chirp-theme-shell--rail-only .chirp-theme-doc-catalog__secondary {
+    max-height: 100svh;
+    padding-block-start: 0.75rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  body.chirp-theme-shell--rail-only .chirp-theme-doc-catalog__secondary .version-selector {
+    padding: 0.75rem 0.75rem 0;
+  }
+
+  .chirp-theme-doc-catalog-rail__theme .theme-controls,
+  .chirp-theme-doc-catalog-rail__theme .theme-dropdown {
+    width: 100%;
+  }
+
+  .chirp-theme-doc-catalog-rail__theme .theme-dropdown__label,
+  .chirp-theme-doc-catalog-rail__theme .theme-dropdown__chevron {
+    display: none;
+  }
+
+  .skip-link {
+    position: absolute;
+    inset-inline-start: 1rem;
+    inset-block-start: 1rem;
+    z-index: 10000;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--chirpui-radius-sm, 0.375rem);
+    background: var(--chirpui-accent);
+    color: var(--chirpui-accent-fg, #fff);
+    text-decoration: none;
+    transform: translateY(-200%);
+    transition: transform 0.15s ease;
+  }
+
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+
+  body.fura-surface--app .fura-main {
+    padding-block: 0;
+  }
+
+  body.fura-surface--app #page-root {
+    padding-block-start: 0;
+    margin-block-start: 0;
+  }
+
+  body.fura-surface--app .chirp-theme-shell__header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    margin-block-start: 0;
+    inset-block-start: 0;
+  }
+
+  body.fura-surface--app .chirp-theme-shell__header .chirpui-navbar {
+    padding-block: 0;
+  }
+
+  /*
+   * Mega-menus use div+button (not <details>) so panels can open on :hover.
+   * Closed <details> hides children via UA styles, which breaks hover flyouts.
+   */
+  .chirp-theme-shell__nav-dropdown .chirpui-navbar-dropdown__menu {
+    display: none;
+  }
+
+  .chirp-theme-shell__nav-dropdown:hover > .chirpui-navbar-dropdown__menu,
+  .chirp-theme-shell__nav-dropdown:focus-within > .chirpui-navbar-dropdown__menu,
+  .chirp-theme-shell__nav-dropdown[data-open] > .chirpui-navbar-dropdown__menu {
+    display: block;
+  }
+
+  .chirp-theme-shell__nav-dropdown > .chirpui-navbar-dropdown__trigger {
+    border: 0;
+    background: transparent;
+    font: inherit;
+  }
+
+  .search-modal__result-link.is-active {
+    background: color-mix(in srgb, var(--chirpui-accent) 12%, transparent);
+  }
+
+  .chirp-theme-shell__mobile-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.5rem;
+    block-size: 2.5rem;
+    padding: 0;
+    border: 1px solid var(--chirpui-border);
+    border-radius: var(--chirpui-radius-sm, 0.375rem);
+    background: var(--chirpui-surface);
+    color: var(--chirpui-text);
+    cursor: pointer;
+  }
+
+  .chirp-theme-shell__mobile-toggle svg {
+    inline-size: 1.125rem;
+    block-size: 1.125rem;
+  }
+
+  .chirp-theme-shell__mobile-nav {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .chirp-theme-shell__mobile-nav[data-open] {
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .chirp-theme-shell__mobile-backdrop {
+    position: absolute;
+    inset: 0;
+    border: 0;
+    background: color-mix(in srgb, var(--chirpui-shadow, #000) 42%, transparent);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .chirp-theme-shell__mobile-nav[data-open] .chirp-theme-shell__mobile-backdrop {
+    opacity: 1;
+  }
+
+  .chirp-theme-shell__mobile-panel {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    inline-size: min(22rem, 88vw);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0.75rem;
+    background: var(--chirpui-surface);
+    border-inline-end: 1px solid var(--chirpui-border);
+    box-shadow: var(--chirpui-elevation-theme-lg);
+    transform: translateX(-104%);
+    transition: transform 0.2s ease;
+    overflow: auto;
+  }
+
+  .chirp-theme-shell__mobile-nav[data-open] .chirp-theme-shell__mobile-panel {
+    transform: translateX(0);
+  }
+
+  .chirp-theme-shell__mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0.25rem 0.75rem;
+    border-block-end: 1px solid var(--chirpui-border-subtle);
+  }
+
+  .chirp-theme-shell__mobile-title {
+    margin: 0;
+    font-size: var(--chirpui-font-sm);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--chirpui-text-muted);
+  }
+
+  .chirp-theme-shell__mobile-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 2.25rem;
+    block-size: 2.25rem;
+    border: 0;
+    border-radius: var(--chirpui-radius-sm, 0.375rem);
+    background: transparent;
+    color: var(--chirpui-text);
+    cursor: pointer;
+  }
+
+  .chirp-theme-shell__mobile-section {
+    padding-block: 0.85rem;
+    border-block-end: 1px solid var(--chirpui-border-subtle);
+  }
+
+  .chirp-theme-shell__mobile-section:last-child {
+    border-block-end: 0;
+  }
+
+  .chirp-theme-shell__mobile-section-label {
+    margin: 0 0 0.5rem;
+    padding-inline: 0.25rem;
+    font-size: var(--chirpui-font-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--chirpui-text-muted);
+  }
+
+  .chirp-theme-shell__mobile-links {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .chirp-theme-shell__mobile-link {
+    display: block;
+    padding: 0.55rem 0.65rem;
+    border-radius: var(--chirpui-radius-sm, 0.375rem);
+    color: var(--chirpui-text);
+    text-decoration: none;
+    font-weight: 600;
+  }
+
+  .chirp-theme-shell__mobile-link:hover,
+  .chirp-theme-shell__mobile-link:focus-visible {
+    background: color-mix(in srgb, var(--chirpui-accent) 12%, transparent);
+  }
+
+  .chirp-theme-shell__mobile-link-desc {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: var(--chirpui-font-sm);
+    font-weight: 400;
+    color: var(--chirpui-text-muted);
+  }
+
+  @media (min-width: 768px) {
+    .chirp-theme-shell__mobile-toggle,
+    .chirp-theme-shell__mobile-nav {
+      display: none;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .chirp-theme-shell__desktop-nav {
+      display: none !important;
+    }
+
+    .chirp-theme-shell__actions .nav-search-trigger span,
+    .chirp-theme-shell__actions .nav-search-shortcut {
+      display: none;
+    }
+  }
+}

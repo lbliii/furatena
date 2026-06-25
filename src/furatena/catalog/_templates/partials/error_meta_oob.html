@@ -1,0 +1,7 @@
+{% block error_meta_oob %}
+{% if error_title is defined %}
+<meta id="chirpui-doc-description" name="description" content="{{ error_title }}" hx-swap-oob="true">
+<meta id="chirpui-doc-og-title" property="og:title" content="{{ error_title }}" hx-swap-oob="true">
+<meta id="chirpui-doc-og-description" property="og:description" content="{{ error_message | default(error_lead) }}" hx-swap-oob="true">
+{% end %}
+{% end %}

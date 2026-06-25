@@ -259,6 +259,39 @@ def _run_migrate(args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def _run_theme_list(_args: argparse.Namespace) -> None:
+    _ensure_pythonpath()
+    from furatena.catalog.docs_core import list_docs_core_ids, load_docs_core
+    from furatena.catalog.theme_pack import list_theme_packs, load_theme_pack
+
+    print("docs-core (theme.id):")
+    for theme_id in list_docs_core_ids():
+        pack = load_docs_core(theme_id)
+        if pack is not None:
+            print(f"  {theme_id}\t{pack.root}")
+    print("skin packs (theme.use):")
+    names = list_theme_packs()
+    if not names:
+        print("  (none registered)")
+        return
+    for name in names:
+        pack = load_theme_pack(name)
+        print(f"  {name}\t{pack.root}")
+
+
+def _run_theme_init(args: argparse.Namespace) -> None:
+    from furatena.catalog.theme_init import init_theme_pack
+
+    target = Path(args.directory)
+    written = init_theme_pack(target, force=args.force)
+    if not written:
+        print(f"no files written — {target} already initialized (use --force to overwrite)")
+        return
+    print(f"initialized skin scaffold at {target} ({len(written)} files)")
+    for path in written:
+        print(f"  {path.relative_to(target)}")
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="fura",
@@ -337,6 +370,20 @@ def _build_parser() -> argparse.ArgumentParser:
     check.add_argument("--deploy", action="store_true")
     check.add_argument("--strict-edition-links", action="store_true")
     check.set_defaults(handler=_run_check)
+
+    theme = sub.add_parser("theme", help="List installable theme packs")
+    theme_sub = theme.add_subparsers(dest="theme_command", required=True)
+    theme_list = theme_sub.add_parser("list", help="Show furatena.themes entry points")
+    theme_list.set_defaults(handler=_run_theme_list)
+    theme_init = theme_sub.add_parser("init", help="Scaffold a project skin pack directory")
+    theme_init.add_argument(
+        "directory",
+        nargs="?",
+        default=str(_app_root() / "theme-skin"),
+        help="Output directory (default app/theme-skin)",
+    )
+    theme_init.add_argument("--force", action="store_true", help="Overwrite existing scaffold files")
+    theme_init.set_defaults(handler=_run_theme_init)
 
     migrate = sub.add_parser("migrate", help="Lower MDX JSX to Patitas directives")
     migrate.add_argument("paths", nargs="*", help="Optional .mdx files")

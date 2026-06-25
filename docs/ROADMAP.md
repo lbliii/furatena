@@ -191,3 +191,83 @@ The document runtime is an installable package (standalone-repo ready).
 - **`fura check`** — validates live graph export against DCP v3
 - **`fura freeze`** — fails when merged `catalog.json` does not match schema
 - **Docs page** — `content/chirp/docs/about/document-catalog-protocol.md`
+
+## Wave 21 — Theme consolidation ✅
+
+Native Fura theming ergonomics on top of chirp-ui + packaged docs-core CSS.
+
+- **Wave 21a ✅** — Effect presets (`theme.effects`), `effects.css`, bundle inventory
+- **Wave 21b ✅** — Drop 8 superseded bundle imports; split `theme/skin/*`; `fura check` theme lint
+- **Wave 21c ✅** — Declarative `measure`/`fonts` in `docs.yaml` → generated `theme-preset.css`; drop 8 more bundle modules
+- **Wave 21d ✅** — `furatena.themes` entry points; built-in `lagoon` skin pack; `theme.use` + overrides
+
+## Wave 22 — Docs-core package ✅
+
+Two-tier theming: installable **docs-core** (`theme.id`) + reusable **skin pack** (`theme.use`).
+
+- **Wave 22a ✅** — Move vendored docs-core CSS/icons to `src/furatena/themes/chirp/`; app keeps branding/images
+- **Wave 22b ✅** — `load_docs_core()` + updated asset resolution, fingerprint, and theme lint
+- **Wave 22c ✅** — Native `layouts/fura_shell.html`; app shell no longer extends `chirp/layouts/shell.html`
+
+See [THEMING.md](THEMING.md) for the tier model and preset reference.
+
+## Wave 23 — App maturity ✅
+
+Production polish for shell assets, navigation, and error UX.
+
+- **Vendored htmx** — `furatena.catalog/vendor/` served at `/docs-vendor/` (no unpkg CDN)
+- **`GET /favicon.ico`** — serves branding icon for default browser requests
+- **App nav** — Portal removed from top bar; Shared reference linked under Develop
+- **Error pages** — status-aware templates with path display, live `/errors/suggest` fragment, boosted OOB meta
+- **403/405/413 handlers** — forbidden, method-not-allowed, and payload-too-large pages share the app shell
+- **Semantic recovery** — 404 splits keyword “Did you mean?” from semantic “Related pages”
+- **Error overrides** — shadow `theme/templates/error.html` (documented in `THEMING.md`)
+- **Shell CSS** — app-surface header flush to viewport top
+- **`fura check`** — validates vendor assets and warns on missing `favicon.ico`
+
+## Wave 24 — Landing & marketing surface ✅
+
+Polish the app home page and mobile site navigation.
+
+- **`skin/home.css`** — lagoon landing hero, product visual, and proof metrics
+- **Mobile site nav** — drawer menu for Documentation + Develop on small screens
+- **Develop index** — `/develop/` lists machine-readable exports with HTML previews
+- **Contract tests** — home + develop preview routes (`tests/test_chirp_docs_landing.py`)
+
+## Wave 25 — Docs-core bundle shrink ✅
+
+Further trim unused Bengal modules from the packaged bundle.
+
+- **Removed imports** — `link-preview.css`, `empty-state.css` (files remain on disk)
+- **`BUNDLE_INVENTORY.md`** — fixed duplicate Active/Dead drift for retired modules
+
+## Wave 26 — Freeze & preview parity ✅
+
+Frozen catalog serves the same runtime assets as author mode.
+
+- **Vendor in freeze** — `htmx` + SSE extension copied to `frozen/assets/vendor/`
+- **Manifest** — `vendor_prefix` in `assets/manifest.json`
+- **Preview mounts** — `/docs-vendor/*` served from frozen assets when manifest present
+
+## Wave 27 — Develop export UX ✅
+
+Human-readable previews for agent-facing exports; raw URLs stay canonical.
+
+- **`/develop/`** — export catalog with descriptions
+- **`/develop/{id}/`** — truncated sample + download link to raw `/llms.txt`, `/catalog.json`, etc.
+- **Develop mega-menu** — links to HTML previews; raw endpoints unchanged
+
+## Wave 28 — Theme package story ✅
+
+Scaffold reusable skin packs without forking lagoon.
+
+- **`fura theme init [DIR]`** — writes tokens, styles, skin/*, branding README
+- **THEMING.md** — documents init workflow and override wiring
+
+## Wave 29 — Hygiene ✅
+
+Rename runtime JS globals to match the Furatena product name.
+
+- **`FuraDocs*`** — `FuraDocs`, `FuraDocsUtils`, `FuraDocsNav`, `FuraDocsTOC`, `FuraDocsTheme`, `furaDocsTabSet`
+- **Export branding** — `llms.txt`, `llms-full.txt`, and `tools.json` use `site.name` from config
+- **Runtime bind flags** — internal `dataset` / poll globals renamed from `chirp*` → `fura*`

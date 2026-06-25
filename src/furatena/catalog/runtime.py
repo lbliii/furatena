@@ -52,12 +52,30 @@ def _newest_mtime(paths: tuple[Path, ...]) -> float:
 
 def renderer_is_stale(docs_root: Path, frozen_dir: Path, *, theme_id: str = "chirp") -> bool:
     """True when live renderer differs from the frozen export."""
+    from furatena.catalog.config import load_docs_config
+    from furatena.catalog.theme_pack import load_theme_pack
+
+    docs_yaml = docs_root / "docs.yaml"
+    skin_pack_root = None
+    if docs_yaml.is_file():
+        docs = load_docs_config(docs_yaml)
+        theme_id = docs.theme.id
+        if docs.theme.use:
+            try:
+                skin_pack_root = load_theme_pack(docs.theme.use).root
+            except (LookupError, TypeError, ValueError):
+                skin_pack_root = None
+
     stored = read_renderer_fingerprint(frozen_dir)
     if stored is None:
         renderer_mtime = _newest_mtime((catalog_root(), docs_root / "theme"))
         freeze_mtime = _newest_mtime((frozen_dir,))
         return renderer_mtime > freeze_mtime + 1.0
-    return stored != renderer_fingerprint(docs_root, theme_id=theme_id)
+    return stored != renderer_fingerprint(
+        docs_root,
+        theme_id=theme_id,
+        skin_pack_root=skin_pack_root,
+    )
 
 
 def resolve_serve_config(
