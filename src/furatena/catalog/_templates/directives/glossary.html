@@ -1,0 +1,14 @@
+{% from "chirpui/description_list.html" import description_list, description_item %}
+{% set glossary_class = "chirp-theme-directive-glossary" %}
+{% if collapsed %}
+<details class="fura-glossary {{ glossary_class }}">
+<summary class="chirp-theme-directive-glossary__summary">{{ summary }}</summary>
+{% call description_list(cls="fura-glossary__list chirp-theme-directive-glossary__list") %}
+{% for item in terms %}{{ description_item(item.term, item.definition_html) }}{% end %}
+{% end %}
+</details>
+{% else %}
+{% call description_list(cls="fura-glossary " ~ glossary_class) %}
+{% for item in terms %}{{ description_item(item.term, item.definition_html) }}{% end %}
+{% end %}
+{% end %}

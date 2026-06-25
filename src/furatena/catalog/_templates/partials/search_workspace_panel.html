@@ -1,0 +1,65 @@
+{# Fern-style workspace header — scope kicker, metrics, edition + topic strips. #}
+{% set spotlight = search_spotlight %}
+{% set edition_links = search_edition_links | default([]) %}
+{% set topic_links = search_topic_links | default([]) %}
+{% if spotlight %}
+<section class="search-workspace-panel">
+  <header class="search-workspace-panel__header">
+    <div class="search-workspace-panel__intro">
+      <p class="search-workspace-panel__kicker">{{ spotlight.workspace_kicker }}</p>
+      <h2 class="search-workspace-panel__title">{{ spotlight.workspace_title }}</h2>
+      {% if spotlight.workspace_subtitle %}
+      <p class="search-workspace-panel__subtitle">{{ spotlight.workspace_subtitle }}</p>
+      {% end %}
+    </div>
+    <div class="search-workspace-panel__actions">
+      {% if search_query or search_section or search_mount or search_tag %}
+      <a class="search-workspace-panel__reset" href="/search" {{ search_reset_nav_attrs | html_attrs }}>Reset shell</a>
+      {% end %}
+    </div>
+  </header>
+
+  <div class="search-workspace-panel__stats">
+    <span class="search-workspace-panel__stat">
+      <strong>{{ spotlight.result_count if search_query else spotlight.visible_pages }}</strong>
+      {{ "matches" if search_query else "pages" }}
+    </span>
+    <span class="search-workspace-panel__stat">
+      <strong>{{ spotlight.section_count }}</strong> sections
+    </span>
+    {% if spotlight.top_tags | length > 0 %}
+    <span class="search-workspace-panel__stat search-workspace-panel__stat--tags">
+      {% for tag in spotlight.top_tags[:3] %}
+      <span class="search-workspace-panel__tag">{{ tag }}</span>
+      {% end %}
+    </span>
+    {% end %}
+  </div>
+
+  {% if edition_links | length > 1 %}
+  <div class="search-workspace-panel__strip">
+    <span class="search-workspace-panel__strip-label">Version</span>
+    <nav class="search-workspace-panel__pills" aria-label="Edition scope">
+      {% for link in edition_links %}
+      <a class="search-workspace-panel__pill{% if link.active %} is-active{% end %}"
+         href="{{ link.href }}"
+         {{ link.nav_attrs | html_attrs }}>{{ link.label }}</a>
+      {% end %}
+    </nav>
+  </div>
+  {% end %}
+
+  {% if topic_links | length > 0 %}
+  <div class="search-workspace-panel__strip">
+    <span class="search-workspace-panel__strip-label">Topics</span>
+    <nav class="search-workspace-panel__pills" aria-label="Topic filters">
+      {% for link in topic_links %}
+      <a class="search-workspace-panel__pill{% if link.active %} is-active{% end %}"
+         href="{{ link.href }}"
+         {{ link.nav_attrs | html_attrs }}>{{ link.label }}</a>
+      {% end %}
+    </nav>
+  </div>
+  {% end %}
+</section>
+{% endif %}

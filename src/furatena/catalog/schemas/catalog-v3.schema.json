@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chirp.dev/schemas/catalog-v3.schema.json",
+  "title": "Document Catalog Protocol catalog.json v3",
+  "description": "Interchange schema for Furatena federated catalog exports (DCP Tier 1 + Tier 2).",
+  "type": "object",
+  "required": ["schema_version", "channel", "page_count", "pages", "edges", "namespaces"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 3 },
+    "version": { "type": "integer" },
+    "channel": { "type": "string" },
+    "edition": { "type": "string" },
+    "page_count": { "type": "integer", "minimum": 0 },
+    "mount": { "type": "string" },
+    "pages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/page" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "namespaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/namespace" }
+    },
+    "inventories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inventory" }
+    },
+    "structure_index": { "$ref": "#/$defs/structure_index" }
+  },
+  "$defs": {
+    "page": {
+      "type": "object",
+      "required": ["node_id", "url", "slug", "title", "mount", "edition"],
+      "additionalProperties": true,
+      "properties": {
+        "node_id": { "type": "string", "pattern": "^[^:]+:[^:]+:.*$" },
+        "url": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "section": { "type": "string" },
+        "weight": { "type": "integer" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "source_path": { "type": "string" },
+        "source": { "type": "string" },
+        "source_kind": { "enum": ["filesystem", "generated"] },
+        "content_format": { "type": "string" },
+        "doc_version": { "type": ["string", "null"] },
+        "mount": { "type": "string" },
+        "edition": { "type": "string" },
+        "section_root": { "type": "boolean" },
+        "body_md": { "type": "string" },
+        "body_source": { "type": "string" },
+        "body_text": { "type": "string" },
+        "toc": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["anchor", "text", "depth"],
+            "properties": {
+              "anchor": { "type": "string" },
+              "text": { "type": "string" },
+              "depth": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "backlinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "href"],
+            "properties": {
+              "title": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
+        },
+        "content": { "$ref": "#/$defs/content_ir" },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "heading", "depth", "text"],
+            "properties": {
+              "id": { "type": "string" },
+              "heading": { "type": "string" },
+              "depth": { "type": "integer" },
+              "text": { "type": "string" }
+            }
+          }
+        },
+        "ast_path": { "type": "string" },
+        "native_ast": {
+          "type": "object",
+          "required": ["format", "path"],
+          "properties": {
+            "format": { "type": "string" },
+            "path": { "type": "string" }
+          }
+        }
+      }
+    },
+    "content_ir": {
+      "type": "object",
+      "properties": {
+        "headings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["level", "text", "anchor", "line"],
+            "properties": {
+              "level": { "type": "integer", "minimum": 1 },
+              "text": { "type": "string" },
+              "anchor": { "type": "string" },
+              "line": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["href", "text", "line"],
+            "properties": {
+              "href": { "type": "string" },
+              "text": { "type": "string" },
+              "line": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "extensions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extension" }
+        },
+        "directives": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extension" }
+        }
+      }
+    },
+    "extension": {
+      "type": "object",
+      "required": ["name", "line"],
+      "properties": {
+        "name": { "type": "string" },
+        "options": { "type": "object" },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["source", "target", "kind"],
+      "properties": {
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "kind": {
+          "enum": ["parent", "link", "nav_next", "nav_prev", "tag", "translation"]
+        },
+        "mount": { "type": "string" },
+        "edition": { "type": "string" }
+      }
+    },
+    "namespace": {
+      "type": "object",
+      "required": ["mount", "label", "edition", "page_count"],
+      "properties": {
+        "mount": { "type": "string" },
+        "label": { "type": "string" },
+        "edition": { "type": "string" },
+        "page_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "url": { "type": "string" },
+        "format": { "type": "string" }
+      }
+    },
+    "structure_index": {
+      "type": "object",
+      "required": ["schema_version", "directive_count", "heading_count"],
+      "properties": {
+        "schema_version": { "type": "integer" },
+        "directive_count": { "type": "integer", "minimum": 0 },
+        "heading_count": { "type": "integer", "minimum": 0 },
+        "directive_names": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

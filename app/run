@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+
+exec uv run \
+  --directory "$ROOT" \
+  env FURA_SKIP_CONTRACT_CHECKS="${FURA_SKIP_CONTRACT_CHECKS:-1}" \
+  python "$ROOT/app/app.py" "$@"

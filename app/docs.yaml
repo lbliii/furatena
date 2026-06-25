@@ -1,0 +1,50 @@
+# Furatena app configuration
+#
+# Vocabulary — see VIEWS.md (views) and THEMING.md (theme/tokens):
+#   shell       — persistent frame (#main, htmx boost, search modal)
+#   view        — full page inside #page-root (theme/views/*.html)
+#   view kind   — author label in front matter layout:/kind: → views: map
+#   compose     — multi-node view enrichment (collection read-throughs)
+#   theme       — tokens + styles + optional theme/templates/ shadow dir
+#   templates/  — sparse project overrides (wins over theme + framework)
+
+shell: shell.html
+
+# View kind → template. Keys match built-in kinds in catalog/view_kinds.py.
+# Override a single view: templates/views/doc.html (see VIEWS.md).
+views:
+  doc: views/doc.html
+  doc_list: views/doc_list.html
+  page: views/page.html
+  home: views/home.html
+  changelog: views/changelog.html
+  collection: views/collection.html
+  portal: views/portal.html
+  default: views/doc.html
+
+# Per-slug view overrides (catalog slug, not URL)
+# overrides:
+#   docs/get-started/installation: views/landing.html
+
+compose:
+  collection:
+    data: ../data/collections.yaml
+
+theme:
+  id: chirp
+  tokens: theme/tokens.css
+  styles: theme/styles.css
+  templates: theme/templates   # optional shadow dir for partials/directives
+
+mounts: mounts.yaml
+
+rewrites: ../data/url_rewrites.yaml
+inventories: inventories.yaml
+
+# Uncomment to enable multilingual docs (see I18N.md):
+# i18n:
+#   default_language: en
+#   languages:
+#     - { code: en, name: English }
+#     - { code: es, name: Español }
+# locales_dir: locales

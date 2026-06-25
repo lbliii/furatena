@@ -1,0 +1,21 @@
+/**
+ * Share controls rendered through Chirp UI dropdown/button primitives.
+ */
+
+.chirp-theme-blog-share .chirpui-dropdown__menu {
+  min-width: 14rem;
+}
+
+.chirp-theme-blog-share .chirpui-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: var(--chirpui-spacing-xs);
+}
+
+.chirp-theme-social-share {
+  margin-block: var(--chirpui-spacing-xl);
+}
+
+.chirp-theme-social-share__actions {
+  margin-top: var(--chirpui-spacing);
+}

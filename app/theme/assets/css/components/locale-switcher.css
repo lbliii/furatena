@@ -1,0 +1,37 @@
+/** Language switcher in the docs catalog sidebar. */
+
+.chirp-theme-locale-switcher {
+  padding: 0.75rem 1rem 0.5rem;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(148, 163, 184, 0.25));
+}
+
+.chirp-theme-locale-switcher__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chirp-theme-locale-switcher__link {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-decoration: none;
+  color: var(--color-text-muted, #64748b);
+  border: 1px solid transparent;
+}
+
+.chirp-theme-locale-switcher__link--active {
+  color: var(--color-text, #0f172a);
+  border-color: var(--color-border, rgba(148, 163, 184, 0.45));
+  background: var(--color-surface-raised, rgba(248, 250, 252, 0.8));
+}
+
+.chirp-theme-locale-switcher__link--missing {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

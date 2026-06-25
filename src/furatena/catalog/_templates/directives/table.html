@@ -1,0 +1,11 @@
+{% from "chirpui/table.html" import table %}
+{% set table_class = "chirp-theme-directive-table" %}
+{% if extra_class | default('') %}{% set table_class = table_class ~ " " ~ extra_class %}{% end %}
+{% if caption | default('') %}
+<p class="chirp-theme-directive-table__caption">{{ caption }}</p>
+{% end %}
+{% if headers %}
+{% call table(headers=headers, rows=body_rows, widths=widths, cls=table_class) %}{% end %}
+{% else %}
+{% call table(rows=body_rows, widths=widths, cls=table_class) %}{% end %}
+{% end %}

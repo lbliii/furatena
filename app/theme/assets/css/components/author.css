@@ -1,0 +1,33 @@
+/**
+ * Author components rendered through Chirp UI card primitives.
+ */
+
+.chirp-theme-author-bio,
+.chirp-theme-blog-author-card {
+  border-color: var(--chirpui-border);
+  background: color-mix(in srgb, var(--chirpui-surface) 92%, transparent);
+}
+
+.chirp-theme-author-bio__avatar,
+.chirp-theme-blog-author-card__avatar {
+  width: 5rem;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--chirpui-radius-full);
+  border: 1px solid var(--chirpui-border-subtle);
+}
+
+.chirp-theme-author-bio__text {
+  margin: 0;
+  color: var(--chirpui-text-muted);
+  line-height: var(--chirpui-line-height-relaxed);
+}
+
+.chirp-theme-author-bio__links {
+  margin-top: var(--chirpui-spacing);
+}
+
+.chirp-theme-blog-meta {
+  color: var(--chirpui-text-muted);
+  font-size: var(--chirpui-font-sm);
+}

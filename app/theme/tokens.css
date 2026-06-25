@@ -1,0 +1,225 @@
+/* Furatena token overrides — loaded after packaged chirp-theme core CSS.
+ *
+ * The docs.tokens layer is declared after chirp-theme in the cascade, so tokens
+ * here win over the packaged theme. Light mode is tuned for a daytime lagoon:
+ * humid mist, canopy greens, teal pool water — the daylight counterpart to dark
+ * mode's phosphor jungle night.
+ *
+ * Do not put theme-specific surfaces on :root — a bare :root block overrides
+ * packaged [data-theme="dark"] tokens and leaves dark mode on the lagoon palette. */
+@layer docs.tokens {
+  [data-theme="light"] {
+    /* Lagoon daylight — misty paper, teal water, amber sun through leaves */
+    --chirpui-bg: #eef4f1;
+    --chirpui-bg-subtle: #f6faf8;
+    --chirpui-surface: #fbfdfc;
+    --chirpui-surface-alt: #e8f2ec;
+    --chirpui-text: #14241e;
+    --chirpui-text-muted: #4a5c54;
+    --chirpui-border: #c8d9d0;
+    --chirpui-border-subtle: #d8e5dd;
+    --chirpui-accent: #0d9488;
+    --chirpui-accent-hover: #0f766e;
+    --chirpui-accent-secondary: #ca8a04;
+    --chirpui-on-accent: #ffffff;
+
+    --color-primary: var(--chirpui-accent);
+    --color-primary-hover: var(--chirpui-accent-hover);
+    --color-primary-active: #115e59;
+    --color-primary-light: #ccfbf1;
+    --color-primary-dark: #134e4a;
+    --color-secondary: #14b8a6;
+    --color-secondary-hover: #0d9488;
+    --color-secondary-active: #0f766e;
+    --color-secondary-light: #ccfbf1;
+    --color-secondary-dark: #134e4a;
+    --color-accent: var(--chirpui-accent-secondary);
+    --color-accent-hover: #a16207;
+    --color-accent-active: #854d0e;
+    --color-accent-light: #fef3c7;
+    --color-accent-dark: #854d0e;
+    --color-text-link: var(--chirpui-accent);
+    --color-text-link-hover: var(--chirpui-accent-hover);
+    --color-bg-tertiary: #e2ebe6;
+    --color-bg-hover: rgba(13, 148, 136, 0.08);
+    --color-bg-active: rgba(13, 148, 136, 0.12);
+    --color-border-strong: #a8bdb2;
+    --color-bg-code: #e8f5f0;
+    --color-code-text: #14532d;
+    --color-code-keyword: var(--chirpui-accent);
+    --color-code-string: var(--chirpui-accent-secondary);
+
+    --color-info: var(--chirpui-accent);
+    --color-info-bg: var(--chirpui-alert-info-bg);
+    --color-info-border: var(--chirpui-alert-info-border);
+    --color-info-text: var(--chirpui-text);
+    --color-info-light: var(--chirpui-accent-light);
+  }
+
+  @media (prefers-color-scheme: light) {
+    [data-theme="system"] {
+      --chirpui-bg: #eef4f1;
+      --chirpui-bg-subtle: #f6faf8;
+      --chirpui-surface: #fbfdfc;
+      --chirpui-surface-alt: #e8f2ec;
+      --chirpui-text: #14241e;
+      --chirpui-text-muted: #4a5c54;
+      --chirpui-border: #c8d9d0;
+      --chirpui-border-subtle: #d8e5dd;
+      --chirpui-accent: #0d9488;
+      --chirpui-accent-hover: #0f766e;
+      --chirpui-accent-secondary: #ca8a04;
+      --chirpui-on-accent: #ffffff;
+
+      --color-primary: var(--chirpui-accent);
+      --color-primary-hover: var(--chirpui-accent-hover);
+      --color-primary-active: #115e59;
+      --color-primary-light: #ccfbf1;
+      --color-primary-dark: #134e4a;
+      --color-secondary: #14b8a6;
+      --color-secondary-hover: #0d9488;
+      --color-secondary-active: #0f766e;
+      --color-secondary-light: #ccfbf1;
+      --color-secondary-dark: #134e4a;
+      --color-accent: var(--chirpui-accent-secondary);
+      --color-accent-hover: #a16207;
+      --color-accent-active: #854d0e;
+      --color-accent-light: #fef3c7;
+      --color-accent-dark: #854d0e;
+      --color-text-link: var(--chirpui-accent);
+      --color-text-link-hover: var(--chirpui-accent-hover);
+      --color-bg-tertiary: #e2ebe6;
+      --color-bg-hover: rgba(13, 148, 136, 0.08);
+      --color-bg-active: rgba(13, 148, 136, 0.12);
+      --color-border-strong: #a8bdb2;
+      --color-bg-code: #e8f5f0;
+      --color-code-text: #14532d;
+      --color-code-keyword: var(--chirpui-accent);
+      --color-code-string: var(--chirpui-accent-secondary);
+
+      --color-info: var(--chirpui-accent);
+      --color-info-bg: var(--chirpui-alert-info-bg);
+      --color-info-border: var(--chirpui-alert-info-border);
+      --color-info-text: var(--chirpui-text);
+      --color-info-light: var(--chirpui-accent-light);
+    }
+  }
+
+  [data-theme="dark"] {
+    --chirpui-bg: #0a1012;
+    --chirpui-bg-subtle: #10181b;
+    --chirpui-surface: #151f22;
+    --chirpui-surface-alt: #1c272b;
+    --chirpui-text: #e8efea;
+    --chirpui-text-muted: #a4b2ac;
+    --chirpui-border: #2e3d42;
+    --chirpui-border-subtle: #37464b;
+    --chirpui-accent: #2dd4bf;
+    --chirpui-accent-hover: #5eead4;
+    --chirpui-accent-secondary: #fbbf24;
+    --chirpui-on-accent: #0a1012;
+
+    --color-primary: var(--chirpui-accent);
+    --color-primary-hover: var(--chirpui-accent-hover);
+    --color-primary-active: #99f6e4;
+    --color-primary-light: rgba(45, 212, 191, 0.16);
+    --color-primary-dark: #99f6e4;
+    --color-secondary: #4ade80;
+    --color-secondary-hover: #86efac;
+    --color-secondary-active: #bbf7d0;
+    --color-secondary-light: rgba(74, 222, 128, 0.16);
+    --color-secondary-dark: #bbf7d0;
+    --color-accent: var(--chirpui-accent-secondary);
+    --color-accent-hover: #fcd34d;
+    --color-accent-active: #fde68a;
+    --color-accent-light: rgba(251, 191, 36, 0.14);
+    --color-accent-dark: #fde68a;
+    --color-text-primary: var(--chirpui-text);
+    --color-text-secondary: var(--chirpui-text-muted);
+    --color-text-tertiary: #8da399;
+    --color-text-muted: #789087;
+    --color-text-link: var(--chirpui-accent);
+    --color-text-link-hover: var(--chirpui-accent-hover);
+    --color-bg-primary: var(--chirpui-bg);
+    --color-bg-secondary: var(--chirpui-bg-subtle);
+    --color-bg-tertiary: #0f1619;
+    --color-bg-elevated: var(--chirpui-surface);
+    --color-bg-hover: rgba(45, 212, 191, 0.1);
+    --color-bg-active: rgba(45, 212, 191, 0.16);
+    --color-surface: var(--chirpui-surface);
+    --color-border: var(--chirpui-border);
+    --color-border-light: var(--chirpui-border-subtle);
+    --color-border-strong: #42555b;
+    --color-bg-code: #0d1416;
+    --color-code-text: #a7f3d0;
+    --color-code-keyword: #5eead4;
+    --color-code-string: #fcd34d;
+    --color-code-number: #f472b6;
+
+    --color-info: var(--chirpui-accent);
+    --color-info-bg: var(--chirpui-alert-info-bg);
+    --color-info-border: var(--chirpui-alert-info-border);
+    --color-info-text: var(--chirpui-text);
+    --color-info-light: var(--chirpui-accent-light);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-theme="system"] {
+      --chirpui-bg: #0a1012;
+      --chirpui-bg-subtle: #10181b;
+      --chirpui-surface: #151f22;
+      --chirpui-surface-alt: #1c272b;
+      --chirpui-text: #e8efea;
+      --chirpui-text-muted: #a4b2ac;
+      --chirpui-border: #2e3d42;
+      --chirpui-border-subtle: #37464b;
+      --chirpui-accent: #2dd4bf;
+      --chirpui-accent-hover: #5eead4;
+      --chirpui-accent-secondary: #fbbf24;
+      --chirpui-on-accent: #0a1012;
+
+      --color-primary: var(--chirpui-accent);
+      --color-primary-hover: var(--chirpui-accent-hover);
+      --color-primary-active: #99f6e4;
+      --color-primary-light: rgba(45, 212, 191, 0.16);
+      --color-primary-dark: #99f6e4;
+      --color-secondary: #4ade80;
+      --color-secondary-hover: #86efac;
+      --color-secondary-active: #bbf7d0;
+      --color-secondary-light: rgba(74, 222, 128, 0.16);
+      --color-secondary-dark: #bbf7d0;
+      --color-accent: var(--chirpui-accent-secondary);
+      --color-accent-hover: #fcd34d;
+      --color-accent-active: #fde68a;
+      --color-accent-light: rgba(251, 191, 36, 0.14);
+      --color-accent-dark: #fde68a;
+      --color-text-primary: var(--chirpui-text);
+      --color-text-secondary: var(--chirpui-text-muted);
+      --color-text-tertiary: #8da399;
+      --color-text-muted: #789087;
+      --color-text-link: var(--chirpui-accent);
+      --color-text-link-hover: var(--chirpui-accent-hover);
+      --color-bg-primary: var(--chirpui-bg);
+      --color-bg-secondary: var(--chirpui-bg-subtle);
+      --color-bg-tertiary: #0f1619;
+      --color-bg-elevated: var(--chirpui-surface);
+      --color-bg-hover: rgba(45, 212, 191, 0.1);
+      --color-bg-active: rgba(45, 212, 191, 0.16);
+      --color-surface: var(--chirpui-surface);
+      --color-border: var(--chirpui-border);
+      --color-border-light: var(--chirpui-border-subtle);
+      --color-border-strong: #42555b;
+      --color-bg-code: #0d1416;
+      --color-code-text: #a7f3d0;
+      --color-code-keyword: #5eead4;
+      --color-code-string: #fcd34d;
+      --color-code-number: #f472b6;
+
+      --color-info: var(--chirpui-accent);
+      --color-info-bg: var(--chirpui-alert-info-bg);
+      --color-info-border: var(--chirpui-alert-info-border);
+      --color-info-text: var(--chirpui-text);
+      --color-info-light: var(--chirpui-accent-light);
+    }
+  }
+}

@@ -1,0 +1,14 @@
+mounts:
+  - id: chirp
+    label: Chirp Documentation
+    content_root: ../content/chirp
+    default: true
+
+  - id: shared
+    label: Shared Reference
+    content_root: content/shared
+    url_prefix: /shared
+    extensions: [".md", ".html"]
+    format_map:
+      ".md": patitas-markdown
+      ".html": html

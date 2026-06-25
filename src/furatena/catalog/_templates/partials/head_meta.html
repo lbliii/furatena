@@ -1,0 +1,25 @@
+{% if node is defined and node %}
+<meta id="chirpui-doc-description" name="description" content="{{ node.description or node.title }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+<link id="chirpui-doc-canonical" rel="canonical" href="{{ canonical_url }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+<meta id="chirpui-doc-og-title" property="og:title" content="{{ node.title }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+<meta id="chirpui-doc-og-description" property="og:description" content="{{ node.description or node.title }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+<meta id="chirpui-doc-og-type" property="og:type" content="article"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+{% if canonical_url %}
+<meta id="chirpui-doc-og-url" property="og:url" content="{{ canonical_url }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+{% end %}
+{% if og_image_url %}
+<meta id="chirpui-doc-og-image" property="og:image" content="{{ og_image_url }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+{% end %}
+{% if json_ld is defined and json_ld %}
+<script id="chirpui-doc-jsonld" type="application/ld+json"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>{{ json_ld | safe }}</script>
+{% end %}
+{% if alternate_links is defined %}
+{% for link in alternate_links %}
+<link rel="alternate" hreflang="{{ link.hreflang }}" href="{{ link.href }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+{% end %}
+{% end %}
+{% else %}
+<meta name="description" content="Chirp documentation — hypermedia docs as data, HTML over the wire.">
+<meta property="og:title" content="Furatena">
+<meta property="og:description" content="Chirp documentation — hypermedia docs as data, HTML over the wire.">
+{% end %}

@@ -1,0 +1,248 @@
+---
+title: Routes
+description: Route registration, methods, and path parameters
+draft: false
+weight: 10
+lang: en
+type: doc
+tags: [routing, routes, decorators, path-params]
+keywords: [route, decorator, methods, get, post, path, parameters, trie]
+category: guide
+---
+
+A route connects a URL to a handler — a function that returns a value Chirp turns into a response. You register one with the `@app.route()` decorator.
+
+Reach for explicit `@app.route()` when you want routing in code. For convention-based routing discovered from a `pages/` directory, see [[docs/build-apps/pages-navigation/filesystem-routing|filesystem routing]] instead.
+
+## Route Registration
+
+Register routes with the `@app.route()` decorator:
+
+```python
+@app.route("/")
+def index():
+    return "Hello, World!"
+
+@app.route("/about")
+def about():
+    return Template("about.html")
+```
+
+Routes are registered during the setup phase. At [[docs/about/core-concepts/app-lifecycle|freeze time]], the route table compiles into an immutable trie-based structure for fast matching.
+
+## HTTP Methods
+
+By default, routes accept `GET` requests. Specify methods explicitly:
+
+```python
+@app.route("/users", methods=["GET"])
+def list_users():
+    return Template("users.html", users=get_all_users())
+
+@app.route("/users", methods=["POST"])
+async def create_user(request: Request):
+    data = await request.json()
+    user = create(data)
+    return Response(body=b"Created").with_status(201)
+
+@app.route("/users/{id:int}", methods=["GET", "DELETE"])
+async def user(request: Request, id: int):
+    if request.method == "DELETE":
+        delete_user(id)
+        return Response(body=b"Deleted")
+    return Template("user.html", user=get_user(id))
+```
+
+:::{tip}
+If a request matches a path but not the method, Chirp returns `405 Method Not Allowed` with an `Allow` header listing the valid methods — you don't write that fallback yourself.
+:::
+
+## Path Parameters
+
+Dynamic segments are defined with curly braces:
+
+```python
+@app.route("/users/{id}")
+def user(id: str):
+    return f"User: {id}"
+```
+
+### Type Conversions
+
+Add a type suffix to auto-convert parameters:
+
+```python
+@app.route("/users/{id:int}")
+def user(id: int):          # id is an int, not a str
+    return get_user(id)
+
+@app.route("/price/{amount:float}")
+def price(amount: float):   # amount is a float
+    return f"${amount:.2f}"
+```
+
+Supported converters:
+
+:::{list-table}
+:header-rows: 1
+
+* - Converter
+  - Matches
+  - Example
+* - `str`
+  - (default) any chars except `/`
+  - `/users/{name}`
+* - `int`
+  - digits only
+  - `/users/{id:int}`
+* - `float`
+  - digits with an optional decimal
+  - `/price/{amount:float}`
+* - `path`
+  - any chars, including `/`
+  - `/files/{filepath:path}`
+:::
+
+Parameter names must be valid Python identifiers, converters must be one of the supported names above, and routes use Chirp's `{param}` syntax rather than Flask-style `<param>`. Routes that differ only by parameter name, such as `/users/{id}` and `/users/{name}`, are duplicate route shapes and are rejected.
+
+`url_for()` validates supplied path values against the same converter rules, so `url_for("users.detail", id="alice")` fails for `/users/{id:int}` instead of generating a URL the router cannot match.
+
+### Catch-All Routes
+
+Use `{name:path}` to match the rest of the URL:
+
+```python
+from pathlib import Path
+
+@app.route("/files/{filepath:path}")
+def serve_file(filepath: str):          # filepath can contain slashes
+    return FileResponse(Path("uploads") / filepath)
+```
+
+`FileResponse` streams the file from disk with conditional-GET and `Range` support — you don't read it into memory yourself.
+
+:::{warning}
+A `path` converter must be the final segment — it consumes the rest of the URL. Putting anything after it raises `ConfigurationError` at registration.
+:::
+
+## Handler Signature Introspection
+
+Chirp inspects your handler's signature to inject the right arguments:
+
+```python
+# No arguments -- simplest case
+@app.route("/")
+def index():
+    return "Hello"
+
+# Request only
+@app.route("/search")
+def search(request: Request):
+    q = request.query.get("q", "")
+    return Template("search.html", q=q)
+
+# Path parameters only
+@app.route("/users/{id:int}")
+def user(id: int):
+    return get_user(id)
+
+# Both
+@app.route("/users/{id:int}/posts/{slug}")
+def user_post(request: Request, id: int, slug: str):
+    return Template("post.html", post=get_post(id, slug))
+
+# Extractable dataclasses — from query (GET), form (POST), or JSON body
+@app.route("/search")
+def search(form: SearchForm):
+    return Template("search.html", q=form.q, page=form.page)
+
+# Dependency injection — register a type-keyed factory, then declare it as a param
+def get_store() -> DocumentStore:
+    return DocumentStore()
+
+app.provide(DocumentStore, get_store)
+
+@app.route("/documents/{id}")
+def document(id: str, store: DocumentStore):
+    return Template("doc.html", doc=store.get(id))
+```
+
+Argument resolution (first match wins):
+
+- **[[docs/build-apps/pages-navigation/request-response|Request]]** — Parameter named `request` or typed as `Request`
+- **Path parameters** — From URL match, with type coercion
+- **Extractable dataclasses** — Query string (GET), form body (POST), or JSON body. Dataclass fields are populated from request data.
+- **Service providers** — Registered via `app.provide(annotation, factory)`. When a parameter's type matches a registered factory, Chirp injects the result.
+
+## Async Handlers
+
+Handlers can be sync or async. Chirp handles both:
+
+```python
+@app.route("/sync")
+def sync_handler():
+    return "Sync"
+
+@app.route("/async")
+async def async_handler():
+    data = await fetch_data()
+    return Template("data.html", data=data)
+```
+
+Use async handlers when you need to `await` I/O (database queries, HTTP calls, file reads).
+
+## Error Handlers
+
+Register error handlers by status code or exception type:
+
+```python
+@app.error(404)
+def not_found(request: Request):
+    return Template("errors/404.html", path=request.path)
+
+@app.error(500)
+def server_error(request: Request, error: Exception):
+    return Template("errors/500.html", error=str(error))
+
+class PaymentRequired(HTTPError):
+    """Raised by a handler when the caller has no active subscription."""
+    def __init__(self, detail: str = "Subscription required") -> None:
+        super().__init__(status=402, detail=detail)
+
+@app.error(PaymentRequired)
+def payment_required(request: Request, error: PaymentRequired):
+    return Template("errors/payment.html", reason=error.detail)
+```
+
+`@app.error()` takes a status code or an **exception type**. Chirp dispatches to the handler when a route raises a matching exception, or when it produces that status. The handler receives the `Request` and, for exception handlers, the raised exception. An `HTTPError` carries its own status, so the returned `Template` is sent with that code. Error handlers use the same [[docs/about/core-concepts/return-values|return-value system]] as route handlers.
+
+:::{note}
+Register an exception type only if your code actually `raise`s it. Chirp's own return types — including `ValidationError`, which you *return* to send a 422 form fragment — are values, not exceptions you catch. See [[docs/about/core-concepts/return-values|return values]] for the full set.
+:::
+
+## Route Table
+
+Every route you register lands in one table that Chirp compiles at [[docs/about/core-concepts/app-lifecycle|freeze time]].
+
+:::{note}
+At freeze time, routes compile into a trie (prefix tree), so matching is O(path-segments), not O(total-routes) — performance doesn't degrade as you add routes. The compiled table is immutable and shared across worker threads without synchronization (see [[docs/about/thread-safety|thread safety]]).
+:::
+
+::::{dropdown} Advanced: how contract checks validate route URLs in templates
+When `chirp check <app>` [[docs/quality/contracts-debugging/route-contract|validates templates]], it extracts `hx-get`, `hx-post`, `hx-put`, `hx-delete`, `hx-patch`, `action`, and route-bearing macro arguments such as `confirm_url`, then verifies method + path against the route table.
+
+Literal URLs are checked against route converter rules, so `/users/alice` does not satisfy `/users/{id:int}`. Dynamic URLs (built with Kida's `~` or `{{ }}`) are skipped; only literal URLs are validated. Use `~` or `{{ var }}` for path parameters — both work at render time and are correctly treated as dynamic by the checker.
+
+`confirm_url` defaults to `POST` unless a companion `confirm_method` is present, which lets dialog-style component APIs participate in the same route validation as raw htmx attributes.
+
+Legacy component-style `action="update-thing"` values are no longer treated as route URLs. Chirp emits a warning instead of a false route error so you can migrate older macros to literal URLs or explicit htmx attributes over time.
+
+The checker also validates selector-bearing htmx attributes (`hx-target`, `hx-select`, `hx-include`, and similar) for obvious syntax mistakes and unknown static `#id` targets.
+::::{/dropdown}
+
+:::{note} See also
+- [[docs/build-apps/pages-navigation/filesystem-routing|Filesystem Routing]] — Discover routes from a `pages/` directory
+- [[docs/build-apps/pages-navigation/request-response|Request & Response]] — The immutable request and chainable response
+- [[docs/build-apps/request-pipeline/overview|Middleware]] — Intercept requests before they reach handlers
+- [[docs/build-apps/html-fragments/fragments|Fragments]] — Return fragments from route handlers
+:::

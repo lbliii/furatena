@@ -1,0 +1,40 @@
+{% block search_suggest %}
+{% if hits | length > 0 %}
+<ul class="search-modal__results-list fura-search-suggest" role="listbox">
+  {% for hit in hits %}
+  {% set hit_href = search_hit_url(hit) %}
+  {% set hit_heading = search_hit_heading(hit) %}
+  <li class="search-modal__result fura-search-suggest__item">
+    <a class="search-modal__result-link"
+       href="{{ hit_href }}"
+       role="option"{{ route_link_attrs(hit_href) | html_attrs }}>
+      <div class="search-modal__result-content">
+        <span class="search-modal__result-title">{{ hit.node.title }}</span>
+        {% if hit.node.section %}
+        <span class="search-modal__result-badge">{{ hit.node.section }}</span>
+        {% end %}
+      </div>
+      {% if hit_heading %}
+      <span class="search-modal__result-snippet">{{ hit_heading }}</span>
+      {% elif hit.snippet %}
+      <span class="search-modal__result-snippet">{{ hit.snippet }}</span>
+      {% elif hit.node.description %}
+      <span class="search-modal__result-snippet">{{ hit.node.description }}</span>
+      {% end %}
+    </a>
+  </li>
+  {% end %}
+</ul>
+<p class="search-modal__view-all-wrap">
+  <a id="search-modal-view-all"
+     class="search-modal__view-all"
+     href="/search?q={{ search_query | urlencode }}"
+     {{ route_link_attrs('/search') | html_attrs }}>View all results on search page</a>
+</p>
+{% elif search_query %}
+<p class="search-modal__no-results-text">No results for “{{ search_query }}”.</p>
+<p class="search-modal__view-all-wrap">
+  <a class="search-modal__view-all" href="/search?q={{ search_query | urlencode }}"{{ route_link_attrs('/search') | html_attrs }}>Open full search</a>
+</p>
+{% end %}
+{% end %}

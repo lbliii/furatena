@@ -1,0 +1,20 @@
+{# Themed child-cards grid — matches chirp-theme directive card contract. #}
+{% from "chirpui/layout.html" import grid %}
+
+{% set grid_cols = cols if cols == "2" or cols == "3" or cols == "4" else none %}
+{% call grid(cols=grid_cols, gap=gap, cls="chirp-theme-directive-cards chirp-theme-directive-cards--children" ~ (" " ~ extra_class if extra_class else "")) %}
+{% for card in cards %}
+<a href="{{ card.href }}" class="chirpui-card chirpui-card--link chirpui-resource-card chirp-theme-directive-card chirp-theme-directive-card--child chirp-theme-directive-card--{{ card.type | default('page') }}"{{ route_link_attrs(card.href) | html_attrs }}>
+  <header class="chirpui-card__header">
+    <div class="chirpui-card__header-content">
+      <span class="chirpui-card__title">{{ card.title }}</span>
+    </div>
+  </header>
+  {% if card.description %}
+  <div class="chirpui-card__body">
+    <p class="chirpui-text-muted chirpui-font-sm">{{ card.description }}</p>
+  </div>
+  {% end %}
+</a>
+{% end %}
+{% end %}

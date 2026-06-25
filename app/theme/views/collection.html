@@ -1,0 +1,53 @@
+{% extends "layouts/docs_catalog.html" %}
+{% from "chirpui/breadcrumbs.html" import breadcrumbs %}
+
+{% block catalog_hero_eyebrow %}
+{{ breadcrumbs(breadcrumb_items ?? [{"label": "Home", "href": "/"}]) }}
+{% end %}
+
+{% block catalog_hero_metadata %}
+{% if collection %}
+<span>{{ collection_sections | length }} sections</span>
+{% end %}
+{% end %}
+
+{% block catalog_article %}
+{% if collection_error %}
+<p class="chirpui-text-muted">{{ collection_error }}</p>
+{% elif collection %}
+<article class="prose chirp-theme-docs-layout__article chirp-theme-track-layout__article">
+  {% if node.description or node.body_md %}
+  <div class="chirp-theme-track-intro chirp-theme-docs-layout__content">
+    {{ node | doc_body | boost_doc_links | safe }}
+  </div>
+  {% end %}
+
+  <div class="chirp-theme-track-sections">
+    {% for section in collection_sections %}
+    <section id="{{ section.anchor }}" class="chirp-theme-track-section" data-collection-section>
+      <header class="chirp-theme-track-section__header">
+        <span class="chirp-theme-track-section__number" aria-hidden="true">{{ section.index }}</span>
+        <div class="chirp-theme-track-section__heading">
+          <h2 class="chirp-theme-track-section__title">{{ section.node.title }}</h2>
+          {% if section.node.description %}
+          <p class="chirp-theme-track-section__lede">{{ section.node.description }}</p>
+          {% end %}
+        </div>
+      </header>
+      <div class="chirp-theme-track-section__body chirp-theme-docs-layout__content">
+        {{ section.body_html | boost_doc_links | safe }}
+      </div>
+    </section>
+    {% end %}
+  </div>
+</article>
+{% end %}
+{% end %}
+
+{% block catalog_toc_aside %}
+{% if collection_sections | length > 0 %}
+<aside id="toc-panel" class="chirp-theme-docs-layout__toc chirp-theme-track-layout__toc" role="complementary" aria-label="Collection contents">
+  {% include "partials/doc_toc.html" %}
+</aside>
+{% end %}
+{% end %}

@@ -1,0 +1,5 @@
+{% block search_spotlight_oob %}
+<div id="search-workspace-panel" class="search-workspace__panel"{% if search_oob | default(false) %} hx-swap-oob="true"{% end %}>
+  {% include "partials/search_workspace_panel.html" %}
+</div>
+{% end %}

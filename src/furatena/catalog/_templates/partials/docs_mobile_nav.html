@@ -1,0 +1,8 @@
+{# Mobile docs sidebar affordances — matches chirp-theme doc/single.html contract. #}
+{% from "partials/docs_nav_icons.html" import docs_icon %}
+
+<button type="button" class="docs-sidebar-toggle" aria-label="Toggle navigation sidebar"
+        aria-expanded="false" aria-controls="docs-sidebar">
+  {{ docs_icon('list', 20) }}
+</button>
+<div class="docs-sidebar-overlay" aria-hidden="true"></div>

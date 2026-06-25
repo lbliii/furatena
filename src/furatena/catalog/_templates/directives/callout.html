@@ -1,0 +1,6 @@
+{% from "chirpui/callout.html" import callout %}
+{% set callout_class = "chirp-theme-directive-admonition chirp-theme-directive-admonition--" ~ (admonition_name | default(variant)) %}
+{% if extra_class %}{% set callout_class = callout_class ~ " " ~ extra_class %}{% end %}
+{% call callout(variant=variant, title=title, cls=callout_class) %}
+{{ body | safe }}
+{% end %}

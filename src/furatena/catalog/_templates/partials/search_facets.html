@@ -1,0 +1,37 @@
+{# L2 scope panel — mount rail + section families (Fern layered catalog shell). #}
+{% set mount_items = search_mount_rail | default([]) %}
+{% set scope_items = search_scope_rail | default([]) %}
+{% set show_mounts = mount_items | length > 1 %}
+{% set show_sections = scope_items | length > 1 %}
+
+<div class="search-scope-panel">
+  {% if show_mounts %}
+  <section class="search-scope-panel__layer">
+    <header class="search-scope-panel__layer-header">
+      <span class="search-scope-panel__step" aria-hidden="true">01</span>
+      <div>
+        <h2 class="search-scope-panel__title">Mounts</h2>
+        <p class="search-scope-panel__meta">Product areas in the catalog</p>
+      </div>
+    </header>
+    <div id="search-mount-rail-panel" class="search-scope-panel__rail search-scope-panel__rail--mounts">
+      {% include "partials/search_mount_rail.html" %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if show_sections %}
+  <section class="search-scope-panel__layer">
+    <header class="search-scope-panel__layer-header">
+      <span class="search-scope-panel__step" aria-hidden="true">{{ "02" if show_mounts else "01" }}</span>
+      <div>
+        <h2 class="search-scope-panel__title">Sections</h2>
+        <p class="search-scope-panel__meta">Families within the active scope</p>
+      </div>
+    </header>
+    <div id="search-scope-rail-panel" class="search-scope-panel__rail">
+      {% include "partials/search_scope_rail.html" %}
+    </div>
+  </section>
+  {% endif %}
+</div>

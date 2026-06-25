@@ -1,0 +1,30 @@
+{% extends "layouts/docs_app.html" %}
+{% from "chirpui/hero.html" import hero %}
+{% from "chirpui/layout.html" import grid %}
+{% from "chirpui/card.html" import card %}
+{% from "partials/doc_link.html" import doc_link %}
+
+{% block app_content %}
+<div class="chirp-theme-home__hero-stage">
+  {% call hero(title=node.title, subtitle=node.description, background="mesh", cls="chirp-theme-home__hero") %}
+    {% slot actions %}
+    {{ doc_link("/docs/", "Browse documentation") }}
+    {% end %}
+  {% end %}
+</div>
+
+<div class="chirp-theme-home__content">
+  <article class="prose chirp-theme-page__content">
+    {{ node | doc_body | boost_doc_links | safe }}
+  </article>
+
+  {% call grid(cols=2, gap="md", cls="chirp-theme-home__cards") %}
+    {% call card(title="Browse docs", subtitle="Boosted navigation keeps the shell mounted") %}
+      <p>{{ doc_link("/docs/", "Open the documentation hub") }} and click around — only the content island swaps.</p>
+    {% end %}
+    {% call card(title="Machine-readable index", subtitle="Generated at request time") %}
+      <p><a href="/llms.txt">llms.txt</a> lists every indexed page without a build step.</p>
+    {% end %}
+  {% end %}
+</div>
+{% end %}

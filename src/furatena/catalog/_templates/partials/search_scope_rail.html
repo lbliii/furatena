@@ -1,0 +1,18 @@
+{# L2 scope rail — section drill-down with live counts (Fern family-rail analogue). #}
+{% set scope_items = search_scope_rail | default([]) %}
+{% if scope_items | length > 1 %}
+<nav class="search-shell-scope-rail" aria-label="Catalog sections">
+  {% for item in scope_items %}
+  <a class="search-shell-scope-rail__item{% if item.active %} is-active{% end %}"
+     href="{{ item.href }}"
+     title="{{ item.label }}"
+     {{ item.nav_attrs | html_attrs }}>
+    <span class="search-shell-scope-rail__mark" aria-hidden="true">{{ item.mark }}</span>
+    <span class="search-shell-scope-rail__body">
+      <strong class="search-shell-scope-rail__label">{{ item.label }}</strong>
+      <small class="search-shell-scope-rail__count">{{ item.count }} pages</small>
+    </span>
+  </a>
+  {% end %}
+</nav>
+{% endif %}

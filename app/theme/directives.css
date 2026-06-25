@@ -1,0 +1,522 @@
+/* Directive skin — chirp-ui/Alpine markup styled with chirp-theme tokens. */
+@layer docs.directives {
+  /*
+   * Tabs (tab-set, code-tabs)
+   * Maps Alpine/chirpui-tabs onto the packaged theme's .tabs / .code-tabs look.
+   */
+  .chirp-theme-directive-tabs {
+    position: relative;
+    margin: var(--space-6, 1.5rem) 0;
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background-color: var(--color-bg-primary, var(--chirpui-surface));
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs > .chirpui-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--color-border-light, var(--chirpui-border));
+    background-color: var(--color-bg-secondary, var(--chirpui-surface-subtle, var(--chirpui-surface)));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem))
+      var(--radius-lg, var(--chirpui-radius-lg, 0.75rem)) 0 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab {
+    display: block;
+    flex: 0 0 auto;
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    color: var(--color-text-tertiary, var(--chirpui-text-muted));
+    font-weight: var(--weight-medium, 500);
+    font-size: var(--text-sm, 0.875rem);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab:hover {
+    color: var(--color-text-primary, var(--chirpui-text));
+    background-color: var(--color-bg-hover, color-mix(in srgb, var(--chirpui-accent) 8%, transparent));
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab--active {
+    color: var(--color-primary, var(--chirpui-accent));
+    background-color: var(--color-primary-light, color-mix(in srgb, var(--chirpui-accent) 12%, transparent));
+    font-weight: var(--weight-semibold, 600);
+    position: relative;
+  }
+
+  .chirp-theme-directive-tabs .chirpui-tab--active::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 40%, transparent) 0%,
+      var(--color-primary, var(--chirpui-accent)) 50%,
+      color-mix(in srgb, var(--color-primary, var(--chirpui-accent)) 40%, transparent) 100%
+    );
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panels {
+    padding: var(--space-4, 1rem);
+  }
+
+  /*
+   * Tab panels rely on Alpine x-show (inline display toggling). Do not set
+   * display:none here — it wins over x-show when Alpine clears inline style
+   * on the active panel, which hides every non-first tab ("By hand", etc.).
+   * x-cloak lives in styles.css (global Alpine guard).
+   */
+
+  .chirp-theme-directive-tabs .fura-tab-panel {
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs--code {
+    border-radius: var(--radius-md, var(--chirpui-radius-md, 0.5rem));
+  }
+
+  .chirp-theme-directive-tabs--code > .chirpui-tabs {
+    background: transparent;
+    padding-inline: var(--space-2, 0.5rem);
+    border-radius: var(--radius-md, var(--chirpui-radius-md, 0.5rem))
+      var(--radius-md, var(--chirpui-radius-md, 0.5rem)) 0 0;
+  }
+
+  .chirp-theme-directive-tabs--code .fura-tab-panels {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs--code .fura-tab-panel pre {
+    margin: 0;
+    border: none;
+    border-radius: 0 0 var(--radius-md, var(--chirpui-radius-md, 0.5rem))
+      var(--radius-md, var(--chirpui-radius-md, 0.5rem));
+  }
+
+  .chirp-theme-directive-tabs .chirpui-badge {
+    margin-inline-start: 0.35rem;
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /*
+   * Dropdown — chirpui-collapse styled like details.dropdown
+   */
+  .chirp-theme-directive-dropdown.chirpui-collapse {
+    margin: var(--space-6, 1.5rem) 0;
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    border: 1px solid var(--color-border, var(--chirpui-border));
+    border-inline-start: 4px solid var(--color-accent, var(--chirpui-accent));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg, 0.75rem));
+    background-color: var(--color-bg-secondary, var(--chirpui-surface-subtle, var(--chirpui-surface)));
+    box-shadow: var(--neumorphic-base, none);
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+
+  .chirp-theme-directive-dropdown.chirpui-collapse:hover {
+    box-shadow: var(--neumorphic-hover, 0 2px 8px color-mix(in srgb, var(--chirpui-text) 8%, transparent));
+  }
+
+  .chirp-theme-directive-dropdown.chirpui-collapse[open] {
+    background-color: var(--color-bg-primary, var(--chirpui-surface));
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger {
+    list-style: none;
+    cursor: pointer;
+    font-weight: var(--weight-semibold, 600);
+    font-size: var(--text-base, 1rem);
+    color: var(--color-text-primary, var(--chirpui-text));
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    padding-inline-end: var(--space-6, 1.5rem);
+    position: relative;
+    user-select: none;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger::-webkit-details-marker {
+    display: none;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger::after {
+    content: "▶";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    transition: transform 0.15s ease, color 0.15s ease;
+  }
+
+  .chirp-theme-directive-dropdown.chirpui-collapse[open] .chirpui-collapse__trigger::after {
+    transform: translateY(-50%) rotate(90deg);
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger:hover {
+    color: var(--color-accent, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__trigger:hover::after {
+    color: var(--color-accent, var(--chirpui-accent));
+  }
+
+  .chirp-theme-directive-dropdown__copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+  }
+
+  .chirp-theme-directive-dropdown__description {
+    display: block;
+    font-size: var(--text-sm, 0.875rem);
+    font-weight: var(--weight-normal, 400);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    line-height: 1.4;
+  }
+
+  .chirp-theme-directive-dropdown__badge {
+    margin-inline-start: auto;
+    margin-inline-end: var(--space-6, 1.5rem);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .chirp-theme-directive-dropdown .chirpui-collapse__content {
+    margin-top: var(--space-4, 1rem);
+    padding-top: var(--space-4, 1rem);
+    border-top: 1px solid var(--color-border, var(--chirpui-border));
+  }
+
+  .chirp-theme-directive-dropdown--success {
+    border-inline-start-color: var(--color-success, var(--chirpui-success, #22c55e));
+  }
+
+  .chirp-theme-directive-dropdown--warning {
+    border-inline-start-color: var(--color-warning, var(--chirpui-warning, #eab308));
+  }
+
+  .chirp-theme-directive-dropdown--danger {
+    border-inline-start-color: var(--color-error, var(--chirpui-danger, #ef4444));
+  }
+
+  .chirp-theme-directive-dropdown--info {
+    border-inline-start-color: var(--color-info, var(--chirpui-info, var(--chirpui-accent)));
+  }
+
+  /*
+   * Steps — uses packaged theme .steps rules; wrapper adds directive scope only.
+   */
+  .chirp-theme-directive-steps.steps > ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .chirp-theme-directive-steps .step-marker {
+    text-decoration: none;
+  }
+
+  /*
+   * Figure — theme .figure alignment
+   */
+  .chirp-theme-directive-figure.figure {
+    margin-block: var(--space-4, 1rem);
+  }
+
+  .chirp-theme-directive-figure.figure img,
+  .chirp-theme-directive-figure .figure__img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md, var(--chirpui-radius-md, 0.5rem));
+  }
+
+  .chirp-theme-directive-figure .figure__caption {
+    margin-top: var(--space-2, 0.5rem);
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chirp-theme-directive-tabs .chirpui-tab,
+    .chirp-theme-directive-dropdown .chirpui-collapse__trigger::after {
+      transition: none;
+    }
+  }
+
+  /* Code blocks — Rosettes + server-rendered code-block-wrapper */
+  .chirp-theme-docs-layout__content .rosettes {
+    position: relative;
+    margin-block: var(--space-6, 1.5rem);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-2xl, 1rem);
+    background-color: var(--color-bg-code, var(--chirpui-code-bg));
+    box-shadow: var(--elevation-card, var(--chirpui-shadow-sm));
+    overflow: visible;
+  }
+
+  [data-theme="dark"] .chirp-theme-docs-layout__content .rosettes {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .chirp-theme-docs-layout__content .rosettes > pre {
+    margin-block: 0;
+    border: none;
+    border-radius: inherit;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .chirp-theme-docs-layout__content .rosettes .code-block-wrapper {
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    animation: none;
+    border-radius: inherit;
+    /* Keep visible so copy-button ::after tooltips can paint above the block. */
+    overflow: visible;
+  }
+
+  .chirp-theme-docs-layout__content .rosettes .code-block-wrapper pre {
+    border-radius: inherit;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .chirp-theme-docs-layout__content .rosettes .code-header-inline {
+    overflow: visible;
+    z-index: 2;
+  }
+
+  /* Code-tabs panels: Rosettes wrapper or bare pre both get theme chrome */
+  .chirp-theme-directive-tabs .fura-tab-panel > .rosettes,
+  .chirp-theme-directive-tabs .fura-tab-panel > pre {
+    margin: 0;
+    border-radius: 0 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem);
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel > pre {
+    border: none;
+    box-shadow: none;
+    animation: none;
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel > .rosettes {
+    border: none;
+    border-radius: 0 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem);
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper {
+    margin: 0;
+    border: none;
+    border-radius: 0 0 var(--radius-md, 0.5rem) var(--radius-md, 0.5rem);
+    box-shadow: none;
+    animation: none;
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel .code-block-wrapper pre {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .chirp-theme-directive-tabs .fura-tab-panel .code-header-inline {
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    overflow: visible;
+    z-index: 2;
+  }
+
+  /*
+   * Admonitions — accent left edge on chirp-ui callouts
+   */
+  .chirp-theme-directive-admonition.chirpui-callout {
+    margin-block: var(--space-6, 1.5rem);
+    border-inline-start-width: 4px;
+  }
+
+  .chirp-theme-directive-admonition--note,
+  .chirp-theme-directive-admonition--info,
+  .chirp-theme-directive-admonition--important,
+  .chirp-theme-directive-admonition--seealso {
+    border-inline-start-color: var(--color-info, var(--chirpui-info));
+  }
+
+  .chirp-theme-directive-admonition--tip,
+  .chirp-theme-directive-admonition--success,
+  .chirp-theme-directive-admonition--example {
+    border-inline-start-color: var(--color-success, var(--chirpui-success));
+  }
+
+  .chirp-theme-directive-admonition--warning,
+  .chirp-theme-directive-admonition--caution {
+    border-inline-start-color: var(--color-warning, var(--chirpui-warning));
+  }
+
+  .chirp-theme-directive-admonition--danger,
+  .chirp-theme-directive-admonition--error {
+    border-inline-start-color: var(--color-error, var(--chirpui-danger));
+  }
+
+  /*
+   * Cards — spacing in prose
+   */
+  .chirp-theme-directive-cards {
+    margin-block: var(--space-6, 1.5rem);
+  }
+
+  .chirp-theme-directive-card.chirpui-card,
+  .chirp-theme-directive-card.chirpui-resource-card {
+    block-size: 100%;
+  }
+
+  /*
+   * Related links
+   */
+  .chirp-theme-directive-related {
+    margin-block: var(--space-6, 1.5rem);
+  }
+
+  .chirp-theme-directive-related__links {
+    margin: 0;
+    padding-inline-start: 1.25rem;
+  }
+
+  .chirp-theme-directive-related__links a {
+    font-weight: var(--weight-medium, 500);
+  }
+
+  /*
+   * Glossary
+   */
+  .chirp-theme-directive-glossary {
+    margin-block: var(--space-6, 1.5rem);
+    padding: var(--space-4, 1rem);
+    border: 1px solid var(--color-border, var(--chirpui-border));
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+  }
+
+  .chirp-theme-directive-glossary__summary {
+    cursor: pointer;
+    font-weight: var(--weight-semibold, 600);
+  }
+
+  .chirp-theme-directive-glossary__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1, 0.25rem);
+    margin-top: var(--space-2, 0.5rem);
+  }
+
+  .chirp-theme-directive-glossary__tag {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-full, 999px);
+    font-size: var(--text-xs, 0.75rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+    background: var(--color-bg-primary, var(--chirpui-surface));
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+  }
+
+  .chirp-theme-glossary-term {
+    border-bottom: 1px dotted var(--color-primary, var(--chirpui-accent));
+    text-decoration: none;
+    cursor: help;
+  }
+
+  /*
+   * Embeds
+   */
+  .chirp-theme-directive-embed {
+    margin-block: var(--space-6, 1.5rem);
+    border-radius: var(--radius-lg, var(--chirpui-radius-lg));
+    overflow: hidden;
+    border: 1px solid var(--color-border-light, var(--chirpui-border));
+    background: var(--color-bg-secondary, var(--chirpui-surface-subtle));
+  }
+
+  .chirp-theme-directive-embed--youtube iframe {
+    display: block;
+    border-radius: inherit;
+  }
+
+  .chirp-theme-directive-embed--gist {
+    padding: var(--space-2, 0.5rem);
+  }
+
+  /*
+   * Tables (list-table)
+   */
+  .chirp-theme-directive-table {
+    margin-block: var(--space-6, 1.5rem);
+  }
+
+  .chirp-theme-directive-table__caption {
+    margin: 0 0 var(--space-2, 0.5rem);
+    font-size: var(--text-sm, 0.875rem);
+    font-weight: var(--weight-semibold, 600);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+  }
+
+  /*
+   * Version callouts — packaged .version-directive rules apply; scope margin
+   */
+  .chirp-theme-directive-version.version-directive {
+    margin-block: var(--space-6, 1.5rem);
+  }
+
+  /*
+   * literalinclude figures
+   */
+  .chirp-theme-directive-figure--code {
+    margin-block: var(--space-6, 1.5rem);
+  }
+
+  .chirp-theme-directive-figure--code .code-block-wrapper,
+  .chirp-theme-directive-figure--code .rosettes .code-block-wrapper {
+    overflow: visible;
+  }
+
+  .chirp-theme-directive-figure--code .code-header-inline,
+  .chirp-theme-directive-figure--code .rosettes .code-header-inline {
+    overflow: visible;
+    z-index: 2;
+  }
+
+  .chirp-theme-directive-figure--code .chirp-theme-directive-figure__caption,
+  .chirp-theme-directive-figure--code > figcaption {
+    margin-bottom: var(--space-2, 0.5rem);
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary, var(--chirpui-text-muted));
+  }
+
+  .chirp-theme-directive-dropdown--minimal {
+    border-inline-start-color: var(--color-border, var(--chirpui-border));
+  }
+}

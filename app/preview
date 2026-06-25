@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Serve the static export under /chirp/ like GitHub Pages project sites.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PUBLIC="${1:-$ROOT/public}"
+BASE_PATH="${FURA_BASE_PATH:-/chirp}"
+PORT="${FURA_PREVIEW_PORT:-8080}"
+PREVIEW_ROOT="${FURA_PREVIEW_ROOT:-$ROOT/.preview}"
+
+if [[ ! -f "$PUBLIC/index.html" ]]; then
+  echo "Missing $PUBLIC/index.html — run: make docs-export" >&2
+  exit 1
+fi
+
+BASE_PATH="/${BASE_PATH#/}"
+BASE_PATH="${BASE_PATH%/}"
+MOUNT="$PREVIEW_ROOT$BASE_PATH"
+
+mkdir -p "$MOUNT"
+rsync -a --delete "$PUBLIC/" "$MOUNT/"
+cd "$PREVIEW_ROOT"
+
+echo "Chirp docs static preview"
+echo "  source:  $PUBLIC"
+echo "  mount:   $MOUNT"
+echo "  open:    http://127.0.0.1:${PORT}${BASE_PATH}/"
+echo "(Ctrl+C to stop)"
+exec python3 -m http.server "$PORT"

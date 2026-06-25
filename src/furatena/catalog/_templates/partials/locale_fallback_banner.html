@@ -1,0 +1,16 @@
+{# Shown when a locale URL renders default-language content (fallback). #}
+{% if i18n_fallback_active | default(false) %}
+<div class="chirp-theme-locale-fallback version-banner version-banner--info" role="status">
+  <div class="version-banner__content">
+    <span class="version-banner__icon" aria-hidden="true">🌐</span>
+    <p class="version-banner__message">
+      {{ i18n_fallback_message }}
+      {% if node is defined and node %}
+      <a class="version-banner__link" href="{{ node.url }}" hreflang="{{ i18n_content_language }}">
+        {% if i18n_enabled | default(false) %}{{ t('View original') }}{% else %}View original{% end %}
+      </a>
+      {% end %}
+    </p>
+  </div>
+</div>
+{% end %}

@@ -1,0 +1,10 @@
+<div class="version-directive version-{{ kind }} chirp-theme-directive-version chirp-theme-directive-version--{{ kind }}">
+  <div class="version-directive-header">
+    <span class="version-badge version-badge-{{ kind }}">{{ badge_label }}</span>
+  </div>
+  {% if body %}
+  <div class="version-directive-content">
+    {{ body | safe }}
+  </div>
+  {% end %}
+</div>

@@ -1,0 +1,5 @@
+{% block search_discovery_oob %}
+<div id="search-discovery-panel" class="search-discovery__panel"{% if search_oob | default(false) %} hx-swap-oob="true"{% end %}>
+  {% include "partials/search_discovery.html" %}
+</div>
+{% end %}

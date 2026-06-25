@@ -1,0 +1,28 @@
+# Furatena
+# Hypermedia docs catalog for Chirp. CLI: fura
+
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# App runtime artifacts
+app/frozen/
+app/public/
+app/.preview/
+app/.docs-cache/
+app/.docs-cache-test/
+
+# Test / tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.DS_Store
+
+# uv
+uv.lock

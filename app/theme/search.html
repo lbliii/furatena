@@ -1,0 +1,79 @@
+{% extends "layouts/docs_search.html" %}
+
+{% block catalog_article %}
+{% set section_options = search_sections | default([]) %}
+{% set active_section = search_section | default('') %}
+{% set active_mount = search_mount | default('') %}
+{% set active_tag = search_tag | default('') %}
+{% set active_channel = search_channel | default('latest') %}
+{% set global_search = search_global | default(false) %}
+
+<header class="search-workspace__header">
+  <div class="search-workspace__intro">
+    <p class="search-workspace__eyebrow">Layered catalog search</p>
+    <p class="search-workspace__meta">{{ page_count | default(0) }} pages indexed · scope with mounts, sections, topics, and editions</p>
+  </div>
+
+  <form action="/search" method="get"
+        class="search-workspace__command"
+        hx-get="/search"
+        hx-target="#search-results-panel"
+        hx-trigger="submit, input changed delay:250ms from:#search-page-input, change from:#search-page-section, change from:#search-page-global"
+        hx-push-url="true"
+        hx-indicator="#search-page-loading"
+        {{ search_partial_attrs() | html_attrs }}>
+    {% if active_mount %}
+    <input type="hidden" name="mount" value="{{ active_mount }}">
+    {% end %}
+    {% if active_tag %}
+    <input type="hidden" name="tag" value="{{ active_tag }}">
+    {% end %}
+    {% if active_channel and active_channel != 'latest' %}
+    <input type="hidden" name="channel" value="{{ active_channel }}">
+    {% end %}
+    <label class="sr-only" for="search-page-input">Search documentation</label>
+    <div class="search-workspace__command-row">
+      <div class="search-workspace__input-wrap">
+        <span class="search-workspace__input-icon" aria-hidden="true">⌕</span>
+        <input id="search-page-input" type="search" name="q" value="{{ search_query }}"
+               placeholder="Search products, tasks, APIs, roles, topics…"
+               class="search-workspace__input"
+               autocomplete="off"
+               aria-controls="search-results-panel search-workspace-panel">
+        <div class="search-workspace__loading htmx-indicator" id="search-page-loading" aria-hidden="true">
+          <span class="search-page__spinner"></span>
+        </div>
+      </div>
+      {% if section_options | length > 1 %}
+      <div class="search-workspace__scope">
+        <label class="sr-only" for="search-page-section">Section scope</label>
+        <select id="search-page-section" name="section" class="search-workspace__scope-select">
+          <option value="">All sections</option>
+          {% for item in section_options %}
+          <option value="{{ item.value }}"{% if active_section == item.value %} selected{% end %}>{{ item.label }}</option>
+          {% end %}
+        </select>
+      </div>
+      {% end %}
+      <label class="search-workspace__global">
+        <input id="search-page-global" type="checkbox" name="global" value="1"{% if global_search %} checked{% end %}{% if not search_query %} disabled{% end %}>
+        <span>Global</span>
+      </label>
+    </div>
+    <div class="search-workspace__hints" aria-hidden="true">
+      <span><kbd>↵</kbd> search</span>
+      <span><kbd>⌘</kbd><kbd>K</kbd> focus</span>
+    </div>
+  </form>
+</header>
+
+<div id="search-workspace-panel" class="search-workspace__panel">
+  {% include "partials/search_workspace_panel.html" %}
+</div>
+
+{% block search_results %}
+<div id="search-results-panel" class="search-workspace__results" hx-disinherit="*">
+  {% include "partials/search_results.html" %}
+</div>
+{% end %}
+{% end %}

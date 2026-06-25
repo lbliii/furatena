@@ -1,0 +1,18 @@
+{# L1 mount rail — product areas with live counts (Fern area-rail analogue). #}
+{% set mount_items = search_mount_rail | default([]) %}
+{% if mount_items | length > 1 %}
+<nav class="search-shell-mount-rail" aria-label="Documentation mounts">
+  {% for item in mount_items %}
+  <a class="search-shell-mount-rail__item{% if item.active %} is-active{% end %}"
+     href="{{ item.href }}"
+     title="{{ item.label }}"
+     {{ item.nav_attrs | html_attrs }}>
+    <span class="search-shell-mount-rail__mark" aria-hidden="true">{{ item.mark }}</span>
+    <span class="search-shell-mount-rail__body">
+      <strong class="search-shell-mount-rail__label">{{ item.label }}</strong>
+      <small class="search-shell-mount-rail__count">{{ item.count }}</small>
+    </span>
+  </a>
+  {% end %}
+</nav>
+{% endif %}

@@ -1,0 +1,11 @@
+{% block toc_panel_oob %}
+{% if node is defined and node %}
+<aside id="toc-panel"
+       class="chirp-theme-docs-layout__toc"
+       role="complementary"
+       aria-label="Table of contents"
+       hx-swap-oob="true">
+  {% include "partials/doc_toc.html" %}
+</aside>
+{% end %}
+{% end %}

@@ -1,0 +1,337 @@
+/**
+ * chirp-theme
+ * Main Stylesheet
+ *
+ * Curated theme bundle for the retained chirp-theme surface.
+ * The retained contract is shell + docs + page + blog + search/error pages.
+ */
+
+/* ============================================
+   DESIGN TOKENS (Variables First!)
+   ============================================ */
+
+/* Use CSS Layers to stabilize cascade.
+   `chirp-theme` is declared LAST on purpose: chirpui.css (loaded first via
+   library_asset_tags()) declares `@layer chirpui.reset, …, chirpui.utility`,
+   then these theme layers, then `chirp-theme`. Pinning the name here fixes the
+   theme layer's position after `pages` regardless of @import timing, so the
+   bespoke theme surface (chirp-theme.css, self-wrapped in `@layer chirp-theme`)
+   beats the shipped chirp-ui baseline while staying overridable: a consumer
+   layer declared even later (e.g. `@layer app.overrides`) still wins. */
+@layer tokens, base, utilities, components, pages, chirp-theme;
+
+/* Foundation tokens (primitives - never use directly) */
+@layer tokens {
+  @import url('tokens/foundation.css');
+}
+
+/* Typography tokens (clean typography scale) */
+@layer tokens {
+  @import url('tokens/typography.css');
+}
+
+/* Semantic tokens (purpose-based - use these in components) */
+@layer tokens {
+  @import url('tokens/semantic.css');
+}
+
+/* ============================================
+   BASE STYLES (Resets & Foundations)
+   ============================================ */
+
+@layer base {
+  @import url('base/reset.css');
+}
+
+@layer base {
+  @import url('base/typography.css');
+}
+
+@layer base {
+  @import url('base/utilities.css');
+}
+
+@layer base {
+  @import url('base/interactive-patterns.css');
+}
+
+@layer utilities {
+  @import url('utilities/motion.css');
+  @import url('utilities/gradient-borders.css');
+}
+
+@layer base {
+  @import url('base/accessibility.css');
+}
+
+@layer base {
+  @import url('base/print.css');
+}
+
+@layer base {
+  @import url('base/transitions.css');
+}
+
+/* ============================================
+   COMPOSITION (Layout Primitives)
+   ============================================ */
+
+@layer base {
+  @import url('composition/layouts.css');
+}
+
+/* ============================================
+   RETAINED LEGACY CSS QUARANTINE
+
+   These imports are still reachable from shipped templates, but they are not
+   the target theme architecture. New bespoke shell/content work belongs in
+   chirp-theme.css below unless it graduates into Chirp UI itself.
+   ============================================ */
+
+@layer pages {
+  @import url('layouts/grid.css');
+}
+
+@layer pages {
+  @import url('layouts/header.css');
+}
+
+@layer pages {
+  @import url('layouts/page-header.css');
+}
+
+@layer pages {
+  @import url('layouts/footer.css');
+}
+
+/* ============================================
+   COMPONENT STYLES
+   ============================================ */
+
+@layer components {
+  @import url('components/alerts.css');
+}
+
+@layer components {
+  @import url('components/tabs.css');
+}
+
+@layer components {
+  @import url('components/tabs-native.css');
+}
+
+@layer components {
+  @import url('components/dropdowns.css');
+}
+
+@layer components {
+  @import url('components/checklist.css');
+}
+
+@layer components {
+  @import url('components/steps.css');
+}
+
+@layer components {
+  @import url('components/target-anchor.css');
+}
+
+@layer components {
+  @import url('components/buttons.css');
+  @import url('components/forms.css');
+}
+
+@layer components {
+  @import url('components/tags.css');
+}
+
+@layer components {
+  @import url('components/code.css');
+}
+
+@layer components {
+  @import url('components/component-specimen.css');
+}
+
+@layer components {
+  @import url('components/mermaid.css');
+}
+
+/* components/pagination.css removed (bugbash/bengal-theme): legacy default-Bengal
+   `.pagination` styling was unused — pagination renders as `.chirpui-pagination`
+   + `.chirpui-pagination__*` (see partials/navigation-components.html). */
+
+@layer components {
+  @import url('components/toc.css');
+}
+
+@layer components {
+  @import url('components/navigation.css');
+}
+
+@layer components {
+  @import url('components/badges.css');
+}
+
+@layer components {
+  @import url('components/labels.css');
+}
+
+@layer components {
+  @import url('components/icons.css');
+}
+
+@layer components {
+  @import url('components/widgets.css');
+}
+
+@layer components {
+  @import url('components/search.css');
+  @import url('components/search-modal.css');
+  @import url('components/link-preview.css');
+}
+
+@layer components {
+  @import url('components/hero.css');
+}
+
+@layer components {
+  @import url('components/page-hero.css');
+}
+
+@layer components {
+  @import url('components/interactive.css');
+}
+
+@layer components {
+  @import url('components/blog.css');
+}
+
+@layer components {
+  @import url('components/empty-state.css');
+}
+
+@layer components {
+  @import url('components/meta.css');
+}
+
+@layer components {
+  @import url('components/share.css');
+}
+
+@layer components {
+  @import url('components/author.css');
+}
+
+@layer components {
+  @import url('components/reference.css');
+}
+
+@layer components {
+  @import url('components/tracks.css');
+}
+
+/* Per-surface type identity (accent + reading measure + density). Loaded after
+   tracks.css so its per-surface --type-accent / --chirpui-accent assignments sit
+   above the chirp-ui baseline `components` while staying overridable by the late
+   `chirp-theme` layer and `app.overrides`. */
+@layer components {
+  @import url('components/type-identity.css');
+}
+
+@layer components {
+  @import url('components/versioning.css');
+  @import url('components/locale-switcher.css');
+  @import url('components/stale-banner.css');
+}
+
+/* Media embed components */
+@layer components {
+  @import url('components/_video-embed.css');
+  @import url('components/_audio-embed.css');
+  @import url('components/_code-embed.css');
+  @import url('components/_figure.css');
+  @import url('components/_terminal-embed.css');
+}
+
+/* ============================================
+   PAGE-SPECIFIC STYLES
+   ============================================ */
+
+/* ============================================
+   CUSTOM GLOBAL STYLES
+   ============================================ */
+
+/* Page layout helpers */
+/* TODO(chirp-ui): `.page-content` / `.page-footer` are UNLAYERED legacy rules,
+   but they are the ONLY styling for the bespoke `.chirp-theme-page__content` /
+   `.chirp-theme-page__footer` elements in page.html (chirp-theme.css does NOT
+   define those BEM classes). Kept to avoid a visible regression (the
+   `.page-footer` top-border/spacing separates the tags footer). Native
+   replacement: move these into the `@layer chirp-theme` surface keyed on
+   `.chirp-theme-page__content` / `__footer` (or a chirp-ui primitive), then drop
+   the unlayered `.page-content` / `.page-footer` aliases and the `cls`-side
+   `page-content` / `page-footer` classes in page.html. (chirp-theme.css edits
+   are off-limits during this bugbash — deferred to coordinator.) */
+.page-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-footer {
+  margin-top: auto;
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Main Content Area */
+/* Layered into `pages` (declared before `chirp-theme`) so the theme's
+   shell padding — notably the rail-only `padding-block: 0` at desktop in
+   chirp-theme.css — wins without !important. An unlayered rule here used to
+   beat the layered shell rule and add a top gap, pushing content away from the
+   viewport top in desktop rail-only mode (#131 visual-contract tests). */
+@layer pages {
+  main {
+    flex: 1 0 auto;
+    padding-block: var(--space-6) var(--space-10);
+    /* Reduced top from --space-10 (40px) to --space-6 (24px) for tighter spacing beneath navbar */
+  }
+}
+
+/* Home Page Hero: moved to components/hero.css; keep this section empty intentionally */
+
+/* ============================================
+   LEGACY DEFAULT-BENGAL FILLER STRIPPED (bugbash/bengal-theme)
+
+   Removed the following UNLAYERED legacy rules inherited from the default
+   Bengal theme. Being unlayered, they silently outranked the `@layer
+   chirp-theme` surface and the chirp-ui baseline (the documented breadcrumb
+   cascade hazard). Each is dead, duplicated, or superseded by chirp-ui:
+
+   - `.section-header` / `.section-title` / `.section-description`: not emitted
+     by any chirp-theme template; chirp-ui ships `.chirpui-section-header`
+     (src/chirp_ui/templates/chirpui/layout.html) instead.
+   - `.breadcrumbs`: emitted only as a redundant alias alongside
+     `.chirpui-breadcrumbs` (navigation-components.html passes
+     `cls='breadcrumbs'`); the unlayered block was actively fighting the
+     `.chirpui-breadcrumbs` component reset. `.chirpui-breadcrumbs` now governs.
+   - `.pagination` / `.pagination .active` / `.disabled`: not emitted;
+     pagination renders as `.chirpui-pagination` + `.chirpui-pagination__*`
+     (navigation-components.html). The duplicate `components/pagination.css`
+     import was also removed.
+   - `.loading` spinner + `@keyframes spin`: no `class="loading"` is emitted;
+     the live search spinner defines its own `@keyframes spin` in
+     `components/search-modal.css`.
+   - Local `@media print` block: a weaker, partly-harmful duplicate of the
+     comprehensive `base/print.css` (already imported in `@layer base`); the
+     local copy also annotated anchor links, which `base/print.css` correctly
+     scopes to `http(s)` links only.
+   ============================================ */
+
+/* BESPOKE ACTIVE THEME SURFACE
+   Theme-owned overrides live in the late-declared `chirp-theme` cascade layer
+   (the file self-wraps in `@layer chirp-theme { … }`). Declared after every
+   chirpui.* and theme layer, it fully restyles the shipped baseline yet stays
+   overridable: downstream apps win by adding an even-later layer such as
+   `@layer app.overrides`. See chirp-theme.css for the contract note. */
+@import url('chirp-theme.css');

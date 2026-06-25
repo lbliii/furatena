@@ -1,0 +1,4 @@
+<figure class="figure chirp-theme-directive-figure{{ ' ' ~ extra_class if extra_class else '' }}"{% if width %} style="max-width: {{ width }};"{% end %}>
+<img src="{{ src }}" alt="{{ alt }}" loading="{{ loading }}" class="figure__img">
+{% if caption %}<figcaption class="figure__caption">{{ caption }}</figcaption>{% end %}
+</figure>

@@ -1,0 +1,6 @@
+{% from "chirpui/card.html" import card %}
+{% set card_class = "chirp-theme-directive-card" ~ (" " ~ extra_class if extra_class else "") %}
+{% call card(title=title, subtitle=subtitle, cls=card_class) %}
+{% if icon_html %}<div class="chirpui-card__icon" aria-hidden="true">{{ icon_html | safe }}</div>{% end %}
+{{ body | safe }}
+{% end %}

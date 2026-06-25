@@ -1,0 +1,6 @@
+{# OOB refresh for mount rail active states after partial search swaps. #}
+{% block search_mount_rail_oob %}
+<div id="search-mount-rail-panel" class="search-scope-panel__rail search-scope-panel__rail--mounts"{% if search_oob | default(false) %} hx-swap-oob="true"{% end %}>
+  {% include "partials/search_mount_rail.html" %}
+</div>
+{% end %}

@@ -1,0 +1,6 @@
+{# OOB refresh for scope rail active states after partial search swaps. #}
+{% block search_scope_rail_oob %}
+<div id="search-scope-rail-panel" class="search-scope-panel__rail"{% if search_oob | default(false) %} hx-swap-oob="true"{% end %}>
+  {% include "partials/search_scope_rail.html" %}
+</div>
+{% end %}

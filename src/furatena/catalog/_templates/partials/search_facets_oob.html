@@ -1,0 +1,6 @@
+{# OOB refresh for sidebar facet active states after partial search swaps. #}
+{% block search_facets_oob %}
+<div id="search-facets-panel" class="search-page__facets-panel"{% if search_oob | default(false) %} hx-swap-oob="true"{% end %}>
+  {% include "partials/search_facet_nav.html" %}
+</div>
+{% end %}

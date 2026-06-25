@@ -1,0 +1,48 @@
+{# Cmd/Ctrl+K search modal — uses htmx suggest + chirp-theme search-modal CSS. #}
+{% from "partials/docs_nav_icons.html" import docs_icon %}
+
+<dialog id="search-modal" class="search-modal" aria-label="Search documentation">
+  <div class="search-modal__backdrop" data-close-modal></div>
+  <div class="search-modal__container">
+    <header class="search-modal__header">
+      <div class="search-modal__input-wrapper">
+        <span class="search-modal__icon" aria-hidden="true">{{ docs_icon('magnifying-glass', 20) }}</span>
+        <input type="search"
+               id="search-modal-input"
+               class="search-modal__input"
+               placeholder="Search documentation…"
+               autocomplete="off"
+               autocorrect="off"
+               autocapitalize="off"
+               spellcheck="false"
+               role="combobox"
+               aria-expanded="false"
+               aria-label="Search"
+               aria-controls="search-modal-results-list">
+      </div>
+      <button type="button" class="search-modal__close" data-close-modal aria-label="Close search">
+        <kbd>ESC</kbd>
+      </button>
+    </header>
+
+    <section class="search-modal__results" id="search-modal-results" aria-label="Search results">
+      <div class="search-modal__results-list" id="search-modal-results-list" role="listbox">
+        <div class="search-modal__empty" id="search-modal-empty">
+          <p class="search-modal__empty-hint">Start typing to search…</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="search-modal__footer">
+      <div class="search-modal__hints">
+        <span class="search-modal__hint"><kbd>↵</kbd><span>Open</span></span>
+        <span class="search-modal__hint"><kbd>ESC</kbd><span>Close</span></span>
+        <span class="search-modal__hint"><kbd>⌘</kbd><kbd>K</kbd><span>Anywhere</span></span>
+      </div>
+    </footer>
+  </div>
+</dialog>
+
+<noscript>
+  <a class="search-modal__noscript-link" href="/search">Browse all pages</a>
+</noscript>

@@ -1,0 +1,12 @@
+{% extends "shell.html" %}
+{% from "chirpui/layout.html" import container, page_header %}
+
+{% block page_root %}
+<div id="page-root">
+{% block page_content %}
+{% call container(max_width="48rem", cls="fura-page") %}
+{% call page_header("404", subtitle=error_message) %}{% end %}
+<p><a href="/">Return home</a> or open the <a href="/docs/">documentation hub</a>.</p>
+{% end %}
+{% end %}
+{% end %}

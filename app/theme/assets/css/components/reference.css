@@ -1,0 +1,689 @@
+/* Chirp UI-native API reference composition. */
+
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-layout__article {
+  max-width: var(--type-measure-wide, min(100%, 72rem));
+}
+
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-layout__content {
+  max-width: var(--type-measure-wide, min(100%, 72rem));
+}
+
+.chirp-theme-api-hero .chirpui-hero__metadata {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chirp-theme-api-hero .chirpui-badge {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+.chirp-theme-reference-hero .chirpui-hero__subtitle {
+  max-width: min(100%, 54rem);
+  overflow-wrap: anywhere;
+}
+
+.chirp-theme-reference-hero__summary > :where(p, ul, ol) {
+  display: inline;
+  margin: 0;
+}
+
+.chirp-theme-reference-hero__summary > :where(p, ul, ol) + :where(p, ul, ol)::before {
+  content: " ";
+}
+
+.chirp-theme-reference-content {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.chirp-theme-api-index.chirpui-resource-index {
+  gap: 1.1rem;
+}
+
+.chirp-theme-api-index .chirpui-resource-index__search {
+  margin: 0;
+  padding: 0.8rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 8%, transparent), transparent 70%),
+    color-mix(in srgb, var(--color-bg-elevated) 80%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 16%, transparent);
+}
+
+.chirp-theme-api-index .chirpui-search-header__form {
+  margin: 0;
+}
+
+.chirp-theme-api-index .chirpui-selection-bar[hidden] {
+  display: none;
+}
+
+.chirp-theme-api-index .chirpui-section-header {
+  margin: 0.25rem 0 0;
+}
+
+.chirp-theme-api-index .chirpui-section-header__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 1vw + 1rem, 1.9rem);
+  letter-spacing: 0;
+}
+
+.chirp-theme-api-index .chirpui-resource-index__results {
+  align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+}
+
+.chirp-theme-reference-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.15rem minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 0.3rem 0.7rem;
+  min-width: 0;
+  min-height: 100%;
+  padding: 0.8rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 12%, transparent), transparent 48%),
+    color-mix(in srgb, var(--color-bg-elevated) 86%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 14%, transparent);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.chirp-theme-reference-card::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.7rem;
+  inset-inline-start: 0;
+  width: 0.18rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chirpui-accent) 72%, transparent);
+  opacity: 0.65;
+}
+
+.chirp-theme-reference-card:hover {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 16%, transparent), transparent 52%),
+    color-mix(in srgb, var(--color-bg-elevated) 92%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 34%, transparent),
+    0 14px 30px color-mix(in srgb, var(--chirpui-bg) 22%, transparent);
+  transform: translateY(-1px);
+}
+
+.chirp-theme-reference-card:focus-visible {
+  outline: 2px solid var(--chirpui-accent);
+  outline-offset: 3px;
+}
+
+.chirp-theme-reference-card__mark {
+  display: inline-grid;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  place-items: center;
+  inline-size: 2.15rem;
+  block-size: 2.15rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--chirpui-accent) 11%, transparent);
+  color: var(--chirpui-accent);
+}
+
+.chirp-theme-reference-card[data-chirp-theme-reference-kind="module"] .chirp-theme-reference-card__mark {
+  color: var(--color-warning);
+}
+
+.chirp-theme-reference-card[data-chirp-theme-reference-kind*="command"] .chirp-theme-reference-card__mark,
+.chirp-theme-reference-card[data-chirp-theme-reference-kind*="cli"] .chirp-theme-reference-card__mark {
+  color: var(--color-success);
+}
+
+.chirp-theme-reference-card[data-chirp-theme-reference-kind*="endpoint"] .chirp-theme-reference-card__mark,
+.chirp-theme-reference-card[data-chirp-theme-reference-kind*="schema"] .chirp-theme-reference-card__mark {
+  color: var(--color-info);
+}
+
+.chirp-theme-reference-card__eyebrow {
+  grid-column: 2 / -1;
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.chirp-theme-reference-card__title {
+  grid-column: 2 / -1;
+  grid-row: 2;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1rem, 0.35vw + 0.92rem, 1.18rem);
+  letter-spacing: 0;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.chirp-theme-reference-card__description {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  display: -webkit-box;
+  min-width: 0;
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.chirp-theme-reference-card__description > :where(p, ul, ol) {
+  display: inline;
+  margin: 0;
+}
+
+.chirp-theme-reference-card__description > :where(p, ul, ol) + :where(p, ul, ol)::before {
+  content: " ";
+}
+
+.chirp-theme-reference-card__footer {
+  grid-column: 1 / -1;
+  grid-row: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+  padding-top: 0.55rem;
+  color: var(--chirpui-accent);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.chirp-theme-reference-card__footer svg {
+  inline-size: 0.85rem;
+  block-size: 0.85rem;
+  transition: transform 140ms ease;
+}
+
+.chirp-theme-reference-card:hover .chirp-theme-reference-card__footer svg {
+  transform: translateX(2px);
+}
+
+.chirp-theme-reference-card--symbol:hover .chirp-theme-reference-card__footer svg {
+  transform: translateY(1px);
+}
+
+.chirp-theme-reference-symbols {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.chirp-theme-reference-symbols > h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 0.5vw + 0.95rem, 1.35rem);
+}
+
+.chirp-theme-reference-symbol-grid {
+  align-items: stretch;
+}
+
+.chirp-theme-reference-card--symbol {
+  min-height: 100%;
+}
+
+.chirp-theme-reference-card--symbol .chirp-theme-reference-card__description {
+  -webkit-line-clamp: 3;
+}
+
+.chirp-theme-reference-description {
+  margin-block: 0;
+  padding: clamp(0.9rem, 1.5vw, 1.15rem);
+  border: 1px solid color-mix(in srgb, var(--chirpui-accent) 12%, transparent);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--chirpui-accent) 7%, transparent), transparent 55%),
+    color-mix(in srgb, var(--color-bg-secondary) 78%, transparent);
+  color: var(--color-text-secondary);
+  line-height: 1.65;
+}
+
+.chirp-theme-reference-description > :where(p, ul, ol) {
+  margin-block: 0;
+}
+
+.chirp-theme-reference-description > :where(p, ul, ol) + :where(p, ul, ol) {
+  margin-block-start: 0.65rem;
+}
+
+.chirp-theme-reference-description code,
+.chirp-theme-reference-member__description code,
+.chirp-theme-reference-card__description code,
+.chirp-theme-reference-hero__summary code {
+  border: 1px solid color-mix(in srgb, var(--chirpui-accent) 12%, transparent);
+  background: color-mix(in srgb, var(--chirpui-accent) 7%, transparent);
+  color: var(--chirpui-accent);
+}
+
+/* Inline <code> in rendered autodoc prose runs flush against adjacent words
+   ("Return<code>white</code>or…") because docstrings carry no surrounding
+   whitespace. Add a hair of horizontal margin — scoped to autodoc description
+   contexts only so non-autodoc prose code chips are untouched. `:not(pre) > code`
+   excludes block code so only true inline chips pick up the spacing. */
+.chirp-theme-reference-description :not(pre) > code,
+.chirp-theme-reference-member__description :not(pre) > code,
+.chirp-theme-reference-card__description :not(pre) > code,
+.chirp-theme-reference-hero__summary :not(pre) > code {
+  margin-inline: 0.15em;
+  /* Never let a long token (URL, dotted path) punch out of a narrow card. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chirp-theme-reference-members {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.chirp-theme-reference-member {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 82%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 12%, transparent);
+  overflow: clip;
+}
+
+.chirp-theme-reference-member[open] {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 6%, transparent), transparent 62%),
+    color-mix(in srgb, var(--color-bg-elevated) 88%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 22%, transparent);
+}
+
+.chirp-theme-reference-member .chirpui-accordion__trigger {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr) auto;
+  gap: 0.6rem;
+  align-items: center;
+  min-block-size: 2.75rem;
+  padding: 0.72rem 0.9rem 0.72rem 0.72rem;
+  border-radius: var(--radius-md);
+}
+
+.chirp-theme-reference-member .chirpui-accordion__trigger::before {
+  content: "";
+  grid-column: 1;
+  inline-size: 0.42rem;
+  block-size: 0.42rem;
+  justify-self: center;
+  border-inline-end: 1.5px solid currentColor;
+  border-block-end: 1.5px solid currentColor;
+  color: var(--chirpui-accent);
+  transform: rotate(-45deg);
+  transition: transform var(--chirpui-motion-fast) var(--chirpui-ease-standard);
+}
+
+.chirp-theme-reference-member[open] .chirpui-accordion__trigger::before {
+  transform: rotate(45deg);
+}
+
+.chirp-theme-reference-member .chirpui-accordion__trigger-text {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chirp-theme-reference-member .chirpui-accordion__trigger-actions {
+  grid-column: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: end;
+  margin-inline-start: 0;
+}
+
+.chirp-theme-reference-member .chirpui-accordion__trigger-actions .chirpui-badge {
+  border-color: color-mix(in srgb, var(--chirpui-accent) 16%, transparent);
+  background: color-mix(in srgb, var(--chirpui-accent) 8%, transparent);
+  color: var(--chirpui-accent);
+}
+
+.chirp-theme-reference-member .chirpui-accordion__content {
+  padding: 0;
+  border-top: 1px solid color-mix(in srgb, var(--chirpui-accent) 12%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.chirp-theme-reference-member__body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem 1rem 2.67rem;
+}
+
+.chirp-theme-reference-member__signature {
+  margin: 0;
+}
+
+.chirp-theme-reference-member__description {
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.chirp-theme-reference-member__description > :where(p, ul, ol) {
+  margin-block: 0;
+}
+
+.chirp-theme-reference-usage,
+.chirp-theme-reference-params,
+.chirp-theme-reference-member__params {
+  min-width: 0;
+}
+
+.chirp-theme-reference-usage {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.chirp-theme-reference-usage h2 {
+  margin: 0;
+  font-size: clamp(1.05rem, 0.5vw + 0.95rem, 1.35rem);
+}
+
+.chirp-theme-reference-params {
+  overflow: clip;
+  border-radius: var(--radius-md);
+}
+
+.chirp-theme-reference-params .chirpui-params-table__th--name,
+.chirp-theme-reference-params .chirpui-params-table__td--name {
+  min-width: 11rem;
+  width: 11rem;
+}
+
+.chirp-theme-reference-params .chirpui-params-table__td--name .chirpui-params-table__code {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.chirp-theme-rest-reference {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(22rem, 27rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.chirp-theme-rest-reference__main {
+  min-width: 0;
+}
+
+.chirp-theme-rest-reference__examples {
+  position: sticky;
+  top: 5.5rem;
+  min-width: 0;
+}
+
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .code-block-wrapper,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] pre,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .rosettes {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Keyboard a11y + mobile overflow: <pre> code blocks inside reference cards
+   scroll horizontally (overflow-x:auto) but carry no focusable content, so axe
+   flags `scrollable-region-focusable` (serious). Per #161 the autodoc card
+   context wraps rather than scrolls — long signatures/imports fold onto the next
+   line instead of creating an untabbable scroll region. This also removes the
+   horizontal overflow at 390px. `!important` is required because the global
+   `pre { overflow-x: auto }` and chirp-ui's `.chirpui-code-block` live in
+   separately-declared cascade layers; the override must win deterministically. */
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-member__signature,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-member__body pre,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-description pre,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-card__description pre {
+  overflow-x: visible !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.chirp-theme-rest-endpoint-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--chirpui-border);
+  border-radius: var(--chirpui-radius-lg);
+  background: var(--chirpui-surface);
+  box-shadow: var(--chirpui-elevation-theme);
+}
+
+.chirp-theme-rest-method {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 0.9rem;
+  border-right: 1px solid var(--chirpui-border);
+  background: color-mix(in srgb, var(--chirpui-accent) 12%, transparent);
+  color: var(--chirpui-accent-hover);
+  font-family: var(--chirpui-mono-font-family);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.chirp-theme-rest-method--post,
+.chirp-theme-rest-method--put,
+.chirp-theme-rest-method--patch {
+  background: color-mix(in srgb, var(--chirpui-accent-secondary) 14%, transparent);
+  color: var(--chirpui-accent-secondary);
+}
+
+.chirp-theme-rest-method--delete {
+  background: color-mix(in srgb, #dc2626 12%, transparent);
+  color: #b91c1c;
+}
+
+.chirp-theme-rest-path {
+  display: block;
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+  padding: 0.78rem 0.9rem;
+  color: var(--chirpui-text);
+  font-family: var(--chirpui-mono-font-family);
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.chirp-theme-rest-examples-card {
+  overflow: hidden;
+}
+
+.chirp-theme-rest-examples-card .chirpui-card__body-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.chirp-theme-rest-example-group {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.chirp-theme-rest-example-group__title {
+  margin: 0;
+  color: var(--chirpui-text-muted);
+  font-family: var(--chirpui-ui-font-family);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.chirp-theme-rest-examples-card__empty {
+  margin: 0;
+  color: var(--chirpui-text-muted);
+  font-size: 0.92rem;
+}
+
+.chirp-theme-reference-example,
+.chirp-theme-reference-schema-json {
+  max-height: 28rem;
+  overflow: auto;
+}
+
+.chirp-theme-rest-reference__examples .chirpui-code-block {
+  max-height: 22rem;
+}
+
+/* ---------------------------------------------------------------------------
+   API reference sidebar — public / private grouping + contrast + kind glyph
+
+   The autodoc nav sidebar (partials/docs-nav.html, styled in chirp-theme.css)
+   lists every module/member as a low-contrast, uppercase mono leaf-link with no
+   visual separation between public API and private/dunder helpers. Per #161 we
+   raise the floor *from the API surface only* so the global docs nav is untouched.
+
+   chirp-theme.css owns the base leaf styling and is imported UNLAYERED, so it
+   beats this @layer-components file at equal specificity. The contrast bump on
+   `color` therefore needs `!important`; the glyph/weight/separation additions
+   set properties chirp-theme.css does not declare and win without it. Private
+   and dunder modules are matched structurally by their `title` attribute
+   (title="_macro_introspect", title="__main__") — the only signal available in
+   CSS — and visually demoted so the public surface reads first.
+   --------------------------------------------------------------------------- */
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link {
+  color: var(--color-text-primary) !important;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  font-size: 0.82rem;
+}
+
+/* Re-assert the accent on interactive states: the base contrast bump above is
+   `!important`, which would otherwise swallow chirp-theme.css's hover/active
+   accent color (also unlayered, but not !important). */
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf:hover,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf:focus-visible,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf[aria-current="page"],
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf.chirpui-sidebar__link--active,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link:hover,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link:focus-visible,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link[aria-current="page"],
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link.chirpui-sidebar__link--active {
+  color: var(--chirpui-accent) !important;
+}
+
+/* Private + dunder modules sink: dimmer text, lighter weight, a "private" rail.
+   Public modules keep full contrast and stand out by contrast. */
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf[title^="_"],
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link[title^="_"] {
+  color: var(--color-text-tertiary) !important;
+  font-weight: var(--weight-normal, 400);
+  /* A quiet inset rail on the private tier — box-shadow, not border, so it does
+     not fight chirp-theme.css's `border-color: transparent` shorthand. */
+  box-shadow: inset 0.16rem 0 0 -0.04rem color-mix(in srgb, var(--color-text-tertiary) 45%, transparent);
+}
+
+/* Private items still light up on interaction. Equal specificity to the private
+   base rule above, but declared later so it wins the hover/focus/current state. */
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf[title^="_"]:hover,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf[title^="_"]:focus-visible,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf[title^="_"][aria-current="page"],
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link[title^="_"]:hover,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link[title^="_"]:focus-visible,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link[title^="_"][aria-current="page"] {
+  color: var(--chirpui-accent) !important;
+}
+
+/* Private kind glyph recedes too. `!important` because chirp-theme.css sets the
+   glyph color/background unlayered (wins over this @layer-components file at any
+   specificity); the override must beat it deterministically so private helpers
+   read as a quieter tier than the public API. */
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__root-leaf[title^="_"] .chirp-theme-docs-nav__type-icon,
+.chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-docs-nav__leaf-link[title^="_"] .chirp-theme-docs-nav__type-icon {
+  color: var(--color-text-tertiary) !important;
+  background: color-mix(in srgb, var(--color-text-tertiary) 8%, transparent) !important;
+}
+
+@media (max-width: 64rem) {
+  .chirp-theme-api-index .chirpui-resource-index__results {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  }
+
+  .chirp-theme-rest-reference {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chirp-theme-rest-reference__examples {
+    position: static;
+  }
+}
+
+@media (max-width: 42rem) {
+  .chirp-theme-api-index .chirpui-resource-index__results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chirp-theme-api-index .chirpui-resource-index__search {
+    padding: 0.65rem;
+  }
+
+  .chirp-theme-rest-endpoint-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chirp-theme-rest-method {
+    border-right: 0;
+    border-bottom: 1px solid var(--chirpui-border);
+    padding-block: 0.6rem;
+  }
+}
+
+/* Narrow phones (≈390px): guarantee inline code, import blocks, and signatures
+   fold inside the column instead of forcing a horizontal scroll on the page.
+   Pairs with the autodoc code-wrap rule above (which kills the scroll region);
+   here we also let unbreakable tokens break mid-word as a last resort. */
+@media (max-width: 26rem) {
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-member__body,
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-description,
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-card__description {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-member__body code,
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-member__signature,
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-member__body pre,
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-description pre,
+  .chirp-theme-docs-layout[data-chirp-theme-surface^="api"] .chirp-theme-reference-card__description pre {
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  /* Tighten the deep member body indent so signatures keep usable width. */
+  .chirp-theme-reference-member__body {
+    padding-inline: 0.85rem 0.85rem;
+  }
+}

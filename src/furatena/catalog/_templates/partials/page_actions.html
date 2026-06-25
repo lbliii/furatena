@@ -1,0 +1,89 @@
+{# Page actions menu — chirp-ui Alpine popover in the hero actions slot. #}
+{% from "partials/docs_nav_icons.html" import docs_icon %}
+
+{% if node is defined and node %}
+{% set menu_id = "chirp-page-actions-" ~ (node.slug | replace("/", "-") if node.slug else "page") %}
+<div
+  id="{{ menu_id }}"
+  class="chirp-theme-page-actions chirpui-popover"
+  data-chirp-page-actions
+  x-id="['page-actions-panel']"
+  :data-open="open"
+  :data-align-x="alignX"
+  :data-align-y="alignY"
+  x-data="chirpuiPopover()"
+  x-cloak
+  @keydown.escape.prevent.stop="close($refs.trigger)"
+  @focusin.window="open && !$root.contains($event.target) && close($refs.trigger)"
+  @click.outside="close($refs.trigger)"
+  @resize.window="open && reposition()"
+>
+  <button
+    class="chirp-theme-page-actions__trigger"
+    type="button"
+    x-ref="trigger"
+    aria-haspopup="dialog"
+    :aria-expanded="open.toString()"
+    :aria-controls="$id('page-actions-panel')"
+    aria-label="Open page actions"
+    title="Open page actions"
+    @click="toggle()"
+    @keydown="onTriggerKeydown($event)"
+  >
+    {{ docs_icon('sparkle', 15) }}
+    <span>Actions</span>
+    <span
+      class="chirp-theme-page-actions__chevron"
+      aria-hidden="true"
+      :class="{ 'chirp-theme-page-actions__chevron--open': open }"
+    >{{ docs_icon('caret-down', 12) }}</span>
+  </button>
+
+  <div
+    class="chirp-theme-page-actions__menu chirpui-popover__panel"
+    x-ref="panel"
+    :id="$id('page-actions-panel')"
+    role="dialog"
+    aria-modal="false"
+    x-show="open"
+    x-cloak
+    x-transition
+    @keydown.tab="trapFocus($event)"
+  >
+    <div class="chirp-theme-page-actions__header">
+      <span class="chirp-theme-page-actions__mark" aria-hidden="true">{{ docs_icon('sparkle', 15) }}</span>
+      <span>
+        <strong>Page actions</strong>
+        <small>AI-ready formats and sharing</small>
+      </span>
+    </div>
+
+    <button class="chirp-theme-page-actions__item" data-action="copy-url" data-url="{{ canonical_url }}" type="button">
+      {{ docs_icon('link', 15) }}
+      <span>Copy URL</span>
+    </button>
+
+    <a href="{{ llm_txt_url }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item">
+      {{ docs_icon('external', 15) }}
+      <span>Open LLM text</span>
+    </a>
+
+    <button class="chirp-theme-page-actions__item" data-action="copy-llm-txt" data-url="{{ llm_txt_url }}" type="button">
+      {{ docs_icon('copy', 15) }}
+      <span>Copy LLM text</span>
+    </button>
+
+    <div class="chirp-theme-page-actions__section">Share with AI</div>
+    {% set share_prompt = "Please help me understand this documentation: " ~ llm_txt_url %}
+    <a href="https://claude.ai/new?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item chirp-theme-page-actions__item--ai" data-ai="claude">
+      <span>Claude</span>
+    </a>
+    <a href="https://chatgpt.com/?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item chirp-theme-page-actions__item--ai" data-ai="chatgpt">
+      <span>ChatGPT</span>
+    </a>
+    <a href="https://gemini.google.com/app?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item chirp-theme-page-actions__item--ai" data-ai="gemini">
+      <span>Gemini</span>
+    </a>
+  </div>
+</div>
+{% end %}

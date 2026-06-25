@@ -1,0 +1,227 @@
+---
+title: Tools & MCP
+description: Register Python functions as MCP tools for AI agents alongside HTTP routes
+draft: false
+weight: 50
+lang: en
+type: doc
+tags: [tools, mcp, ai, agents]
+keywords: [tools, mcp, ai, agents, json-rpc, tool-call, event-bus]
+category: guide
+---
+
+## What it is
+
+MCP (Model Context Protocol) lets AI agents call your app's Python functions the
+same way htmx calls your routes. Register a function with `@app.tool()` and it
+serves two callers from one codebase: your HTTP handlers (which call it directly)
+and MCP clients over JSON-RPC.
+
+Reach for this when you want an LLM agent to act on the same data your HTML UI
+exposes.
+
+```python
+from chirp import App
+
+app = App()
+
+@app.tool("search_inventory", description="Search inventory by keyword")
+async def search_inventory(query: str, limit: int = 10) -> list[dict]:
+    return await db.search(query, limit=limit)
+```
+
+That function is now callable from:
+
+- **Your HTTP handlers** — call it directly, like any other function.
+- **MCP clients** — over JSON-RPC at `/mcp`.
+
+:::{note}
+The tools and MCP API is provisional. The surface may change between releases.
+:::
+
+## Registering tools
+
+Use the `@app.tool()` decorator during setup. The first argument is the tool
+name; `description` is sent to MCP clients so agents know what each tool does.
+
+```python
+@app.tool("add_note", description="Add a note with an optional tag.")
+def add_note(text: str, tag: str | None = None) -> dict:
+    note = {"id": next_id(), "text": text, "tag": tag}
+    store.append(note)
+    return note
+
+@app.tool("list_notes", description="List all notes.")
+def list_notes() -> list[dict]:
+    return list(store)
+```
+
+Both sync and async handlers work.
+
+Chirp generates JSON Schema from your type annotations, so MCP clients get a
+typed parameter list for free. Parameters named `request` are excluded (the same
+convention as route handlers).
+
+:::{dropdown} Type-to-schema mapping
+The schema is built at freeze time from each parameter's annotation:
+
+- `str` → `"string"`, `int` → `"integer"`, `float` → `"number"`, `bool` → `"boolean"`
+- `list[str]` → `"array"` with `"items": {"type": "string"}` (also `list[int]`, `list[float]`)
+- `X | None` → optional parameter (unwrapped to `X`, left out of `required`)
+- Parameters with a default value are optional
+- Parameters named `request` (or annotated `Request`) are excluded
+- Unannotated parameters default to `"string"`
+:::{/dropdown}
+
+## The MCP endpoint
+
+When at least one tool is registered, Chirp mounts a JSON-RPC endpoint at `/mcp`.
+It speaks MCP protocol version `2024-11-05` with the `tools` capability. The
+endpoint handshakes in three sequential calls — initialize, list, then call:
+
+::::{steps}
+:::{step} Initialize
+Negotiate capabilities. The server replies with its `protocolVersion`.
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}'
+```
+:::{/step}
+:::{step} List tools
+Fetch the registered tools and their input schemas.
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":2,"params":{}}'
+```
+:::{/step}
+:::{step} Call a tool
+Dispatch a tool by name with arguments.
+
+```bash
+curl -X POST http://localhost:8000/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"tools/call","id":3,"params":{"name":"add_note","arguments":{"text":"Hello"}}}'
+```
+:::{/step}
+::::{/steps}
+
+:::{warning} `/mcp` only exists when a tool is registered
+The endpoint is routed only when at least one tool is registered. An app with no
+`@app.tool()` calls returns `404` for `/mcp` — that is expected, not a bug. The
+path is configurable: `AppConfig(mcp_path="/agent")` moves it.
+:::
+
+## Real-time tool activity
+
+Every successful tool call emits a `ToolCallEvent` through `app.tool_events`.
+Subscribe from an SSE route to build a live agent-activity dashboard.
+
+```python
+from chirp import EventStream, Fragment
+
+@app.route("/activity/feed", referenced=True)
+def activity_feed():
+    async def stream():
+        async for event in app.tool_events.subscribe():
+            yield Fragment("dashboard.html", "activity_row", event=event)
+    return EventStream(stream())
+```
+
+`EventStream` is one of Chirp's [[docs/about/core-concepts/return-values|return types]]; for
+the wire format and connection lifecycle see
+[[docs/build-apps/streaming-updates/server-sent-events|Server-Sent Events]].
+
+Each `ToolCallEvent` is a frozen dataclass with:
+
+- `tool_name` — which tool was called
+- `arguments` — the arguments passed
+- `result` — what it returned
+- `timestamp` — when it was called (epoch seconds)
+- `call_id` — a unique 12-character hex identifier
+
+Render an event in a template block like any other context value:
+
+```html
+{% block activity_row %}
+<tr>
+  <td><code>{{ event.tool_name }}</code></td>
+  <td>{{ event.arguments | format_args }}</td>
+  <td>{{ event.call_id[:8] }}</td>
+</tr>
+{% endblock %}
+```
+
+:::{dropdown} Inspecting the registry
+After the app is frozen (first request or `app.run()`), `app.tools` returns the
+frozen `ToolRegistry`. It is read-only at runtime; accessing it before freeze
+raises `RuntimeError`.
+
+```python
+for tool_info in app.tools.list_tools():
+    print(f"{tool_info['name']}: {tool_info['description']}")
+
+# Look up a specific tool
+tool = app.tools.get("add_note")
+if tool is not None:
+    print(tool.schema)
+```
+:::{/dropdown}
+
+:::{dropdown} Thread safety
+The tools system is built for Python 3.14 free-threading:
+
+- `ToolDef` is a frozen dataclass — immutable, safe to share across threads.
+- `ToolRegistry` is built once at freeze time and never mutated.
+- `ToolEventBus` guards its subscriber set with a `threading.Lock`.
+- Each subscriber gets its own `asyncio.Queue`, so there is no shared mutable
+  state on the broadcast path.
+
+For the framework-wide model see
+[[docs/about/thread-safety|the free-threading thread-safety model]].
+:::{/dropdown}
+
+## The shipping example
+
+The runnable demo registers three tools, serves a notes UI, and streams tool
+calls into a live activity feed. The tool definitions:
+
+```python
+@app.tool("add_note", description="Add a note with an optional tag.")
+def add_note(text: str, tag: str | None = None) -> dict:
+    global _next_id
+    with _lock:
+        note = {"id": _next_id, "text": text, "tag": tag}
+        _next_id += 1
+        _notes.append(note)
+        return note
+
+
+@app.tool("list_notes", description="List all notes.")
+def list_notes() -> list[dict]:
+    with _lock:
+        return list(_notes)
+
+
+@app.tool("search_notes", description="Search notes by text substring.")
+def search_notes(query: str) -> list[dict]:
+    with _lock:
+        q = query.lower()
+        return [n for n in _notes if q in n["text"].lower()]
+```
+
+*Source: [`examples/standalone/tools/app.py`](https://github.com/lbliii/chirp/blob/main/examples/standalone/tools/app.py).*
+
+Run the full example with `python app.py`, open it in a browser, then call a
+tool with `curl` and watch the activity feed update in real time.
+
+## See also
+
+:::{note} See also
+- [[docs/about/core-concepts/return-values|Return values]] — every return type, including `EventStream`
+- [[docs/build-apps/streaming-updates/server-sent-events|Server-Sent Events]] — SSE patterns for real-time feeds
+- [[docs/about/thread-safety|Thread safety]] — the free-threading model the registry relies on
+:::

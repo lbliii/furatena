@@ -1,0 +1,91 @@
+{# Right discovery rail — mental map, jumps, and related queries. #}
+{% set section_links = search_result_section_links | default([]) %}
+{% set discovery_sections = search_discovery_sections | default([]) %}
+{% set popular_links = search_popular_links | default([]) %}
+{% set aside_links = search_aside_links | default([]) %}
+{% set topic_links = search_topic_links | default([]) %}
+{% set spotlight = search_spotlight %}
+
+<div class="search-discovery__sections">
+  {% if search_query and section_links | length > 0 %}
+  <section class="search-discovery__block">
+    <h2 class="search-discovery__title">In this search</h2>
+    <nav class="search-discovery__nav" aria-label="Result sections">
+      {% for link in section_links %}
+      <a class="search-discovery__link{% if link.active %} is-active{% end %}"
+         href="{{ link.href }}"
+         {{ link.nav_attrs | html_attrs }}>
+        <span>{{ link.label }}</span>
+        <span class="search-discovery__count">{{ link.count }}</span>
+      </a>
+      {% end %}
+    </nav>
+  </section>
+  {% elif not search_query and discovery_sections | length > 0 %}
+  <section class="search-discovery__block">
+    <h2 class="search-discovery__title">Start browsing</h2>
+    <p class="search-discovery__hint">Pick a section to scope the workspace, then search within it.</p>
+    <nav class="search-discovery__nav" aria-label="Catalog sections">
+      {% for item in discovery_sections %}
+      <a class="search-discovery__link{% if item.active %} is-active{% end %}"
+         href="{{ item.href }}"
+         {{ item.nav_attrs | html_attrs }}>
+        <span>{{ item.label }}</span>
+        <span class="search-discovery__count">{{ item.count }}</span>
+      </a>
+      {% end %}
+    </nav>
+  </section>
+  {% end %}
+
+  {% if topic_links | length > 0 %}
+  <section class="search-discovery__block">
+    <h2 class="search-discovery__title">Topics in scope</h2>
+    <div class="search-discovery__tags">
+      {% for link in topic_links %}
+      <a class="search-discovery__tag{% if link.active %} is-active{% end %}"
+         href="{{ link.href }}"
+         {{ link.nav_attrs | html_attrs }}>{{ link.label }}</a>
+      {% end %}
+    </div>
+  </section>
+  {% elif spotlight and spotlight.top_tags | length > 0 %}
+  <section class="search-discovery__block">
+    <h2 class="search-discovery__title">Topics in scope</h2>
+    <div class="search-discovery__tags">
+      {% for tag in spotlight.top_tags %}
+      <span class="search-discovery__tag">{{ tag }}</span>
+      {% end %}
+    </div>
+  </section>
+  {% end %}
+
+  {% if aside_links | length > 0 %}
+  <section class="search-discovery__block">
+    <h2 class="search-discovery__title">Related queries</h2>
+    <div class="search-discovery__pills">
+      {% for item in aside_links %}
+      <a class="search-discovery__pill" href="{{ item.href }}" {{ item.nav_attrs | html_attrs }}>{{ item.label }}</a>
+      {% end %}
+    </div>
+  </section>
+  {% elif popular_links | length > 0 and not search_query %}
+  <section class="search-discovery__block">
+    <h2 class="search-discovery__title">Popular queries</h2>
+    <div class="search-discovery__pills">
+      {% for item in popular_links %}
+      <a class="search-discovery__pill" href="{{ item.href }}" {{ item.nav_attrs | html_attrs }}>{{ item.label }}</a>
+      {% end %}
+    </div>
+  </section>
+  {% end %}
+
+  <section class="search-discovery__block search-discovery__block--compact">
+    <h2 class="search-discovery__title">How it works</h2>
+    <ul class="search-discovery__tips">
+      <li><strong>Scope rail</strong> sets the catalog slice before you search.</li>
+      <li><strong>Chunk links</strong> jump to the matching heading when retrieval finds an anchor.</li>
+      <li><strong>Live index</strong> runs on the in-memory graph — no Lunr rebuild.</li>
+    </ul>
+  </section>
+</div>

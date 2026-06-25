@@ -1,0 +1,9 @@
+{% include "partials/head_meta.html" %}
+<link rel="icon" type="image/svg+xml" href="/docs-theme/branding/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/docs-theme/branding/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/docs-theme/branding/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/docs-theme/branding/apple-touch-icon.png">
+<link rel="manifest" href="/docs-theme/branding/site.webmanifest">
+{% for href in docs_stylesheets() %}
+<link rel="stylesheet" href="{{ href }}">
+{% end %}

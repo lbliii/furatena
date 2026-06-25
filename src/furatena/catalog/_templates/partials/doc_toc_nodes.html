@@ -1,0 +1,41 @@
+{# Recursive TOC nodes for the page map panel. #}
+
+{% def doc_toc_node(node, is_section=false) %}
+{% let node_id = node.id ?? '' %}
+{% let node_title = node.title ?? '' %}
+{% let node_level = node.level ?? 2 %}
+{% let children = node.children ?? () %}
+{% let has_children = children | length > 0 %}
+
+{% if node_id %}
+<li class="chirpui-nav-tree__item toc-item toc-level-{{ node_level }} chirp-theme-doc-toc__item chirp-theme-doc-toc__item--level-{{ node_level }}" role="treeitem" data-level="{{ node_level }}">
+  {% if has_children %}
+  {% match node_level %}
+  {% case 2 %}<details class="chirpui-nav-tree__node toc-group chirp-theme-doc-toc__group" {{ 'data-toc-section' if is_section else '' }} open>
+  {% case 3 %}<details class="chirpui-nav-tree__node toc-group chirp-theme-doc-toc__group" {{ 'data-toc-section' if is_section else '' }} open>
+  {% case _ %}<details class="chirpui-nav-tree__node toc-group chirp-theme-doc-toc__group">
+  {% end %}
+    <summary class="chirpui-nav-tree__label toc-group-header chirp-theme-doc-toc__group-header">
+      <span class="chirp-theme-doc-toc__mark" aria-hidden="true">H{{ node_level }}</span>
+      <a href="#{{ node_id }}" class="chirpui-nav-tree__link toc-link chirp-theme-doc-toc__link" data-toc-item="#{{ node_id }}">
+        {{ node_title }}
+      </a>
+      <span class="chirpui-nav-tree__badge toc-count-badge chirp-theme-doc-toc__count" title="{{ children | length }} subsections">
+        <span class="toc-count chirp-theme-doc-toc__count-pill">{{ children | length }}</span>
+      </span>
+    </summary>
+    <ul class="chirpui-nav-tree__list chirpui-nav-tree__list--nested toc-subitems chirp-theme-doc-toc__subitems" role="group">
+      {% for child in children %}
+      {{ doc_toc_node(child) }}
+      {% end %}
+    </ul>
+  </details>
+  {% else %}
+  <a href="#{{ node_id }}" class="chirpui-nav-tree__link chirpui-nav-tree__link--leaf toc-link chirp-theme-doc-toc__link" data-toc-item="#{{ node_id }}">
+    <span class="chirp-theme-doc-toc__mark" aria-hidden="true">H{{ node_level }}</span>
+    <span class="chirp-theme-doc-toc__label">{{ node_title }}</span>
+  </a>
+  {% end %}
+</li>
+{% end %}
+{% end %}

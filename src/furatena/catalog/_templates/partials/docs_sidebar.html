@@ -1,0 +1,107 @@
+{# Embedded docs sidebar — chirp-theme-docs-nav markup for packaged CSS. #}
+{% from "chirpui/sidebar.html" import sidebar %}
+{% from "partials/docs_nav_icons.html" import nav_type_icon, docs_icon %}
+
+{% def nav_item_kind(title, href) %}
+{% let key = (title ~ ' ' ~ href) | lower %}
+{% if 'component' in key %}component
+{% elif 'release' in key %}release
+{% elif 'api' in key or 'reference' in key %}api
+{% elif 'pattern' in key %}pattern
+{% elif 'guide' in key or 'doc' in key or 'start' in key or 'install' in key or 'theme' in key %}guide
+{% else %}page
+{% end %}
+{% end %}
+
+{% def docs_nav_node(item, depth=0) %}
+{% let children = item.children ?? () %}
+{% let has_children = children | length > 0 %}
+{% let is_active = item.active ?? false %}
+{% let is_open = item.open ?? false %}
+{% let is_branch_active = is_active or is_open %}
+{% let item_title = item.title ?? 'Untitled' %}
+{% let item_href = item.href ?? '' %}
+{% let item_kind = nav_item_kind(item_title, item_href) %}
+
+{% if has_children %}
+  {% if depth > 0 %}
+  {% let section_slug = (item_href if item_href else (item_title | lower)) | replace('/', '-') | replace(' ', '-') | replace('.', '-') %}
+  {% let section_id = 'docs-nav-sect-' ~ section_slug %}
+  <div class="chirpui-sidebar__section chirp-theme-docs-nav__section chirp-theme-docs-nav__section--has-toggle chirp-theme-docs-nav__section--depth-{{ depth }}{{ ' is-active' if is_branch_active else '' }}">
+    <div class="chirp-theme-docs-nav__section-header">
+      <button type="button"
+              class="chirp-theme-docs-nav__toggle"
+              aria-expanded="{{ 'true' if is_branch_active else 'false' }}"
+              aria-controls="{{ section_id }}"
+              aria-label="Toggle {{ item_title }} section">
+        <span class="chirp-theme-docs-nav__disclosure" aria-hidden="true">
+          <span class="chirp-theme-docs-nav__folder chirp-theme-docs-nav__folder--closed">{{ nav_type_icon(item_kind, true) }}</span>
+          <span class="chirp-theme-docs-nav__folder chirp-theme-docs-nav__folder--open">{{ docs_icon('folder-open', 14) }}</span>
+        </span>
+      </button>
+      {% if item_href %}
+      <a class="chirp-theme-docs-nav__summary-link chirp-theme-docs-nav__link--{{ item_kind }}{{ ' chirp-theme-docs-nav__summary-link--active' if is_active else '' }}"
+         href="{{ item_href }}"
+         title="{{ item_title }}"
+         {% if is_active %}aria-current="page"{% end %}{{ route_link_attrs(item_href) | html_attrs }}>
+        <span class="chirp-theme-docs-nav__summary-copy">
+          <span class="chirpui-sidebar__label chirp-theme-docs-nav__label">{{ item_title }}</span>
+        </span>
+      </a>
+      {% else %}
+      <span class="chirp-theme-docs-nav__summary-link chirp-theme-docs-nav__link--{{ item_kind }}">
+        <span class="chirp-theme-docs-nav__summary-copy">
+          <span class="chirpui-sidebar__label chirp-theme-docs-nav__label">{{ item_title }}</span>
+        </span>
+      </span>
+      {% end %}
+    </div>
+    <div class="chirpui-sidebar__section-links chirp-theme-docs-nav__section-links" id="{{ section_id }}"{% if not is_branch_active %} hidden style="display:none"{% end %}>
+      {% for child in children %}
+      {{ docs_nav_node(child, depth + 1) }}
+      {% end %}
+    </div>
+  </div>
+  {% else %}
+  <div class="chirpui-sidebar__section chirp-theme-docs-nav__section chirp-theme-docs-nav__section--depth-{{ depth }}{{ ' is-active' if is_branch_active else '' }}">
+    {% if item_href %}
+    <a class="chirpui-sidebar__section-title chirp-theme-docs-nav__summary-link chirp-theme-docs-nav__link--{{ item_kind }}{{ ' chirp-theme-docs-nav__summary-link--active' if is_active else '' }}"
+       href="{{ item_href }}"
+       title="{{ item_title }}"
+       {% if is_active %}aria-current="page"{% end %}{{ route_link_attrs(item_href) | html_attrs }}>
+      <span class="chirpui-sidebar__icon chirp-theme-docs-nav__type-icon" aria-hidden="true">{{ nav_type_icon(item_kind, true) }}</span>
+      <span class="chirp-theme-docs-nav__summary-copy">
+        <span class="chirpui-sidebar__label chirp-theme-docs-nav__label">{{ item_title }}</span>
+      </span>
+    </a>
+    {% else %}
+    <span class="chirpui-sidebar__section-title chirp-theme-docs-nav__summary-link chirp-theme-docs-nav__link--{{ item_kind }}">
+      <span class="chirpui-sidebar__icon chirp-theme-docs-nav__type-icon" aria-hidden="true">{{ nav_type_icon(item_kind, true) }}</span>
+      <span class="chirp-theme-docs-nav__summary-copy">
+        <span class="chirpui-sidebar__label chirp-theme-docs-nav__label">{{ item_title }}</span>
+      </span>
+    </span>
+    {% end %}
+    <div class="chirpui-sidebar__section-links chirp-theme-docs-nav__section-links">
+      {% for child in children %}
+      {{ docs_nav_node(child, depth + 1) }}
+      {% end %}
+    </div>
+  </div>
+  {% end %}
+{% elif item_href %}
+  <a class="chirpui-sidebar__link chirp-theme-docs-nav__link chirp-theme-docs-nav__leaf-link{{ ' chirp-theme-docs-nav__root-leaf' if depth == 1 else '' }} chirp-theme-docs-nav__link--{{ item_kind }}{{ ' chirpui-sidebar__link--active' if is_active else '' }}"
+     href="{{ item_href }}"
+     title="{{ item_title }}"
+     {% if is_active %}aria-current="page"{% end %}{{ route_link_attrs(item_href) | html_attrs }}>
+    <span class="chirpui-sidebar__icon chirp-theme-docs-nav__type-icon" aria-hidden="true">{{ nav_type_icon(item_kind) }}</span>
+    <span class="chirpui-sidebar__label chirp-theme-docs-nav__label">{{ item_title }}</span>
+  </a>
+{% end %}
+{% end %}
+
+{% call sidebar(cls='chirp-theme-docs-nav', aria_label='Documentation sections') %}
+  {% for item in nav_items ?? () %}
+  {{ docs_nav_node(item, 0) }}
+  {% endfor %}
+{% end %}

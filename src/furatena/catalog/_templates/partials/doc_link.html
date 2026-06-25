@@ -1,0 +1,3 @@
+{% def doc_link(href, label) %}
+<a href="{{ href }}"{{ route_link_attrs(href) | html_attrs }}>{{ label }}</a>
+{% end %}

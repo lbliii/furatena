@@ -1,0 +1,20 @@
+{# Sequential prev/next navigation for doc views. #}
+{% from "chirpui/card.html" import resource_card %}
+{% from "chirpui/layout.html" import grid %}
+
+{% if prev_page or next_page %}
+<nav class="page-navigation chirp-theme-docs-nav" aria-label="Previous and next pages">
+  {% call grid(cols=2, gap="md", cls="nav-links") %}
+    {% if prev_page %}
+    <div class="nav-previous">
+      {{ resource_card(prev_page.url, prev_page.title, top_meta="Previous", top_meta_title="Previous page", cls="chirp-theme-page-nav-card chirp-theme-page-nav-card--prev", link_mode="main") }}
+    </div>
+    {% end %}
+    {% if next_page %}
+    <div class="nav-next">
+      {{ resource_card(next_page.url, next_page.title, top_meta="Next", top_meta_title="Next page", cls="chirp-theme-page-nav-card chirp-theme-page-nav-card--next", link_mode="main") }}
+    </div>
+    {% end %}
+  {% end %}
+</nav>
+{% end %}

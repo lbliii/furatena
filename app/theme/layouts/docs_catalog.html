@@ -1,0 +1,41 @@
+{# Catalog view layout — 3-column docs chrome with block hooks for view variants. #}
+{% extends "shell.html" %}
+
+{% block page_root %}
+<div id="page-root" class="chirpui-page-fill" data-fura-surface="{{ chirp_docs_surface | default('app') }}">
+{% block page_root_inner %}
+{% block page_content %}
+{% let page_title = catalog_title ?? node?.title ?? '' %}
+{% let page_subtitle = catalog_subtitle ?? node?.description ?? '' %}
+<a href="#page-content" class="skip-link">{% if i18n_enabled | default(false) %}{{ t('Skip to main content') }}{% else %}Skip to main content{% end %}</a>
+{% include "partials/locale_fallback_banner.html" %}
+<div class="chirp-theme-docs-layout{{ ' chirp-theme-docs-layout--with-toc' if catalog_with_toc else '' }}{{ ' ' ~ catalog_layout_extra if catalog_layout_extra else '' }}" data-chirp-theme-surface="{{ catalog_surface | default('doc') }}">
+  {% include "partials/docs_catalog_sidebar.html" %}
+
+  <div class="chirp-theme-docs-layout__main" id="page-content">
+    <section class="chirpui-hero chirpui-hero--page chirpui-hero--page-editorial chirpui-hero--solid chirp-theme-docs-layout__hero chirp-theme-doc-hero">
+      <div class="chirpui-hero__inner">
+        <div class="chirpui-hero__eyebrow">{% block catalog_hero_eyebrow %}{% end %}</div>
+        {% if page_title %}
+        <h1 class="chirpui-hero__title">{{ page_title }}</h1>
+        {% end %}
+        {% if page_subtitle %}
+        <p class="chirpui-hero__subtitle">{{ page_subtitle }}</p>
+        {% end %}
+        <div class="chirpui-hero__actions">{% include "partials/page_actions.html" %}</div>
+        <div class="chirpui-hero__metadata">{% block catalog_hero_metadata %}{% end %}</div>
+      </div>
+    </section>
+
+    {% block catalog_article %}{% end %}
+    {% block catalog_doc_nav %}{% end %}
+  </div>
+
+  {% block catalog_toc_aside %}{% end %}
+</div>
+
+{% include "partials/docs_mobile_nav.html" %}
+{% end %}
+{% end %}
+</div>
+{% end %}

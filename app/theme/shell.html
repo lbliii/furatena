@@ -1,0 +1,61 @@
+{# target: body #}
+{# outlet: main #}
+{#
+  Furatena root shell — composed from chirp-ui primitives, not app_shell_layout.
+
+  L1: minimal #main outlet + boost contract (Page.mounted → #page-root)
+  L3: page chrome lives in views (docs layout, site nav, hero) inside #page-root
+#}
+{% extends "chirp/layouts/shell.html" %}
+{% from "chirpui/shell_frame.html" import shell_runtime_script, shell_outlet_attrs %}
+{% from "chirpui/toast.html" import toast_container %}
+
+{% block lang %}{{ html_lang | default('en') }}{% end %}
+
+{% block title %}{% if node is defined and node %}{{ node.title }}{% else %}Furatena{% end %}{% end %}
+
+{% block head %}
+{% if csrf_token is defined %}
+<meta name="csrf-token" content="{{ csrf_token() }}">
+{% end %}
+<link rel="stylesheet" href="/static/chirpui.css">
+<link rel="stylesheet" href="/static/chirpui-transitions.css">
+<script nonce="{{ csp_nonce() }}">
+(function(){var T=["system","light","dark","oled"];var t=localStorage.getItem("chirpui-theme");if(T.indexOf(t)<0){t="system";}var s=localStorage.getItem("chirpui-style")||"default";document.documentElement.setAttribute("data-theme",t);document.documentElement.setAttribute("data-style",s);})();
+</script>
+{% block head_extra %}
+{% include "partials/docs_head_assets.html" %}
+{% end %}
+{% end %}
+
+{% block body_before %}
+<script nonce="{{ csp_nonce() }}">
+document.body.classList.add("chirp-theme-shell", "fura-root", "fura-surface--{{ chirp_docs_surface | default('app') }}");
+{% if node is defined and node %}
+document.body.setAttribute("data-fura-slug", "{{ node.slug }}");
+{% endif %}
+{% if chirp_docs_surface | default('app') == 'catalog' %}
+document.body.classList.add("chirp-theme-shell--rail-only");
+{% endif %}
+</script>
+{% end %}
+
+{% block shell %}
+{% include "partials/search_modal.html" %}
+<main id="main" class="fura-main"
+      data-chirp-scroll="auto" tabindex="-1"
+      {{ shell_outlet_attrs(select="#page-root") }}>
+  {% block content %}
+  {% block page_root %}{% end %}
+  {% end %}
+</main>
+<script nonce="{{ csp_nonce() }}">
+document.body.addEventListener("htmx:configRequest", function(event) {
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta) { event.detail.headers["X-CSRF-Token"] = meta.content; }
+});
+</script>
+{{ shell_runtime_script() }}
+{{ toast_container() }}
+{% include "partials/docs_runtime_scripts.html" %}
+{% end %}

@@ -1,0 +1,35 @@
+{# On-page table of contents — chirp-theme contract for ChirpDocsTOC scroll spy. #}
+{% from "partials/doc_toc_nodes.html" import doc_toc_node %}
+{% from "partials/docs_nav_icons.html" import docs_icon %}
+
+{% let items = toc_items ?? (node | node_toc_items if node is defined else ()) %}
+{% let panel_title = toc_panel_title ?? (node.title if node is defined else '') %}
+{% let panel_eyebrow = toc_panel_eyebrow ?? 'Page map' %}
+
+{% if items | length > 0 %}
+{% let nested_items = build_toc_tree(items) %}
+<div class="chirpui-nav-tree toc-sidebar chirp-theme-doc-toc" data-chirp-docs="toc">
+  <div class="chirp-theme-doc-toc__context">
+    <span class="chirp-theme-doc-toc__context-mark" aria-hidden="true">{{ docs_icon('list', 16) }}</span>
+    <div class="chirp-theme-doc-toc__context-copy">
+      <span class="chirp-theme-doc-toc__eyebrow">{{ panel_eyebrow }}</span>
+      <strong>{{ panel_title }}</strong>
+    </div>
+    <span class="chirp-theme-doc-toc__context-count chirp-theme-doc-toc__count-pill" aria-label="{{ items | length }} page map entries">{{ items | length }}</span>
+  </div>
+
+  <div class="toc-progress" aria-hidden="true">
+    <div class="toc-progress-bar"></div>
+  </div>
+
+  <nav class="chirp-theme-doc-toc__nav toc-nav" aria-label="On this page" data-toc-mode="normal">
+    <div class="chirp-theme-doc-toc__scroll toc-scroll-container">
+      <ul class="chirpui-nav-tree__list toc-items chirp-theme-doc-toc__items" role="tree">
+        {% for item in nested_items %}
+        {{ doc_toc_node(item, is_section=true) }}
+        {% end %}
+      </ul>
+    </div>
+  </nav>
+</div>
+{% end %}

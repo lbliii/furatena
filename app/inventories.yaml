@@ -1,0 +1,14 @@
+# External and catalog-backed reference inventories (Wave E).
+role_domains:
+  py: python-stdlib
+  doc: local-catalog
+
+inventories:
+  - id: local-catalog
+    format: dcp-catalog
+    mount: chirp
+
+  - id: python-stdlib
+    format: sphinx-inventory
+    url: https://docs.python.org/3/objects.inv
+    cache: .docs-cache/inventories/python-stdlib.inv

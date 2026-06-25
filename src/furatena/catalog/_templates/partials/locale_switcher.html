@@ -1,0 +1,22 @@
+{# Language switcher — shown when i18n is enabled in docs.yaml #}
+{% if i18n_enabled | default(false) and doc_languages | default([]) | length > 1 %}
+<nav class="chirp-theme-locale-switcher" aria-label="{{ t('Language') }}">
+  <ul class="chirp-theme-locale-switcher__list">
+    {% for lang in doc_languages %}
+    <li>
+      {% if lang.available and lang.href %}
+      <a
+        href="{{ lang.href }}"
+        hreflang="{{ lang.hreflang }}"
+        lang="{{ lang.code }}"
+        class="chirp-theme-locale-switcher__link{% if lang.active %} chirp-theme-locale-switcher__link--active{% end %}"
+        {% if lang.active %}aria-current="true"{% end %}
+      >{{ lang.name }}</a>
+      {% else %}
+      <span class="chirp-theme-locale-switcher__link chirp-theme-locale-switcher__link--missing" title="{{ t('Translation not available') }}">{{ lang.name }}</span>
+      {% end %}
+    </li>
+    {% end %}
+  </ul>
+</nav>
+{% end %}

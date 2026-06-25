@@ -1,0 +1,6 @@
+{% block head_meta_oob %}
+{% if node is defined %}
+{% set oob = true %}
+{% include "partials/head_meta.html" %}
+{% end %}
+{% end %}

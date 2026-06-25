@@ -1,0 +1,128 @@
+{% def search_product_card(card) %}
+{% set node = card.node %}
+{% set query = search_query | default('') %}
+{% set page_href = node.url %}
+<article class="search-product-card">
+  <header class="search-product-card__header">
+    <span class="search-product-card__mark" aria-hidden="true">{{ node.title[:2] | upper }}</span>
+    <div class="search-product-card__meta">
+      <p class="search-product-card__path">{{ node.mount }} / {{ node.section }}</p>
+      <h3 class="search-product-card__title">
+        <a href="{{ page_href }}"{{ route_link_attrs(page_href) | html_attrs }}>{{ node.title | highlight_search(query) | safe }}</a>
+      </h3>
+    </div>
+    <a class="search-product-card__open" href="{{ page_href }}" aria-label="Open {{ node.title }}"{{ route_link_attrs(page_href) | html_attrs }}>↗</a>
+  </header>
+
+  {% if card.snippet %}
+  <p class="search-product-card__snippet">{{ card.snippet | highlight_search(query) | safe }}</p>
+  {% end %}
+
+  <div class="search-product-card__stats">
+    {% if card.tag_labels | length > 0 %}
+    <div class="search-product-card__tags">
+      {% for tag in card.tag_labels %}
+      <span class="search-product-card__tag">{{ tag }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {% if card.matches | length > 0 %}
+  <footer class="search-product-card__matches">
+    {% for match in card.matches %}
+    <a class="search-product-card__match" href="{{ match.url }}"{{ route_link_attrs(match.url) | html_attrs }}>
+      <span class="search-product-card__match-label">{{ match.label | highlight_search(query) | safe }}</span>
+      {% if match.snippet %}
+      <span class="search-product-card__match-snippet">{{ match.snippet | highlight_search(query) | safe }}</span>
+      {% end %}
+    </a>
+    {% end %}
+  </footer>
+  {% endif %}
+</article>
+{% end %}
+
+{% def search_result_card(hit) %}
+{% set hit_href = search_hit_url(hit) %}
+{% set hit_heading = search_hit_heading(hit) %}
+{% set query = search_query | default('') %}
+<article class="search-result">
+  <div class="search-result__main">
+    <p class="search-result__path">{{ hit.node.mount }} / {{ hit.node.section }}</p>
+    <h3 class="search-result__title">
+      <a href="{{ hit_href }}"{{ route_link_attrs(hit_href) | html_attrs }}>{{ hit.node.title | highlight_search(query) | safe }}</a>
+    </h3>
+    {% if hit.snippet or hit.node.description %}
+    <p class="search-result__snippet">{{ (hit.snippet or hit.node.description) | highlight_search(query) | safe }}</p>
+    {% end %}
+    {% if hit_heading %}
+    <p class="search-result__match">
+      <a href="{{ hit_href }}"{{ route_link_attrs(hit_href) | html_attrs }}>
+        <span class="search-result__match-label">Match</span>{{ hit_heading | highlight_search(query) | safe }}
+      </a>
+    </p>
+    {% end %}
+  </div>
+  <a class="search-result__open" href="{{ hit_href }}" aria-label="Open {{ hit.node.title }}"{{ route_link_attrs(hit_href) | html_attrs }}>↗</a>
+</article>
+{% end %}
+
+{% set page_cards = search_page_cards | default([]) %}
+{% set hit_groups = search_hit_groups | default([]) %}
+{% set query = search_query | default('') %}
+{% set active_section = search_section | default('') %}
+{% set expand_url = search_global_expand_url | default('') %}
+{% set discovery_sections = search_discovery_sections | default([]) %}
+
+{% if page_cards | length > 0 %}
+<div class="search-product-grid">
+  {% for card in page_cards %}
+  {{ search_product_card(card) }}
+  {% end %}
+</div>
+{% elif hit_groups | length > 0 %}
+{% for group in hit_groups %}
+<section class="search-results-group" id="search-group-{{ loop.index }}">
+  <header class="search-results-group__header">
+    <h2 class="search-results-group__title">{{ group.label }}</h2>
+    <span class="search-results-group__count">{{ group.hits | length }}</span>
+  </header>
+  <div class="search-results-list">
+    {% for hit in group.hits %}
+    {{ search_result_card(hit) }}
+    {% end %}
+  </div>
+</section>
+{% endfor %}
+{% elif hits | length > 0 %}
+<div class="search-results-list">
+  {% for hit in hits %}
+  {{ search_result_card(hit) }}
+  {% end %}
+</div>
+{% elif search_query %}
+<div class="search-results-empty">
+  <p class="search-results-empty__title">No results for “{{ search_query }}”{% if active_section %} in {{ active_section }}{% end %}</p>
+  <div class="search-results-empty__actions">
+    {% if expand_url and (active_section or search_mount or search_tag) and not (search_global | default(false)) %}
+    <a class="search-results-empty__action" href="{{ expand_url }}" {{ search_global_expand_nav_attrs | html_attrs }}>Search entire catalog</a>
+    {% end %}
+    <a class="search-results-empty__action" href="/search" {{ search_reset_nav_attrs | html_attrs }}>Clear scope</a>
+  </div>
+</div>
+{% else %}
+<div class="search-results-browse">
+  <p class="search-results-browse__lead">Choose a mount or section in the scope panel, or start with a popular area below.</p>
+  {% if discovery_sections | length > 0 %}
+  <div class="search-results-browse__grid">
+    {% for item in discovery_sections %}
+    <a class="search-results-browse__tile" href="{{ item.href }}" {{ item.nav_attrs | html_attrs }}>
+      <strong>{{ item.label }}</strong>
+      <span>{{ item.count }} pages</span>
+    </a>
+    {% end %}
+  </div>
+  {% end %}
+</div>
+{% endif %}

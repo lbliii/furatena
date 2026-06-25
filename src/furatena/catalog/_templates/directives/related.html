@@ -1,0 +1,14 @@
+{% from "chirpui/callout.html" import callout %}
+{% set callout_class = "chirp-theme-directive-related" %}
+{% if extra_class | default('') %}{% set callout_class = callout_class ~ " " ~ extra_class %}{% end %}
+{% call callout(variant="neutral", title=title, cls=callout_class) %}
+{% if body %}
+{{ body | safe }}
+{% else %}
+<ul class="chirpui-list chirp-theme-directive-related__links">
+{% for link in links %}
+<li><a href="{{ link.href }}">{{ link.title }}</a></li>
+{% end %}
+</ul>
+{% end %}
+{% end %}

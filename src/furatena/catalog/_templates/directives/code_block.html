@@ -1,0 +1,16 @@
+<div class="code-block-wrapper chirp-theme-directive-code-block{{ ' code-block-wrapper--rosettes' if rosettes else '' }}">
+  {{ body | safe }}
+  <div class="code-header-inline">
+    {% if language %}<span class="code-language">{{ language }}</span>{% end %}
+    <button type="button"
+            class="code-copy-button copy-success-burst"
+            aria-label="Copy"
+            data-fura-copy-code>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+      <span>Copy</span>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,17 @@
+{# Site top bar — app-surface pages only (home, search, portal). #}
+{% let active_url = node?.url ?? '' %}
+<header class="chirp-theme-shell__nav fura-shell-nav" aria-label="Site">
+  <nav class="chirpui-navbar chirp-theme-shell__navbar">
+    <div class="chirpui-navbar__brand">
+      <a href="/" class="chirp-theme-shell__brand-link"{{ route_link_attrs("/") | html_attrs }}>Chirp</a>
+    </div>
+    <div class="chirpui-navbar__links">
+      <a href="/docs/" class="chirp-theme-shell__nav-link chirpui-navbar__link{% if active_url.startswith('/docs/') %} chirpui-navbar__link--active{% end %}"{{ route_link_attrs("/docs/") | html_attrs }}>Documentation</a>
+      <a href="/api/" class="chirp-theme-shell__nav-link chirpui-navbar__link{% if active_url.startswith('/api/') %} chirpui-navbar__link--active{% end %}"{{ route_link_attrs("/api/") | html_attrs }}>API</a>
+      <a href="/releases/" class="chirp-theme-shell__nav-link chirpui-navbar__link{% if active_url.startswith('/releases/') %} chirpui-navbar__link--active{% end %}"{{ route_link_attrs("/releases/") | html_attrs }}>Releases</a>
+    </div>
+    <div class="chirpui-navbar__links chirpui-navbar__links--end">
+      <button type="button" class="chirp-theme-shell__nav-link chirpui-navbar__link nav-search-trigger" aria-label="Search documentation">Search</button>
+    </div>
+  </nav>
+</header>
