@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -18,7 +17,7 @@ sys.path.insert(0, str(REPO / "src"))
 from furatena.catalog import DocCatalog
 from furatena.catalog.autodoc import generate_autodoc_nodes
 from furatena.catalog.export import catalog_graph, search_json, tools_manifest
-from furatena.catalog.seo import canonical_url, docs_base_url, json_ld_article
+from furatena.catalog.seo import canonical_url, json_ld_article
 from furatena.catalog.versions import infer_release_channels, node_matches_channel
 
 

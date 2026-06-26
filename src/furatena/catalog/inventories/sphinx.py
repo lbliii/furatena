@@ -10,10 +10,19 @@ from furatena.catalog.inventories.models import InventoryEntry
 
 def parse_objects_inv_bytes(raw: bytes, *, inventory_id: str = "") -> tuple[InventoryEntry, ...]:
     """Parse an ``objects.inv`` v2 inventory from raw bytes."""
-    split = raw.find(b"\n\n")
-    if split == -1:
+    lines = raw.splitlines(keepends=True)
+    if not lines or not lines[0].startswith(b"# Sphinx inventory version 2"):
         return ()
-    compressed = raw[split + 2 :].strip()
+
+    header_end = 0
+    for index, line in enumerate(lines):
+        if not line.startswith(b"#"):
+            header_end = sum(len(item) for item in lines[:index])
+            break
+    if header_end == 0:
+        return ()
+
+    compressed = raw[header_end:].strip()
     if not compressed:
         return ()
     try:

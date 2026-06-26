@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from furatena.catalog.patitas_bridge import split_frontmatter
 from furatena.catalog.sources.parse import parse_source_text
 from furatena.catalog.sources.types import MountSourceConfig, PageSource
 

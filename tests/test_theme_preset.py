@@ -12,8 +12,18 @@ APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
-from furatena.catalog.config import ThemeConfig, ThemeFontsConfig, ThemeMeasureConfig, load_docs_config
-from furatena.catalog.theme_preset import render_theme_preset, validate_font_name, validate_measure_value, write_theme_preset
+from furatena.catalog.config import (
+    ThemeConfig,
+    ThemeFontsConfig,
+    ThemeMeasureConfig,
+    load_docs_config,
+)
+from furatena.catalog.theme_preset import (
+    render_theme_preset,
+    validate_font_name,
+    validate_measure_value,
+    write_theme_preset,
+)
 
 
 @pytest.fixture(scope="module")

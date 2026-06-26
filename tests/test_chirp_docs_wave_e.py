@@ -174,8 +174,8 @@ class TestReferenceResolver:
         assert resolved.href == "/get-started/"
 
     def test_inventory_role_lookup(self) -> None:
-        from furatena.catalog.inventories.store import InventoryStore
         from furatena.catalog.inventories.models import InventoryEntry
+        from furatena.catalog.inventories.store import InventoryStore
 
         store = InventoryStore(
             entries={

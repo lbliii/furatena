@@ -13,9 +13,10 @@ APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
+from chirp.templating.integration import create_environment
+
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.docs_app import DocsApp
-from chirp.templating.integration import create_environment
 from tests.support import write_minimal_docs_yaml, write_mounts_yaml
 
 

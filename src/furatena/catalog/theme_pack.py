@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from importlib.metadata import entry_points
 from pathlib import Path
 
-from furatena.catalog.config import DocsConfig, ThemeConfig
+from furatena.catalog.config import DocsConfig
 from furatena.catalog.docs_core import DocsCorePack, load_docs_core
 
 _ENTRY_GROUP = "furatena.themes"

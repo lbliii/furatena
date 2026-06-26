@@ -42,14 +42,15 @@ class TestDirectiveTranslation:
         assert "chirp-theme-directive-tabs--code" in html
 
     def test_tab_set_uses_ast_boundaries_with_nested_divs(self) -> None:
+        from patitas.nodes import Directive
+        from patitas.stringbuilder import StringBuilder
+
         from furatena.catalog.directives.tabs import (
             TabItemHandler,
             TabItemOptions,
             TabSetHandler,
             TabSetOptions,
         )
-        from patitas.nodes import Directive
-        from patitas.stringbuilder import StringBuilder
 
         item_one = Directive(
             location=None,  # type: ignore[arg-type]
@@ -93,14 +94,15 @@ class TestDirectiveTranslation:
         assert "fura-tab-item" not in html
 
     def test_tab_set_skips_disabled_items_without_shifting_content(self) -> None:
+        from patitas.nodes import Directive
+        from patitas.stringbuilder import StringBuilder
+
         from furatena.catalog.directives.tabs import (
             TabItemHandler,
             TabItemOptions,
             TabSetHandler,
             TabSetOptions,
         )
-        from patitas.nodes import Directive
-        from patitas.stringbuilder import StringBuilder
 
         disabled = Directive(
             location=None,  # type: ignore[arg-type]
@@ -168,8 +170,9 @@ class TestDirectiveTranslation:
         assert not offenders, "tab-set labels dropped or reordered:\n" + "\n".join(offenders)
 
     def test_code_tabs_sync_uses_stable_tab_ids(self) -> None:
-        from furatena.catalog.directives.code_tabs import CodeTabsHandler, CodeTabsOptions
         from patitas.stringbuilder import StringBuilder
+
+        from furatena.catalog.directives.code_tabs import CodeTabsHandler, CodeTabsOptions
 
         handler = CodeTabsHandler()
         source = '```python\na = 1\n```\n\n```python\nb = 2\n```'
@@ -202,8 +205,9 @@ class TestDirectiveTranslation:
         assert "code-0-python-" not in html_a
 
     def test_code_tabs_fence_title_labels(self) -> None:
-        from furatena.catalog.directives.code_tabs import CodeTabsHandler, CodeTabsOptions
         from patitas.stringbuilder import StringBuilder
+
+        from furatena.catalog.directives.code_tabs import CodeTabsHandler, CodeTabsOptions
 
         handler = CodeTabsHandler()
         node = handler.parse(
@@ -244,9 +248,10 @@ class TestDirectiveTranslation:
         assert 'class="dropdown"' not in html
 
     def test_dropdown_title_renders_inline_code(self) -> None:
-        from furatena.catalog.directives.dropdown import DropdownHandler, DropdownOptions
         from patitas.nodes import Directive
         from patitas.stringbuilder import StringBuilder
+
+        from furatena.catalog.directives.dropdown import DropdownHandler, DropdownOptions
 
         node = Directive(
             location=None,  # type: ignore[arg-type]
@@ -291,8 +296,9 @@ class TestDirectiveTranslation:
         assert "version-badge-since" in html
 
     def test_related_handler_limit_and_section_title(self) -> None:
-        from furatena.catalog.directives.versioning import RelatedHandler, RelatedOptions
         from patitas.stringbuilder import StringBuilder
+
+        from furatena.catalog.directives.versioning import RelatedHandler, RelatedOptions
 
         class _Ctx:
             current_slug = "docs/get-started/installation"
@@ -325,7 +331,7 @@ class TestDirectiveTranslation:
         assert html.count("/docs/page-") == 3
 
     def test_fenced_code_renders_highlighted_content(self) -> None:
-        from furatena.catalog.context import set_render_context, reset_render_context
+        from furatena.catalog.context import reset_render_context, set_render_context
         from furatena.catalog.render import DocsRenderer
 
         class _Ctx:
@@ -349,7 +355,7 @@ class TestDirectiveTranslation:
         assert "data-fura-copy-code" in html
 
     def test_all_fenced_blocks_wrapped_when_code_tabs_present(self) -> None:
-        from furatena.catalog.context import set_render_context, reset_render_context
+        from furatena.catalog.context import reset_render_context, set_render_context
         from furatena.catalog.render import DocsRenderer
 
         class _Ctx:
@@ -381,7 +387,7 @@ import pkg
         assert html.count("data-fura-copy-code") >= 3
 
     def test_gterm_role_renders_glossary_lookup(self) -> None:
-        from furatena.catalog.context import set_render_context, reset_render_context
+        from furatena.catalog.context import reset_render_context, set_render_context
         from furatena.catalog.render import DocsRenderer
 
         class _Ctx:
@@ -418,8 +424,9 @@ import pkg
         assert "Options" in html
 
     def test_glossary_handler_renders_terms(self) -> None:
-        from furatena.catalog.directives.glossary import GlossaryHandler, GlossaryOptions
         from patitas.stringbuilder import StringBuilder
+
+        from furatena.catalog.directives.glossary import GlossaryHandler, GlossaryOptions
 
         class _Ctx:
             content_root = REPO / "content" / "chirp"
@@ -464,8 +471,9 @@ class TestDirectiveManifest:
 class TestDocsDirectivePages:
     @pytest.fixture(scope="module")
     def docs_client(self):
-        from furatena.catalog.docs_app import DocsApp
         from chirp.testing import TestClient
+
+        from furatena.catalog.docs_app import DocsApp
 
         docs = DocsApp.from_paths(
             APP_ROOT / "docs.yaml",

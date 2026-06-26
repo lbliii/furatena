@@ -108,6 +108,7 @@ def federated_docs_app():
 class TestFederatedDocsRouting:
     def test_missing_default_docs_page_returns_not_found(self, federated_docs_app) -> None:
         import asyncio
+
         from chirp.testing import TestClient
 
         client = TestClient(federated_docs_app.create_app())

@@ -27,7 +27,8 @@ reload — markdown in `content/`, hypermedia out in the browser.
 
 1. [[docs/get-started/installation|Installation]] — clone, sync dependencies
 2. [[docs/get-started/quickstart|Quickstart]] — `fura serve` and your first edit
-3. [[docs/get-started/project-layout|Project layout]] — `app/`, `content/`, `src/furatena/`
+3. [[docs/get-started/standalone-site|Standalone site]] — start a docs app outside this repo
+4. [[docs/get-started/project-layout|Project layout]] — `app/`, `content/`, `src/furatena/`
 
 ## What you'll have running
 

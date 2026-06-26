@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from furatena.catalog.content_ir import content_ir_to_toc, slugify_heading
 from furatena.catalog.models import ContentDirective, ContentHeading, ContentIR, ContentLink

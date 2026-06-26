@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from furatena.catalog.chunks import chunk_node
 from furatena.catalog.embeddings import EmbeddingIndex, SemanticHit
-from furatena.catalog.search import SearchHit, search_nodes
+from furatena.catalog.search import search_nodes
 
 if TYPE_CHECKING:
     from furatena.catalog.models import DocNode
@@ -56,9 +56,7 @@ def _node_matches_filters(
         return False
     if edition is not None and node.edition != edition:
         return False
-    if lang is not None and getattr(node, "lang", "en") != lang:
-        return False
-    return True
+    return not (lang is not None and getattr(node, "lang", "en") != lang)
 
 
 def hybrid_search(

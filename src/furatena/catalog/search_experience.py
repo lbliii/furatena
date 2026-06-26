@@ -560,11 +560,18 @@ def build_search_page_cards(
         matches: list[SearchPageMatch] = []
         seen_urls: set[str] = set()
 
-        def _append_match(label: str, url: str, snippet: str) -> None:
-            if url in seen_urls:
+        def _append_match(
+            label: str,
+            url: str,
+            snippet: str,
+            *,
+            page_matches: list[SearchPageMatch] = matches,
+            page_seen_urls: set[str] = seen_urls,
+        ) -> None:
+            if url in page_seen_urls:
                 return
-            matches.append(SearchPageMatch(label=label, url=url, snippet=snippet[:180]))
-            seen_urls.add(url)
+            page_matches.append(SearchPageMatch(label=label, url=url, snippet=snippet[:180]))
+            page_seen_urls.add(url)
 
         for hit in node_hits:
             url = search_hit_url(hit, index)

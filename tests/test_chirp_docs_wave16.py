@@ -11,10 +11,10 @@ APP_ROOT = REPO / "app"
 sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.check import check_cross_edition_links
-from furatena.catalog.inventories.export import inventory_bytes, inventories_json
+from furatena.catalog.inventories.export import inventories_json, inventory_bytes
 from furatena.catalog.inventories.models import InventoryEntry, InventorySpec
-from furatena.catalog.inventories.store import InventoryStore
 from furatena.catalog.inventories.sphinx import parse_objects_inv_bytes
+from furatena.catalog.inventories.store import InventoryStore
 from furatena.catalog.link_lint import check_body_link_boost, shell_link_attrs
 from furatena.catalog.links import boost_internal_links
 from furatena.catalog.models import DocNode

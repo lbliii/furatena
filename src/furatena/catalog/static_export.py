@@ -450,7 +450,10 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     sidecar_count = 0
     written_paths: set[Path] = set()
     manifest_fps = _load_manifest_fingerprints(output_dir) if options.incremental else {}
-    from furatena.catalog.renderer_fingerprint import read_renderer_fingerprint, renderer_fingerprint
+    from furatena.catalog.renderer_fingerprint import (
+        read_renderer_fingerprint,
+        renderer_fingerprint,
+    )
 
     docs_root = docs_app.config.root
     renderer_fp = read_renderer_fingerprint(frozen_dir) if frozen_dir else None
@@ -603,7 +606,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
             "base_path": base_path or "/",
             "site_url": options.site_url or "",
             "incremental": options.incremental,
-            "sidecars": list(_sidecar_routes()) + ["semantic.json"],
+            "sidecars": [*list(_sidecar_routes()), "semantic.json"],
             "paths": sorted(str(path) for path in written_paths),
             "fingerprints": route_fps,
         }

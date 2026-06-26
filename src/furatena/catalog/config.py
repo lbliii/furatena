@@ -11,7 +11,6 @@ import yaml
 from furatena.catalog.catalog_nav import CatalogNavConfig, parse_catalog_nav
 from furatena.catalog.i18n import DocsI18nConfig, load_i18n_config
 
-
 _EFFECTS_CODE = frozenset({"flat", "subtle", "glow"})
 _EFFECTS_CARDS = frozenset({"flat", "elevated"})
 _EFFECTS_HERO = frozenset({"wash", "minimal"})

@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from html import escape
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from patitas.directives.contracts import DirectiveContract
@@ -23,10 +22,10 @@ if TYPE_CHECKING:
     from patitas.stringbuilder import StringBuilder
 
 TAB_SET_CONTRACT = DirectiveContract(
-    requires_children=("tab-item",),
-    allows_children=("tab-item",),
+    requires_children=("tab-item", "tab"),
+    allows_children=("tab-item", "tab"),
 )
-TAB_ITEM_CONTRACT = DirectiveContract(requires_parent=("tab-set",))
+TAB_ITEM_CONTRACT = DirectiveContract(requires_parent=("tab-set", "tabs"))
 
 _TAB_BOUNDARY = "<!-- fura-tab-item -->"
 _TAB_BOUNDARY_RE = re.compile(
@@ -83,7 +82,7 @@ def _tab_items_from_ast(
     child_nodes = [
         child
         for child in node.children
-        if isinstance(child, Directive) and child.name == "tab-item"
+        if isinstance(child, Directive) and child.name in {"tab-item", "tab"}
     ]
     contents = _split_tab_contents(rendered_children)
     if not child_nodes:
@@ -111,7 +110,7 @@ def _tab_items_from_ast(
 
 @dataclass(frozen=True, slots=True)
 class TabItemHandler:
-    names: ClassVar[tuple[str, ...]] = ("tab-item",)
+    names: ClassVar[tuple[str, ...]] = ("tab-item", "tab")
     token_type: ClassVar[str] = "tab_item"
     contract: ClassVar[DirectiveContract | None] = TAB_ITEM_CONTRACT
     options_class: ClassVar[type[TabItemOptions]] = TabItemOptions
@@ -142,7 +141,7 @@ class TabItemHandler:
 
 @dataclass(frozen=True, slots=True)
 class TabSetHandler:
-    names: ClassVar[tuple[str, ...]] = ("tab-set",)
+    names: ClassVar[tuple[str, ...]] = ("tab-set", "tabs")
     token_type: ClassVar[str] = "tab_set"
     contract: ClassVar[DirectiveContract | None] = TAB_SET_CONTRACT
     options_class: ClassVar[type[TabSetOptions]] = TabSetOptions

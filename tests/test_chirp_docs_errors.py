@@ -49,8 +49,9 @@ class TestErrorExperienceHelpers:
 
 @pytest.fixture(scope="module")
 def docs_client():
-    from furatena.catalog.docs_app import DocsApp
     from chirp.testing import TestClient
+
+    from furatena.catalog.docs_app import DocsApp
 
     docs = DocsApp.from_paths(
         APP_ROOT / "docs.yaml",
@@ -166,8 +167,9 @@ class TestErrorPages:
 
 class TestErrorTemplateOverride:
     def test_theme_shadow_wins_over_framework(self, tmp_path: Path) -> None:
-        from furatena.catalog.docs_app import DocsApp
         from chirp.templating.integration import create_environment
+
+        from furatena.catalog.docs_app import DocsApp
 
         shutil.copytree(APP_ROOT / "theme", tmp_path / "theme")
         write_minimal_docs_yaml(tmp_path / "docs.yaml")

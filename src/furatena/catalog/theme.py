@@ -81,7 +81,7 @@ class DocsTheme:
         elif packaged is not None:
             css_dir, fonts_dir, branding_dir = packaged
             entry = css_dir / "style.css"
-            bundle_path, digest = bundle_css(entry, cache_dir=cache_dir)
+            _bundle_path, digest = bundle_css(entry, cache_dir=cache_dir)
             static_mounts.append(ThemeAssets(url_prefix="/docs-assets", directory=cache_dir))
             stylesheet_hrefs.append(f"/docs-assets/theme.{digest}.css")
             if fonts_dir is not None and skin.fonts_dir is None:
@@ -136,9 +136,12 @@ class DocsTheme:
         browser_reload_dirs.append(skin.js_dir)
 
         vendor_root = Path(vendor_dir())
-        if vendor_root.is_dir() and all((vendor_root / name).is_file() for name in VENDOR_FILES):
-            if not any(mount.url_prefix == "/docs-vendor" for mount in static_mounts):
-                static_mounts.append(ThemeAssets(url_prefix="/docs-vendor", directory=vendor_root))
+        if (
+            vendor_root.is_dir()
+            and all((vendor_root / name).is_file() for name in VENDOR_FILES)
+            and not any(mount.url_prefix == "/docs-vendor" for mount in static_mounts)
+        ):
+            static_mounts.append(ThemeAssets(url_prefix="/docs-vendor", directory=vendor_root))
 
         return cls(
             config=theme_cfg,

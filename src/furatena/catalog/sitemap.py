@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from html import escape
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from furatena.catalog.loader import DocCatalog
@@ -29,7 +29,7 @@ def sitemap_xml(catalog: DocCatalog | CatalogRegistry, base_url: str = "") -> st
     if has_alternates:
         xmlns += ' xmlns:xhtml="http://www.w3.org/1999/xhtml"'
 
-    lines = [f'<?xml version="1.0" encoding="UTF-8"?>', f"<urlset {xmlns}>"]
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>', f"<urlset {xmlns}>"]
     nodes = sorted(getattr(catalog, "nodes", ()), key=lambda item: item.url)
 
     for node in nodes:

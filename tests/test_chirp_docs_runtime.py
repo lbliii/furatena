@@ -16,7 +16,6 @@ FROZEN_DIR = APP_ROOT / "frozen"
 sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.assets import bundle_css
-from furatena.catalog.registry import load_mounts
 from furatena.catalog.dev_banner import format_serve_startup
 from furatena.catalog.dev_reload import (
     DevServerRecord,
@@ -28,6 +27,7 @@ from furatena.catalog.dev_reload import (
     stop_dev_server,
     write_dev_server_record,
 )
+from furatena.catalog.registry import load_mounts
 from furatena.catalog.runtime import ServeConfig, ServeMode, resolve_serve_config
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.watch import SourceWatcher
@@ -99,7 +99,10 @@ class TestServeMode:
         for path in (content / "doc.md", docs_root / "catalog", docs_root / "theme"):
             os.utime(path, (content_time, content_time))
 
-        from furatena.catalog.renderer_fingerprint import renderer_fingerprint, write_renderer_fingerprint
+        from furatena.catalog.renderer_fingerprint import (
+            renderer_fingerprint,
+            write_renderer_fingerprint,
+        )
 
         write_renderer_fingerprint(frozen, renderer_fingerprint(docs_root))
 
@@ -255,7 +258,7 @@ class TestBundledTheme:
         docs = load_docs_config(APP_ROOT / "docs.yaml")
         theme = DocsTheme.from_docs_config(docs)
         assert any("/docs-assets/theme." in href for href in theme.stylesheet_hrefs)
-        assert not any("/docs-theme/core/style.css" == href for href in theme.stylesheet_hrefs)
+        assert not any(href == "/docs-theme/core/style.css" for href in theme.stylesheet_hrefs)
         assert "/docs-theme/local/directives.css" in theme.stylesheet_hrefs
 
 
@@ -292,9 +295,10 @@ class TestRendererFingerprint:
 def docs_client_hybrid():
     if not FROZEN_DIR.is_dir():
         pytest.skip("no frozen catalog")
+    from chirp.testing import TestClient
+
     from furatena.catalog.docs_app import DocsApp
     from furatena.catalog.runtime import ServeConfig
-    from chirp.testing import TestClient
 
     serve = ServeConfig(ServeMode.HYBRID, FROZEN_DIR, True, True)
     docs = DocsApp.from_paths(

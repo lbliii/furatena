@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from furatena.catalog.models import ContentDirective, ContentIR
 from furatena.catalog.render import DocsRenderer
@@ -46,7 +46,7 @@ def mdx_to_markdown(source: str) -> str:
         lines.append(block)
         last = match.end()
     tail = source[last:]
-    for match in _JSX_SELF_CLOSING.finditer(tail):
+    for _match in _JSX_SELF_CLOSING.finditer(tail):
         pass
     converted = "".join(lines) + tail
 

@@ -13,7 +13,7 @@ APP_ROOT = REPO / "app"
 sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.config import load_docs_config
-from furatena.catalog.docs_core import load_docs_core, list_docs_core_ids
+from furatena.catalog.docs_core import list_docs_core_ids, load_docs_core
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.theme_assets import packaged_theme_assets
 from furatena.catalog.theme_pack import resolve_theme_paths

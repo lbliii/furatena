@@ -22,7 +22,6 @@ from furatena.catalog.view_kinds import (
 
 if TYPE_CHECKING:
     from furatena.catalog.models import DocNode
-    from furatena.catalog.registry import CatalogRegistry
 
 
 class CatalogLike(Protocol):

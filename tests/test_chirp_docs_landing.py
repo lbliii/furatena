@@ -15,8 +15,9 @@ sys.path.insert(0, str(REPO / "src"))
 
 @pytest.fixture(scope="module")
 def docs_client():
-    from furatena.catalog.docs_app import DocsApp
     from chirp.testing import TestClient
+
+    from furatena.catalog.docs_app import DocsApp
 
     docs = DocsApp.from_paths(
         APP_ROOT / "docs.yaml",

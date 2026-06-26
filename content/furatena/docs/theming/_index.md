@@ -21,6 +21,7 @@ Most rebrands need only tokens and `site:` branding — not a template fork.
 |------|--------|
 | [[docs/theming/tokens-and-skin|Tokens and skin]] | `theme.use`, lagoon, effects |
 | [[docs/theming/views-overrides|Views and overrides]] | Template loader stack |
+| [[docs/theming/customization-cli|Customization CLI]] | Inspect, eject, and diff overrides |
 | [[docs/theming/branding|Branding]] | `site:`, favicon, web manifest |
 
 ## Four tiers
@@ -39,6 +40,8 @@ improving the default theme rather than forking the whole app.
 
 ```bash
 fura theme list          # docs-core ids + skin packs
+fura theme inspect views/doc.html
+fura theme eject directives/callout.html
 fura theme init          # scaffold custom skin directory
 ```
 

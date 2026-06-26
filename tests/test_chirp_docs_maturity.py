@@ -16,8 +16,9 @@ from furatena.catalog.links import shell_link_attrs
 
 @pytest.fixture(scope="module")
 def docs_client():
-    from furatena.catalog.docs_app import DocsApp
     from chirp.testing import TestClient
+
+    from furatena.catalog.docs_app import DocsApp
 
     docs = DocsApp.from_paths(
         APP_ROOT / "docs.yaml",
@@ -87,7 +88,7 @@ class TestMaturityNav:
 
 class TestMaturityPreviewParity:
     def test_assets_manifest_supports_vendor_prefix(self, tmp_path: Path) -> None:
-        from furatena.catalog.assets import write_assets_manifest, load_assets_manifest
+        from furatena.catalog.assets import load_assets_manifest, write_assets_manifest
 
         frozen = tmp_path / "frozen"
         write_assets_manifest(

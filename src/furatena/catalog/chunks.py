@@ -6,7 +6,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from furatena.catalog.models import SectionChunk
-from furatena.catalog.patitas_bridge import document_for_node, excerpt_text, meta_description, section_texts
+from furatena.catalog.patitas_bridge import (
+    document_for_node,
+    excerpt_text,
+    meta_description,
+)
 
 if TYPE_CHECKING:
     from patitas.nodes import Document

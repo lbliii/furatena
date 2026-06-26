@@ -1,8 +1,8 @@
 # Furatena — live documentation from markdown
 
 **Furatena** turns markdown into a documentation site that **updates as you edit** —
-with built-in search, navigation, and exports for agents and static hosting. It is the
-documentation surface for [Chirp](https://github.com/lbliii/chirp).
+with built-in search, navigation, static export, and agent-readable catalog data from
+the same corpus.
 
 The CLI is **`fura`** (short for Furatena).
 
@@ -14,7 +14,9 @@ Export to GitHub Pages or feed `/catalog.json` to agents from the same corpus.
 
 ```bash
 uv sync --group dev
-uv run fura serve
+uv run fura init /tmp/my-docs --name "My Docs"
+uv run fura --app-root /tmp/my-docs check --content-only
+uv run fura --app-root /tmp/my-docs serve
 ```
 
 (`fura` lives in `.venv/bin/` — use `uv run`, `make serve`, or `./app/run` unless you've activated the venv.)
@@ -28,11 +30,13 @@ The Chirp docs mount under `content/chirp/` remains available at `/chirp/` for t
 
 ```bash
 uv run fura serve              # hybrid when app/frozen/ exists
+uv run fura init ./docs-site   # scaffold a standalone docs app
 uv run fura serve --author     # force live index
 uv run fura freeze             # catalog IR + HTML + assets → app/frozen/
 uv run fura export             # static HTML → app/public/
 uv run fura check              # Chirp contracts + corpus lint
 uv run fura query --directive tabs
+uv run fura migrate --dry-run  # preview MDX → Patitas markdown lowering
 ```
 
 ## Layout

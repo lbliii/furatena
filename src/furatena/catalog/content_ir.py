@@ -5,12 +5,21 @@ from __future__ import annotations
 import html
 import re
 from dataclasses import asdict, is_dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from patitas.nodes import Directive, Document, FencedCode, Heading, Link, Node, Text
 from patitas.visitor import BaseVisitor
 
-from furatena.catalog.models import ContentDirective, ContentHeading, ContentIR, ContentLink, TocEntry
+from furatena.catalog.models import (
+    ContentDirective,
+    ContentHeading,
+    ContentIR,
+    ContentLink,
+    TocEntry,
+)
+
+if TYPE_CHECKING:
+    from furatena.catalog.models import DocNode
 
 _SLUGIFY_RE = re.compile(r"[^\w\s-]")
 _WHITESPACE_RE = re.compile(r"[\s_]+")
@@ -221,8 +230,6 @@ def collect_node_link_urls(
     catalog=None,
 ) -> set[str]:
     """Collect internal URLs for a page from Content IR and catalog-aware directives."""
-    from furatena.catalog.graph import normalize_internal_url
-    from furatena.catalog.models import DocNode
 
     urls: set[str] = set()
     content_ir = node.content_ir

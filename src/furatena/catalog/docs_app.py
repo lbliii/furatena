@@ -7,25 +7,14 @@ import os
 from pathlib import Path
 from typing import Any
 
+from chirp import OOB, App, AppConfig, Fragment, Page, Request, Response, Template
+from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
+from chirp.ext.chirp_ui import use_chirp_ui
+from chirp.i18n import get_locale, set_locale
+from chirp.middleware.static import StaticFiles
+
 from furatena.catalog.config import DocsConfig, load_docs_config
-from furatena.catalog.develop_exports import DEVELOP_EXPORTS, DevelopExport, develop_export
-from furatena.catalog.embeddings import EmbeddingIndex
-from furatena.catalog.error_experience import build_error_context, recovery_hits_for_query
-from furatena.catalog.export import catalog_graph, llms_full_txt, meta_json, search_json, surface_json, tools_manifest
-from furatena.catalog.links import boost_internal_links, shell_link_attrs
-from furatena.catalog.incremental import is_partial_reload
-from furatena.catalog.registry import CatalogRegistry
-from furatena.catalog.semantic import retrieve_node, semantic_search_json
-from furatena.catalog.seo import (
-    canonical_url as build_canonical_url,
-    docs_base_url,
-    json_ld_script,
-    json_ld_article,
-    og_image_url,
-)
-from furatena.catalog.sitemap import sitemap_xml
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
-from furatena.catalog.dev_banner import format_serve_startup
 from furatena.catalog.dev_reload import (
     browser_reload_dirs,
     clear_dev_server_record,
@@ -34,17 +23,30 @@ from furatena.catalog.dev_reload import (
     stop_dev_server,
     write_dev_server_record,
 )
+from furatena.catalog.develop_exports import DEVELOP_EXPORTS, DevelopExport, develop_export
+from furatena.catalog.embeddings import EmbeddingIndex
+from furatena.catalog.error_experience import build_error_context, recovery_hits_for_query
+from furatena.catalog.export import (
+    catalog_graph,
+    llms_full_txt,
+    meta_json,
+    search_json,
+    surface_json,
+    tools_manifest,
+)
 from furatena.catalog.i18n import (
+    LocalizedNodeMatch,
     active_language_override,
     detect_lang_from_path,
     fallback_context,
     locale_context,
-    LocalizedNodeMatch,
     resolve_localized_node,
     supported_app_locales,
 )
+from furatena.catalog.incremental import is_partial_reload
+from furatena.catalog.links import boost_internal_links, shell_link_attrs
+from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.runtime import ServeConfig, ServeMode
-from furatena.catalog.workers import resolve_workers
 from furatena.catalog.search_experience import (
     build_search_workspace_context,
     highlight_search_terms,
@@ -53,15 +55,22 @@ from furatena.catalog.search_experience import (
     search_hit_url,
     search_nav_attrs,
 )
+from furatena.catalog.semantic import retrieve_node, semantic_search_json
+from furatena.catalog.seo import (
+    canonical_url as build_canonical_url,
+)
+from furatena.catalog.seo import (
+    docs_base_url,
+    json_ld_article,
+    json_ld_script,
+    og_image_url,
+)
+from furatena.catalog.sitemap import sitemap_xml
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_items
 from furatena.catalog.versions import channel_context
 from furatena.catalog.views import ViewRegistry
-from chirp import App, AppConfig, Fragment, OOB, Page, Request, Response, Template
-from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
-from chirp.ext.chirp_ui import use_chirp_ui
-from chirp.i18n import get_locale, set_locale
-from chirp.middleware.static import StaticFiles
+from furatena.catalog.workers import resolve_workers
 
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 
@@ -1073,7 +1082,7 @@ class DocsApp:
 
     @staticmethod
     def _register_contract_refs(app: App) -> None:
-        if False:  # noqa: E701 — static references for contract checker only
+        if False:
             Fragment("directives/accordion.html", "_register")
             Fragment("directives/callout.html", "_register")
             Fragment("directives/card_grid.html", "_register")

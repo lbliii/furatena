@@ -6,8 +6,8 @@ import enum
 from dataclasses import dataclass
 from pathlib import Path
 
-from furatena.catalog.renderer_fingerprint import read_renderer_fingerprint, renderer_fingerprint
 from furatena.catalog.paths import catalog_root
+from furatena.catalog.renderer_fingerprint import read_renderer_fingerprint, renderer_fingerprint
 
 
 class ServeMode(enum.Enum):
