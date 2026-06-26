@@ -21,6 +21,7 @@ Run Furatena locally, freeze for preview, export static HTML, and validate in CI
 | [[docs/operations/serve-and-author|Serve and author]] | Live index, reload, serve modes |
 | [[docs/operations/freeze-and-export|Freeze and export]] | `fura freeze`, `fura export`, GitHub Pages |
 | [[docs/operations/check-and-lint|Check and lint]] | `fura check`, content lint, theme lint |
+| [[docs/operations/migrate-from-js-docs|Migrate from JS docs]] | MDX lowering and platform migration path |
 | [[docs/operations/deploy|Deploy]] | `FURA_BASE_URL`, channels, CI |
 
 ## Command cheat sheet

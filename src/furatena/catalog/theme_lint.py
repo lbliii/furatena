@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from furatena.catalog.config import DocsConfig
 from furatena.catalog.docs_core import load_docs_core
 from furatena.catalog.theme_pack import list_theme_packs, load_theme_pack, resolve_theme_paths
-from furatena.catalog.theme_preset import validate_font_name, validate_measure_value, write_theme_preset
+from furatena.catalog.theme_preset import (
+    validate_font_name,
+    validate_measure_value,
+    write_theme_preset,
+)
 from furatena.catalog.vendor_paths import VENDOR_FILES, vendor_dir
 
 _EFFECTS_CODE = frozenset({"flat", "subtle", "glow"})
@@ -23,6 +28,8 @@ _REQUIRED_JS = (
     "fura-static-search.js",
     "docs-enhance.js",
 )
+
+_CSS_IMPORT_RE = re.compile(r"@import\s+url\(['\"]?(?P<path>[^'\")]+)")
 
 
 def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
@@ -89,6 +96,7 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
         errors.append("docs-core style.css missing (packaged bundle entry)")
     else:
         text = bundled.read_text(encoding="utf-8")
+        imports = {match.group("path") for match in _CSS_IMPORT_RE.finditer(text)}
         for legacy in (
             "layouts/grid.css",
             "components/alerts.css",
@@ -98,7 +106,7 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
             "components/widgets.css",
             "components/stale-banner.css",
         ):
-            if legacy in text:
+            if legacy in imports:
                 warnings.append(f"packaged bundle still imports superseded module: {legacy}")
 
     cache_dir = docs.root / ".docs-cache"
@@ -122,8 +130,11 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
         if "/docs-vendor/htmx.min.js" not in shell_source:
             warnings.append("fura_shell.html does not reference vendored htmx script")
 
-    if branding_dir := skin.app_assets_root / "branding":
-        if branding_dir.is_dir() and not (branding_dir / "favicon.ico").is_file():
-            warnings.append("theme/assets/branding/favicon.ico missing (browsers request /favicon.ico)")
+    if (
+        (branding_dir := skin.app_assets_root / "branding").is_dir()
+        and not (branding_dir / "favicon.ico").is_file()
+        and not (branding_dir / "favicon.svg").is_file()
+    ):
+        warnings.append("theme/assets/branding/favicon.ico or favicon.svg missing")
 
     return sorted(errors), sorted(warnings)

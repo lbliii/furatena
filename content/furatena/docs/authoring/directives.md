@@ -56,7 +56,7 @@ Catalog graph, views, and dual IR.
 
 ## Tabs
 
-```markdown
+````markdown
 ::::{tabs}
 :::{tab} uv
 ```bash
@@ -69,7 +69,7 @@ make serve
 ```
 :::{/tab}
 ::::{/tabs}
-```
+````
 
 Synced code tabs use `::::{code-tabs}` with `:sync:` keys (see Chirp install pages under `/chirp/docs/get-started/installation/`).
 

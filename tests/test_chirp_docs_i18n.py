@@ -2,23 +2,22 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
 from pathlib import Path
 
 import pytest
-
-import shutil
 
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
+from furatena.catalog.export import search_json
 from furatena.catalog.i18n import (
     build_translation_index,
     collect_i18n_export_routes,
     detect_lang_from_path,
-    fallback_context,
     load_i18n_config,
     locale_context,
     locale_slug,
@@ -26,7 +25,6 @@ from furatena.catalog.i18n import (
     resolve_localized_node,
     resolve_translation_key,
 )
-from furatena.catalog.export import search_json
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.registry import CatalogRegistry, load_mounts
 from furatena.catalog.sitemap import sitemap_xml

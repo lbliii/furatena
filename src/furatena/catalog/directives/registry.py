@@ -12,8 +12,8 @@ from furatena.catalog.directives.dropdown import DropdownHandler
 from furatena.catalog.directives.embeds import FigureHandler, GistHandler, YouTubeHandler
 from furatena.catalog.directives.glossary import GlossaryHandler
 from furatena.catalog.directives.include import IncludeHandler
-from furatena.catalog.directives.literalinclude import LiteralIncludeHandler
 from furatena.catalog.directives.list_table import ListTableHandler
+from furatena.catalog.directives.literalinclude import LiteralIncludeHandler
 from furatena.catalog.directives.steps import StepHandler, StepsHandler
 from furatena.catalog.directives.tabs import TabItemHandler, TabSetHandler
 from furatena.catalog.directives.versioning import DeprecatedHandler, RelatedHandler, SinceHandler

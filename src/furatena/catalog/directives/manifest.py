@@ -98,18 +98,18 @@ DIRECTIVE_MANIFEST: tuple[DirectiveEntry, ...] = (
         handler="DropdownHandler",
     ),
     DirectiveEntry(
-        names=("tab-set",),
+        names=("tab-set", "tabs"),
         template="tabs",
         theme_hook="chirp-theme-directive-tabs",
         handler="TabSetHandler",
-        children=("tab-item",),
+        children=("tab-item", "tab"),
     ),
     DirectiveEntry(
-        names=("tab-item",),
+        names=("tab-item", "tab"),
         template=None,
         theme_hook="chirp-theme-directive-tabs",
         handler="TabItemHandler",
-        parent=("tab-set",),
+        parent=("tab-set", "tabs"),
     ),
     DirectiveEntry(
         names=("code-tabs",),

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
@@ -46,7 +46,7 @@ def _parse_warnings(body: str) -> tuple[str, ...]:
         from furatena.catalog.render import DocsRenderer
 
         DocsRenderer().parse(body)
-    except Exception as exc:  # noqa: BLE001 — surface parse failures to the operator
+    except Exception as exc:
         warnings.append(f"converted body failed to parse: {exc}")
     return tuple(warnings)
 

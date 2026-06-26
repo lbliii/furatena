@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-
 from furatena.catalog.code_blocks import wrap_highlighted_html
 
 

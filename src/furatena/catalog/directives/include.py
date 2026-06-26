@@ -10,7 +10,11 @@ from patitas.directives.options import DirectiveOptions
 from patitas.nodes import Directive
 
 from furatena.catalog.context import get_render_context
-from furatena.catalog.files import MAX_INCLUDE_BYTES, read_bounded_text, resolve_content_path, slice_lines
+from furatena.catalog.files import (
+    read_bounded_text,
+    resolve_content_path,
+    slice_lines,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

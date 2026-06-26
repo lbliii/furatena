@@ -12,13 +12,13 @@ import yaml
 from furatena.catalog.catalog_nav import CatalogNavConfig
 from furatena.catalog.graph import build_federated_backlinks, normalize_internal_url
 from furatena.catalog.graph_schema import build_graph_edges
+from furatena.catalog.i18n import DocsI18nConfig, build_translation_index
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.sources.types import MountSourceConfig
 from furatena.catalog.versions import active_channel_id
-from furatena.catalog.i18n import DocsI18nConfig, build_translation_index
 from furatena.catalog.watch import SourceWatcher
 from furatena.catalog.workers import resolve_workers
 
@@ -230,7 +230,7 @@ class CatalogRegistry:
                         mount = futures[future]
                         self._shards[mount.id] = future.result()
             else:
-                for mount, shard_frozen in live_mount_jobs:
+                for mount, _shard_frozen in live_mount_jobs:
                     self._shards[mount.id] = self._build_live_shard(
                         mount,
                         cached_autodoc=cached_autodoc,
@@ -292,7 +292,7 @@ class CatalogRegistry:
         edition: str | None = None,
     ) -> DocNode | None:
         """Resolve an author-time slug/path target with mount-aware disambiguation."""
-        from furatena.catalog.references.resolver import _slug_variants, _split_qualified_target
+        from furatena.catalog.references.resolver import _split_qualified_target
 
         target = target.strip()
         if not target:
@@ -548,8 +548,12 @@ class CatalogRegistry:
         mount = next(m for m in self.mounts if m.id == node.mount)
         portal = [{"label": "Portal", "href": "/portal/"}]
         if crumbs and crumbs[0]["href"] == "/":
-            return portal + [{"label": mount.label, "href": mount.url_prefix or crumbs[0]["href"]}] + crumbs[1:]
-        return portal + crumbs
+            return [
+                *portal,
+                {"label": mount.label, "href": mount.url_prefix or crumbs[0]["href"]},
+                *crumbs[1:],
+            ]
+        return [*portal, *crumbs]
 
     def prev_next(self, node: DocNode) -> tuple[DocNode | None, DocNode | None]:
         return self._shard_for_node(node).prev_next(node)

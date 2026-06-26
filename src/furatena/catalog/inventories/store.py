@@ -9,9 +9,13 @@ from typing import Any
 
 import yaml
 
-from furatena.catalog.inventories.dcp import catalog_doc_inventory_entries, catalog_inventory_entries
+from furatena.catalog.inventories.dcp import (
+    catalog_doc_inventory_entries,
+    catalog_inventory_entries,
+)
 from furatena.catalog.inventories.models import InventoryEntry, InventorySpec
 from furatena.catalog.inventories.sphinx import parse_objects_inv_bytes
+
 
 @dataclass
 class InventoryStore:
@@ -67,7 +71,7 @@ def _fetch_inventory_url(url: str, cache_path: Path) -> bytes:
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     if cache_path.is_file():
         return cache_path.read_bytes()
-    with urllib.request.urlopen(url, timeout=30) as response:  # noqa: S310
+    with urllib.request.urlopen(url, timeout=30) as response:
         data = response.read()
     cache_path.write_bytes(data)
     return data
@@ -92,7 +96,7 @@ def build_inventory_store(
             elif cache is not None and cache.is_file():
                 raw = cache.read_bytes()
             elif spec.url:
-                with urllib.request.urlopen(spec.url, timeout=30) as response:  # noqa: S310
+                with urllib.request.urlopen(spec.url, timeout=30) as response:
                     raw = response.read()
             else:
                 continue

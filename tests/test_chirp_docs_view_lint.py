@@ -13,6 +13,8 @@ APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
+from chirp.testing.client import TestClient
+
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.incremental import is_partial_reload
@@ -20,7 +22,6 @@ from furatena.catalog.registry import CatalogRegistry, MountConfig
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.view_lint import check_view_templates
-from chirp.testing.client import TestClient
 
 
 @pytest.fixture(scope="module")

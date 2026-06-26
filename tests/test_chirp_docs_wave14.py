@@ -10,7 +10,7 @@ APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
-from furatena.catalog.content_ir import collect_node_link_urls, ContentDirective, ContentIR
+from furatena.catalog.content_ir import ContentDirective, ContentIR, collect_node_link_urls
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.graph import extract_page_links
 from furatena.catalog.loader import DocCatalog

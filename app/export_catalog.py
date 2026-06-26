@@ -12,7 +12,11 @@ if str(REPO / "src") not in sys.path:
 
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.runtime import ServeConfig, ServeMode
-from furatena.catalog.static_export import StaticExportOptions, export_static_site, normalize_base_path
+from furatena.catalog.static_export import (
+    StaticExportOptions,
+    export_static_site,
+    normalize_base_path,
+)
 
 DOCS_CONFIG = ROOT / "docs.yaml"
 FROZEN_DIR = ROOT / "frozen"

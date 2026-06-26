@@ -132,7 +132,7 @@ def build_error_context(
     keyword_hits, semantic_hits = recovery_hits_for_query(app, query) if query else ((), ())
 
     ctx: dict[str, Any] = {
-        **app._shell_context(request=request),  # noqa: SLF001
+        **app._shell_context(request=request),
         "error_status": status,
         "error_title": copy["error_title"],
         "error_headline": copy["error_headline"],
@@ -153,5 +153,5 @@ def build_error_context(
         "node": None,
     }
     if request is not None:
-        ctx["canonical_url"] = app._site_base(request) + path  # noqa: SLF001
+        ctx["canonical_url"] = app._site_base(request) + path
     return ctx

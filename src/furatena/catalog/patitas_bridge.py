@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from patitas.nodes import Document, Node
+    from patitas.nodes import Document
 
     from furatena.catalog.models import DocNode
 
@@ -151,7 +151,7 @@ def section_texts(
 ) -> list[tuple[str, str, str]]:
     """Split a document into heading sections as plain text ``(anchor, heading, text)``."""
     from patitas import extract_text
-    from patitas.nodes import Block, Document, Heading
+    from patitas.nodes import Block, Heading
 
     from furatena.catalog.content_ir import slugify_heading
 

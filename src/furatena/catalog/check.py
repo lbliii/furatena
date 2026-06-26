@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from furatena.catalog.ast_store import ast_roundtrip_error
@@ -19,6 +20,7 @@ from furatena.catalog.view_lint import check_view_templates
 if TYPE_CHECKING:
     from furatena.catalog.config import DocsConfig
     from furatena.catalog.models import DocNode
+    from furatena.catalog.registry import CatalogRegistry
     from furatena.catalog.theme import DocsTheme
     from furatena.catalog.views import ViewRegistry
 

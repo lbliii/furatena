@@ -9,7 +9,6 @@ from furatena.catalog.inventories.sphinx import write_objects_inv_bytes
 
 if TYPE_CHECKING:
     from furatena.catalog.inventories.store import InventoryStore
-    from furatena.catalog.registry import CatalogRegistry
 
 
 def inventory_entries_for_id(store: InventoryStore | None, inventory_id: str) -> tuple:

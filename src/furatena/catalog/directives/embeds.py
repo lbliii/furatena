@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 from patitas.directives.options import DirectiveOptions, StyledOptions
 from patitas.nodes import Directive
 
-from furatena.catalog.context import get_render_context
 from furatena.catalog.directives.html import rewrite_href
 from furatena.catalog.directives.kida_render import render_directive
 

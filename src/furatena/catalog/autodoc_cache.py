@@ -5,9 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
-
-import yaml
 
 from furatena.catalog.autodoc import load_autodoc_config
 from furatena.catalog.content_ir import content_ir_from_record

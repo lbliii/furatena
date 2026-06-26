@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import re
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
+from furatena.catalog.ast_store import document_from_json
 from furatena.catalog.autodoc import generate_autodoc_nodes
 from furatena.catalog.catalog_nav import CatalogNavConfig, resolve_doc_sections, section_index_slug
-from furatena.catalog.context import NodeStub
-from furatena.catalog.ast_store import document_from_json
 from furatena.catalog.content_ir import content_ir_from_record
+from furatena.catalog.context import NodeStub
 from furatena.catalog.graph import build_backlinks
+from furatena.catalog.graph_schema import infer_section_root
 from furatena.catalog.i18n import (
     DocsI18nConfig,
     locale_slug,
@@ -24,10 +26,14 @@ from furatena.catalog.i18n import (
 )
 from furatena.catalog.incremental import htmx_swap_hints, needs_graph_rebuild
 from furatena.catalog.models import DocNode, SectionChunk, TocEntry
-from furatena.catalog.graph_schema import infer_section_root
 from furatena.catalog.render import DocsRenderer
 from furatena.catalog.search import SearchHit, search_nodes
-from furatena.catalog.sources import FilesystemScanner, MountSourceConfig, PageSource, get_content_adapter
+from furatena.catalog.sources import (
+    FilesystemScanner,
+    MountSourceConfig,
+    PageSource,
+    get_content_adapter,
+)
 from furatena.catalog.versions import (
     DocChannel,
     active_channel_id,
@@ -737,7 +743,7 @@ class DocCatalog:
                         }
                     )
 
-            for segment, nested_pages in sorted(deeper_by_segment.items()):
+            for segment, _nested_pages in sorted(deeper_by_segment.items()):
                 if segment in handled_segments:
                     continue
                 branch_slug = f"{parent_slug}/{segment}"
@@ -1103,10 +1109,8 @@ class DocCatalog:
                 sections=sections,
             )
             if ast_json:
-                try:
+                with suppress(Exception):
                     catalog._ast_documents[slug] = document_from_json(ast_json)
-                except Exception:
-                    pass
             catalog._register_node(node)
 
         catalog._backlinks = {

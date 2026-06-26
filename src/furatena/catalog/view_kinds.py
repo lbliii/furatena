@@ -67,6 +67,39 @@ _APP_CHROME = frozenset(
     }
 )
 
+_SHELL_OPTIONAL = frozenset(
+    {
+        "error_title",
+        "html_lang",
+        "i18n_enabled",
+        "route_link_attrs",
+        "shell_outlet_attrs",
+        "shell_runtime_script",
+        "site_name",
+        "t",
+        "toast_container",
+    }
+)
+
+_CHIRP_UI_MACROS = frozenset(
+    {
+        "btn",
+        "card",
+        "cluster",
+        "container",
+        "cta_band",
+        "feature_section",
+        "feature_stack",
+        "grid",
+        "layout_stack",
+        "metric_card",
+        "metric_grid",
+        "page_header",
+        "stack",
+        "surface",
+    }
+)
+
 _CATALOG_OPTIONAL = frozenset(
     {
         "csp_nonce",
@@ -79,9 +112,6 @@ _CATALOG_OPTIONAL = frozenset(
         "node.body_md",
         "page_subtitle",
         "page_title",
-        "shell_outlet_attrs",
-        "shell_runtime_script",
-        "toast_container",
         "hits",
         "search_section",
         "search_sections",
@@ -102,6 +132,34 @@ _CATALOG_OPTIONAL = frozenset(
         "search_hit_url",
         "search_hit_heading",
     }
+    | _SHELL_OPTIONAL
+)
+
+_APP_OPTIONAL = (
+    _APP_CHROME
+    | _SHELL_OPTIONAL
+    | _CHIRP_UI_MACROS
+    | frozenset(
+        {
+            "home",
+            "home.aria_label",
+            "home.cta_primary.href",
+            "home.cta_primary.label",
+            "home.cta_secondary.href",
+            "home.cta_secondary.label",
+            "home.visual",
+            "node.description",
+            "node.slug",
+            "node.title",
+            "site_home",
+            "site_mark",
+            "site_tagline",
+            "step_index",
+            "visual",
+            "visual.aria_label",
+            "visual.proof_tags",
+        }
+    )
 )
 
 VIEW_KINDS: tuple[ViewKindSpec, ...] = (
@@ -154,7 +212,7 @@ VIEW_KINDS: tuple[ViewKindSpec, ...] = (
         False,
         "Simple marketing/content page inside the app surface (extends home by default).",
         required_context=_APP_CONTEXT | frozenset({"node"}),
-        optional_context=_APP_CHROME,
+        optional_context=_APP_OPTIONAL,
     ),
     ViewKindSpec(
         "home",
@@ -164,7 +222,7 @@ VIEW_KINDS: tuple[ViewKindSpec, ...] = (
         False,
         "Site home — app surface with optional site nav; no docs catalog rail.",
         required_context=_APP_CONTEXT | frozenset({"node"}),
-        optional_context=_APP_CHROME,
+        optional_context=_APP_OPTIONAL,
     ),
     ViewKindSpec(
         "portal",
@@ -174,7 +232,7 @@ VIEW_KINDS: tuple[ViewKindSpec, ...] = (
         False,
         "Multi-mount portal hub — app surface listing federated doc mounts.",
         required_context=_APP_CONTEXT | frozenset({"mounts", "page_count"}),
-        optional_context=_APP_CHROME | frozenset({"node"}),
+        optional_context=_APP_OPTIONAL | frozenset({"node"}),
     ),
 )
 

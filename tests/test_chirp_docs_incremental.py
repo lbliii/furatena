@@ -14,7 +14,12 @@ sys.path.insert(0, str(REPO / "src"))
 from furatena.catalog import DocCatalog
 from furatena.catalog.ast_store import document_from_json, document_to_json
 from furatena.catalog.export import catalog_graph
-from furatena.catalog.incremental import htmx_swap_hints, invalidation_regions, is_partial_reload, needs_graph_rebuild
+from furatena.catalog.incremental import (
+    htmx_swap_hints,
+    invalidation_regions,
+    is_partial_reload,
+    needs_graph_rebuild,
+)
 from furatena.catalog.render import DocsRenderer
 
 

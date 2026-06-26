@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from furatena.catalog.ast_store import document_to_json
 from furatena.catalog.content_ir import content_ir_to_toc, extract_content_ir
 from furatena.catalog.context import RenderContext, reset_render_context, set_render_context
 from furatena.catalog.incremental import htmx_swap_hints, invalidation_regions
-from furatena.catalog.models import ContentIR, TocEntry
+from furatena.catalog.models import ContentIR
 from furatena.catalog.render import DocsRenderer
 from furatena.catalog.sources.types import AdaptedContent, PageSource
 from furatena.catalog.text import derive_body_text, derive_sections

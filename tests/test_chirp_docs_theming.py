@@ -70,7 +70,7 @@ class TestViewRegistry:
         assert len(ctx["collection_sections"]) >= 2
 
     def test_explicit_view_override_in_front_matter(self, views: ViewRegistry) -> None:
-        from furatena.catalog.models import DocNode, TocEntry
+        from furatena.catalog.models import DocNode
 
         node = DocNode(
             url="/demo/",
@@ -202,8 +202,9 @@ class TestDocsTheme:
 
 @pytest.fixture(scope="module")
 def docs_client():
-    from furatena.catalog.docs_app import DocsApp
     from chirp.testing import TestClient
+
+    from furatena.catalog.docs_app import DocsApp
 
     docs = DocsApp.from_paths(
         APP_ROOT / "docs.yaml",

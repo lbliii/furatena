@@ -12,7 +12,13 @@ APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
-from furatena.catalog.config import DocsConfig, ThemeConfig, ThemeEffectsConfig, ThemeFontsConfig, ThemeMeasureConfig, load_docs_config
+from furatena.catalog.config import (
+    DocsConfig,
+    ThemeConfig,
+    ThemeEffectsConfig,
+    ThemeMeasureConfig,
+    load_docs_config,
+)
 from furatena.catalog.theme_lint import check_theme_assets
 
 

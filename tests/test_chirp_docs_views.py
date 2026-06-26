@@ -14,8 +14,8 @@ sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.loader import DocCatalog
-from furatena.catalog.models import DocNode, TocEntry
-from furatena.catalog.view_kinds import VIEW_KINDS, VIEW_KIND_BY_NAME
+from furatena.catalog.models import DocNode
+from furatena.catalog.view_kinds import VIEW_KIND_BY_NAME, VIEW_KINDS
 from furatena.catalog.views import ViewRegistry
 
 

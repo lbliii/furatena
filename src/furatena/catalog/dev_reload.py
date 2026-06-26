@@ -6,6 +6,7 @@ import os
 import signal
 import subprocess
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -57,10 +58,8 @@ def write_dev_server_record(path: Path, *, pid: int, host: str, port: int) -> No
 
 
 def clear_dev_server_record(path: Path) -> None:
-    try:
+    with suppress(OSError):
         path.unlink(missing_ok=True)
-    except OSError:
-        pass
 
 
 def _pid_is_alive(pid: int) -> bool:

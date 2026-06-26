@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from furatena.catalog.code_blocks import wrap_doc_html
-from furatena.catalog.content_ir import extract_content_ir
 from furatena.catalog.diagrams import mermaid_fence_html, transform_mermaid_fences
 from furatena.catalog.render import DocsRenderer
 

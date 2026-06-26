@@ -14,19 +14,19 @@ FROZEN_DIR = APP_ROOT / "frozen"
 
 sys.path.insert(0, str(REPO / "src"))
 
-from furatena.catalog.docs_app import DocsApp  # noqa: E402
-from furatena.catalog.registry import CatalogRegistry, MountConfig  # noqa: E402
-from furatena.catalog.runtime import ServeConfig, ServeMode  # noqa: E402
-from furatena.catalog.static_export import (  # noqa: E402
+from furatena.catalog.docs_app import DocsApp
+from furatena.catalog.registry import CatalogRegistry, MountConfig
+from furatena.catalog.runtime import ServeConfig, ServeMode
+from furatena.catalog.static_export import (
     StaticExportOptions,
+    _robots_txt,
     export_static_site,
     normalize_base_path,
     prefix_markdown_links,
     prefix_root_paths,
     url_path_to_output_file,
-    _robots_txt,
 )
-from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml  # noqa: E402
+from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml
 
 
 class TestStaticExportHelpers:

@@ -9,11 +9,15 @@ from kida.template import Markup
 from furatena.catalog.code_blocks import wrap_doc_html
 from furatena.catalog.content_ir import extract_content_ir
 from furatena.catalog.context import RenderContext, reset_render_context, set_render_context
-from furatena.catalog.references.context import ReferenceContext, reset_reference_context, set_reference_context
 from furatena.catalog.directives.html import rewrite_doc_links
 from furatena.catalog.directives.registry import create_directive_registry
 from furatena.catalog.models import ContentIR
 from furatena.catalog.patitas_bridge import single_edit_region
+from furatena.catalog.references.context import (
+    ReferenceContext,
+    reset_reference_context,
+    set_reference_context,
+)
 from furatena.catalog.roles.registry import create_role_registry
 
 if TYPE_CHECKING:

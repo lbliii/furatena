@@ -15,7 +15,11 @@ sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog import DocCatalog
 from furatena.catalog.check import check_broken_internal_links, check_catalog
-from furatena.catalog.content_ir import content_ir_from_record, content_ir_record, extract_content_ir
+from furatena.catalog.content_ir import (
+    content_ir_from_record,
+    content_ir_record,
+    extract_content_ir,
+)
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.graph import extract_page_links, normalize_internal_url
 from furatena.catalog.render import DocsRenderer

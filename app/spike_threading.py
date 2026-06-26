@@ -452,7 +452,7 @@ def main() -> None:
         seq_render, par_render = _benchmark_rerender(registry, best_workers)
         results.append(
             Timing(
-                label=f"Markdown re-render sample (200 pages, sequential)",
+                label="Markdown re-render sample (200 pages, sequential)",
                 seconds=seq_render,
                 detail="Patitas parse+render",
             )

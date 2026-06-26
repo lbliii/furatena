@@ -1,19 +1,19 @@
-"""Export the federated doc catalog to disk."""
+"""Freeze a Furatena catalog into portable on-disk IR."""
 
 from __future__ import annotations
 
 import json
-import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-REPO = ROOT.parent
-if str(REPO / "src") not in sys.path:
-    sys.path.insert(0, str(REPO / "src"))
-
-from furatena.catalog.assets import bundle_css, copy_fonts, copy_tree_files, write_assets_manifest
+from furatena.catalog.assets import (
+    bundle_css,
+    copy_fonts,
+    copy_tree_files,
+    write_assets_manifest,
+)
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.embeddings import EmbeddingIndex
@@ -37,8 +37,31 @@ from furatena.catalog.theme_pack import load_theme_pack
 from furatena.catalog.vendor_paths import VENDOR_FILES, vendor_dir
 from furatena.catalog.workers import resolve_workers
 
-MOUNTS_CONFIG = ROOT / "mounts.yaml"
-AUTODOC_CONFIG = REPO / "config" / "autodoc.yaml"
+
+@dataclass(frozen=True, slots=True)
+class FreezeCatalogOptions:
+    """Inputs for a catalog freeze."""
+
+    docs_config: Path
+    app_root: Path
+    repo_root: Path
+    output_dir: Path
+    full_rebuild: bool = False
+    workers: int | None = None
+    autodoc: bool = True
+    autodoc_config: Path | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class FreezeCatalogResult:
+    """Summary of a completed catalog freeze."""
+
+    output_dir: Path
+    frozen_mounts: tuple[str, ...]
+    page_count: int
+    worker_count: int
+    index_seconds: float
+    export_seconds: float
 
 
 def _write_frozen_page(
@@ -123,13 +146,12 @@ def _freeze_inventories(registry: CatalogRegistry, out_dir: Path) -> None:
         (inv_dir / f"{inventory_id}.inv").write_bytes(payload)
 
 
-def _freeze_assets(out_dir: Path) -> None:
-    docs = load_docs_config(ROOT / "docs.yaml")
+def _freeze_assets(out_dir: Path, *, app_root: Path, theme_id: str, skin_pack: str | None) -> None:
     packaged = None
     try:
         from furatena.catalog.theme import _packaged_theme_assets
 
-        packaged = _packaged_theme_assets(docs.theme.id, ROOT)
+        packaged = _packaged_theme_assets(theme_id, app_root)
     except Exception:
         packaged = None
     if packaged is None:
@@ -165,6 +187,7 @@ def _freeze_assets(out_dir: Path) -> None:
     if vendor_src.is_dir() and all((vendor_src / name).is_file() for name in VENDOR_FILES):
         copy_tree_files(vendor_src, assets_dir / "vendor", names=VENDOR_FILES)
         vendor_prefix = "vendor"
+    _ = skin_pack
     write_assets_manifest(
         out_dir,
         theme_href=f"theme.{digest}.css",
@@ -174,36 +197,23 @@ def _freeze_assets(out_dir: Path) -> None:
     )
 
 
-def main() -> None:
-    argv = sys.argv[1:]
-    full_rebuild = False
-    workers: int | None = None
-    while argv:
-        if argv[0] == "--full":
-            full_rebuild = True
-            argv = argv[1:]
-            continue
-        if argv[0] == "--workers":
-            if len(argv) < 2:
-                raise SystemExit("--workers requires an integer")
-            workers = int(argv[1])
-            argv = argv[2:]
-            continue
-        break
-    worker_count = resolve_workers(workers)
-    out_dir = Path(argv[0]) if argv else ROOT / "frozen"
+def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
+    """Write frozen catalog files for a docs app."""
+    out_dir = options.output_dir.resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
+    worker_count = resolve_workers(options.workers)
 
-    docs_config = load_docs_config(ROOT / "docs.yaml")
+    docs_config = load_docs_config(options.docs_config)
+    mounts_path = docs_config.mounts_path or options.app_root / "mounts.yaml"
     index_start = time.perf_counter()
     registry = CatalogRegistry.from_config(
-        MOUNTS_CONFIG,
-        repo_root=REPO,
-        app_root=ROOT,
+        mounts_path,
+        repo_root=options.repo_root,
+        app_root=options.app_root,
         rewrites_path=docs_config.rewrites_path,
         inventories_path=docs_config.inventories_path,
-        autodoc_config=AUTODOC_CONFIG,
-        autodoc=True,
+        autodoc_config=options.autodoc_config,
+        autodoc=options.autodoc,
         workers=worker_count,
     )
     index_seconds = time.perf_counter() - index_start
@@ -229,19 +239,18 @@ def main() -> None:
         encoding="utf-8",
     )
 
+    skin_pack_root = load_theme_pack(docs_config.theme.use).root if docs_config.theme.use else None
     renderer_fp = renderer_fingerprint(
-        ROOT,
+        options.app_root,
         theme_id=docs_config.theme.id,
-        skin_pack_root=(
-            load_theme_pack(docs_config.theme.use).root if docs_config.theme.use else None
-        ),
+        skin_pack_root=skin_pack_root,
     )
     stored_renderer = read_renderer_fingerprint(out_dir)
-    renderer_changed = full_rebuild or stored_renderer != renderer_fp
-    mounts_to_freeze = [mount.id for mount in registry.mounts] if full_rebuild else dirty_mount_ids(
-        registry,
-        out_dir,
-        renderer_changed=renderer_changed,
+    renderer_changed = options.full_rebuild or stored_renderer != renderer_fp
+    mounts_to_freeze = (
+        [mount.id for mount in registry.mounts]
+        if options.full_rebuild
+        else dirty_mount_ids(registry, out_dir, renderer_changed=renderer_changed)
     )
 
     total = 0
@@ -260,7 +269,6 @@ def main() -> None:
             )
     else:
         total = len(registry.nodes)
-        print(f"All mounts current — skipped shard freeze ({total} pages)")
 
     if mounts_to_freeze:
         merged_graph = catalog_graph(registry)
@@ -269,10 +277,8 @@ def main() -> None:
         dcp_errors = validate_catalog_payload(merged_graph)
         if dcp_errors:
             preview = "\n".join(f"  - {line}" for line in dcp_errors[:8])
-            extra = ""
-            if len(dcp_errors) > 8:
-                extra = f"\n  ... and {len(dcp_errors) - 8} more"
-            raise SystemExit(f"catalog.json failed DCP v3 validation:\n{preview}{extra}")
+            extra = f"\n  ... and {len(dcp_errors) - 8} more" if len(dcp_errors) > 8 else ""
+            raise RuntimeError(f"catalog.json failed DCP v3 validation:\n{preview}{extra}")
         (out_dir / "catalog.json").write_text(json.dumps(merged_graph, indent=2) + "\n", encoding="utf-8")
         (out_dir / "search.json").write_text(
             json.dumps(search_json(registry, base_url=base), indent=2) + "\n",
@@ -293,24 +299,27 @@ def main() -> None:
         )
         semantic.write(out_dir / "semantic.json")
 
-    write_autodoc_fingerprint(out_dir, autodoc_fingerprint(AUTODOC_CONFIG, repo_root=REPO))
+    if options.autodoc_config is not None:
+        write_autodoc_fingerprint(
+            out_dir,
+            autodoc_fingerprint(options.autodoc_config, repo_root=options.repo_root),
+        )
     write_renderer_fingerprint(out_dir, renderer_fp)
     if mounts_to_freeze or not (out_dir / "assets").is_dir():
-        _freeze_assets(out_dir)
+        _freeze_assets(
+            out_dir,
+            app_root=options.app_root,
+            theme_id=docs_config.theme.id,
+            skin_pack=docs_config.theme.use,
+        )
     write_freeze_manifest(out_dir, dirty_mounts=mounts_to_freeze, total_pages=total)
     export_seconds = time.perf_counter() - export_start
 
-    if mounts_to_freeze:
-        print(
-            f"Froze {len(mounts_to_freeze)} mount(s), {total} pages total → {out_dir} "
-            f"(index {index_seconds:.1f}s, export {export_seconds:.1f}s, {worker_count} workers)"
-        )
-    else:
-        print(
-            f"Freeze up to date — {total} pages at {out_dir} "
-            f"(index {index_seconds:.1f}s, {worker_count} workers)"
-        )
-
-
-if __name__ == "__main__":
-    main()
+    return FreezeCatalogResult(
+        output_dir=out_dir,
+        frozen_mounts=tuple(mounts_to_freeze),
+        page_count=total,
+        worker_count=worker_count,
+        index_seconds=index_seconds,
+        export_seconds=export_seconds,
+    )

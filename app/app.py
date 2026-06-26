@@ -40,9 +40,9 @@ def _require_deps() -> None:
 
 _require_deps()
 
+from furatena.catalog.dev_banner import format_serve_startup
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.registry import load_mounts
-from furatena.catalog.dev_banner import format_serve_startup
 from furatena.catalog.runtime import ServeMode, resolve_serve_config
 
 DOCS_CONFIG = ROOT / "docs.yaml"

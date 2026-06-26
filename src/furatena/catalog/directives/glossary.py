@@ -12,7 +12,12 @@ from patitas.nodes import Directive
 
 from furatena.catalog.context import get_render_context
 from furatena.catalog.directives.kida_render import render_directive
-from furatena.catalog.glossary_data import DEFAULT_PATH, filter_terms, load_glossary_terms, repo_root_for_content
+from furatena.catalog.glossary_data import (
+    DEFAULT_PATH,
+    filter_terms,
+    load_glossary_terms,
+    repo_root_for_content,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence

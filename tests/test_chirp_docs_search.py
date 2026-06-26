@@ -13,6 +13,8 @@ APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
+from chirp.testing import TestClient
+
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.registry import CatalogRegistry
@@ -22,10 +24,8 @@ from furatena.catalog.search_experience import (
     highlight_search_terms,
     hybrid_search_hits,
     search_hit_url,
-    search_spotlight_stats,
 )
 from furatena.catalog.semantic import hybrid_search
-from chirp.testing import TestClient
 
 
 @pytest.fixture(scope="module")
