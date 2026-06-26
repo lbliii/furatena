@@ -269,9 +269,13 @@ class CatalogRegistry:
     def default_mount_sections(self) -> tuple[str, ...]:
         """Top-level URL segments owned by the default mount (for route registration)."""
         default_id = self.default_mount.id
+        explicit_prefixes = tuple(mount.url_prefix.rstrip("/") for mount in self.mounts if mount.url_prefix)
         sections: set[str] = set()
         for node in self.nodes:
-            if node.mount != default_id:
+            if node.mount != default_id and any(
+                node.url == prefix or node.url.startswith(f"{prefix}/")
+                for prefix in explicit_prefixes
+            ):
                 continue
             parts = node.url.strip("/").split("/")
             if parts and parts[0]:
