@@ -94,7 +94,7 @@ Child pages inherit unset keys from the nearest ancestor `_index.md`.
 **Cross-mount links** — include mount id when targeting another corpus:
 
 ```markdown
-[Chirp docs](/chirp/docs/get-started/)
+[[shared:reference/reference-inventories|Reference inventories]]
 ```
 
 ## Code blocks

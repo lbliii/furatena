@@ -71,7 +71,7 @@ make serve
 ::::{/tabs}
 ````
 
-Synced code tabs use `::::{code-tabs}` with `:sync:` keys (see Chirp install pages under `/chirp/docs/get-started/installation/`).
+Synced code tabs use `::::{code-tabs}` with `:sync:` keys.
 
 ## Steps
 

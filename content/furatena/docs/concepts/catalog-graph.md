@@ -37,7 +37,7 @@ Exports: [`/catalog.json`](/catalog.json) (DCP v3), [`/search.json`](/search.jso
 
 ## Mounts
 
-`app/mounts.yaml` federates multiple corpora into one registry. The **default** mount serves `/` without a prefix; others use `url_prefix` (for example `/chirp/`).
+`app/mounts.yaml` federates multiple corpora into one registry. The **default** mount serves `/` without a prefix; others use `url_prefix` (for example `/shared/`).
 
 ## Editions and channels
 

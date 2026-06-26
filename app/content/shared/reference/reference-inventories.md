@@ -9,9 +9,9 @@ Wave E connects federated mounts, external symbol inventories, and inline refere
 
 ## Cross-mount wikilinks
 
-Link to the Chirp docs mount from shared content:
+Link to another mounted corpus from shared content:
 
-[[chirp:docs/get-started/read-through|Read-through guide]]
+[[furatena:docs/get-started/quickstart|Quickstart]]
 
 ## Domain roles
 
@@ -21,10 +21,10 @@ Resolve Python stdlib symbols from a cached `objects.inv` inventory:
 
 Explicit catalog xref:
 
-{xref}`chirp:docs/get-started/read-through`
+{xref}`furatena:docs/get-started/quickstart`
 
 ## Legacy deploy URLs
 
-Markdown links using legacy `/chirp/docs/` prefixes rewrite to `/docs/` at index time:
+Markdown links can target the default mount directly:
 
-[Install](/chirp/docs/get-started/installation/)
+[Install](/docs/get-started/installation/)

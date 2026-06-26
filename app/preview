@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Serve the static export under /chirp/ like GitHub Pages project sites.
+# Serve the static export under /furatena/ like GitHub Pages project sites.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

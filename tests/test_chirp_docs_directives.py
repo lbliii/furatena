@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -470,13 +471,38 @@ class TestDirectiveManifest:
 
 class TestDocsDirectivePages:
     @pytest.fixture(scope="module")
-    def docs_client(self):
+    def docs_client(self, tmp_path_factory):
         from chirp.testing import TestClient
 
+        from furatena.catalog.config import load_docs_config
         from furatena.catalog.docs_app import DocsApp
 
-        docs = DocsApp.from_paths(
-            APP_ROOT / "docs.yaml",
+        mounts = tmp_path_factory.mktemp("mounts") / "mounts.yaml"
+        mounts.write_text(
+            f"""\
+mounts:
+  - id: furatena
+    label: Furatena Documentation
+    content_root: {REPO / "content" / "furatena"}
+    default: true
+  - id: chirp
+    label: Chirp Documentation
+    content_root: {REPO / "content" / "chirp"}
+    url_prefix: /chirp
+  - id: shared
+    label: Shared Reference
+    content_root: {APP_ROOT / "content" / "shared"}
+    url_prefix: /shared
+    extensions: [".md", ".html"]
+    format_map:
+      ".md": patitas-markdown
+      ".html": html
+""",
+            encoding="utf-8",
+        )
+        config = replace(load_docs_config(APP_ROOT / "docs.yaml"), mounts_path=mounts)
+        docs = DocsApp(
+            config,
             repo_root=REPO,
             autodoc=False,
         )

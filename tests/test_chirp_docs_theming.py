@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -48,10 +49,14 @@ class TestViewRegistry:
         assert node is not None
         assert views.resolve(node, catalog) == "views/doc_list.html"
 
-    def test_prefixed_mount_section_index_uses_doc_list_view(self, views: ViewRegistry) -> None:
+    def test_prefixed_mount_section_index_uses_doc_list_view(
+        self,
+        views: ViewRegistry,
+        chirp_fixture_config,
+    ) -> None:
         from furatena.catalog.docs_app import DocsApp
 
-        docs = DocsApp.from_paths(APP_ROOT / "docs.yaml", repo_root=REPO, autodoc=False)
+        docs = DocsApp(chirp_fixture_config, repo_root=REPO, autodoc=False)
         node = docs.catalog.get_by_slug("docs/tutorials", mount="chirp")
         assert node is not None
         assert views.resolve(node, docs.catalog) == "views/doc_list.html"
@@ -201,13 +206,41 @@ class TestDocsTheme:
 
 
 @pytest.fixture(scope="module")
-def docs_client():
+def chirp_fixture_config(tmp_path_factory):
+    mounts = tmp_path_factory.mktemp("mounts") / "mounts.yaml"
+    mounts.write_text(
+        f"""\
+mounts:
+  - id: furatena
+    label: Furatena Documentation
+    content_root: {REPO / "content" / "furatena"}
+    default: true
+  - id: chirp
+    label: Chirp Documentation
+    content_root: {REPO / "content" / "chirp"}
+    url_prefix: /chirp
+  - id: shared
+    label: Shared Reference
+    content_root: {APP_ROOT / "content" / "shared"}
+    url_prefix: /shared
+    extensions: [".md", ".html"]
+    format_map:
+      ".md": patitas-markdown
+      ".html": html
+""",
+        encoding="utf-8",
+    )
+    return replace(load_docs_config(APP_ROOT / "docs.yaml"), mounts_path=mounts)
+
+
+@pytest.fixture(scope="module")
+def docs_client(chirp_fixture_config):
     from chirp.testing import TestClient
 
     from furatena.catalog.docs_app import DocsApp
 
-    docs = DocsApp.from_paths(
-        APP_ROOT / "docs.yaml",
+    docs = DocsApp(
+        chirp_fixture_config,
         repo_root=REPO,
         autodoc=False,
     )

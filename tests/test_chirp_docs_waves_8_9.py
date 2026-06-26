@@ -11,11 +11,10 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
 CONTENT_ROOT = REPO / "content" / "chirp"
-MOUNTS_CONFIG = APP_ROOT / "mounts.yaml"
 
 sys.path.insert(0, str(REPO / "src"))
 
-from furatena.catalog import CatalogRegistry, DocCatalog
+from furatena.catalog import CatalogRegistry, DocCatalog, MountConfig
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.export import catalog_graph, tools_manifest
 from furatena.catalog.graph_schema import EdgeKind, make_node_id
@@ -24,9 +23,29 @@ from furatena.catalog.semantic import hybrid_search, retrieve_node
 
 @pytest.fixture(scope="module")
 def registry() -> CatalogRegistry:
-    return CatalogRegistry.from_config(
-        MOUNTS_CONFIG,
+    return CatalogRegistry(
+        (
+            MountConfig(
+                id="furatena",
+                label="Furatena Documentation",
+                content_root=REPO / "content" / "furatena",
+                default=True,
+            ),
+            MountConfig(
+                id="chirp",
+                label="Chirp Documentation",
+                content_root=CONTENT_ROOT,
+                url_prefix="/chirp/",
+            ),
+            MountConfig(
+                id="shared",
+                label="Shared Reference",
+                content_root=APP_ROOT / "content" / "shared",
+                url_prefix="/shared/",
+            ),
+        ),
         repo_root=REPO,
+        app_root=APP_ROOT,
         autodoc=False,
         autodoc_config=None,
     )

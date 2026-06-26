@@ -15,9 +15,9 @@ mounts:
   - id: furatena
     content_root: ../content/furatena
     default: true
-  - id: chirp
-    content_root: ../content/chirp
-    url_prefix: /chirp
+  - id: shared
+    content_root: content/shared
+    url_prefix: /shared
 ```
 
 Cross-mount wikilinks use `[[mount:slug|label]]` syntax. The `/portal/` view lists all mounts.
