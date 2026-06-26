@@ -40,23 +40,13 @@ catalog:
 
 site:
   name: Furatena
-  tagline: Hypermedia documentation catalog
+  tagline: Live documentation from markdown
   description: >
-    Furatena documentation — markdown indexed into a live graph, served as htmx
-    fragments inside a persistent shell.
-  mark: "𒀭"
+    Write markdown. Get a fast, searchable doc site that reloads while you work —
+    and exports to GitHub Pages when you're ready to ship.
+  mark: "𐂛"
   home:
-    cta_primary:
-      label: Get started
-      href: /docs/get-started/
-    cta_secondary:
-      label: CLI reference
-      href: /docs/reference/cli/
-    visual:
-      title: Docs as data, HTML on demand.
-      description: >
-        Markdown indexed into a live graph — pages and fragments served through an
-        htmx shell without a static export loop.
+    data: ../data/home.yaml
 
 theme:
   use: lagoon
@@ -73,7 +63,7 @@ theme:
     container: 90rem
   fonts:
     sans: Inter
-    display: Inter
+    display: Outfit
 
 mounts: mounts.yaml
 

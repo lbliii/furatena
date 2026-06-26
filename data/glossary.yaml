@@ -1,6 +1,6 @@
 terms:
   - term: Furatena
-    definition: Hypermedia documentation catalog — markdown indexed into a live graph, served as htmx fragments inside a persistent shell.
+    definition: Live documentation from markdown — a searchable catalog that updates as you edit and exports for agents and static hosting.
     tags: [furatena, product]
   - term: Fura
     definition: CLI shorthand for Furatena (`fura serve`, `fura check`, `fura freeze`, …).

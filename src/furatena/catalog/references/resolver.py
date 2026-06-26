@@ -30,6 +30,14 @@ class CatalogLookup(Protocol):
 
     def get_by_slug(self, slug: str, *, mount: str | None = None) -> DocNode | None: ...
 
+    def resolve_link(
+        self,
+        target: str,
+        *,
+        source_mount: str | None = None,
+        edition: str | None = None,
+    ) -> DocNode | None: ...
+
 
 def _normalize_slug(raw: str) -> str:
     return raw.strip("/").removeprefix("docs/")
@@ -92,31 +100,24 @@ def _find_catalog_node(
     *,
     mount: str | None = None,
     edition: str | None = None,
+    source_mount: str | None = None,
 ) -> DocNode | None:
-    variants = _slug_variants(slug)
-    nodes = getattr(catalog, "nodes", None)
-    if nodes is not None:
-        matches: list[DocNode] = []
-        for node in nodes:
-            if mount and node.mount != mount:
-                continue
-            if node.slug not in variants:
-                continue
-            if edition and node.edition != edition:
-                continue
-            matches.append(node)
-        if not matches:
+    resolve_link = getattr(catalog, "resolve_link", None)
+    if resolve_link is not None:
+        if slug.startswith("/"):
+            node = catalog.get(slug)
+            if node is not None and (not edition or node.edition == edition):
+                return node
             return None
-        if edition:
-            return matches[0]
-        active = getattr(catalog, "active_channel", None)
-        if active:
-            for node in matches:
-                if node.edition == active:
+        if mount:
+            for variant in _slug_variants(slug):
+                node = catalog.get_by_slug(variant, mount=mount)
+                if node is not None and (not edition or node.edition == edition):
                     return node
-        return matches[0]
+            return None
+        return resolve_link(slug, source_mount=source_mount, edition=edition)
 
-    for variant in variants:
+    for variant in _slug_variants(slug):
         node = catalog.get_by_slug(variant, mount=mount) if mount else catalog.get_by_slug(variant)
         if node is None:
             continue
@@ -136,6 +137,7 @@ def resolve_reference(
     catalog: CatalogLookup | None,
     inventory_store: InventoryStore | None,
     role_name: str = "xref",
+    source_mount: str | None = None,
 ) -> ResolvedRef:
     """Resolve ``mount:edition:slug``, ``domain:name``, or internal path targets."""
     target = target.strip()
@@ -200,6 +202,7 @@ def resolve_reference(
             catalog,
             remainder,
             edition=edition_hint,
+            source_mount=source_mount,
         )
         if node is not None:
             return ResolvedRef(

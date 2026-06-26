@@ -11,9 +11,19 @@ category: concepts
 
 Furatena aligns two intermediate representations:
 
-```
-Markdown ──Patitas──► Content IR ──render──► body_html
-Kida views ──compile──► Presentation IR ──render──► #page-root
+```mermaid
+flowchart LR
+  MD[Markdown]
+  P[Patitas]
+  CIR[Content IR]
+  BH[body_html]
+  KV[Kida views]
+  PIR[Presentation IR]
+  PR["#page-root HTML"]
+
+  MD --> P --> CIR --> BH
+  KV --> PIR --> PR
+  CIR -.->|"TOC, search, lint"| PR
 ```
 
 **Content IR** captures headings, links, and directives at index time. **Presentation IR**

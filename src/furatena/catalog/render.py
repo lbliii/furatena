@@ -98,12 +98,14 @@ class DocsRenderer:
         ctx: RenderContext,
         *,
         document: Document | None = None,
+        source_mount: str | None = None,
     ) -> tuple[Markup, ContentIR, Document]:
         token = set_render_context(ctx)
         ref_token = set_reference_context(
             ReferenceContext(
                 catalog=getattr(self, "_reference_catalog", None),
                 inventory_store=getattr(self, "_inventory_store", None),
+                source_mount=source_mount,
             )
         )
         try:

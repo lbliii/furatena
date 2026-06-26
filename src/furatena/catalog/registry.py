@@ -102,7 +102,7 @@ class CatalogRegistry:
         workers: int | None = None,
         i18n_config: DocsI18nConfig | None = None,
         catalog_nav: CatalogNavConfig | None = None,
-        site_mark: str = "𒀭",
+        site_mark: str = "𐂛",
     ) -> None:
         self.repo_root = repo_root
         self.app_root = app_root or repo_root
@@ -257,6 +257,90 @@ class CatalogRegistry:
                     urls.setdefault(page.slug, page.url)
         return urls
 
+    @staticmethod
+    def _edition_matches(node: DocNode | None, edition: str | None) -> bool:
+        if node is None:
+            return False
+        if not edition:
+            return True
+        return node.edition == edition
+
+    def default_mount_sections(self) -> tuple[str, ...]:
+        """Top-level URL segments owned by the default mount (for route registration)."""
+        default_id = self.default_mount.id
+        sections: set[str] = set()
+        for node in self.nodes:
+            if node.mount != default_id:
+                continue
+            parts = node.url.strip("/").split("/")
+            if parts and parts[0]:
+                sections.add(parts[0])
+        return tuple(sorted(sections))
+
+    def get_path(self, path: str) -> DocNode | None:
+        """Resolve a request path, tolerating a missing trailing slash."""
+        node = self.get(path)
+        if node is None and path != "/" and not path.endswith("/"):
+            node = self.get(f"{path}/")
+        return node
+
+    def resolve_link(
+        self,
+        target: str,
+        *,
+        source_mount: str | None = None,
+        edition: str | None = None,
+    ) -> DocNode | None:
+        """Resolve an author-time slug/path target with mount-aware disambiguation."""
+        from furatena.catalog.references.resolver import _slug_variants, _split_qualified_target
+
+        target = target.strip()
+        if not target:
+            return None
+
+        if target.startswith("/"):
+            node = self.get_path(target)
+            return node if self._edition_matches(node, edition) else None
+
+        mount_hint, edition_hint, slug = _split_qualified_target(target, self)
+        effective_edition = edition or edition_hint
+
+        if mount_hint and mount_hint in self._shards:
+            return self._resolve_link_slug(slug, mount=mount_hint, edition=effective_edition)
+
+        mounts_to_try: list[str] = []
+        if source_mount and source_mount in self._shards:
+            mounts_to_try.append(source_mount)
+        default_id = self.default_mount.id
+        if default_id not in mounts_to_try:
+            mounts_to_try.append(default_id)
+
+        for mount_id in mounts_to_try:
+            node = self._resolve_link_slug(slug, mount=mount_id, edition=effective_edition)
+            if node is not None:
+                return node
+        return None
+
+    def _resolve_link_slug(
+        self,
+        slug: str,
+        *,
+        mount: str,
+        edition: str | None,
+    ) -> DocNode | None:
+        from furatena.catalog.references.resolver import _slug_variants
+
+        for variant in _slug_variants(slug):
+            url = self._federated_slug_urls.get(f"{mount}:{variant}")
+            if url:
+                node = self.get(url)
+                if self._edition_matches(node, edition):
+                    return node
+            node = self.get_by_slug(variant, mount=mount)
+            if self._edition_matches(node, edition):
+                return node
+        return None
+
     def _finalize_federated(self) -> None:
         from furatena.catalog.inventories import build_inventory_store, load_inventories_config
 
@@ -394,11 +478,9 @@ class CatalogRegistry:
     def get_by_slug(self, slug: str, *, mount: str | None = None) -> DocNode | None:
         if mount is not None:
             return self._shards[mount].get_by_slug(slug)
-        for shard in self._shards.values():
-            node = shard.get_by_slug(slug)
-            if node is not None:
-                return node
-        return None
+        if len(self.mounts) == 1:
+            return self._shards[self.mounts[0].id].get_by_slug(slug)
+        return self._shards[self.default_mount.id].get_by_slug(slug)
 
     def get_by_node_id(self, node_id: str) -> DocNode | None:
         mount, _edition, slug = node_id.split(":", 2)

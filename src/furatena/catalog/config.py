@@ -74,12 +74,133 @@ class SiteHomeVisualConfig:
     aria_label: str = "Product preview"
     eyebrow: str = "Example interface"
     title: str = "Docs as data, HTML on demand."
-    description: str = "Markdown indexed into a live graph — pages and fragments served through an htmx shell."
+    description: str = "Your markdown becomes a live, queryable catalog — pages update instantly, no rebuild loop."
     proof_tags: tuple[str, ...] = ("htmx", "catalog", "freeze")
     feature_title: str = "Author reload"
     feature_body: str = "Edit markdown and see partial swaps on the open page — no export loop."
     cta_label: str = "Open get started"
     cta_href: str = "/docs/get-started/"
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeFeatureConfig:
+    eyebrow: str
+    title: str
+    body: str
+    code: str
+    action: SiteCtaConfig | None = None
+    reverse: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeIdeasConfig:
+    eyebrow: str
+    title: str
+    subtitle: str
+    features: tuple[SiteHomeFeatureConfig, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomePipelineStepConfig:
+    id: str
+    label: str
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeModeConfig:
+    title: str
+    subtitle: str
+    body: str
+    variant: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomePipelineConfig:
+    eyebrow: str
+    title: str
+    subtitle: str
+    current_step: int
+    steps: tuple[SiteHomePipelineStepConfig, ...]
+    modes: tuple[SiteHomeModeConfig, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeExportsConfig:
+    title: str
+    subtitle: str
+    action: SiteCtaConfig
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeQuickStartConfig:
+    eyebrow: str
+    title: str
+    commands: str
+    caption: str
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeWorkflowLinkConfig:
+    label: str
+    href: str
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeWorkflowItemConfig:
+    text: str
+    link: SiteHomeWorkflowLinkConfig | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeWorkflowsConfig:
+    eyebrow: str
+    title: str
+    items: tuple[SiteHomeWorkflowItemConfig, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeBrandConfig:
+    eyebrow: str
+    title: str
+    body: str
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeStackRowConfig:
+    mark: str
+    name: str
+    description: str
+    href: str | None = None
+    here: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeStackConfig:
+    eyebrow: str
+    title: str
+    intro: str
+    footer: str
+    rows: tuple[SiteHomeStackRowConfig, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeMetricsHeadConfig:
+    eyebrow: str = ""
+    title: str = ""
+    subtitle: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeExploreConfig:
+    title: str
+    links: tuple[SiteCtaConfig, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeCtaBandConfig:
+    title: str
+    body: str
+    secondary: SiteCtaConfig
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,7 +214,17 @@ class SiteHomeConfig:
         default_factory=lambda: SiteCtaConfig(label="Reference", href="/docs/reference/")
     )
     metrics: tuple[SiteMetricConfig, ...] = ()
+    metrics_head: SiteHomeMetricsHeadConfig | None = None
     visual: SiteHomeVisualConfig = field(default_factory=SiteHomeVisualConfig)
+    ideas: SiteHomeIdeasConfig | None = None
+    explore: SiteHomeExploreConfig | None = None
+    pipeline: SiteHomePipelineConfig | None = None
+    exports: SiteHomeExportsConfig | None = None
+    quick_start: SiteHomeQuickStartConfig | None = None
+    workflows: SiteHomeWorkflowsConfig | None = None
+    brand: SiteHomeBrandConfig | None = None
+    stack: SiteHomeStackConfig | None = None
+    cta: SiteHomeCtaBandConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,11 +257,12 @@ class SiteConfig:
     """Product branding and shell copy — variabilizes home and top navigation."""
 
     name: str = "Furatena"
-    tagline: str = "Hypermedia documentation catalog"
+    tagline: str = "Live documentation from markdown"
     description: str = (
-        "Furatena documentation — markdown indexed live, served as htmx fragments."
+        "Write markdown. Get a fast, searchable doc site that reloads while you work — "
+        "and exports to GitHub Pages when you're ready to ship."
     )
-    mark: str = "𒀭"
+    mark: str = "𐂛"
     home: SiteHomeConfig = field(default_factory=SiteHomeConfig)
     navigation: SiteNavigationConfig | None = None
 
@@ -251,13 +383,287 @@ def _parse_home_visual(raw: object, *, defaults: SiteHomeVisualConfig) -> SiteHo
     )
 
 
-def _parse_home_config(raw: object, *, site_name: str) -> SiteHomeConfig:
+def _merge_home_raw(raw: object, *, app_root: Path) -> dict[str, Any]:
+    if not isinstance(raw, dict):
+        return {}
+    merged = dict(raw)
+    data_path = raw.get("data")
+    if data_path:
+        path = _resolve_path(app_root, str(data_path))
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        if isinstance(loaded, dict):
+            merged = {**loaded, **{k: v for k, v in raw.items() if k != "data"}}
+    return merged
+
+
+def _parse_home_features(raw: object) -> tuple[SiteHomeFeatureConfig, ...]:
+    if not isinstance(raw, list):
+        return ()
+    features: list[SiteHomeFeatureConfig] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        eyebrow = str(item.get("eyebrow") or "").strip()
+        title = str(item.get("title") or "").strip()
+        body = str(item.get("body") or "").strip()
+        code = str(item.get("code") or "").strip("\n")
+        if not eyebrow or not title or not body:
+            continue
+        action_raw = item.get("action")
+        action = None
+        if isinstance(action_raw, dict):
+            action = _parse_cta(action_raw, default=SiteCtaConfig(label="Learn more", href="/docs/"))
+        features.append(
+            SiteHomeFeatureConfig(
+                eyebrow=eyebrow,
+                title=title,
+                body=body,
+                code=code,
+                action=action,
+                reverse=bool(item.get("reverse")),
+            )
+        )
+    return tuple(features)
+
+
+def _parse_home_ideas(raw: object) -> SiteHomeIdeasConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    features = _parse_home_features(raw.get("features"))
+    if not features:
+        return None
+    return SiteHomeIdeasConfig(
+        eyebrow=str(raw.get("eyebrow") or "Catalog graph"),
+        title=str(raw.get("title") or "Why Furatena"),
+        subtitle=str(raw.get("subtitle") or ""),
+        features=features,
+    )
+
+
+def _parse_home_pipeline_steps(raw: object) -> tuple[SiteHomePipelineStepConfig, ...]:
+    if not isinstance(raw, list):
+        return ()
+    steps: list[SiteHomePipelineStepConfig] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        step_id = str(item.get("id") or "").strip()
+        label = str(item.get("label") or "").strip()
+        if step_id and label:
+            steps.append(SiteHomePipelineStepConfig(id=step_id, label=label))
+    return tuple(steps)
+
+
+def _parse_home_pipeline(raw: object) -> SiteHomePipelineConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    modes_raw = raw.get("modes")
+    if not isinstance(modes_raw, list):
+        return None
+    modes: list[SiteHomeModeConfig] = []
+    for item in modes_raw:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title") or "").strip()
+        subtitle = str(item.get("subtitle") or "").strip()
+        body = str(item.get("body") or "").strip()
+        if title and body:
+            modes.append(
+                SiteHomeModeConfig(
+                    title=title,
+                    subtitle=subtitle,
+                    body=body,
+                    variant=str(item.get("variant") or "").strip(),
+                )
+            )
+    steps = _parse_home_pipeline_steps(raw.get("steps"))
+    if not modes or not steps:
+        return None
+    current = raw.get("current_step", len(steps))
+    try:
+        current_step = int(current)
+    except (TypeError, ValueError):
+        current_step = len(steps)
+    return SiteHomePipelineConfig(
+        eyebrow=str(raw.get("eyebrow") or "Delivery modes"),
+        title=str(raw.get("title") or "The pipeline"),
+        subtitle=str(raw.get("subtitle") or ""),
+        current_step=current_step,
+        steps=steps,
+        modes=tuple(modes),
+    )
+
+
+def _parse_home_exports(raw: object) -> SiteHomeExportsConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    action_raw = raw.get("action")
+    if not isinstance(action_raw, dict):
+        return None
+    return SiteHomeExportsConfig(
+        title=str(raw.get("title") or "Agent-native exports"),
+        subtitle=str(raw.get("subtitle") or ""),
+        action=_parse_cta(action_raw, default=SiteCtaConfig(label="All exports", href="/develop/")),
+    )
+
+
+def _parse_home_quick_start(raw: object) -> SiteHomeQuickStartConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    commands = str(raw.get("commands") or "").strip("\n")
+    if not commands:
+        return None
+    return SiteHomeQuickStartConfig(
+        eyebrow=str(raw.get("eyebrow") or "Run locally"),
+        title=str(raw.get("title") or "Quick start"),
+        commands=commands,
+        caption=str(raw.get("caption") or "").strip(),
+    )
+
+
+def _parse_home_workflows(raw: object) -> SiteHomeWorkflowsConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    items_raw = raw.get("items")
+    if not isinstance(items_raw, list):
+        return None
+    items: list[SiteHomeWorkflowItemConfig] = []
+    for item in items_raw:
+        if isinstance(item, str):
+            text = item.strip()
+            if text:
+                items.append(SiteHomeWorkflowItemConfig(text=text))
+            continue
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get("text") or "").strip()
+        if not text:
+            continue
+        link_raw = item.get("link")
+        link = None
+        if isinstance(link_raw, dict):
+            label = str(link_raw.get("label") or "").strip()
+            href = str(link_raw.get("href") or "").strip()
+            if label and href:
+                link = SiteHomeWorkflowLinkConfig(label=label, href=href)
+        items.append(SiteHomeWorkflowItemConfig(text=text, link=link))
+    if not items:
+        return None
+    return SiteHomeWorkflowsConfig(
+        eyebrow=str(raw.get("eyebrow") or "Authoring"),
+        title=str(raw.get("title") or "Common workflows"),
+        items=tuple(items),
+    )
+
+
+def _parse_home_brand(raw: object) -> SiteHomeBrandConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    body = str(raw.get("body") or "").strip()
+    if not body:
+        return None
+    return SiteHomeBrandConfig(
+        eyebrow=str(raw.get("eyebrow") or "Gold in the ledger"),
+        title=str(raw.get("title") or "The mark"),
+        body=body,
+    )
+
+
+def _parse_home_stack_rows(raw: object) -> tuple[SiteHomeStackRowConfig, ...]:
+    if not isinstance(raw, list):
+        return ()
+    rows: list[SiteHomeStackRowConfig] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        mark = str(item.get("mark") or "").strip()
+        name = str(item.get("name") or "").strip()
+        description = str(item.get("description") or "").strip()
+        if not mark or not name:
+            continue
+        href = _optional_str(item.get("href"))
+        rows.append(
+            SiteHomeStackRowConfig(
+                mark=mark,
+                name=name,
+                description=description,
+                href=href,
+                here=bool(item.get("here")),
+            )
+        )
+    return tuple(rows)
+
+
+def _parse_home_stack(raw: object) -> SiteHomeStackConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    rows = _parse_home_stack_rows(raw.get("rows"))
+    if not rows:
+        return None
+    return SiteHomeStackConfig(
+        eyebrow=str(raw.get("eyebrow") or "Bengal"),
+        title=str(raw.get("title") or "The Bengal stack"),
+        intro=str(raw.get("intro") or "").strip(),
+        footer=str(raw.get("footer") or "").strip(),
+        rows=rows,
+    )
+
+
+def _parse_home_cta_links(raw: object) -> tuple[SiteCtaConfig, ...]:
+    if not isinstance(raw, list):
+        return ()
+    links: list[SiteCtaConfig] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        link = _parse_cta(item, default=SiteCtaConfig(label="", href=""))
+        if link.label and link.href:
+            links.append(link)
+    return tuple(links)
+
+
+def _parse_home_metrics_head(raw: object) -> SiteHomeMetricsHeadConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    eyebrow = str(raw.get("eyebrow") or "").strip()
+    title = str(raw.get("title") or "").strip()
+    subtitle = str(raw.get("subtitle") or "").strip()
+    if not (eyebrow or title or subtitle):
+        return None
+    return SiteHomeMetricsHeadConfig(eyebrow=eyebrow, title=title, subtitle=subtitle)
+
+
+def _parse_home_explore(raw: object) -> SiteHomeExploreConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    links = _parse_home_cta_links(raw.get("links"))
+    if not links:
+        return None
+    return SiteHomeExploreConfig(
+        title=str(raw.get("title") or "Go deeper").strip(),
+        links=links,
+    )
+
+
+def _parse_home_cta_band(raw: object, *, default_secondary: SiteCtaConfig) -> SiteHomeCtaBandConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    title = str(raw.get("title") or "").strip()
+    body = str(raw.get("body") or "").strip()
+    if not title:
+        return None
+    secondary_raw = raw.get("secondary")
+    secondary = (
+        _parse_cta(secondary_raw, default=default_secondary)
+        if isinstance(secondary_raw, dict)
+        else default_secondary
+    )
+    return SiteHomeCtaBandConfig(title=title, body=body, secondary=secondary)
+
+
+def _parse_home_config(raw: object, *, site_name: str, app_root: Path) -> SiteHomeConfig:
     defaults = SiteHomeConfig(
-        hero_points=(
-            "Live catalog graph",
-            "htmx shell navigation",
-            "Dual Content + Presentation IR",
-        ),
+        hero_points=(),
         metrics=(
             SiteMetricConfig("1", "markdown corpus", "Index pages from content/ mounts at serve time."),
             SiteMetricConfig("0", "export loop", "Author mode reloads the open page via htmx partial swaps."),
@@ -270,18 +676,33 @@ def _parse_home_config(raw: object, *, site_name: str) -> SiteHomeConfig:
     )
     if not isinstance(raw, dict):
         return defaults
-    hero_raw = raw.get("hero_points") or ()
-    hero_points = tuple(str(item).strip() for item in hero_raw if str(item).strip())
-    metrics_raw = raw.get("metrics")
+    merged = _merge_home_raw(raw, app_root=app_root)
+    if "hero_points" in merged:
+        hero_raw = merged.get("hero_points") or ()
+        hero_points = tuple(str(item).strip() for item in hero_raw if str(item).strip())
+    else:
+        hero_points = defaults.hero_points
+    metrics_raw = merged.get("metrics")
     metrics = _parse_metrics(metrics_raw) if metrics_raw is not None else defaults.metrics
-    visual = _parse_home_visual(raw.get("visual"), defaults=defaults.visual)
+    visual = _parse_home_visual(merged.get("visual"), defaults=defaults.visual)
+    cta_secondary = _parse_cta(merged.get("cta_secondary"), default=defaults.cta_secondary)
     return SiteHomeConfig(
-        aria_label=str(raw.get("aria_label") or f"{site_name} overview"),
-        hero_points=hero_points or defaults.hero_points,
-        cta_primary=_parse_cta(raw.get("cta_primary"), default=defaults.cta_primary),
-        cta_secondary=_parse_cta(raw.get("cta_secondary"), default=defaults.cta_secondary),
+        aria_label=str(merged.get("aria_label") or f"{site_name} overview"),
+        hero_points=hero_points,
+        cta_primary=_parse_cta(merged.get("cta_primary"), default=defaults.cta_primary),
+        cta_secondary=cta_secondary,
         metrics=metrics,
+        metrics_head=_parse_home_metrics_head(merged.get("metrics_head")),
         visual=visual,
+        ideas=_parse_home_ideas(merged.get("ideas")),
+        explore=_parse_home_explore(merged.get("explore")),
+        pipeline=_parse_home_pipeline(merged.get("pipeline")),
+        exports=_parse_home_exports(merged.get("exports")),
+        quick_start=_parse_home_quick_start(merged.get("quick_start")),
+        workflows=_parse_home_workflows(merged.get("workflows")),
+        brand=_parse_home_brand(merged.get("brand")),
+        stack=_parse_home_stack(merged.get("stack")),
+        cta=_parse_home_cta_band(merged.get("cta"), default_secondary=cta_secondary),
     )
 
 
@@ -398,16 +819,19 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
     )
 
 
-def _parse_site_config(raw: object) -> SiteConfig:
+def _parse_site_config(raw: object, *, app_root: Path) -> SiteConfig:
     site_raw = raw if isinstance(raw, dict) else {}
     name = str(site_raw.get("name") or "Furatena").strip() or "Furatena"
-    tagline = str(site_raw.get("tagline") or "Hypermedia documentation catalog").strip()
+    tagline = str(site_raw.get("tagline") or "Live documentation from markdown").strip()
     description = str(
         site_raw.get("description")
-        or f"{name} documentation — markdown indexed live, served as htmx fragments."
+        or (
+            "Write markdown. Get a fast, searchable doc site that reloads while you work — "
+            "and exports to GitHub Pages when you're ready to ship."
+        )
     ).strip()
-    mark = str(site_raw.get("mark") or "𒀭").strip() or "𒀭"
-    home = _parse_home_config(site_raw.get("home"), site_name=name)
+    mark = str(site_raw.get("mark") or "𐂛").strip() or "𐂛"
+    home = _parse_home_config(site_raw.get("home"), site_name=name, app_root=app_root)
     nav_raw = site_raw.get("navigation")
     navigation = default_site_navigation(name)
     if isinstance(nav_raw, dict):
@@ -514,7 +938,7 @@ def load_docs_config(path: Path) -> DocsConfig:
         candidate = root / "locales"
         locales_dir = candidate if candidate.is_dir() else root / "locales"
 
-    site = _parse_site_config(raw.get("site"))
+    site = _parse_site_config(raw.get("site"), app_root=root)
     catalog = parse_catalog_nav(raw.get("catalog"))
 
     return DocsConfig(

@@ -1,85 +1,176 @@
 {% extends "layouts/docs_app.html" %}
 {% from "chirpui/button.html" import btn %}
-{% from "chirpui/layout.html" import cluster %}
+{% from "chirpui/layout.html" import container, stack as layout_stack, cluster %}
 {% from "chirpui/metric_grid.html" import metric_grid, metric_card %}
-{% from "partials/doc_link.html" import doc_link %}
+{% from "chirpui/feature_section.html" import feature_section, feature_stack %}
+{% from "chirpui/cta_band.html" import cta_band %}
+{% from "chirpui/surface.html" import surface %}
 
 {% block app_content %}
 {% let home = site_home %}
 {% let visual = home.visual %}
-<section class="chirp-theme-home__spine" aria-label="{{ home.aria_label }}">
-  <div class="chirp-theme-home__hero-stage">
-    <div class="chirp-theme-home__hero-copy">
-      <section class="chirpui-hero chirpui-hero--page chirpui-hero--page-editorial chirpui-hero--solid chirp-theme-home__hero">
-        <div class="chirpui-hero__inner">
-          <div class="chirpui-hero__eyebrow">{{ site_tagline }}</div>
-          <h1 class="chirpui-hero__title">{{ node.title }}</h1>
-          <p class="chirpui-hero__subtitle">{{ node.description }}</p>
-          <div class="chirpui-hero__actions">
-            {% call cluster(gap="sm", cls="chirp-theme-home__actions") %}
-              {{ btn(home.cta_primary.label, href=home.cta_primary.href, variant="primary") }}
-              {{ btn(home.cta_secondary.label, href=home.cta_secondary.href, variant="secondary") }}
-            {% end %}
-          </div>
-          <div class="chirpui-hero__metadata"></div>
-          <div class="chirpui-hero__content">
-            <ul class="chirp-theme-home__hero-points" aria-label="Product strengths">
-              {% for point in home.hero_points %}
-              <li>{{ point }}</li>
-              {% end %}
-            </ul>
-          </div>
-          <div class="chirpui-hero__footer"></div>
-        </div>
-      </section>
-    </div>
+{% let ideas = home | get("ideas") %}
+{% let explore = home | get("explore") %}
+{% let pipeline = home | get("pipeline") %}
+{% let metrics_head = home | get("metrics_head") %}
+{% let quick_start = home | get("quick_start") %}
+{% let cta = home | get("cta") %}
 
-    <div class="chirp-theme-home__product-visual" aria-label="{{ visual.aria_label }}">
-      <div class="chirp-theme-home__visual-topbar" aria-hidden="true">
-        <span></span><span></span><span></span>
-      </div>
-      <nav class="chirp-theme-home__visual-nav" aria-label="Preview sections">
-        {% for tag in visual.proof_tags %}
-        <span>{{ tag }}</span>
+<div class="chirp-theme-home" aria-label="{{ home.aria_label }}">
+  {% call container(max_width="72rem") %}
+    {% call layout_stack(gap="xl", cls="chirp-theme-home__flow") %}
+
+      <section class="chirp-theme-home__hero" aria-label="{{ site_name }} landing">
+        <header class="chirp-theme-home__hero-copy">
+          <p class="chirp-theme-home__hero-eyebrow">
+            <span class="chirp-theme-home__mark" aria-hidden="true">{{ site_mark }}</span>
+            {{ site_name }}
+            <span class="chirp-theme-home__hero-tagline">{{ site_tagline }}</span>
+          </p>
+          <h1 class="chirp-theme-home__hero-title">{{ node.title }}</h1>
+          <p class="chirp-theme-home__hero-lede">{{ node.description }}</p>
+          {% call cluster(gap="sm", cls="chirp-theme-home__actions") %}
+            {{ btn(home.cta_primary.label, href=home.cta_primary.href, variant="primary") }}
+            <a class="chirp-theme-home__hero-link" href="{{ home.cta_secondary.href }}"{{ route_link_attrs(home.cta_secondary.href) | html_attrs }}>
+              {{ home.cta_secondary.label }}
+            </a>
+          {% end %}
+        </header>
+
+        {% call surface(variant="glass", cls="chirp-theme-home__hero-panel") %}
+          <div class="chirp-theme-home__product-visual" aria-label="{{ visual.aria_label }}">
+            <div class="chirp-theme-home__visual-topbar" aria-hidden="true">
+              <span></span><span></span><span class="chirp-theme-home__live-dot"></span>
+            </div>
+            <nav class="chirp-theme-home__visual-nav" aria-label="Catalog pipeline">
+              {% for tag in visual.proof_tags %}
+              <span{% if tag == "#page-root" %} class="chirp-theme-home__live-tag"{% end %}>{{ tag }}</span>
+              {% end %}
+            </nav>
+            <div class="chirp-theme-home__visual-screen">
+              <p class="chirp-theme-home__visual-eyebrow">{{ visual.eyebrow }}</p>
+              <h2 class="chirp-theme-home__visual-title">{{ visual.title }}</h2>
+              <p class="chirp-theme-home__visual-description">{{ visual.description }}</p>
+            </div>
+            <div class="chirp-theme-home__visual-status" aria-label="Author reload">
+              <span class="chirp-theme-home__visual-status-label">{{ visual.feature_title }}</span>
+              <p>{{ visual.feature_body }}</p>
+            </div>
+          </div>
+        {% end %}
+      </section>
+
+      {% if home.metrics %}
+      <section class="chirp-theme-home__section chirp-theme-home__metrics" aria-labelledby="home-metrics-title">
+        {% if metrics_head %}
+        <header class="chirp-theme-home__section-head chirp-theme-home__section-head--center chirp-theme-home__metrics-head">
+          {% if metrics_head.eyebrow %}
+          <p class="chirp-theme-home__section-eyebrow">{{ metrics_head.eyebrow }}</p>
+          {% end %}
+          {% if metrics_head.title %}
+          <h2 id="home-metrics-title">{{ metrics_head.title }}</h2>
+          {% end %}
+          {% if metrics_head.subtitle %}
+          <p>{{ metrics_head.subtitle }}</p>
+          {% end %}
+        </header>
+        {% end %}
+        {% call metric_grid(cols=3, gap="md", cls="chirp-theme-home__metric-grid") %}
+          {% for metric in home.metrics %}
+          {{ metric_card(metric.value, metric.label, hint=metric.hint) }}
+          {% end %}
+        {% end %}
+      </section>
+      {% end %}
+
+      {% if ideas %}
+      <section class="chirp-theme-home__section chirp-theme-home__proof" aria-labelledby="home-proof-title">
+        <header class="chirp-theme-home__section-head chirp-theme-home__section-head--rail">
+          <p class="chirp-theme-home__section-eyebrow"><span class="chirp-theme-home__mark" aria-hidden="true">{{ site_mark }}</span> {{ ideas.eyebrow }}</p>
+          <h2 id="home-proof-title">{{ ideas.title }}</h2>
+          <p>{{ ideas.subtitle }}</p>
+        </header>
+        {% call feature_stack(cls="chirp-theme-home__feature-stack") %}
+          {% for feature in ideas.features[:1] %}
+          {% call feature_section(layout="split", variant="default", reverse=feature.reverse, cls="chirp-theme-home__feature") %}
+            {% slot eyebrow %}{{ feature.eyebrow }}{% end %}
+            {% slot title %}{{ feature.title }}{% end %}
+            <p>{{ feature.body }}</p>
+            {% slot actions %}
+            {% if feature.action %}
+            {{ btn(feature.action.label, href=feature.action.href, variant="secondary") }}
+            {% end %}
+            {% end %}
+            {% slot media %}
+            {% if feature.code %}
+            <div class="chirp-theme-home__feature-panel">
+              <pre class="chirp-theme-home__code-sample"><code>{{ feature.code }}</code></pre>
+            </div>
+            {% end %}
+            {% end %}
+          {% end %}
+          {% end %}
+        {% end %}
+      </section>
+      {% end %}
+
+      {% if pipeline %}
+      <section class="chirp-theme-home__pipeline-inline" aria-label="{{ pipeline.title }}">
+        {% if pipeline.subtitle %}
+        <p class="chirp-theme-home__pipeline-inline-caption">{{ pipeline.subtitle }}</p>
+        {% end %}
+        <div class="chirp-theme-home__pipeline-inline-track" role="list" aria-label="Catalog pipeline">
+          {% for step in pipeline.steps %}
+          {% set step_index = loop.index %}
+          <span class="chirp-theme-home__pipeline-inline-step{% if step_index == pipeline.current_step %} is-active{% elif step_index < pipeline.current_step %} is-done{% end %}" role="listitem">{{ step.label }}</span>
+          {% if not loop.last %}
+          <span class="chirp-theme-home__pipeline-inline-arrow" aria-hidden="true">→</span>
+          {% end %}
+          {% end %}
+        </div>
+        {% if pipeline.modes %}
+        <div class="chirp-theme-home__pipeline-inline-modes" aria-label="Delivery modes">
+          {% for mode in pipeline.modes %}
+          <span class="chirp-theme-home__pipeline-inline-mode{% if mode.variant %} chirp-theme-home__pipeline-inline-mode--{{ mode.variant }}{% end %}">{{ mode.title }}</span>
+          {% end %}
+        </div>
+        {% end %}
+      </section>
+      {% end %}
+
+      {% if explore %}
+      <nav class="chirp-theme-home__explore" aria-label="{{ explore.title }}">
+        <p class="chirp-theme-home__explore-title">{{ explore.title }}</p>
+        {% call cluster(gap="sm", cls="chirp-theme-home__explore-links") %}
+          {% for link in explore.links %}
+          <a class="chirp-theme-home__explore-link" href="{{ link.href }}"{{ route_link_attrs(link.href) | html_attrs }}>{{ link.label }}</a>
+          {% end %}
         {% end %}
       </nav>
-      <div class="chirp-theme-home__visual-hero">
-        <p class="chirp-theme-home__visual-eyebrow">{{ visual.eyebrow }}</p>
-        <h2>{{ visual.title }}</h2>
-        <p>{{ visual.description }}</p>
-      </div>
-      <div class="chirp-theme-home__visual-proof" aria-label="Preview proof points">
-        {% for tag in visual.proof_tags %}
-        <span>{{ tag }}</span>
-        {% end %}
-      </div>
-      <div class="chirp-theme-home__visual-compose">
-        <article class="chirp-theme-home__visual-feature">
-          <span>{{ visual.feature_title }}</span>
-          <p>{{ visual.feature_body }}</p>
-        </article>
-        <a class="chirp-theme-home__visual-cta" href="{{ visual.cta_href }}"{{ route_link_attrs(visual.cta_href) | html_attrs }}>
-          <strong>{{ visual.cta_label }}</strong>
-          <span>{{ home.cta_primary.label }}</span>
-        </a>
-      </div>
-    </div>
-  </div>
-
-  {% if home.metrics %}
-  <section class="chirp-theme-home__proof" aria-label="{{ site_name }} proof points">
-    {% call metric_grid(cols=3, gap="md", cls="chirp-theme-home__metric-grid") %}
-      {% for metric in home.metrics %}
-      {{ metric_card(metric.value, metric.label, hint=metric.hint) }}
       {% end %}
-    {% end %}
-  </section>
-  {% end %}
-</section>
 
-<div class="chirp-theme-home__content">
-  <article class="prose chirp-theme-page__content">
-    {{ node | doc_body | boost_doc_links | safe }}
-  </article>
+      {% if quick_start %}
+      <section class="chirp-theme-home__section chirp-theme-home__quickstart" aria-labelledby="home-quickstart-title">
+        <header class="chirp-theme-home__section-head chirp-theme-home__section-head--center">
+          <p class="chirp-theme-home__section-eyebrow">{{ quick_start.eyebrow }}</p>
+          <h2 id="home-quickstart-title">{{ quick_start.title }}</h2>
+        </header>
+        <div class="chirp-theme-home__code-block chirp-theme-home__code-block--command">
+          <pre class="chirp-theme-home__code-sample"><code>{{ quick_start.commands }}</code></pre>
+        </div>
+        {% if quick_start.caption %}
+        <p class="chirp-theme-home__quickstart-caption">{{ quick_start.caption }}</p>
+        {% end %}
+      </section>
+      {% end %}
+
+      {% if cta %}
+      {% call surface(variant="gradient-subtle", cls="chirp-theme-home__panel chirp-theme-home__cta-panel") %}
+        {{ cta_band(cta.title, body=cta.body, primary_label=home.cta_primary.label, primary_href=home.cta_primary.href, secondary_label=cta.secondary.label, secondary_href=cta.secondary.href, variant="accent") }}
+      {% end %}
+      {% end %}
+
+    {% end %}
+  {% end %}
 </div>
 {% end %}

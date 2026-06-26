@@ -36,5 +36,6 @@ class XrefRole:
             catalog=catalog,
             inventory_store=inventory,
             role_name=node.name,
+            source_mount=ctx.source_mount if ctx is not None else None,
         )
         sb.append(render_reference_html(resolved))

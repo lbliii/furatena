@@ -52,6 +52,7 @@ class ContentIR:
     headings: tuple[ContentHeading, ...] = ()
     links: tuple[ContentLink, ...] = ()
     directives: tuple[ContentDirective, ...] = ()
+    features: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)

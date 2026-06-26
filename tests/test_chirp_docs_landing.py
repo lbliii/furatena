@@ -36,8 +36,20 @@ class TestLandingSurface:
 
         html = asyncio.run(_fetch())
         assert "/docs-theme/local/styles.css" in html
-        assert "chirp-theme-home__hero-stage" in html
+        assert "chirp-theme-home__hero-title" in html
+        assert "chirp-theme-home__hero-panel" in html
+        assert "chirpui-surface--glass" in html
         assert "chirp-theme-home__product-visual" in html
+        assert "chirp-theme-home__live-dot" in html
+        assert "chirp-theme-home__hero-link" in html
+        assert "chirp-theme-home__explore" in html
+        assert "chirp-theme-home__pipeline-inline" in html
+        assert "fura export" in html
+        assert "One corpus, three guarantees" in html
+        assert "chirp-theme-page__content" not in html
+        assert "chirpui-feature-section" in html
+        assert "chirpui-cta-band" in html
+        assert "chirpui-stepper" not in html
 
     def test_home_includes_mobile_shell_nav(self, docs_client) -> None:
         import asyncio

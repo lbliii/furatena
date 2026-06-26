@@ -24,7 +24,16 @@ from furatena.catalog.seo import (
     og_image_url,
 )
 from furatena.catalog.sitemap import sitemap_xml
-from furatena.catalog.dev_banner import extra_reload_dirs
+from furatena.catalog.csp import GoogleFontsCSPMiddleware
+from furatena.catalog.dev_banner import format_serve_startup
+from furatena.catalog.dev_reload import (
+    browser_reload_dirs,
+    clear_dev_server_record,
+    dev_server_pid_path,
+    run_docs_dev_server,
+    stop_dev_server,
+    write_dev_server_record,
+)
 from furatena.catalog.i18n import (
     active_language_override,
     detect_lang_from_path,
@@ -138,6 +147,7 @@ class DocsApp:
                 debug=not preview,
                 skip_contract_checks=skip_checks,
                 htmx=True,
+                reload_dirs=browser_reload_dirs(self.theme),
                 i18n_enabled=i18n.enabled,
                 i18n_supported_locales=supported_app_locales(i18n),
                 i18n_default_locale=i18n.default_language,
@@ -178,9 +188,7 @@ class DocsApp:
                     cache_control=_static_cache_control(assets.url_prefix, self.serve.mode),
                 )
             )
-        for reload_dir in (*self.theme.reload_dirs, *extra_reload_dirs(self.config, self.repo_root)):
-            app.add_reload_dir(str(reload_dir))
-
+        app.add_middleware(GoogleFontsCSPMiddleware())
         self._register_contract_refs(app)
         self._register_routes(app)
         return app
@@ -255,32 +263,100 @@ class DocsApp:
             )
         return ctx
 
-    def _resolve_doc_lookup(
+    @staticmethod
+    def _plaintext_node_response(node) -> Response:
+        body = "\n".join(
+            part
+            for part in (
+                f"# {node.title}",
+                "",
+                node.description,
+                "",
+                node.body_md.strip(),
+            )
+            if part is not None
+        )
+        return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
+
+    def _resolve_page_from_path(
         self,
-        lookup: str,
+        path: str,
         *,
         requested_lang: str | None = None,
     ) -> LocalizedNodeMatch:
         i18n = self.config.i18n
-        lang = requested_lang or i18n.default_language
+        lang = requested_lang or detect_lang_from_path(path, i18n)
         if i18n.enabled and lang != i18n.default_language:
             match = resolve_localized_node(
                 self.catalog,
-                lookup,
+                path,
                 requested_lang=lang,
                 config=i18n,
             )
             if match is not None:
                 return match
-        node = self.catalog.get_by_slug(lookup.strip("/"))
+        node = self.catalog.get_path(path)
         if node is None:
-            raise NotFound(f"Document not found: /{lookup.strip('/')}/")
+            raise NotFound(f"Page not found: {path}")
         return LocalizedNodeMatch(
             node=node,
             requested_lang=node.lang,
             fallback=False,
             requested_url=node.url,
         )
+
+    def _render_catalog_page(
+        self,
+        request: Request,
+        *,
+        requested_lang: str | None = None,
+    ):
+        self._ensure_catalog()
+        path = request.path
+        if path.endswith("/index.txt"):
+            doc_path = f"{path[:-len('index.txt')].rstrip('/')}/"
+            match = self._resolve_page_from_path(doc_path, requested_lang=requested_lang)
+            return self._plaintext_node_response(match.node)
+        match = self._resolve_page_from_path(path, requested_lang=requested_lang)
+        return self._render_node(match.node, request, locale_match=match)
+
+    def _register_mount_routes(self, app: App) -> None:
+        """Register URL handlers from mount configuration."""
+
+        @app.route("/")
+        def home(request: Request):
+            self._ensure_catalog()
+            node = self.catalog.get("/")
+            if node is None:
+                raise NotFound("Home page not found.")
+            return self._render_node(node, request)
+
+        for mount in self.catalog.mounts:
+            prefix = (mount.url_prefix or "").rstrip("/")
+            if prefix:
+                mount_id = mount.id
+                mount_prefix = prefix
+
+                @app.route(f"{mount_prefix}/")
+                @app.route(f"{mount_prefix}/{{slug:path}}", referenced=True)
+                def prefixed_mount(request: Request, slug: str = "", _mount_id=mount_id):
+                    return self._render_catalog_page(request)
+
+                prefixed_mount.__name__ = f"mount_{mount_id.replace('-', '_')}"
+                continue
+
+            if not mount.default:
+                continue
+
+            for section in self.catalog.default_mount_sections():
+                section_name = section
+
+                @app.route(f"/{section_name}/")
+                @app.route(f"/{section_name}/{{slug:path}}", referenced=True)
+                def default_mount_section(request: Request, slug: str = "", _section=section_name):
+                    return self._render_catalog_page(request)
+
+                default_mount_section.__name__ = f"default_{section_name.replace('-', '_')}"
 
     def _site_base(self, request: Request | None = None) -> str:
         host = request.headers.get("host") if request is not None else None
@@ -304,6 +380,7 @@ class DocsApp:
             "site_mark": site.mark,
             "site_home": site.home,
             "site_nav": site.navigation,
+            "develop_exports": DEVELOP_EXPORTS,
         }
 
     def _page_context(
@@ -657,46 +734,7 @@ class DocsApp:
             }
             return self._render_view("views/develop_export.html", request, **ctx)
 
-        @app.route("/")
-        def home(request: Request):
-            node = self.catalog.get("/")
-            if node is None:
-                raise NotFound("Home page not found.")
-            return self._render_node(node, request)
-
-        @app.route("/shared/", referenced=True)
-        @app.route("/shared/{slug:path}", referenced=True)
-        def shared_docs(request: Request, slug: str = ""):
-            slug = slug.strip("/")
-            lookup = slug if slug else ""
-            node = self.catalog.get_by_slug(lookup, mount="shared")
-            if node is None and slug:
-                node = self.catalog.get_by_slug(f"shared/{slug}", mount="shared")
-            if node is None:
-                raise NotFound(f"Shared page not found: /shared/{slug}/")
-            return self._render_node(node, request)
-
-        for mount in self.catalog.mounts:
-            prefix = (mount.url_prefix or "").rstrip("/")
-            if not prefix or mount.default or mount.id == "shared":
-                continue
-
-            def _register_prefixed_mount(mount_id: str, mount_prefix: str) -> None:
-                @app.route(f"{mount_prefix}/")
-                @app.route(f"{mount_prefix}/{{slug:path}}", referenced=True)
-                def prefixed_mount(request: Request, slug: str = ""):
-                    self._ensure_catalog()
-                    path = request.path
-                    node = self.catalog.get(path)
-                    if node is None and not path.endswith("/"):
-                        node = self.catalog.get(f"{path}/")
-                    if node is None:
-                        raise NotFound(f"Page not found: {path}")
-                    return self._render_node(node, request)
-
-                prefixed_mount.__name__ = f"mount_{mount_id.replace('-', '_')}"
-
-            _register_prefixed_mount(mount.id, prefix)
+        self._register_mount_routes(app)
 
         @app.route("/docs/_author/stale")
         def author_stale(request: Request):
@@ -717,56 +755,6 @@ class DocsApp:
             return Response(json.dumps(body)).with_header(
                 "Content-Type", "application/json; charset=utf-8"
             )
-
-        @app.route("/docs/", referenced=True)
-        @app.route("/docs/{slug:path}", referenced=True)
-        def docs(request: Request, slug: str = ""):
-            slug = slug.strip("/")
-            if request.path.endswith("/index.txt"):
-                if slug.endswith("/index.txt"):
-                    slug = slug[: -len("/index.txt")]
-                elif slug == "index.txt":
-                    slug = ""
-                lookup = f"docs/{slug}" if slug else "docs"
-                match = self._resolve_doc_lookup(lookup)
-                node = match.node
-                if node is None:
-                    raise NotFound(f"Document not found: /{lookup}/")
-                body = "\n".join(
-                    part
-                    for part in (
-                        f"# {node.title}",
-                        "",
-                        node.description,
-                        "",
-                        node.body_md.strip(),
-                    )
-                    if part is not None
-                )
-                return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
-            lookup = f"docs/{slug}" if slug else "docs"
-            match = self._resolve_doc_lookup(lookup)
-            return self._render_node(match.node, request, locale_match=match)
-
-        @app.route("/api/", referenced=True)
-        @app.route("/api/{slug:path}", referenced=True)
-        def api_docs(request: Request, slug: str = ""):
-            slug = slug.strip("/")
-            lookup = f"api/{slug}" if slug else "api"
-            node = self.catalog.get_by_slug(lookup)
-            if node is None:
-                raise NotFound(f"API reference page not found: /{lookup}/")
-            return self._render_node(node, request)
-
-        @app.route("/releases/", referenced=True)
-        @app.route("/releases/{slug:path}", referenced=True)
-        def releases(request: Request, slug: str = ""):
-            slug = slug.strip("/")
-            lookup = f"releases/{slug}" if slug else "releases"
-            node = self.catalog.get_by_slug(lookup)
-            if node is None:
-                raise NotFound(f"Release page not found: /{lookup}/")
-            return self._render_node(node, request)
 
         @app.route("/search")
         def search(request: Request):
@@ -1063,36 +1051,13 @@ class DocsApp:
             @app.route(f"{prefix}/docs/", referenced=True)
             @app.route(f"{prefix}/docs/{{slug:path}}", referenced=True)
             def localized_docs(request: Request, slug: str = "", lang=lang_code):
-                slug = slug.strip("/")
-                if request.path.endswith("/index.txt"):
-                    if slug.endswith("/index.txt"):
-                        slug = slug[: -len("/index.txt")]
-                    elif slug == "index.txt":
-                        slug = ""
-                    lookup = f"{lang}/docs/{slug}" if slug else f"{lang}/docs"
-                    match = self._resolve_doc_lookup(lookup, requested_lang=lang)
-                    node = match.node
-                    body = "\n".join(
-                        part
-                        for part in (
-                            f"# {node.title}",
-                            "",
-                            node.description,
-                            "",
-                            node.body_md.strip(),
-                        )
-                        if part is not None
-                    )
-                    return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
-                lookup = f"{lang}/docs/{slug}" if slug else f"{lang}/docs"
-                match = self._resolve_doc_lookup(lookup, requested_lang=lang)
-                return self._render_node(match.node, request, locale_match=match)
+                return self._render_catalog_page(request, requested_lang=lang)
 
             @app.route(f"{prefix}/", referenced=True)
             def localized_home(request: Request, lang=lang_code):
-                node = self.catalog.get_by_slug(lang)
+                node = self.catalog.get_path(f"{prefix}/")
                 if node is None:
-                    node = self.catalog.get(f"{prefix}/")
+                    node = self.catalog.get_by_slug(lang, mount=self.catalog.default_mount.id)
                 if node is None:
                     raise NotFound(f"Home page not found for locale: {lang}")
                 return self._render_node(node, request)
@@ -1164,3 +1129,23 @@ class DocsApp:
 
     def create_app(self) -> App:
         return self.app
+
+    def run_serve(self, *, host: str | None = None, port: int | None = None) -> None:
+        """Start the dev or preview server with Furatena reload wiring."""
+        resolved_host = host or self.app.config.host
+        resolved_port = port or self.app.config.port
+        pid_path = dev_server_pid_path(self.repo_root)
+        stop_dev_server(self.repo_root, host=resolved_host, port=resolved_port)
+        write_dev_server_record(
+            pid_path,
+            pid=os.getpid(),
+            host=resolved_host,
+            port=resolved_port,
+        )
+        try:
+            if self.serve.mode == ServeMode.PREVIEW or not self.serve.auto_reload:
+                self.app.run(host=host, port=port)
+                return
+            run_docs_dev_server(self, host=host, port=port)
+        finally:
+            clear_dev_server_record(pid_path)

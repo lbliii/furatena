@@ -43,6 +43,24 @@
     color: var(--color-text-secondary, var(--chirpui-text-muted));
   }
 
+  html[data-fura-effects-hero="minimal"] .chirp-theme-home__section-head--lagoon {
+    padding-left: 0;
+    background: transparent;
+  }
+
+  html[data-fura-effects-hero="minimal"] .chirp-theme-home__section-head--lagoon::before {
+    display: none;
+  }
+
+  html[data-fura-effects-hero="minimal"] .chirp-theme-home__hero {
+    background: color-mix(in srgb, var(--chirpui-surface) 92%, transparent);
+    box-shadow: none;
+  }
+
+  html[data-fura-effects-hero="wash"] .chirp-theme-home__section-head--lagoon {
+    box-shadow: var(--fura-effect-hero-shadow, none);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html[data-fura-effects-code="glow"] .chirp-theme-docs-layout .code-block-wrapper,
     html[data-fura-effects-code="glow"] .chirp-theme-docs-layout .code-block-wrapper pre,

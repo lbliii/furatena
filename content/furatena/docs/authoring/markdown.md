@@ -109,6 +109,21 @@ from furatena.catalog.docs_app import DocsApp
 
 Use `::::{code-tabs}` for tabbed install snippets (see [[docs/authoring/directives|Directives]]).
 
+## Mermaid diagrams
+
+Fenced blocks with the `mermaid` language render as diagrams that inherit your theme
+colors and re-render when you switch light/dark mode:
+
+````markdown
+```mermaid
+flowchart TD
+  A[Markdown] --> B[Catalog graph]
+  B --> C[HTML fragment]
+```
+````
+
+Mermaid loads lazily from `/docs-vendor/` only on pages that contain a diagram.
+
 ## Plain text export
 
 Each doc page exposes author markdown at `{url}index.txt` — useful for agents and diffing.

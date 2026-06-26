@@ -54,4 +54,6 @@ def wrap_highlighted_html(html: str) -> str:
 
 def wrap_doc_html(html: str) -> str:
     """Post-process rendered doc bodies with code-block chrome."""
-    return wrap_highlighted_html(html)
+    from furatena.catalog.diagrams import transform_mermaid_fences
+
+    return wrap_highlighted_html(transform_mermaid_fences(html))

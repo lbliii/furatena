@@ -37,8 +37,8 @@ Product name, home hero CTAs, and top navigation copy live in `app/docs.yaml`:
 ```yaml
 site:
   name: Furatena
-  tagline: Hypermedia documentation catalog
-  mark: "𒀭"
+  tagline: Live documentation from markdown
+  mark: "𐂛"
   home:
     cta_primary:
       label: Get started

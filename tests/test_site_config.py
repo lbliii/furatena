@@ -20,7 +20,7 @@ def docs_config():
 class TestSiteConfig:
     def test_site_name_from_docs_yaml(self, docs_config) -> None:
         assert docs_config.site.name == "Furatena"
-        assert docs_config.site.mark == "𒀭"
+        assert docs_config.site.mark == "𐂛"
 
     def test_default_navigation_has_doc_links(self, docs_config) -> None:
         nav = docs_config.site.navigation
@@ -33,6 +33,16 @@ class TestSiteConfig:
         home = docs_config.site.home
         assert home.cta_primary.href == "/docs/get-started/"
         assert len(home.metrics) == 3
+        assert home.ideas is not None
+        assert len(home.ideas.features) == 3
+        assert home.pipeline is not None
+        assert len(home.pipeline.modes) == 3
+        assert home.stack is not None
+        assert len(home.stack.rows) == 5
+        assert home.quick_start is not None
+        assert home.metrics_head is not None
+        assert home.explore is not None
+        assert len(home.explore.links) == 4
 
     def test_theme_id_furatena(self, docs_config) -> None:
         assert docs_config.theme.id == "furatena"

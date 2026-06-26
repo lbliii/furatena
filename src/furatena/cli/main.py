@@ -59,7 +59,18 @@ def _run_serve(args: argparse.Namespace) -> None:
         url=url,
     ):
         print(line)
-    docs_app.app.run(port=port, host=host)
+    docs_app._docs.run_serve(port=port, host=host)
+
+
+def _run_stop(args: argparse.Namespace) -> None:
+    from furatena.catalog.dev_reload import stop_dev_server
+
+    host = args.host or "127.0.0.1"
+    port = args.port or int(os.environ.get("FURA_PORT", "8001"))
+    if stop_dev_server(_repo_root(), host=host, port=port):
+        print(f"stopped dev server on {host}:{port}")
+    else:
+        print(f"no dev server listening on {host}:{port}")
 
 
 def _run_freeze(args: argparse.Namespace) -> None:
@@ -317,6 +328,11 @@ def _build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--base-url", default=None, help="Public origin (FURA_BASE_URL)")
     serve.add_argument("--workers", type=int, default=None, help="Parallel index workers")
     serve.set_defaults(handler=_run_serve)
+
+    stop = sub.add_parser("stop", help="Stop a stray Furatena dev server for this workspace")
+    stop.add_argument("--host", default=None, help="Bind host (default 127.0.0.1)")
+    stop.add_argument("--port", type=int, default=None, help="Bind port (default 8001)")
+    stop.set_defaults(handler=_run_stop)
 
     freeze = sub.add_parser("freeze", help="Export catalog JSON + HTML fragments")
     freeze.add_argument("--full", action="store_true", help="Force full rebuild")

@@ -71,6 +71,64 @@ class TestWave8GraphPlatform:
         ids = {item["id"] for item in mounts}
         assert ids == {"chirp", "furatena", "shared"}
 
+    def test_default_docs_route_does_not_fall_through_to_other_mount(self, registry: CatalogRegistry) -> None:
+        """A /docs/... URL must not serve a page that only exists under another mount."""
+        node = registry.get("/docs/reference/api/")
+        assert node is None
+        assert registry.get_by_slug("docs/reference/api") is None
+        chirp_node = registry.get_by_slug("docs/reference/api", mount="chirp")
+        assert chirp_node is not None
+        assert chirp_node.mount == "chirp"
+
+    def test_resolve_link_prefers_source_mount(self, registry: CatalogRegistry) -> None:
+        node = registry.resolve_link("docs/reference/api", source_mount="chirp")
+        assert node is not None
+        assert node.mount == "chirp"
+        assert registry.resolve_link("docs/reference/api", source_mount="furatena") is None
+        assert registry.resolve_link("docs/reference", source_mount="furatena") is not None
+
+    def test_get_by_slug_prefers_default_mount_for_duplicate_slugs(self, registry: CatalogRegistry) -> None:
+        node = registry.get_by_slug("docs/reference")
+        assert node is not None
+        assert node.mount == registry.default_mount.id
+        assert node.url == "/docs/reference/"
+
+
+@pytest.fixture(scope="module")
+def federated_docs_app():
+    from furatena.catalog.docs_app import DocsApp
+
+    return DocsApp.from_paths(
+        APP_ROOT / "docs.yaml",
+        repo_root=REPO,
+        autodoc=False,
+    )
+
+
+class TestFederatedDocsRouting:
+    def test_missing_default_docs_page_returns_not_found(self, federated_docs_app) -> None:
+        import asyncio
+        from chirp.testing import TestClient
+
+        client = TestClient(federated_docs_app.create_app())
+
+        async def _fetch(path: str) -> int:
+            resp = await client.get(path)
+            return resp.status
+
+        status = asyncio.run(_fetch("/docs/reference/api/"))
+        assert status == 404
+
+    def test_resolve_page_from_path_scopes_to_request_url(self, federated_docs_app) -> None:
+        from chirp.errors import NotFound
+
+        match = federated_docs_app._resolve_page_from_path("/docs/reference/")
+        assert match.node.mount == "furatena"
+        assert match.node.url == "/docs/reference/"
+
+        with pytest.raises(NotFound):
+            federated_docs_app._resolve_page_from_path("/docs/reference/api/")
+
 
 class TestWave8LazyFrozen:
     def test_lazy_frozen_loads_html_on_demand(self, tmp_path: Path) -> None:

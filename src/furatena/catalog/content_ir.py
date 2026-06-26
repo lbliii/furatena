@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import asdict, is_dataclass
 from typing import Any
 
-from patitas.nodes import Directive, Document, Heading, Link, Node, Text
+from patitas.nodes import Directive, Document, FencedCode, Heading, Link, Node, Text
 from patitas.visitor import BaseVisitor
 
 from furatena.catalog.models import ContentDirective, ContentHeading, ContentIR, ContentLink, TocEntry
@@ -60,6 +61,7 @@ class _ContentIRVisitor(BaseVisitor[None]):
         self.headings: list[ContentHeading] = []
         self.links: list[ContentLink] = []
         self.directives: list[ContentDirective] = []
+        self.features: set[str] = set()
 
     def visit_heading(self, node: Heading) -> None:
         text = _inline_text(node)
@@ -91,6 +93,12 @@ class _ContentIRVisitor(BaseVisitor[None]):
             )
         )
 
+    def visit_fenced_code(self, node: FencedCode) -> None:
+        info = html.unescape(node.info) if node.info else ""
+        language = info.split()[0].lower() if info else ""
+        if language == "mermaid":
+            self.features.add("mermaid")
+
 
 def extract_content_ir(document: Document) -> ContentIR:
     """Walk a Patitas document and collect headings, links, and directives."""
@@ -100,6 +108,7 @@ def extract_content_ir(document: Document) -> ContentIR:
         headings=tuple(visitor.headings),
         links=tuple(visitor.links),
         directives=tuple(visitor.directives),
+        features=frozenset(visitor.features),
     )
 
 

@@ -207,6 +207,13 @@ def canonical_doc_slug(slug: str, config: DocsI18nConfig) -> str:
     return strip_locale_prefix(slug.strip("/"), config)
 
 
+def _normalize_catalog_path(path: str) -> str:
+    cleaned = path.strip()
+    if not cleaned:
+        return "/"
+    return cleaned if cleaned.endswith("/") else f"{cleaned}/"
+
+
 def resolve_localized_node(
     catalog,
     lookup_slug: str,
@@ -214,9 +221,11 @@ def resolve_localized_node(
     requested_lang: str,
     config: DocsI18nConfig,
 ) -> LocalizedNodeMatch | None:
-    """Resolve a slug for ``requested_lang``, optionally falling back to default."""
-    lookup = lookup_slug.strip("/")
-    node = catalog.get_by_slug(lookup)
+    """Resolve a path for ``requested_lang``, optionally falling back to default."""
+    path = _normalize_catalog_path(
+        lookup_slug if lookup_slug.startswith("/") else f"/{lookup_slug.strip('/')}/"
+    )
+    node = catalog.get(path)
     if node is not None and node.lang == requested_lang:
         return LocalizedNodeMatch(
             node=node,
@@ -230,12 +239,17 @@ def resolve_localized_node(
     if requested_lang == config.default_language:
         return None
 
-    canonical = canonical_doc_slug(lookup, config)
+    canonical = canonical_doc_slug(path.strip("/"), config)
     if not canonical:
         return None
 
-    default_slug = locale_slug(canonical, config.default_language, config)
-    fallback_node = catalog.get_by_slug(default_slug)
+    default_path = _normalize_catalog_path(canonical)
+    fallback_node = catalog.get(default_path)
+    if fallback_node is None:
+        default_mount = getattr(catalog, "default_mount", None)
+        mount_id = default_mount.id if default_mount is not None else None
+        if mount_id is not None:
+            fallback_node = catalog.get_by_slug(canonical, mount=mount_id)
     if fallback_node is None:
         return None
 

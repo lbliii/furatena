@@ -1,12 +1,13 @@
 VENV_DIR ?= .venv
 UV_RUN = uv run
 
-.PHONY: help install test lint serve freeze export pages-build check clean
+.PHONY: help install test lint serve stop freeze export pages-build check clean
 
 help:
 	@echo "Furatena"
 	@echo "  make install      uv sync"
 	@echo "  make serve        fura serve"
+	@echo "  make stop         fura stop"
 	@echo "  make freeze       fura freeze"
 	@echo "  make export       fura export"
 	@echo "  make pages-build  freeze + export for GitHub Pages"
@@ -19,6 +20,9 @@ install:
 
 serve:
 	$(UV_RUN) fura serve
+
+stop:
+	$(UV_RUN) fura stop
 
 freeze:
 	$(UV_RUN) fura freeze

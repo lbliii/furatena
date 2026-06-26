@@ -19,6 +19,7 @@ _REQUIRED_JS = (
     "fura-toc.js",
     "fura-nav.js",
     "fura-theme.js",
+    "fura-mermaid.js",
     "fura-static-search.js",
     "docs-enhance.js",
 )

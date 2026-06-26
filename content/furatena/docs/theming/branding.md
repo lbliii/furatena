@@ -17,17 +17,17 @@ Product branding is configured in **`site:`** (`docs.yaml`) and static assets un
 ```yaml
 site:
   name: Furatena
-  tagline: Hypermedia documentation catalog
+  tagline: Live documentation from markdown
   description: >
     Short string for meta description fallback and Open Graph.
-  mark: "𒀭"          # Cuneiform AN (DINGIR) — deity / star mark
+  mark: "𐂛"          # Linear B ideogram B141 — gold
   home:
     cta_primary:
       label: Get started
       href: /docs/get-started/
     hero_points:
-      - Live catalog graph
-      - htmx shell navigation
+      - Updates as you edit
+      - Built-in search and navigation
   navigation:
     documentation:
       menu_label: Documentation
@@ -38,9 +38,9 @@ site:
           icon: book-open
 ```
 
-The default **`𒀭`** mark is Cuneiform Sign AN (*DINGIR*) — god, sky, star in Sumerian/Akkadian.
-It nods to the deity figures in the Muzo legend (Fura and Tena). Requires a cuneiform-capable
-font (Noto Sans Cuneiform is loaded in the docs shell).
+The default **`𐂛`** mark is Linear B Ideogram B141 — **gold** in Mycenaean palace
+inventories (the same material as Muisca tunjos). Requires a Linear B-capable font
+(Noto Sans Linear B is loaded in the docs shell).
 
 Templates read **`site_name`**, **`site_home`**, **`site_nav`**, etc. — see
 [[docs/reference/docs-yaml|docs.yaml reference]].

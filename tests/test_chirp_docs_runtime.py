@@ -16,9 +16,18 @@ FROZEN_DIR = APP_ROOT / "frozen"
 sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.assets import bundle_css
-from furatena.catalog.paths import catalog_root
 from furatena.catalog.registry import load_mounts
-from furatena.catalog.dev_banner import extra_reload_dirs, format_serve_startup
+from furatena.catalog.dev_banner import format_serve_startup
+from furatena.catalog.dev_reload import (
+    DevServerRecord,
+    browser_reload_dirs,
+    clear_dev_server_record,
+    dev_server_pid_path,
+    process_reload_dirs,
+    read_dev_server_record,
+    stop_dev_server,
+    write_dev_server_record,
+)
 from furatena.catalog.runtime import ServeConfig, ServeMode, resolve_serve_config
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.watch import SourceWatcher
@@ -115,25 +124,16 @@ class TestServeMode:
 
 
 class TestDevReloadWiring:
-    def test_extra_reload_dirs_include_catalog(self) -> None:
-        from furatena.catalog.config import load_docs_config
+    def test_process_reload_dirs_empty_by_default(self) -> None:
+        dirs = process_reload_dirs(REPO)
+        assert dirs == ()
 
-        docs = load_docs_config(APP_ROOT / "docs.yaml")
-        dirs = extra_reload_dirs(docs, REPO)
-        catalog_dir = catalog_root()
-        templates_dir = docs.framework_templates_dir.resolve()
-        assert catalog_dir in dirs
-        assert templates_dir in dirs
-
-    def test_extra_reload_dirs_include_src_when_env_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from furatena.catalog.config import load_docs_config
-
+    def test_process_reload_dirs_include_src_when_env_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("FURA_RELOAD_SRC", "1")
-        docs = load_docs_config(APP_ROOT / "docs.yaml")
-        dirs = extra_reload_dirs(docs, REPO)
-        assert (REPO / "src" / "furatena").resolve() in dirs
+        dirs = process_reload_dirs(REPO)
+        assert (REPO / "src" / "furatena").resolve().as_posix() in dirs
 
-    def test_docs_app_registers_catalog_reload_dir(self) -> None:
+    def test_docs_app_registers_browser_reload_dirs_in_config(self) -> None:
         from furatena.catalog.docs_app import DocsApp
         from furatena.catalog.runtime import ServeConfig
 
@@ -144,8 +144,20 @@ class TestDevReloadWiring:
             autodoc=False,
             serve=serve,
         )
-        catalog_dir = str(catalog_root().resolve())
-        assert catalog_dir in docs.app._reload_dirs_extra
+        theme_dirs = set(browser_reload_dirs(docs.theme))
+        config_dirs = set(docs.app.config.reload_dirs)
+        assert theme_dirs
+        assert theme_dirs <= config_dirs
+        assert docs.app._reload_dirs_extra == []
+
+    def test_browser_reload_dirs_exclude_docs_cache(self) -> None:
+        from furatena.catalog.config import load_docs_config
+
+        docs = load_docs_config(APP_ROOT / "docs.yaml")
+        theme = DocsTheme.from_docs_config(docs)
+        cache_dir = (APP_ROOT / ".docs-cache").resolve()
+        dirs = {Path(d) for d in browser_reload_dirs(theme)}
+        assert cache_dir not in dirs
 
     def test_format_serve_startup_author(self) -> None:
         lines = format_serve_startup(
@@ -364,3 +376,34 @@ class TestSourceWatcher:
         dirty = watcher.drain_dirty()
         watcher.stop()
         assert md.resolve() in dirty
+
+
+class TestDevServerLifecycle:
+    def test_pid_record_roundtrip(self, tmp_path: Path) -> None:
+        path = dev_server_pid_path(tmp_path)
+        write_dev_server_record(path, pid=1234, host="127.0.0.1", port=8001)
+        record = read_dev_server_record(path)
+        assert record == DevServerRecord(pid=1234, host="127.0.0.1", port=8001)
+        clear_dev_server_record(path)
+        assert read_dev_server_record(path) is None
+
+    def test_stop_dev_server_reports_idle_port(self, tmp_path: Path) -> None:
+        assert stop_dev_server(tmp_path, host="127.0.0.1", port=59999) is False
+
+    def test_stop_dev_server_terminates_recorded_pid(self, tmp_path: Path) -> None:
+        import subprocess
+
+        proc = subprocess.Popen(["sleep", "30"])
+        try:
+            write_dev_server_record(
+                dev_server_pid_path(tmp_path),
+                pid=proc.pid,
+                host="127.0.0.1",
+                port=59998,
+            )
+            assert stop_dev_server(tmp_path, host="127.0.0.1", port=59998) is True
+            assert proc.poll() is not None
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=5)
