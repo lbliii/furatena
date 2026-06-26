@@ -35,7 +35,6 @@ reload — markdown in `content/`, hypermedia out in the browser.
 - A home page at `/` rendered from `content/furatena/_index.md`
 - A docs tree under `/docs/`
 - Search, theme switching, and htmx boosted navigation
-- Optional [Chirp docs mount](/chirp/) for regression testing
 
 ## Next steps
 

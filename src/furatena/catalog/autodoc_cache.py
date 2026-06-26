@@ -111,6 +111,7 @@ def load_cached_autodoc_nodes(
     config_path: Path | None,
     repo_root: Path,
     frozen_dir: Path | None,
+    mount: str = "chirp",
 ) -> list[DocNode] | None:
     """Return frozen autodoc nodes when fingerprint matches; else None."""
     if config_path is None or frozen_dir is None:
@@ -120,5 +121,5 @@ def load_cached_autodoc_nodes(
         return None
     if autodoc_fingerprint(config_path, repo_root=repo_root) != expected:
         return None
-    nodes = autodoc_nodes_from_frozen(frozen_dir)
+    nodes = autodoc_nodes_from_frozen(frozen_dir, mount=mount)
     return nodes or None

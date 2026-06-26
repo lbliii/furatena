@@ -1,6 +1,6 @@
 ---
 title: Chirp relationship
-description: Furatena on Chirp, Bengal cutover, and the Chirp docs mount
+description: Furatena on Chirp, Bengal cutover, and the retained Chirp fixture corpus
 draft: false
 weight: 20
 lang: en
@@ -27,19 +27,17 @@ Markdown (content/) → Furatena catalog → Kida views → Chirp App → browse
 
 Furatena requires a released **`bengal-chirp`** PyPI package (currently **0.8.2+**).
 
-## Chirp docs mount
+## Chirp fixture corpus
 
-This repository dogfoods two corpora:
+The production app dogfoods the Furatena corpus:
 
 | Mount | URL | Purpose |
 |-------|-----|---------|
 | **furatena** (default) | `/`, `/docs/…` | Furatena product documentation |
-| **chirp** | `/chirp/…` | Full Chirp docs corpus — regression testing and future Chirp deploy |
 
-The Chirp corpus (~21k lines) proved every directive, federation feature, and freeze path
-before Furatena became the primary site.
-
-Browse Chirp docs: [/chirp/](/chirp/)
+The Chirp corpus remains in `content/chirp/` as a regression fixture. It proved every
+directive, federation feature, and freeze path before Furatena became the primary site,
+but it is no longer mounted in the default production app.
 
 ## GitHub Pages cutover (Wave 18)
 

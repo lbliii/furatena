@@ -178,6 +178,7 @@ class CatalogRegistry:
                 config_path=self.autodoc_config,
                 repo_root=self.repo_root,
                 frozen_dir=self.frozen_dir,
+                mount=self.default_mount.id,
             )
 
         live_mount_jobs: list[tuple[MountConfig, Path | None]] = []

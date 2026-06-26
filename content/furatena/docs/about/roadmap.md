@@ -37,7 +37,7 @@ in the repository. Summary below.
 **Content rewrite (in progress)**
 
 - `content/furatena/` — Furatena product documentation (this site)
-- `content/chirp/` — retained for regression and Chirp deploy at `/chirp/`
+- `content/chirp/` — retained as a regression fixture
 
 ## What's next
 

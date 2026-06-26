@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -487,10 +488,11 @@ class DocCatalog:
                 config_path=self.autodoc_config,
                 repo_root=self.repo_root,
                 frozen_dir=getattr(self, "_frozen_shard_dir", None),
+                mount=self.mount,
             )
         if cached is not None:
             for node in cached:
-                self._register_node(node)
+                self._register_node(replace(node, mount=self.mount))
             if self._frozen_pages_dir is None and self._frozen_shard_dir is not None:
                 pages_dir = self._frozen_shard_dir / "pages"
                 if pages_dir.is_dir():
@@ -501,7 +503,7 @@ class DocCatalog:
             repo_root=self.repo_root,
             workers=self._workers,
         ):
-            self._register_node(node)
+            self._register_node(replace(node, mount=self.mount))
 
     def _finalize_graph(self) -> None:
         self._doc_nodes = None
@@ -1096,7 +1098,7 @@ class DocCatalog:
                     "lang": page.get("lang"),
                     "translation_key": page.get("translation_key"),
                 },
-                mount=str(page.get("mount") or mount),
+                mount=mount,
                 edition=str(page.get("edition") or catalog.active_channel),
                 lang=str(page.get("lang") or "en"),
                 translation_key=page.get("translation_key"),

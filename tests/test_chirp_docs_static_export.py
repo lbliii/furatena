@@ -204,20 +204,20 @@ class TestFullStaticExportSmoke:
             docs,
             StaticExportOptions(
                 output_dir=out,
-                base_path="/chirp",
-                site_url="https://example.github.io/chirp",
+                base_path="/furatena",
+                site_url="https://example.github.io/furatena",
                 include_index_txt=False,
                 include_portal=True,
                 include_search=True,
             ),
         )
-        assert result.page_count >= 400
+        assert result.page_count >= 160
         assert (out / "index.html").is_file()
         assert (out / "search/index.html").is_file()
         assert (out / "sitemap.xml").is_file()
         html = (out / "index.html").read_text(encoding="utf-8")
-        assert 'href="/chirp/docs/' in html
-        assert "https://example.github.io/chirp/" in html
+        assert 'href="/furatena/docs/' in html
+        assert "https://example.github.io/furatena/" in html
 
 
 class TestBodyMdFreeze:

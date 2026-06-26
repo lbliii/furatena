@@ -3,12 +3,12 @@ name: Deploy Furatena to GitHub Pages
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -23,6 +23,8 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install
         run: uv sync --group dev
@@ -42,8 +44,12 @@ jobs:
           path: app/public
 
   deploy:
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

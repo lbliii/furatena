@@ -21,11 +21,6 @@ mounts:
     content_root: ../content/furatena
     default: true
 
-  - id: chirp
-    label: Chirp Documentation
-    content_root: ../content/chirp
-    url_prefix: /chirp
-
   - id: shared
     label: Shared Reference
     content_root: content/shared
@@ -44,7 +39,7 @@ mounts:
 | `label` | no | Human label for portal and breadcrumbs |
 | `content_root` | yes | Path to markdown corpus (relative to `app/`) |
 | `default` | no | Exactly one mount should be `default: true` — serves `/` |
-| `url_prefix` | no | URL prefix for non-default mounts (e.g. `/chirp`) |
+| `url_prefix` | no | URL prefix for non-default mounts (e.g. `/shared`) |
 | `extensions` | no | File extensions to index (default `.md`) |
 | `format_map` | no | Map extension → content adapter id |
 
@@ -53,7 +48,6 @@ mounts:
 | Mount | Example URL | Example slug |
 |-------|-------------|--------------|
 | Default (`furatena`) | `/docs/concepts/` | `docs/concepts` |
-| Prefixed (`chirp`) | `/chirp/docs/tutorials/` | `docs/tutorials` |
 | Shared | `/shared/reference/foo/` | `reference/foo` |
 
 Prefixed mounts register catch-all routes at `{url_prefix}/` and `{url_prefix}/{slug:path}`.
@@ -63,10 +57,10 @@ Prefixed mounts register catch-all routes at `{url_prefix}/` and `{url_prefix}/{
 Wikilink syntax with mount id:
 
 ```markdown
-[[chirp:docs/get-started/installation|Chirp installation]]
+[[shared:reference/reference-inventories|Reference inventories]]
 ```
 
-Or use absolute paths: `/chirp/docs/get-started/installation/`
+Or use absolute paths: `/shared/reference/reference-inventories/`
 
 `fura check` resolves internal links across mounts, including prefix inference for legacy
 `/docs/…` links inside prefixed corpora.
