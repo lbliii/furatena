@@ -856,8 +856,15 @@ class DocCatalog:
                 return [scoped]
         return tree[:1] if tree else tree
 
-    def direct_child_count(self, parent_slug: str, *, lang: str | None = None) -> int:
+    def direct_child_count(
+        self,
+        parent_slug: str,
+        *,
+        lang: str | None = None,
+        mount: str | None = None,
+    ) -> int:
         """Count immediate child pages under a catalog slug."""
+        _ = mount
         parent = parent_slug.strip("/")
         if not parent:
             return 0

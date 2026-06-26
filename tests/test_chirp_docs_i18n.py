@@ -30,6 +30,7 @@ from furatena.catalog.export import search_json
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.registry import CatalogRegistry, load_mounts
 from furatena.catalog.sitemap import sitemap_xml
+from tests.support import write_mounts_yaml
 
 
 def _write_docs_tree(root: Path) -> None:
@@ -54,6 +55,10 @@ shell: shell.html
 views:
   doc: views/doc.html
   default: views/doc.html
+theme:
+  use: lagoon
+  id: furatena
+  templates: theme/templates
 i18n:
   default_language: en
   languages:
@@ -67,18 +72,7 @@ mounts: mounts.yaml
 
 
 def _write_mounts(path: Path, content_root: Path) -> None:
-    rel = content_root.relative_to(path.parent)
-    path.write_text(
-        f"""
-mounts:
-  - id: chirp
-    label: Test
-    content_root: {rel.as_posix()}
-    default: true
-""".strip()
-        + "\n",
-        encoding="utf-8",
-    )
+    write_mounts_yaml(path, content_root)
 
 
 class TestI18nConfig:

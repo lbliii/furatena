@@ -878,12 +878,13 @@ def load_docs_config(path: Path) -> DocsConfig:
     overrides_raw = theme_raw.get("overrides") if isinstance(theme_raw.get("overrides"), dict) else {}
     use_raw = theme_raw.get("use")
     use = str(use_raw).strip() if use_raw else None
+    has_local_skin = any(key in theme_raw for key in ("tokens", "styles")) or bool(overrides_raw)
     code = str(effects_raw.get("code") or "flat")
     cards = str(effects_raw.get("cards") or "flat")
     hero = str(effects_raw.get("hero") or "wash")
     theme = ThemeConfig(
         id=str(theme_raw.get("id") or "furatena"),
-        use=use or None,
+        use=use or (None if has_local_skin else "lagoon"),
         tokens=str(theme_raw.get("tokens") or "theme/tokens.css"),
         styles=str(theme_raw.get("styles") or "theme/styles.css"),
         templates=str(theme_raw.get("templates") or "theme/templates"),

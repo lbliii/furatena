@@ -50,3 +50,14 @@ class TestThemePackResolution:
         assert any("tokens.css" in href for href in theme.stylesheet_hrefs)
         assert any("theme-preset.css" in href for href in theme.stylesheet_hrefs)
         assert any("/docs-theme/local/styles.css" in href for href in theme.stylesheet_hrefs)
+
+    def test_minimal_docs_yaml_defaults_to_lagoon_pack(self, tmp_path: Path) -> None:
+        docs_yaml = tmp_path / "docs.yaml"
+        docs_yaml.write_text("mounts: mounts.yaml\n", encoding="utf-8")
+        (tmp_path / "mounts.yaml").write_text("mounts: []\n", encoding="utf-8")
+
+        config = load_docs_config(docs_yaml)
+        assert config.theme.use == "lagoon"
+        skin = resolve_theme_paths(config)
+        assert skin.pack is not None
+        assert skin.pack.name == "lagoon"

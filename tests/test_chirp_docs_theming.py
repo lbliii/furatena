@@ -48,6 +48,14 @@ class TestViewRegistry:
         assert node is not None
         assert views.resolve(node, catalog) == "views/doc_list.html"
 
+    def test_prefixed_mount_section_index_uses_doc_list_view(self, views: ViewRegistry) -> None:
+        from furatena.catalog.docs_app import DocsApp
+
+        docs = DocsApp.from_paths(APP_ROOT / "docs.yaml", repo_root=REPO, autodoc=False)
+        node = docs.catalog.get_by_slug("docs/tutorials", mount="chirp")
+        assert node is not None
+        assert views.resolve(node, docs.catalog) == "views/doc_list.html"
+
     def test_collection_layout(self, views: ViewRegistry, catalog: DocCatalog) -> None:
         node = catalog.get_by_slug("docs/get-started/read-through")
         assert node is not None
