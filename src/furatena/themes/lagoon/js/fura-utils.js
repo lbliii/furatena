@@ -329,6 +329,44 @@
     }
   }
 
+  /**
+   * Resolve a CSS color expression to an sRGB value Mermaid can consume.
+   * Handles var(), oklch(), light-dark(), and color-mix() via browser compute.
+   * @param {string} expr
+   * @returns {string}
+   */
+  function resolveCssColor(expr) {
+    if (!expr) return '';
+    var probe = document.createElement('span');
+    probe.style.color = expr;
+    probe.style.display = 'none';
+    document.documentElement.appendChild(probe);
+    var computed = getComputedStyle(probe).color;
+    probe.remove();
+    if (!computed) return '';
+    try {
+      var ctx = document.createElement('canvas').getContext('2d');
+      ctx.fillStyle = computed;
+      return ctx.fillStyle;
+    } catch (_err) {
+      return computed;
+    }
+  }
+
+  /**
+   * Read a theme CSS custom property as a resolved sRGB color.
+   * @param {string} variable
+   * @param {string} fallback
+   * @returns {string}
+   */
+  function cssColorVar(variable, fallback) {
+    var resolved = resolveCssColor('var(' + variable + ')');
+    if (resolved) return resolved;
+    var styles = getComputedStyle(document.documentElement);
+    var value = styles.getPropertyValue(variable).trim();
+    return value || fallback;
+  }
+
   // Export utilities
   window.FuraDocsUtils = {
     log,
@@ -342,7 +380,9 @@
     escapeRegex,
     scrollManager,
     createFocusTrap,
-    loadIcon
+    loadIcon,
+    resolveCssColor,
+    cssColorVar
   };
   log('Utilities initialized');
 })();

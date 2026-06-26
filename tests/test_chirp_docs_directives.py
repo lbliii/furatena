@@ -496,7 +496,7 @@ class TestDocsDirectivePages:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/build-apps/pages-navigation/routes/")
+            resp = await docs_client.get("/chirp/docs/build-apps/pages-navigation/routes/")
             return resp.text
 
         html = asyncio.run(_fetch())
@@ -511,7 +511,7 @@ class TestDocsDirectivePages:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.get("/docs/about/architecture/")
+            resp = await docs_client.get("/chirp/docs/about/architecture/")
             return resp.text
 
         html = asyncio.run(_fetch())

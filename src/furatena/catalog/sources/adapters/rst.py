@@ -154,8 +154,9 @@ class RstAdapter:
         include_stack: set[str] | None = None,
         include_depth: int = 0,
         document: object | None = None,
+        mount: str | None = None,
     ) -> AdaptedContent:
-        _ = (stubs, render_markdown, get_backlinks, content_root, include_stack, include_depth)
+        _ = (stubs, render_markdown, get_backlinks, content_root, include_stack, include_depth, mount)
         content_ir = document if isinstance(document, ContentIR) else extract_rst_content_ir(source.body)
         body_html = render_rst_html(source.body)
         toc = content_ir_to_toc(content_ir)

@@ -22,8 +22,17 @@ cascade:
 
 ## What Furatena is
 
-Furatena is a **hypermedia documentation catalog**: markdown indexed into a live graph,
-served as htmx fragments inside a persistent shell, with dual Content + Presentation IR,
-semantic retrieval, and static export for GitHub Pages.
+Furatena turns markdown into a live documentation site — searchable,
+navigable, and ready to export.
+
+**For authors:** edit a file and the page you're viewing updates instantly.
+No rebuild loop. No npm toolchain for writing.
+
+**For teams:** one indexed catalog powers nav, search, link checking, and
+agent exports (`/catalog.json`, `/search.json`, `/tools.json`).
+
+**Under the hood:** markdown becomes a queryable graph; pages swap as
+hypermedia fragments inside a persistent shell. Static export for
+GitHub Pages uses the same corpus.
 
 The CLI is **Fura**.

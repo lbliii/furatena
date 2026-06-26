@@ -99,4 +99,4 @@ if __name__ == "__main__":
         url=url,
     ):
         print(line)
-    app.run(port=port, host=host)
+    _docs.run_serve(port=port, host=host)

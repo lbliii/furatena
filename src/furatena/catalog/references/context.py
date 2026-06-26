@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 class ReferenceContext:
     catalog: CatalogRegistry | None = None
     inventory_store: InventoryStore | None = None
+    source_mount: str | None = None
 
 
 _ref_ctx: ContextVar[ReferenceContext | None] = ContextVar("chirp_docs_ref_ctx", default=None)

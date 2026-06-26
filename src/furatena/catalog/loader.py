@@ -395,6 +395,7 @@ class DocCatalog:
                 content_root=self.content_root,
                 include_stack=nested_stack,
                 include_depth=nested_depth,
+                mount=self.mount,
             )
             return adapted.body_html
 
@@ -405,6 +406,7 @@ class DocCatalog:
             get_backlinks=lambda url: md_backlinks.get(_normalize_url(url), []),
             content_root=self.content_root,
             document=parsed_document,
+            mount=self.mount,
         )
         document = adapted.native_document
         if document is not None:
@@ -877,7 +879,7 @@ class DocCatalog:
         active_url: str | None = None,
         *,
         lang: str | None = None,
-        home_mark: str = "𒀭",
+        home_mark: str = "𐂛",
     ) -> list[dict[str, Any]]:
         """Top-level section shortcuts for the docs catalog icon rail."""
         effective_lang = lang

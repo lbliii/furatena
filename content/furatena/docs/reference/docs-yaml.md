@@ -52,10 +52,10 @@ Variabilizes home hero, shell title, and top navigation without forking template
 ```yaml
 site:
   name: Furatena
-  tagline: Hypermedia documentation catalog
+  tagline: Live documentation from markdown
   description: >
-    Furatena documentation — markdown indexed live, served as htmx fragments.
-  mark: "𒀭"
+    Write markdown. Get a fast, searchable doc site that reloads while you work.
+  mark: "𐂛"
   home:
     cta_primary:
       label: Get started
@@ -64,15 +64,15 @@ site:
       label: CLI reference
       href: /docs/reference/cli/
     hero_points:
-      - Live catalog graph
-      - htmx shell navigation
+      - Updates as you edit
+      - Built-in search and navigation
     metrics:
       - value: "1"
         label: markdown corpus
         hint: Index pages from content/ mounts at serve time.
     visual:
       title: Docs as data, HTML on demand.
-      description: Markdown indexed into a live graph.
+      description: Your markdown becomes a live, queryable catalog.
   navigation:
     documentation:
       menu_label: Documentation

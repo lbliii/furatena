@@ -64,6 +64,7 @@ class PatitasMarkdownAdapter:
         include_stack: set[str] | None = None,
         include_depth: int = 0,
         document: object | None = None,
+        mount: str | None = None,
     ) -> AdaptedContent:
         stack = include_stack if include_stack is not None else set()
         ctx = RenderContext(
@@ -79,7 +80,11 @@ class PatitasMarkdownAdapter:
         token = set_render_context(ctx)
         try:
             if document is None:
-                markup, content_ir, document = self._renderer.render(source.body, ctx)
+                markup, content_ir, document = self._renderer.render(
+                    source.body,
+                    ctx,
+                    source_mount=mount,
+                )
             else:
                 content_ir = extract_content_ir(document)  # type: ignore[arg-type]
                 markup = self._renderer.render_document(document, source=source.body)  # type: ignore[arg-type]

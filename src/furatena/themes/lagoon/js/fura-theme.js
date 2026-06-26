@@ -40,6 +40,7 @@
     document.documentElement.setAttribute('data-theme', theme);
     safeSet(THEME_KEY, theme);
     document.querySelectorAll('.theme-dropdown__menu--popover[popover]').forEach(updatePopoverActiveStates);
+    window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: theme } }));
   }
 
   function positionPopover(popover, trigger) {

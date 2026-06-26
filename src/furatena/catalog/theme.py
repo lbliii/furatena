@@ -29,7 +29,7 @@ class DocsTheme:
     template_roots: tuple[Path, ...]
     stylesheet_hrefs: tuple[str, ...]
     static_mounts: tuple[ThemeAssets, ...]
-    reload_dirs: tuple[Path, ...]
+    browser_reload_dirs: tuple[Path, ...]
 
     @classmethod
     def from_docs_config(
@@ -46,11 +46,11 @@ class DocsTheme:
 
         stylesheet_hrefs: list[str] = []
         static_mounts: list[ThemeAssets] = []
-        reload_dirs: list[Path] = [theme_dir]
+        browser_reload_dirs: list[Path] = [theme_dir]
         if skin.pack is not None:
-            reload_dirs.append(skin.pack.root)
+            browser_reload_dirs.append(skin.pack.root)
         if skin.docs_core is not None:
-            reload_dirs.append(skin.docs_core.root)
+            browser_reload_dirs.append(skin.docs_core.root)
 
         manifest = load_assets_manifest(frozen_dir) if frozen_dir is not None else None
         if manifest and manifest.get("theme_css"):
@@ -106,35 +106,34 @@ class DocsTheme:
                 ThemeAssets(url_prefix="/docs-theme/generated", directory=cache_dir)
             )
             stylesheet_hrefs.append("/docs-theme/generated/theme-preset.css")
-            reload_dirs.append(cache_dir)
 
         static_mounts.append(
             ThemeAssets(url_prefix="/docs-theme/tokens", directory=skin.tokens.parent)
         )
         stylesheet_hrefs.append(f"/docs-theme/tokens/{skin.tokens.name}")
-        reload_dirs.append(skin.tokens.parent)
+        browser_reload_dirs.append(skin.tokens.parent)
 
         static_mounts.append(
             ThemeAssets(url_prefix="/docs-theme/local", directory=skin.styles.parent)
         )
         stylesheet_hrefs.append(f"/docs-theme/local/{skin.styles.name}")
         stylesheet_hrefs.append(f"/docs-theme/local/{skin.directives.name}")
-        reload_dirs.append(skin.styles.parent)
+        browser_reload_dirs.append(skin.styles.parent)
 
         if skin.fonts_dir is not None:
             static_mounts.append(
                 ThemeAssets(url_prefix="/docs-theme/fonts", directory=skin.fonts_dir)
             )
-            reload_dirs.append(skin.fonts_dir)
+            browser_reload_dirs.append(skin.fonts_dir)
 
         template_roots: list[Path] = []
         if skin.templates is not None:
             template_roots.append(skin.templates)
-            reload_dirs.append(skin.templates)
+            browser_reload_dirs.append(skin.templates)
         template_roots.append(theme_dir)
 
         static_mounts.append(ThemeAssets(url_prefix="/docs-theme/local/js", directory=skin.js_dir))
-        reload_dirs.append(skin.js_dir)
+        browser_reload_dirs.append(skin.js_dir)
 
         vendor_root = Path(vendor_dir())
         if vendor_root.is_dir() and all((vendor_root / name).is_file() for name in VENDOR_FILES):
@@ -146,7 +145,7 @@ class DocsTheme:
             template_roots=tuple(template_roots),
             stylesheet_hrefs=tuple(stylesheet_hrefs),
             static_mounts=tuple(static_mounts),
-            reload_dirs=tuple(dict.fromkeys(reload_dirs)),
+            browser_reload_dirs=tuple(dict.fromkeys(browser_reload_dirs)),
         )
 
 

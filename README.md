@@ -1,10 +1,14 @@
-# Furatena — hypermedia documentation catalog
+# Furatena — live documentation from markdown
 
-**Furatena** is a live documentation surface for [Chirp](https://github.com/lbliii/chirp): markdown
-indexed into an in-memory graph, served as htmx fragments inside a persistent shell, with dual
-Content + Presentation IR, semantic retrieval, and static export for GitHub Pages.
+**Furatena** turns markdown into a documentation site that **updates as you edit** —
+with built-in search, navigation, and exports for agents and static hosting. It is the
+documentation surface for [Chirp](https://github.com/lbliii/chirp).
 
 The CLI is **`fura`** (short for Furatena).
+
+**Under the hood:** markdown is indexed into a queryable graph and served as hypermedia
+fragments (htmx) inside a persistent shell — no static rebuild loop, no client framework.
+Export to GitHub Pages or feed `/catalog.json` to agents from the same corpus.
 
 ## Quick start
 

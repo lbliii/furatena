@@ -100,6 +100,7 @@ class MdxAdapter:
         include_stack: set[str] | None = None,
         include_depth: int = 0,
         document: object | None = None,
+        mount: str | None = None,
     ) -> AdaptedContent:
         lowered = mdx_to_markdown(source.body)
         lowered_source = PageSource(
@@ -120,6 +121,7 @@ class MdxAdapter:
             include_stack=include_stack,
             include_depth=include_depth,
             document=document,
+            mount=mount,
         )
         return AdaptedContent(
             body_html=adapted.body_html,

@@ -18,7 +18,7 @@ category: reference
 
 | Name | Meaning |
 |------|---------|
-| **Furatena** | The hypermedia documentation catalog product (from the Muzo legend of Fura and Tena) |
+| **Furatena** | Live documentation from markdown (from the Muzo legend of Fura and Tena) |
 | **Fura** | CLI shorthand (`fura serve`, `fura check`, …) |
 | **Itoco** | Optional internal name for the catalog graph |
 

@@ -541,8 +541,10 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
 
             if options.include_index_txt:
                 for url_path in _index_txt_routes(docs_app):
-                    slug = url_path.rstrip("/").removesuffix("/index.txt").lstrip("/")
-                    node = docs_app.catalog.get_by_slug(slug)
+                    doc_path = url_path.rsplit("/index.txt", 1)[0]
+                    if not doc_path.endswith("/"):
+                        doc_path = f"{doc_path}/"
+                    node = docs_app.catalog.get_path(doc_path)
                     fp = (
                         _node_source_fingerprint(node, renderer_fp=renderer_fp, frozen_dir=frozen_dir)
                         + "|index.txt"

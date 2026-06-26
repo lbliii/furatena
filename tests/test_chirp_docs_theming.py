@@ -160,6 +160,7 @@ class TestThemeHeroContract:
         assert "--chirpui-prose-max-width: 80ch" in css
         assert "--font-family-sans:" in css
         assert "Inter" in css
+        assert "Outfit" in css
 
 
 class TestThemeEffects:
@@ -333,8 +334,9 @@ class TestThemeHtmlContract:
         assert "chirp-theme-shell__header" in html
         assert "chirp-theme-shell__nav-dropdown" in html
         assert "chirp-theme-shell__mega" in html
-        assert "chirp-theme-home__hero-stage" in html
-        assert "chirp-theme-home__product-visual" in html
+        assert "chirp-theme-home__hero-title" in html
+        assert "chirpui-surface--glass" in html
+        assert "chirpui-cta-band" in html
         assert "chirp-theme-shell__nav-link" in html
 
     def test_doc_page_toc_contract(self, docs_client) -> None:
@@ -385,4 +387,7 @@ class TestThemeHtmlContract:
         html = asyncio.run(_fetch())
         assert "chirp-theme-home" in html
         assert "chirp-theme-home__hero" in html
+        assert "chirpui-feature-section" in html
+        assert "Write markdown. Get living documentation." in html
+        assert "chirp-theme-home__explore" in html
         assert "/docs-assets/theme." in html
