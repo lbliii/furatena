@@ -23,6 +23,3 @@ app/.docs-cache-test/
 .coverage
 htmlcov/
 .DS_Store
-
-# uv
-uv.lock

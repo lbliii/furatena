@@ -177,8 +177,8 @@ Furatena is the sole GitHub Pages builder.
 
 The document runtime is an installable package (standalone-repo ready).
 
-- **`src/chirp_docs/catalog/`** — moved from `app/catalog/`
-- **`chirp_docs` namespace** — future standalone repo root; `catalog` import unchanged
+- **`src/furatena/catalog/`** — moved from `app/catalog/`
+- **`furatena` namespace** — installable runtime package; `fura` remains the CLI entrypoint
 - **Paths** — `catalog.paths.catalog_root()` for reload fingerprints (not `docs_root/catalog`)
 - **`app/`** — app config, theme, content mounts, freeze scripts only
 

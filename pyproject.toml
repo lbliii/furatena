@@ -28,7 +28,7 @@ classifiers = [
     "Topic :: Text Processing :: Markup",
 ]
 dependencies = [
-    "bengal-chirp[forms,sessions]>=0.8.2",
+    "bengal-chirp[forms,sessions]>=0.8.2,<0.9.0",
     "chirp-ui>=0.11.0",
     "patitas[syntax]>=0.4.0",
     "pyyaml>=6.0",

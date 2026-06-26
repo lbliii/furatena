@@ -55,8 +55,9 @@ tests/         Catalog and runtime tests
 
 ## Chirp dependency
 
-Furatena requires a released **`bengal-chirp`** PyPI package. For local development against a
-sibling Chirp checkout, uncomment `[tool.uv.sources]` in `pyproject.toml`.
+Furatena depends on the released **`bengal-chirp`** package from PyPI. The supported
+runtime line is pinned in `pyproject.toml` (`>=0.8.2,<0.9.0`) so a fresh
+`uv sync --group dev` does not depend on any local Chirp checkout.
 
 ## Docs
 
