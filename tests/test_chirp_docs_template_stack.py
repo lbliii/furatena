@@ -16,6 +16,7 @@ sys.path.insert(0, str(REPO / "src"))
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.docs_app import DocsApp
 from chirp.templating.integration import create_environment
+from tests.support import write_minimal_docs_yaml, write_mounts_yaml
 
 
 @pytest.fixture(scope="module")
@@ -49,8 +50,10 @@ class TestTemplateStack:
 
     def test_project_override_wins(self, tmp_path) -> None:
         shutil.copytree(APP_ROOT / "theme", tmp_path / "theme")
-        shutil.copy(APP_ROOT / "docs.yaml", tmp_path / "docs.yaml")
-        shutil.copy(APP_ROOT / "mounts.yaml", tmp_path / "mounts.yaml")
+        write_minimal_docs_yaml(tmp_path / "docs.yaml")
+        content = tmp_path / "content"
+        content.mkdir()
+        write_mounts_yaml(tmp_path / "mounts.yaml", content)
         override_dir = tmp_path / "templates" / "partials"
         override_dir.mkdir(parents=True)
         marker = "{# project override #}"
@@ -66,8 +69,10 @@ class TestTemplateStack:
 
     def test_theme_templates_shadow_wins_over_framework(self, tmp_path) -> None:
         shutil.copytree(APP_ROOT / "theme", tmp_path / "theme")
-        shutil.copy(APP_ROOT / "docs.yaml", tmp_path / "docs.yaml")
-        shutil.copy(APP_ROOT / "mounts.yaml", tmp_path / "mounts.yaml")
+        write_minimal_docs_yaml(tmp_path / "docs.yaml")
+        content = tmp_path / "content"
+        content.mkdir()
+        write_mounts_yaml(tmp_path / "mounts.yaml", content)
         shadow_dir = tmp_path / "theme" / "templates" / "directives"
         shadow_dir.mkdir(parents=True)
         marker = "{# theme shadow override #}"

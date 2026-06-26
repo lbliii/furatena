@@ -26,6 +26,7 @@ from furatena.catalog.static_export import (  # noqa: E402
     url_path_to_output_file,
     _robots_txt,
 )
+from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml  # noqa: E402
 
 
 class TestStaticExportHelpers:
@@ -148,12 +149,18 @@ class TestMiniStaticExport:
             encoding="utf-8",
         )
 
+        app_root = tmp_path / "app"
+        app_root.mkdir()
+        copy_app_theme(app_root, APP_ROOT)
+        write_minimal_docs_yaml(app_root / "docs.yaml")
+        write_mounts_yaml(app_root / "mounts.yaml", content)
+
         from furatena.catalog.config import load_docs_config
 
-        config = load_docs_config(APP_ROOT / "docs.yaml")
+        config = load_docs_config(app_root / "docs.yaml")
         docs = DocsApp(
             config,
-            repo_root=REPO,
+            repo_root=tmp_path,
             autodoc=False,
             serve=ServeConfig(ServeMode.PREVIEW, frozen, True, False),
         )

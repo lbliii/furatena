@@ -30,6 +30,14 @@ class CatalogLike(Protocol):
 
     def body_html(self, node: DocNode) -> str: ...
 
+    def direct_child_count(
+        self,
+        slug: str,
+        *,
+        lang: str | None = None,
+        mount: str | None = None,
+    ) -> int: ...
+
 
 @dataclass(frozen=True, slots=True)
 class CollectionDef:
@@ -109,7 +117,7 @@ class ViewRegistry:
 
         view_kind = node.layout or "doc"
         if view_kind == "doc" and catalog is not None and is_section_root(node):
-            child_count = getattr(catalog, "direct_child_count", lambda _slug: 0)(node.slug)
+            child_count = catalog.direct_child_count(node.slug, mount=node.mount)
             if child_count > 0:
                 doc_list = self.config.views.get("doc_list")
                 if doc_list:

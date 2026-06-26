@@ -558,8 +558,15 @@ class CatalogRegistry:
         """Navigation/search scope for the node's locale."""
         return self.doc_nodes(lang=node.lang if self.i18n_config.enabled else None)
 
-    def direct_child_count(self, slug: str, *, lang: str | None = None) -> int:
-        return self._shard_for_slug(slug).direct_child_count(slug, lang=lang)
+    def direct_child_count(
+        self,
+        slug: str,
+        *,
+        lang: str | None = None,
+        mount: str | None = None,
+    ) -> int:
+        shard = self._shards[mount] if mount is not None else self._shard_for_slug(slug)
+        return shard.direct_child_count(slug, lang=lang)
 
     def _catalog_rail_for_mount(self, active_url: str | None) -> list[dict[str, Any]] | None:
         """Section icon rail for a mount catalog page; None for app/portal surfaces."""

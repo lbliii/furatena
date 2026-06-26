@@ -348,8 +348,17 @@ class DocsApp:
             if not mount.default:
                 continue
 
+            locale_sections = set()
+            if self.config.i18n.enabled:
+                locale_sections = {
+                    code
+                    for code in self.config.i18n.language_codes()
+                    if code != self.config.i18n.default_language
+                }
             for section in self.catalog.default_mount_sections():
                 section_name = section
+                if section_name in locale_sections:
+                    continue
 
                 @app.route(f"/{section_name}/")
                 @app.route(f"/{section_name}/{{slug:path}}", referenced=True)
@@ -407,7 +416,7 @@ class DocsApp:
         page_url = build_canonical_url(base, active_url)
         view_name = self.views.resolve(node, self.catalog)
         surface = self.views.surface(view_name)
-        child_count = self.catalog.direct_child_count(node.slug, lang=page_lang)
+        child_count = self.catalog.direct_child_count(node.slug, lang=page_lang, mount=node.mount)
         llm_txt_url = f"{page_url.rstrip('/')}/index.txt"
         nav_items = (
             self.catalog.docs_section_nav(active_url=active_url, lang=page_lang)
@@ -1048,19 +1057,19 @@ class DocsApp:
                 continue
             prefix = f"/{lang_code}"
 
-            @app.route(f"{prefix}/docs/", referenced=True)
-            @app.route(f"{prefix}/docs/{{slug:path}}", referenced=True)
-            def localized_docs(request: Request, slug: str = "", lang=lang_code):
-                return self._render_catalog_page(request, requested_lang=lang)
-
-            @app.route(f"{prefix}/", referenced=True)
-            def localized_home(request: Request, lang=lang_code):
-                node = self.catalog.get_path(f"{prefix}/")
-                if node is None:
-                    node = self.catalog.get_by_slug(lang, mount=self.catalog.default_mount.id)
-                if node is None:
-                    raise NotFound(f"Home page not found for locale: {lang}")
-                return self._render_node(node, request)
+            @app.route(f"{prefix}/{{slug:path}}", referenced=True)
+            def localized_page(request: Request, slug: str = "", lang=lang_code):
+                slug = slug.strip("/")
+                if slug == "docs" or slug.startswith("docs/"):
+                    return self._render_catalog_page(request, requested_lang=lang)
+                if not slug:
+                    node = self.catalog.get_path(f"/{lang}/")
+                    if node is None:
+                        node = self.catalog.get_by_slug(lang, mount=self.catalog.default_mount.id)
+                    if node is None:
+                        raise NotFound(f"Home page not found for locale: {lang}")
+                    return self._render_node(node, request)
+                raise NotFound(f"Document not found: /{lang}/{slug}/")
 
     @staticmethod
     def _register_contract_refs(app: App) -> None:

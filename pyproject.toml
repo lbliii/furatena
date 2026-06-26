@@ -101,6 +101,9 @@ testpaths = ["tests"]
 pythonpath = ["src", "app"]
 asyncio_mode = "auto"
 addopts = ["-ra", "-q", "--import-mode=importlib"]
+markers = [
+    "slow: runs a larger static export or frozen-catalog path",
+]
 
 [dependency-groups]
 dev = [

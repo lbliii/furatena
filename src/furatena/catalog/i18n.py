@@ -243,7 +243,7 @@ def resolve_localized_node(
     if not canonical:
         return None
 
-    default_path = _normalize_catalog_path(canonical)
+    default_path = _normalize_catalog_path(f"/{canonical}/")
     fallback_node = catalog.get(default_path)
     if fallback_node is None:
         default_mount = getattr(catalog, "default_mount", None)

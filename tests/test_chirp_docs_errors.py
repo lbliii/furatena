@@ -19,6 +19,7 @@ from furatena.catalog.error_experience import (
     split_recovery_hits,
 )
 from furatena.catalog.semantic import HybridHit
+from tests.support import write_minimal_docs_yaml, write_mounts_yaml
 
 
 class TestErrorExperienceHelpers:
@@ -169,8 +170,10 @@ class TestErrorTemplateOverride:
         from chirp.templating.integration import create_environment
 
         shutil.copytree(APP_ROOT / "theme", tmp_path / "theme")
-        shutil.copy(APP_ROOT / "docs.yaml", tmp_path / "docs.yaml")
-        shutil.copy(APP_ROOT / "mounts.yaml", tmp_path / "mounts.yaml")
+        write_minimal_docs_yaml(tmp_path / "docs.yaml")
+        content = tmp_path / "content"
+        content.mkdir()
+        write_mounts_yaml(tmp_path / "mounts.yaml", content)
         shadow_dir = tmp_path / "theme" / "templates"
         shadow_dir.mkdir(parents=True, exist_ok=True)
         marker = "{# theme error override #}"
