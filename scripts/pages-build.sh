@@ -5,8 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP="$ROOT/app"
 OUT="${1:-$APP/public}"
 FROZEN="${FURA_FROZEN_DIR:-$APP/frozen}"
-BASE_PATH="${FURA_BASE_PATH:-/chirp}"
-SITE_URL="${FURA_BASE_URL:-https://lbliii.github.io/chirp}"
+BASE_PATH="${FURA_BASE_PATH:-/furatena}"
+SITE_URL="${FURA_BASE_URL:-https://lbliii.github.io/furatena}"
 
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 

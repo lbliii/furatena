@@ -40,10 +40,10 @@ catalog:
 
 site:
   name: Furatena
-  tagline: Live documentation from markdown
+  tagline: Polished docs from Markdown
   description: >
-    Write markdown. Get a fast, searchable doc site that reloads while you work —
-    and exports to GitHub Pages when you're ready to ship.
+    Write locally, preview instantly, and publish a fast, searchable documentation
+    site from the same Markdown source.
   mark: "𐂛"
   home:
     data: ../data/home.yaml
