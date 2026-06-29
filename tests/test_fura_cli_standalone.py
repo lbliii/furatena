@@ -516,6 +516,10 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
 
     assert author_payload["page"].status == 200
     assert 'data-fura-author-chrome' in author_payload["page"].text
+    assert 'id="fura-author-sse"' in author_payload["page"].text
+    assert 'sse-connect="/docs/_author/events?slug=docs/get-started"' in author_payload["page"].text
+    assert 'hx-trigger="sse:fura-author-invalidate"' in author_payload["page"].text
+    assert 'HX-Docs-Author-Reload' in author_payload["page"].text
     assert author_payload["boosted_page"].status == 200
     assert 'data-fura-author-chrome' in author_payload["boosted_page"].text
     assert "Open source" in author_payload["page"].text
@@ -557,6 +561,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
 
     public_payload = asyncio.run(_fetch_public())
     assert 'data-fura-author-chrome' not in public_payload["page"].text
+    assert 'id="fura-author-sse"' not in public_payload["page"].text
     assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" not in public_payload[
         "page"
     ].text

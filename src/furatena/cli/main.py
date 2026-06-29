@@ -1447,6 +1447,10 @@ def _run_init(args: argparse.Namespace) -> None:
               </article>
             </main>
             {% end %}
+
+            {% block sse_scope %}
+            {% include "partials/author_sse.html" %}
+            {% end %}
             """
         ),
         "theme/views/doc_list.html": dedent(
