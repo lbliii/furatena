@@ -10,7 +10,7 @@ APP_ROOT = REPO / "app"
 
 sys.path.insert(0, str(REPO / "src"))
 
-from furatena.catalog.export import catalog_graph
+from furatena.catalog.export import catalog_graph, meta_json
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
 from furatena.catalog.sources import FilesystemScanner, MountSourceConfig, get_content_adapter
@@ -212,6 +212,68 @@ class TestCatalogGraphV3:
         assert page["output_channel"] == "latest"
         assert page["provenance"]["path"] == "docs/test.md"
         assert page["provenance"]["mount"] == "docs"
+
+    def test_meta_json_preserves_provenance_for_static_impact_reports(self) -> None:
+        node = DocNode(
+            url="/docs/test/",
+            slug="docs/test",
+            title="Test",
+            description="",
+            layout="doc",
+            weight=1,
+            section="test",
+            tags=frozenset({"impact"}),
+            body_md="# Test",
+            body_html="<h1>Test</h1>",
+            toc=(),
+            source_path="docs/test.md",
+            meta={
+                "owner": "docs-platform",
+                "team": "docs-infra",
+                "source_provider": "git",
+                "source_repo": "lbliii/furatena",
+                "source_ref": "main",
+                "generated_from": "specs/openapi.yaml",
+                "tenant": "default",
+                "site": "docs",
+                "last_indexed_at": "2026-06-29T18:00:00Z",
+            },
+            mount="docs",
+            edition="latest",
+        )
+
+        class _Catalog:
+            active_channel = "stable"
+            nodes = (node,)
+
+        payload = meta_json(_Catalog())
+        page = payload["pages"][0]
+        assert page["source_path"] == "docs/test.md"
+        assert page["source_provider"] == "git"
+        assert page["source_repo"] == "lbliii/furatena"
+        assert page["source_ref"] == "main"
+        assert page["generated_from"] == "specs/openapi.yaml"
+        assert page["owner"] == "docs-platform"
+        assert page["team"] == "docs-infra"
+        assert page["tenant"] == "default"
+        assert page["site"] == "docs"
+        assert page["output_channel"] == "stable"
+        assert page["last_indexed_at"] == "2026-06-29T18:00:00Z"
+        assert page["provenance"] == {
+            "provider": "git",
+            "repo": "lbliii/furatena",
+            "ref": "main",
+            "path": "docs/test.md",
+            "generated_from": "specs/openapi.yaml",
+            "owner": "docs-platform",
+            "team": "docs-infra",
+            "mount": "docs",
+            "edition": "latest",
+            "tenant": "default",
+            "site": "docs",
+            "output_channel": "stable",
+            "last_indexed_at": "2026-06-29T18:00:00Z",
+        }
 
     def test_v2_compat_export(self) -> None:
         node = DocNode(

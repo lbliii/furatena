@@ -239,6 +239,8 @@ def meta_json(
     pages: list[dict[str, Any]] = []
     nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
     for node in nodes:
+        source_kind = node.meta.get("source", "markdown")
+        provenance = _provenance_record(catalog, node, source_kind=source_kind)
         pages.append(
             {
                 "node_id": node.node_id,
@@ -249,8 +251,22 @@ def meta_json(
                 "section": node.section,
                 "weight": node.weight,
                 "tags": sorted(node.tags),
+                "source_path": node.source_path,
+                "source": source_kind,
+                "source_kind": "generated" if source_kind != "markdown" else "filesystem",
+                "source_provider": provenance["provider"],
+                "source_repo": provenance.get("repo"),
+                "source_ref": provenance.get("ref"),
+                "generated_from": provenance.get("generated_from"),
+                "owner": provenance.get("owner"),
+                "team": provenance.get("team"),
+                "tenant": provenance.get("tenant"),
+                "site": provenance.get("site"),
                 "mount": node.mount,
                 "edition": node.edition,
+                "output_channel": provenance.get("output_channel"),
+                "last_indexed_at": provenance.get("last_indexed_at"),
+                "provenance": provenance,
                 "layout": node.layout,
                 "section_root": node.section_root,
             }

@@ -159,7 +159,7 @@ mounts:
 | `GET /catalog.json` | DCP v3 (default) |
 | `GET /catalog/query.json` | Filtered DCP graph projection |
 | `GET /graph/query.json` | Alias for filtered graph consumers |
-| `GET /meta.json` | Compact page index |
+| `GET /meta.json` | Compact page index with static impact-report provenance |
 | `GET /search.json` | Search index with `sections` |
 | `GET /catalog/retrieve?id=` | Node + chunks + backlinks |
 
@@ -181,6 +181,12 @@ The response is DCP-shaped and contains `schema_version`, `channel`, `query`,
 `page_count`, `edge_count`, `pages`, `edges`, and `namespaces`. Page filters narrow
 the source page set. Edge filters then return the matching graph neighborhood so a
 head or agent can traverse relationships without downloading the full catalog.
+
+`/meta.json` keeps the page index compact but preserves the same impact-routing
+provenance needed by static/offline consumers: `source_path`, `source_provider`,
+`source_repo`, `source_ref`, `generated_from`, `owner`, `team`, `tenant`, `site`,
+`mount`, `edition`, `output_channel`, `last_indexed_at`, and the normalized
+`provenance` object.
 
 JSON Schema for v3 exports ships with the runtime at
 ``catalog/schemas/catalog-v3.schema.json`` (validated by ``fura check`` and freeze).
