@@ -91,7 +91,7 @@ fura author publish docs/proposed-page --dry-run --json
 fura author publish docs/proposed-page --yes --json
 ```
 
-Lifecycle responses include operation id, target path, mount id, previous/resulting visibility, changed files, diagnostics, diff preview, and next actions. `fura author edit` uses exact source span replacement, so run `fura author status` or `author_read_source` first and pass the exact `--old-text` value to avoid stale edits.
+Lifecycle responses include operation id, target path, mount id, previous/resulting visibility, changed files, diagnostics, diff preview, and next actions. Transition responses also include `publication_impact` so agents can see whether navigation, search, export, and public retrieval/LLM surfaces are affected before writing. `fura author edit` uses exact source span replacement, so run `fura author status` or `author_read_source` first and pass the exact `--old-text` value to avoid stale edits.
 
 ## Approval Behavior
 

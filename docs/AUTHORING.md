@@ -62,7 +62,7 @@ fura author unpublish docs/new-page --yes --json
 fura author archive docs/new-page --yes --json
 ```
 
-Mutating commands require either `--dry-run` or `--yes`. `fura author edit` applies an exact source span replacement, so agents should run `status` or `author_read_source` first and pass the precise `--old-text` value they intend to replace. JSON responses include an operation id, target path, mount id, previous and resulting visibility, changed files, diagnostics, diff preview, and next actions.
+Mutating commands require either `--dry-run` or `--yes`. `fura author edit` applies an exact source span replacement, so agents should run `status` or `author_read_source` first and pass the precise `--old-text` value they intend to replace. JSON responses include an operation id, target path, mount id, previous and resulting visibility, changed files, diagnostics, diff preview, and next actions. Lifecycle transitions also include `publication_impact`, which reports whether public output inclusion changes and whether navigation, search, export, and agent retrieval surfaces are affected before any write occurs.
 
 ## MCP Authoring Tools
 

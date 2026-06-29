@@ -731,6 +731,12 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert publish_dry["data"]["previous_visibility"] == "draft"
     assert publish_dry["data"]["resulting_visibility"] == "public"
     assert "visibility: public" in publish_dry["data"]["diff"]
+    impact = publish_dry["data"]["publication_impact"]
+    assert impact["previous_public"] is False
+    assert impact["resulting_public"] is True
+    assert impact["change"] == "added_to_public_output"
+    assert impact["affected_surfaces"] == ["navigation", "search", "export", "agent"]
+    assert all(surface["affected"] is True for surface in impact["surfaces"])
     assert "visibility: public" not in target.read_text(encoding="utf-8")
 
     main([
@@ -747,8 +753,25 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert publish_payload["ok"] is True
     assert publish_payload["data"]["changed_files"] == [str(target)]
     assert publish_payload["data"]["resulting_visibility"] == "public"
+    assert publish_payload["data"]["publication_impact"]["resulting_public"] is True
     assert "visibility: public" in source
     assert "published_at:" in source
+
+    main([
+        "--app-root",
+        str(app_root),
+        "author",
+        "unpublish",
+        "docs/release-notes",
+        "--dry-run",
+        "--json",
+    ])
+    unpublish_dry = json.loads(capsys.readouterr().out)
+    assert unpublish_dry["ok"] is True
+    assert unpublish_dry["data"]["publication_impact"]["previous_public"] is True
+    assert unpublish_dry["data"]["publication_impact"]["resulting_public"] is False
+    assert unpublish_dry["data"]["publication_impact"]["change"] == "removed_from_public_output"
+    assert "visibility: draft" not in target.read_text(encoding="utf-8")
 
 
 def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys) -> None:
@@ -1349,6 +1372,12 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert publish_preview["isError"] is False
     assert publish_preview["structuredContent"]["dry_run"] is True
     assert publish_preview["structuredContent"]["resulting_visibility"] == "public"
+    assert publish_preview["structuredContent"]["publication_impact"]["affected_surfaces"] == [
+        "navigation",
+        "search",
+        "export",
+        "agent",
+    ]
     assert "visibility: public" not in target.read_text(encoding="utf-8")
 
     validation = call(private_server, "author_validate", {"target": "docs/mcp-draft"})

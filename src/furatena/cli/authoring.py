@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-from furatena.catalog.lifecycle import visibility_state
+from furatena.catalog.lifecycle import is_public_meta, visibility_state
 from furatena.catalog.sources.parse import parse_source_text
 
 
@@ -39,9 +39,10 @@ class AuthorOperationResult:
     confirmed: bool = False
     diff: str | None = None
     next_actions: tuple[str, ...] = ()
+    publication_impact: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "operation_id": self.operation_id,
             "operation": self.operation,
             "ok": self.ok,
@@ -65,6 +66,9 @@ class AuthorOperationResult:
             "diff": self.diff,
             "next_actions": list(self.next_actions),
         }
+        if self.publication_impact is not None:
+            payload["publication_impact"] = self.publication_impact
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -378,6 +382,11 @@ def author_transition(
     new_source = _compose_source(new_meta, body)
     changed = old_source != new_source
     diff = _diff(old_source, new_source, fromfile=str(resolved.path), tofile=str(resolved.path))
+    publication_impact = _publication_impact(
+        previous_meta=meta,
+        resulting_meta=new_meta,
+        operation=operation,
+    )
 
     if not changed:
         return AuthorOperationResult(
@@ -392,6 +401,7 @@ def author_transition(
             confirmed=confirmed,
             diff="",
             next_actions=("No source changes were needed.",),
+            publication_impact=publication_impact,
         )
     if not dry_run and not confirmed:
         return _confirmation_required(operation, target_path=resolved.path, mount=resolved.mount_id)
@@ -411,6 +421,7 @@ def author_transition(
         confirmed=confirmed,
         diff=diff,
         next_actions=_next_actions_for(operation),
+        publication_impact=publication_impact,
     )
 
 
@@ -597,6 +608,59 @@ def _diff(old: str, new: str, *, fromfile: str, tofile: str) -> str:
             tofile=tofile,
         )
     )
+
+
+def _publication_impact(
+    *,
+    previous_meta: dict[str, Any],
+    resulting_meta: dict[str, Any],
+    operation: str,
+) -> dict[str, Any]:
+    previous_public = is_public_meta(previous_meta)
+    resulting_public = is_public_meta(resulting_meta)
+    if previous_public and not resulting_public:
+        change = "removed_from_public_output"
+    elif not previous_public and resulting_public:
+        change = "added_to_public_output"
+    elif previous_public and resulting_public:
+        change = "public_metadata_updated"
+    else:
+        change = "private_metadata_updated"
+
+    surface_specs = (
+        ("navigation", "Navigation and sidebar entries"),
+        ("search", "Search indexes and suggestions"),
+        ("export", "Static exports, sitemap, and DCP fixtures"),
+        ("agent", "Agent retrieval, llms.txt, and MCP public resources"),
+    )
+    affected = previous_public or resulting_public
+    surfaces = [
+        {
+            "id": surface_id,
+            "label": label,
+            "affected": affected,
+            "reason": _publication_surface_reason(change, surface_id),
+        }
+        for surface_id, label in surface_specs
+    ]
+    return {
+        "operation": operation,
+        "previous_public": previous_public,
+        "resulting_public": resulting_public,
+        "change": change,
+        "affected_surfaces": [surface["id"] for surface in surfaces if surface["affected"]],
+        "surfaces": surfaces,
+    }
+
+
+def _publication_surface_reason(change: str, surface_id: str) -> str:
+    if change == "added_to_public_output":
+        return f"Page will be added to public {surface_id} output."
+    if change == "removed_from_public_output":
+        return f"Page will be removed from public {surface_id} output."
+    if change == "public_metadata_updated":
+        return f"Page remains public; {surface_id} metadata may refresh."
+    return f"Page remains private; public {surface_id} output is unchanged."
 
 
 def _failed(
