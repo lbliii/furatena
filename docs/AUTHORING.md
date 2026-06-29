@@ -54,13 +54,15 @@ Author-mode JSON routes such as `/catalog.json`, `/search.json`, `/catalog/retri
 fura author new docs/new-page --title "New page" --dry-run --json
 fura author new docs/new-page --title "New page" --yes --json
 fura author status docs/new-page --json
+fura author edit docs/new-page --old-text "Draft" --new-text "Reviewed draft" --dry-run --json
+fura author edit docs/new-page --old-text "Draft" --new-text "Reviewed draft" --yes --json
 fura author draft docs/new-page --dry-run --json
 fura author publish docs/new-page --yes --json
 fura author unpublish docs/new-page --yes --json
 fura author archive docs/new-page --yes --json
 ```
 
-Mutating commands require either `--dry-run` or `--yes`. JSON responses include an operation id, target path, mount id, previous and resulting visibility, changed files, diagnostics, diff preview, and next actions.
+Mutating commands require either `--dry-run` or `--yes`. `fura author edit` applies an exact source span replacement, so agents should run `status` or `author_read_source` first and pass the precise `--old-text` value they intend to replace. JSON responses include an operation id, target path, mount id, previous and resulting visibility, changed files, diagnostics, diff preview, and next actions.
 
 ## MCP Authoring Tools
 

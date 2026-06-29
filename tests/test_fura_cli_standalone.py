@@ -751,6 +751,103 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert "published_at:" in source
 
 
+def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+    target = app_root / "content" / "docs" / "get-started.md"
+    original = target.read_text(encoding="utf-8")
+    old_text = "Run the local docs server:"
+    new_text = "Run the local author preview:"
+
+    main([
+        "--app-root",
+        str(app_root),
+        "author",
+        "edit",
+        "docs/get-started",
+        "--old-text",
+        old_text,
+        "--new-text",
+        new_text,
+        "--dry-run",
+        "--json",
+    ])
+    dry_payload = json.loads(capsys.readouterr().out)
+    assert dry_payload["ok"] is True
+    assert dry_payload["command"] == "author edit"
+    assert dry_payload["data"]["operation_id"].startswith("author.apply_edit.")
+    assert dry_payload["data"]["dry_run"] is True
+    assert dry_payload["data"]["changed_files"] == []
+    assert new_text in dry_payload["data"]["diff"]
+    assert target.read_text(encoding="utf-8") == original
+
+    try:
+        main([
+            "--app-root",
+            str(app_root),
+            "author",
+            "edit",
+            "docs/get-started",
+            "--old-text",
+            old_text,
+            "--new-text",
+            new_text,
+            "--json",
+        ])
+    except SystemExit as exc:
+        assert exc.code == 3
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("edit should require --yes or --dry-run")
+    confirm_payload = json.loads(capsys.readouterr().out)
+    assert confirm_payload["ok"] is False
+    assert confirm_payload["diagnostics"][0]["rule_id"] == "fura.author"
+    assert target.read_text(encoding="utf-8") == original
+
+    main([
+        "--app-root",
+        str(app_root),
+        "author",
+        "edit",
+        "docs/get-started",
+        "--old-text",
+        old_text,
+        "--new-text",
+        new_text,
+        "--yes",
+        "--json",
+    ])
+    edit_payload = json.loads(capsys.readouterr().out)
+    assert edit_payload["ok"] is True
+    assert edit_payload["data"]["changed_files"] == [str(target)]
+    assert edit_payload["data"]["previous_visibility"] == "public"
+    assert edit_payload["data"]["resulting_visibility"] == "public"
+    assert new_text in target.read_text(encoding="utf-8")
+
+    try:
+        main([
+            "--app-root",
+            str(app_root),
+            "author",
+            "edit",
+            "docs/get-started",
+            "--old-text",
+            old_text,
+            "--new-text",
+            "Should not apply.",
+            "--dry-run",
+            "--json",
+        ])
+    except SystemExit as exc:
+        assert exc.code == 3
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("stale edit span should fail")
+    stale_payload = json.loads(capsys.readouterr().out)
+    assert stale_payload["ok"] is False
+    assert "old_text was not found" in stale_payload["diagnostics"][0]["message"]
+
+
 def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 

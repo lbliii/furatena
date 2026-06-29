@@ -53,7 +53,7 @@ Fields such as `source_path`, `line`, `mount`, `node_id`, `rule_id`, and `next_a
 - `fura recipes --json`
 - `fura evals --json`
 - `fura mcp --describe --json`
-- `fura author new|status|draft|publish|unpublish|archive --json`
+- `fura author new|status|edit|draft|publish|unpublish|archive --json`
 - `fura theme list --json`
 - `fura theme inspect --json`
 - `fura theme eject --json`

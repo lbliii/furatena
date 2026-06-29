@@ -85,11 +85,13 @@ For local source mutations, agents should use `fura author` with `--dry-run --js
 
 ```bash
 fura author new docs/proposed-page --title "Proposed page" --dry-run --json
+fura author edit docs/proposed-page --old-text "Draft" --new-text "Reviewed draft" --dry-run --json
+fura author edit docs/proposed-page --old-text "Draft" --new-text "Reviewed draft" --yes --json
 fura author publish docs/proposed-page --dry-run --json
 fura author publish docs/proposed-page --yes --json
 ```
 
-Lifecycle responses include operation id, target path, mount id, previous/resulting visibility, changed files, diagnostics, diff preview, and next actions.
+Lifecycle responses include operation id, target path, mount id, previous/resulting visibility, changed files, diagnostics, diff preview, and next actions. `fura author edit` uses exact source span replacement, so run `fura author status` or `author_read_source` first and pass the exact `--old-text` value to avoid stale edits.
 
 ## Approval Behavior
 

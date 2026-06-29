@@ -767,7 +767,12 @@ def _run_author(args: argparse.Namespace) -> None:
     sys.path.insert(0, str(_app_root(args)))
     from furatena.catalog.config import load_docs_config
     from furatena.catalog.registry import load_mounts
-    from furatena.cli.authoring import author_new, author_status, author_transition
+    from furatena.cli.authoring import (
+        author_apply_edit,
+        author_new,
+        author_status,
+        author_transition,
+    )
 
     app_root = _app_root(args)
     repo = _repo_for_app(app_root)
@@ -784,6 +789,16 @@ def _run_author(args: argparse.Namespace) -> None:
             mounts=mounts,
             mount_id=mount_id,
             title=args.title,
+            dry_run=args.dry_run,
+            confirmed=args.yes,
+        )
+    elif command == "edit":
+        result = author_apply_edit(
+            args.target,
+            mounts=mounts,
+            mount_id=mount_id,
+            old_text=args.old_text,
+            new_text=args.new_text,
             dry_run=args.dry_run,
             confirmed=args.yes,
         )
@@ -1886,6 +1901,16 @@ def _build_parser() -> argparse.ArgumentParser:
     author_status_cmd.add_argument("--mount", default=None, help="Mount id from mounts.yaml")
     author_status_cmd.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     author_status_cmd.set_defaults(handler=_run_author)
+
+    author_edit_cmd = author_sub.add_parser("edit", help="Apply an exact-text edit to a source page")
+    author_edit_cmd.add_argument("target", help="Source path or page slug")
+    author_edit_cmd.add_argument("--old-text", required=True, help="Exact source span to replace")
+    author_edit_cmd.add_argument("--new-text", required=True, help="Replacement source text")
+    author_edit_cmd.add_argument("--mount", default=None, help="Mount id from mounts.yaml")
+    author_edit_cmd.add_argument("--dry-run", action="store_true", help="Preview without writing")
+    author_edit_cmd.add_argument("--yes", action="store_true", help="Confirm source mutation")
+    author_edit_cmd.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
+    author_edit_cmd.set_defaults(handler=_run_author)
 
     for lifecycle_command, help_text in (
         ("draft", "Mark a page as draft/private preview"),
