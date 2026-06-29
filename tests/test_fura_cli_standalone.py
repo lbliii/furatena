@@ -545,6 +545,8 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert "Open source" in author_payload["page"].text
     assert "Copy source path" in author_payload["page"].text
     assert "Inspect public output" in author_payload["page"].text
+    assert 'data-author-surface="local"' in author_payload["page"].text
+    assert "Author mode" in author_payload["page"].text
     assert 'data-action="copy-source-path"' in author_payload["page"].text
     assert 'hx-target="#fura-author-chrome"' in author_payload["page"].text
     assert "operation=draft&amp;dry_run=0&amp;confirmed=1" in author_payload["page"].text

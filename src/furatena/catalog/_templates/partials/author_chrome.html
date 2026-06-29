@@ -15,8 +15,11 @@
       <span>Author controls</span>
       <strong>{{ author_chrome.title }}</strong>
     </div>
-    <div class="fura-author-chrome__status">
+    <div class="fura-author-chrome__surface" data-author-surface="local">
       <span class="fura-author-chrome__status-label">Local only</span>
+      <span class="fura-author-chrome__surface-label">Author mode</span>
+    </div>
+    <div class="fura-author-chrome__status">
       <div class="fura-author-chrome__states" aria-label="Author status indicators">
         {% for state in author_chrome.states %}
         <span class="fura-author-chrome__state" data-author-state="{{ state }}">{{ state }}</span>
@@ -32,7 +35,7 @@
   </div>
 
   <div class="fura-author-chrome__workspace">
-    <section class="fura-author-chrome__group" aria-labelledby="fura-author-lifecycle-heading">
+    <section class="fura-author-chrome__group fura-author-chrome__group--status" aria-labelledby="fura-author-lifecycle-heading">
       <h2 id="fura-author-lifecycle-heading">Lifecycle</h2>
       <dl class="fura-author-chrome__meta">
         <div class="fura-author-chrome__meta-item">
@@ -56,7 +59,7 @@
       </dl>
     </section>
 
-    <section class="fura-author-chrome__group" aria-labelledby="fura-author-source-heading">
+    <section class="fura-author-chrome__group fura-author-chrome__group--source" aria-labelledby="fura-author-source-heading">
       <h2 id="fura-author-source-heading">Source</h2>
       <dl class="fura-author-chrome__meta">
         <div class="fura-author-chrome__meta-item">
