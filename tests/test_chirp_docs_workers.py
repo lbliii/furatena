@@ -75,6 +75,30 @@ def test_dcp_schema_validates_live_registry():
     assert errors == []
 
 
+def test_dcp_compatibility_fixtures_validate():
+    from furatena.catalog.dcp_validate import dcp_fixture_paths, validate_catalog_json_file
+
+    fixtures = dcp_fixture_paths()
+    assert {path.name for path in fixtures} == {"catalog-v2.json", "catalog-v3.json"}
+    for path in fixtures:
+        assert validate_catalog_json_file(path) == []
+
+
+def test_dcp_validator_rejects_unsupported_version(tmp_path: Path):
+    from furatena.catalog.dcp_validate import validate_catalog_json_file
+
+    sample = tmp_path / "catalog.json"
+    sample.write_text(
+        '{"schema_version": 99, "channel": "latest", "page_count": 0, '
+        '"pages": [], "edges": [], "namespaces": []}',
+        encoding="utf-8",
+    )
+
+    errors = validate_catalog_json_file(sample)
+    assert errors
+    assert "unsupported DCP schema_version" in errors[0]
+
+
 def test_html_format_bridge_indexed():
     from furatena.catalog.config import load_docs_config
     from furatena.catalog.registry import CatalogRegistry

@@ -5,6 +5,8 @@ from __future__ import annotations
 from html import escape
 from typing import TYPE_CHECKING
 
+from furatena.catalog.lifecycle import public_nodes
+
 if TYPE_CHECKING:
     from furatena.catalog.loader import DocCatalog
     from furatena.catalog.registry import CatalogRegistry
@@ -20,7 +22,12 @@ def _translation_index(catalog: DocCatalog | CatalogRegistry) -> dict[str, dict[
     return build_translation_index(tuple(nodes))
 
 
-def sitemap_xml(catalog: DocCatalog | CatalogRegistry, base_url: str = "") -> str:
+def sitemap_xml(
+    catalog: DocCatalog | CatalogRegistry,
+    base_url: str = "",
+    *,
+    include_private: bool = False,
+) -> str:
     """Return sitemap XML for indexed pages, with hreflang alternates when i18n is enabled."""
     base = base_url.rstrip("/")
     translation_index = _translation_index(catalog)
@@ -30,7 +37,8 @@ def sitemap_xml(catalog: DocCatalog | CatalogRegistry, base_url: str = "") -> st
         xmlns += ' xmlns:xhtml="http://www.w3.org/1999/xhtml"'
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>', f"<urlset {xmlns}>"]
-    nodes = sorted(getattr(catalog, "nodes", ()), key=lambda item: item.url)
+    raw_nodes = list(getattr(catalog, "nodes", ()))
+    nodes = sorted(raw_nodes if include_private else public_nodes(raw_nodes), key=lambda item: item.url)
 
     for node in nodes:
         key = getattr(node, "translation_key", None)

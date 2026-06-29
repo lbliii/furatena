@@ -33,6 +33,7 @@ dependencies = [
     "patitas[syntax]>=0.4.0",
     "pyyaml>=6.0",
     "jsonschema>=4.0.0",
+    "milo-cli>=0.2.2",
 ]
 
 [project.optional-dependencies]
@@ -69,6 +70,7 @@ where = ["src"]
 "furatena.catalog" = [
   "py.typed",
   "schemas/*.json",
+  "fixtures/dcp/*.json",
   "_templates/**/*.html",
   "vendor/*.js",
 ]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -13,6 +14,7 @@ sys.path.insert(0, str(REPO / "src"))
 from furatena.catalog.content_ir import ContentDirective, ContentIR, collect_node_link_urls
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.graph import extract_page_links
+from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
 from furatena.catalog.query import query_catalog
@@ -82,6 +84,38 @@ class TestAstLinkExtraction:
         )
         urls = extract_page_links(node)
         assert "/docs/other/" in urls
+
+    def test_semantic_edges_from_front_matter(self) -> None:
+        node = replace(
+            _node(slug="docs/page", url="/docs/page/"),
+            meta={
+                "owner": "docs-platform",
+                "implements": "api:get-user",
+                "generated_from": "specs/openapi.yaml",
+                "requires": "/docs/auth/",
+                "available_in": "latest",
+                "validates": "tests/api/test_users.py",
+            },
+        )
+        target = _node(slug="docs/auth", url="/docs/auth/")
+
+        class _Catalog:
+            nodes = (node, target)
+
+            def get_by_slug(self, slug: str):
+                return {"docs/page": node, "docs/auth": target}.get(slug)
+
+            def prev_next(self, _node):
+                return (None, None)
+
+        records = [edge_record(edge) for edge in build_graph_edges(_Catalog())]
+        by_kind = {(edge["kind"], edge["target"]) for edge in records}
+        assert (EdgeKind.OWNED_BY.value, "owner:docs-platform") in by_kind
+        assert (EdgeKind.IMPLEMENTS.value, "api:get-user") in by_kind
+        assert (EdgeKind.GENERATED_FROM.value, "source:specs/openapi.yaml") in by_kind
+        assert (EdgeKind.REQUIRES.value, target.node_id) in by_kind
+        assert (EdgeKind.AVAILABLE_IN.value, "release:latest") in by_kind
+        assert (EdgeKind.VALIDATES.value, "source:tests/api/test_users.py") in by_kind
 
 
 class TestStructureIndex:

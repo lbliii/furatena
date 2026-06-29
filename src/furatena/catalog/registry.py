@@ -99,6 +99,7 @@ class CatalogRegistry:
         frozen_dir: Path | None = None,
         lazy_html: bool = False,
         serve_mode: ServeMode = ServeMode.AUTHOR,
+        include_private: bool = False,
         workers: int | None = None,
         i18n_config: DocsI18nConfig | None = None,
         catalog_nav: CatalogNavConfig | None = None,
@@ -118,6 +119,7 @@ class CatalogRegistry:
         self.frozen_dir = frozen_dir
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
+        self.include_private = include_private
         self.mounts = mounts
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
@@ -160,6 +162,7 @@ class CatalogRegistry:
             workers=self._workers,
             i18n_config=self.i18n_config,
             catalog_nav=self.catalog_nav if mount.default else None,
+            include_private=self.include_private,
         )
         if cached_autodoc is not None and mount.default and self.frozen_dir is not None:
             shard._frozen_shard_dir = self.frozen_dir / "mounts" / mount.id
@@ -174,10 +177,12 @@ class CatalogRegistry:
         use_frozen = self.serve_mode in {ServeMode.HYBRID, ServeMode.PREVIEW} and self.frozen_dir is not None
         cached_autodoc = None
         if use_frozen and self.autodoc_enabled:
+            default_mount_id = next((mount.id for mount in self.mounts if mount.default), self.mounts[0].id)
             cached_autodoc = load_cached_autodoc_nodes(
                 config_path=self.autodoc_config,
                 repo_root=self.repo_root,
                 frozen_dir=self.frozen_dir,
+                mount=default_mount_id,
             )
 
         live_mount_jobs: list[tuple[MountConfig, Path | None]] = []
@@ -251,7 +256,11 @@ class CatalogRegistry:
             if not mount.content_root.is_dir():
                 continue
             scanner = FilesystemScanner(mount.source)
-            for page in scanner.scan(mount.content_root, url_prefix=mount.url_prefix):
+            for page in scanner.scan(
+                mount.content_root,
+                url_prefix=mount.url_prefix,
+                include_private=self.include_private,
+            ):
                 urls[f"{mount.id}:{page.slug}"] = page.url
                 if mount.default:
                     urls.setdefault(page.slug, page.url)

@@ -211,8 +211,9 @@ class TestFullStaticExportSmoke:
                 include_search=True,
             ),
         )
-        assert result.page_count >= 400
+        assert result.page_count >= len(docs.catalog.nodes)
         assert (out / "index.html").is_file()
+        assert (out / "api" / "index.html").is_file()
         assert (out / "search/index.html").is_file()
         assert (out / "sitemap.xml").is_file()
         html = (out / "index.html").read_text(encoding="utf-8")

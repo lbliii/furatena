@@ -2,17 +2,34 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import os
+import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from chirp import OOB, App, AppConfig, Fragment, Page, Request, Response, Template
+import yaml
+from chirp import (
+    OOB,
+    App,
+    AppConfig,
+    EventStream,
+    Fragment,
+    Page,
+    Request,
+    Response,
+    SSEEvent,
+    Template,
+)
 from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
 from chirp.ext.chirp_ui import use_chirp_ui
 from chirp.i18n import get_locale, set_locale
 from chirp.middleware.static import StaticFiles
 
+from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
 from furatena.catalog.dev_reload import (
@@ -44,7 +61,9 @@ from furatena.catalog.i18n import (
     supported_app_locales,
 )
 from furatena.catalog.incremental import is_partial_reload
+from furatena.catalog.lifecycle import is_public_node, visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
+from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.search_experience import (
@@ -71,8 +90,15 @@ from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_
 from furatena.catalog.versions import channel_context
 from furatena.catalog.views import ViewRegistry
 from furatena.catalog.workers import resolve_workers
+from furatena.cli.authoring import (
+    author_new,
+    author_read_source,
+    author_save_source,
+    author_transition,
+)
 
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
+_AUTHOR_SSE_EVENT = "author-invalidate"
 
 
 def _static_cache_control(url_prefix: str, mode: ServeMode) -> str:
@@ -123,6 +149,7 @@ class DocsApp:
             frozen_dir=frozen,
             lazy_html=self.serve.lazy_html if serve else lazy_html,
             serve_mode=self.serve.mode,
+            include_private=self.serve.mode == ServeMode.AUTHOR,
             workers=resolve_workers(workers),
             i18n_config=config.i18n,
             catalog_nav=config.catalog,
@@ -168,6 +195,7 @@ class DocsApp:
             app.template_global("get_locale")(get_locale)
         app.template_global("csrf_token")(lambda: "")
         app.template_global("fura_author")(lambda: self.serve.auto_reload)
+        app.template_global("fura_author_mode")(lambda: self._is_author_mode())
         app.template_global("docs_stylesheets")(lambda: self.theme.stylesheet_hrefs)
         app.template_global("fura_effects_code")(lambda: self.config.theme.effects.code)
         app.template_global("fura_effects_cards")(lambda: self.config.theme.effects.cards)
@@ -380,6 +408,231 @@ class DocsApp:
         host = request.headers.get("host") if request is not None else None
         return docs_base_url(host)
 
+    def _include_private_output(self, request: Request | None = None) -> bool:
+        if self.serve.mode != ServeMode.AUTHOR:
+            return False
+        if request is None:
+            return False
+        return (request.query.get("include_private") or "").strip().lower() in {"1", "true", "yes"}
+
+    def _is_author_mode(self) -> bool:
+        return self.serve.mode == ServeMode.AUTHOR
+
+    def _author_page_chrome(self, node) -> dict[str, Any]:
+        source = self._author_source_info(node)
+        validation = self._author_validation_status(node)
+        visibility = visibility_state(getattr(node, "meta", {}) or {})
+        export_included = is_public_node(node)
+        stale_entries = self.catalog.author_stale_entries(node.slug)
+        dirty = bool(source["dirty"])
+        stale = dirty or bool(stale_entries)
+        states: list[str] = [visibility]
+        if visibility in {"private", "internal", "unlisted"}:
+            states.append("private")
+        states.append("invalid" if validation["errors"] else "valid")
+        if dirty:
+            states.append("dirty")
+        states.append("stale" if stale else "clean")
+        states.append("public-output" if export_included else "excluded-output")
+        source_path = source["path"]
+        query = f"slug={node.slug}"
+        return {
+            "enabled": True,
+            "node_id": node.node_id,
+            "slug": node.slug,
+            "title": node.title,
+            "source_path": source_path,
+            "source_exists": source["exists"],
+            "content_format": node.content_format,
+            "visibility": visibility,
+            "states": sorted(set(states), key=states.index),
+            "freshness": "dirty" if dirty else ("stale" if stale else "clean"),
+            "validation": validation,
+            "last_indexed_at": source["last_indexed_at"],
+            "source_modified_at": source["modified_at"],
+            "export_impact": {
+                "included": export_included,
+                "label": "Included in public output" if export_included else "Excluded from public output",
+                "reason": "public visibility" if export_included else f"{visibility} visibility",
+            },
+            "stale": stale_entries,
+            "actions": {
+                "status": f"/docs/_author/page.json?{query}",
+                "studio": f"/docs/_author/studio?{query}",
+                "open_source": f"/docs/_author/source?{query}",
+                "validate": f"/docs/_author/page.json?{query}&validate=1",
+                "mark_draft": f"/docs/_author/transition?{query}&operation=draft&dry_run=1",
+                "publish": f"/docs/_author/transition?{query}&operation=publish&dry_run=1",
+                "inspect_public": f"/docs/_author/page.json?{query}&inspect_public=1",
+            },
+        }
+
+    def _author_source_info(self, node) -> dict[str, Any]:
+        source_path = str(getattr(node, "source_path", "") or "")
+        mount = next((item for item in self.catalog.mounts if item.id == node.mount), None)
+        path = (mount.content_root / source_path).resolve() if mount is not None and source_path else None
+        indexed_mtime = self._author_indexed_mtime(node, path)
+        current_mtime = path.stat().st_mtime if path is not None and path.is_file() else None
+        return {
+            "path": str(path) if path is not None else source_path,
+            "exists": bool(path is not None and path.is_file()),
+            "dirty": bool(
+                path is not None
+                and path.is_file()
+                and indexed_mtime is not None
+                and current_mtime is not None
+                and indexed_mtime != current_mtime
+            ),
+            "last_indexed_at": _iso_from_mtime(indexed_mtime),
+            "modified_at": _iso_from_mtime(current_mtime),
+        }
+
+    def _author_indexed_mtime(self, node, path: Path | None) -> float | None:
+        if path is None:
+            return None
+        shard = getattr(self.catalog, "_shards", {}).get(node.mount)
+        source_mtimes = getattr(shard, "_source_mtimes", {}) if shard is not None else {}
+        return source_mtimes.get(path)
+
+    def _author_validation_status(self, node) -> dict[str, Any]:
+        errors, warnings = check_catalog(
+            self.catalog,
+            views=getattr(self, "views", None),
+            docs=getattr(self, "config", None),
+            theme=getattr(self, "theme", None),
+            inventory_store=self.catalog.inventory_store,
+        )
+        source = str(getattr(node, "source_path", "") or "")
+        page_errors = _messages_for_source(errors, source)
+        page_warnings = _messages_for_source(warnings, source)
+        return {
+            "ok": not page_errors,
+            "errors": page_errors,
+            "warnings": page_warnings,
+            "error_count": len(page_errors),
+            "warning_count": len(page_warnings),
+        }
+
+    def _author_node_from_request(self, request: Request):
+        node_id = (request.query.get("node_id") or "").strip()
+        if node_id:
+            node = self.catalog.get_by_node_id(node_id)
+            if node is not None:
+                return node
+        slug = (request.query.get("slug") or "").strip().strip("/")
+        if slug:
+            node = self.catalog.get_by_slug(slug)
+            if node is not None:
+                return node
+        raise NotFound("Author page target not found.")
+
+    def _author_node_from_request_or_none(self, request: Request):
+        try:
+            return self._author_node_from_request(request)
+        except NotFound:
+            return None
+
+    def _author_studio_context(
+        self,
+        request: Request,
+        *,
+        node=None,
+        source_text: str | None = None,
+        result: Any | None = None,
+        create_slug: str | None = None,
+        title: str | None = None,
+        saved: bool = False,
+    ) -> dict[str, Any]:
+        if node is not None:
+            ctx = self._page_context(node, request=request)
+            read_result, current_source = author_read_source(
+                node.slug,
+                mounts=tuple(self.catalog.mounts),
+                mount_id=node.mount,
+            )
+            if result is None and not read_result.ok:
+                result = read_result
+            source_text = source_text if source_text is not None else (current_source or "")
+            slug = node.slug
+            page_title = node.title
+            source_info = self._author_source_info(node)
+            preview_html = self._boost_doc_links(self.body_html(node))
+            visibility = visibility_state(getattr(node, "meta", {}) or {})
+            source_path = source_info["path"]
+            mode = "edit"
+        else:
+            slug = (create_slug or (request.query.get("slug") or "")).strip().strip("/")
+            page_title = title or _title_from_slug(slug)
+            source_text = source_text if source_text is not None else _compose_draft_source(slug, page_title)
+            ctx = {
+                **self._site_context(),
+                **self._locale_template_context(request=request),
+                **self._theme_effects_context(),
+                **channel_context(self.catalog.channels, self.catalog.active_channel),
+                "node": None,
+                "page_count": len(self.catalog.doc_nodes()),
+                "search_query": "",
+                "app_surface": "author-studio",
+                "app_page_cls": "chirp-theme-author-studio",
+                "chirp_docs_surface": "author-studio",
+            }
+            source_path = ""
+            preview_html = ""
+            visibility = "draft"
+            mode = "create"
+
+        diagnostics = []
+        data = None
+        if result is not None:
+            data = result.to_dict() if hasattr(result, "to_dict") else result
+            diagnostics = list(data.get("diagnostics") or []) if isinstance(data, dict) else []
+
+        ctx.update(
+            {
+                "app_surface": "author-studio",
+                "app_page_cls": "chirp-theme-author-studio",
+                "chirp_docs_surface": "author-studio",
+                "catalog_title": "Author studio",
+                "catalog_subtitle": page_title,
+                "author_studio": {
+                    "mode": mode,
+                    "slug": slug,
+                    "title": page_title,
+                    "source_text": source_text or "",
+                    "source_path": source_path,
+                    "source_regions": _source_heading_regions(source_text or ""),
+                    "has_ast": bool(getattr(node, "ast_json", None)) if node is not None else False,
+                    "source_provenance": "patitas-ast" if getattr(node, "ast_json", None) else "source-lines",
+                    "preview_html": preview_html,
+                    "visibility": visibility,
+                    "save_url": "/docs/_author/studio/save",
+                    "page_url": getattr(node, "url", "") if node is not None else "",
+                    "saved": saved,
+                    "ok": not diagnostics,
+                    "diagnostics": diagnostics,
+                    "result": data,
+                },
+            }
+        )
+        return ctx
+
+    def _reindex_author_result(self, result: Any) -> None:
+        if not getattr(result, "ok", False):
+            return
+        mount_id = getattr(result, "mount", None)
+        changed_files = tuple(getattr(result, "changed_files", ()) or ())
+        if not mount_id or not changed_files:
+            return
+        shard = getattr(self.catalog, "_shards", {}).get(mount_id)
+        if shard is None:
+            self.catalog.refresh_if_stale()
+            return
+        shard._reindex_paths({Path(path) for path in changed_files})
+        self.catalog._edges = None
+        self.catalog._namespaces = None
+        self.catalog._translation_index = None
+        self.catalog._finalize_federated()
+
     def _theme_effects_context(self) -> dict[str, str]:
         effects = self.config.theme.effects
         return {
@@ -457,6 +710,8 @@ class DocsApp:
             **fallback_context(locale_match, config=self.config.i18n),
             **self._theme_effects_context(),
         }
+        if self._is_author_mode():
+            ctx["author_chrome"] = self._author_page_chrome(node)
         ctx.update(self.views.compose(node, self.catalog))
         ctx.update(self._view_chrome_context(view_name, node, ctx))
         return ctx
@@ -615,7 +870,56 @@ class DocsApp:
     def _is_author_reload(self, request: Request) -> bool:
         return self.serve.auto_reload and bool(request.headers.get("HX-Docs-Author-Reload"))
 
-    def _render_author_reload(self, view_name: str, request: Request, node, **context: Any):
+    def _author_invalidation_payload(self, slug: str | None = None) -> dict[str, Any]:
+        """Current author-mode invalidation payload shared by polling and SSE."""
+        normalized = slug.strip("/") if slug else ""
+        self._ensure_catalog()
+        entries = self.catalog.author_stale_entries(normalized or None)
+        stale: list[dict[str, Any]] = []
+        for entry in entries:
+            entry_slug = str(entry.get("slug") or "")
+            node = self.catalog.get_by_slug(entry_slug, mount=str(entry.get("mount") or "") or None)
+            source_path = node.source_path if node is not None else ""
+            stale.append(
+                {
+                    "slug": entry_slug,
+                    "mount": str(entry.get("mount") or ""),
+                    "hints": list(entry.get("hints") or ()),
+                    "dirty_paths": [source_path] if source_path else [],
+                }
+            )
+
+        current = None
+        if normalized:
+            hints = self.catalog.invalidation_hints(normalized)
+            if hints:
+                node = self.catalog.get_by_slug(normalized)
+                source_path = node.source_path if node is not None else ""
+                current = {
+                    "slug": normalized,
+                    "hints": list(hints),
+                    "target_hints": list(hints),
+                    "dirty_paths": [source_path] if source_path else [],
+                    "dirty": True,
+                    "reload": not is_partial_reload(hints),
+                }
+        generation_seed = json.dumps(
+            {"current": current, "stale": stale},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        generation = hashlib.sha256(generation_seed.encode("utf-8")).hexdigest()[:16]
+        return {
+            "event": _AUTHOR_SSE_EVENT,
+            "generation": generation,
+            "stale": stale,
+            "current": current,
+        }
+
+    def _render_author_reload(self, view_name: str, request: Request, **context: Any):
+        node = context.get("node")
+        if node is None:
+            return Response("", status=204)
         hints = self.catalog.invalidation_hints(node.slug)
         if not hints:
             return Response("", status=204)
@@ -651,7 +955,7 @@ class DocsApp:
     def _render_view(self, view_name: str, request: Request, **context: Any):
         node = context.get("node")
         if node is not None and self._is_author_reload(request):
-            return self._render_author_reload(view_name, request, node, **context)
+            return self._render_author_reload(view_name, request, **context)
 
         main = Page.mounted(view_name, **context)
         if request.is_htmx and request.is_boosted and not request.is_history_restore:
@@ -692,7 +996,9 @@ class DocsApp:
             body = json.dumps(catalog_graph(self.catalog), indent=2)
         elif export.id == "llms":
             lines = [f"# {self.config.site.name} Documentation", ""]
-            for node in self.catalog.doc_nodes():
+            from furatena.catalog.lifecycle import public_nodes
+
+            for node in public_nodes(self.catalog.doc_nodes()):
                 desc = node.description.strip() if node.description else ""
                 if desc:
                     lines.append(f"- [{node.title}]({node.url}): {desc}")
@@ -757,22 +1063,185 @@ class DocsApp:
         @app.route("/docs/_author/stale")
         def author_stale(request: Request):
             if not self.serve.auto_reload:
-                body = {"stale": [], "current": None}
+                body = {"event": _AUTHOR_SSE_EVENT, "generation": "0", "stale": [], "current": None}
                 return Response(json.dumps(body)).with_header(
                     "Content-Type", "application/json; charset=utf-8"
                 )
-            self._ensure_catalog()
             slug = (request.query.get("slug") or "").strip("/")
-            entries = self.catalog.author_stale_entries(slug or None)
-            current = None
-            if slug:
-                hints = self.catalog.invalidation_hints(slug)
-                if hints:
-                    current = {"slug": slug, "hints": list(hints), "dirty": True}
-            body = {"stale": entries, "current": current}
+            body = self._author_invalidation_payload(slug or None)
             return Response(json.dumps(body)).with_header(
                 "Content-Type", "application/json; charset=utf-8"
             )
+
+        @app.route("/docs/_author/events", referenced=True)
+        async def author_events(request: Request):
+            slug = (request.query.get("slug") or "").strip("/")
+
+            async def stream():
+                if not self.serve.auto_reload:
+                    return
+                last_generation = ""
+                while True:
+                    payload = self._author_invalidation_payload(slug or None)
+                    if payload["current"] or payload["stale"]:
+                        generation = str(payload["generation"])
+                        if generation != last_generation:
+                            last_generation = generation
+                            yield SSEEvent(
+                                data=json.dumps(payload, separators=(",", ":")),
+                                event=_AUTHOR_SSE_EVENT,
+                                id=generation,
+                            )
+                    await asyncio.sleep(0.25)
+
+            return EventStream(stream(), heartbeat_interval=5.0)
+
+        @app.route("/docs/_author/studio", referenced=True)
+        def author_studio(request: Request):
+            if not self._is_author_mode():
+                return Response("author studio is available only in author mode", status=404)
+            self._ensure_catalog()
+            node = self._author_node_from_request_or_none(request)
+            if node is None and not _query_bool(request, "new", default=False):
+                raise NotFound("Author studio target not found.")
+            ctx = self._author_studio_context(
+                request,
+                node=node,
+                create_slug=(request.query.get("slug") or "").strip().strip("/"),
+                title=(request.query.get("title") or "").strip() or None,
+            )
+            return Page.mounted("views/author_studio.html", **ctx)
+
+        @app.route("/docs/_author/studio/save", methods=["POST"], referenced=True)
+        async def author_studio_save(request: Request):
+            if not self._is_author_mode():
+                return _json_response(
+                    {"ok": False, "error": "author studio saves are available only in author mode"},
+                    status=404,
+                )
+            self._ensure_catalog()
+            form = await request.form()
+            slug = str(form.get("slug") or request.query.get("slug") or "").strip().strip("/")
+            source_text = str(form.get("source") or "")
+            title = str(form.get("title") or "").strip() or None
+            create = str(form.get("mode") or "").strip() == "create"
+            result = None
+
+            if create:
+                source_text = _draft_source_text(source_text, slug=slug, title=title)
+                result = author_new(
+                    slug,
+                    mounts=tuple(self.catalog.mounts),
+                    title=title,
+                    dry_run=False,
+                    confirmed=True,
+                )
+                if result.ok:
+                    result = author_save_source(
+                        slug,
+                        mounts=tuple(self.catalog.mounts),
+                        source_text=source_text,
+                        mount_id=result.mount,
+                        dry_run=False,
+                        confirmed=True,
+                    )
+            else:
+                node = self.catalog.get_by_slug(slug)
+                mount_id = node.mount if node is not None else None
+                result = author_save_source(
+                    slug,
+                    mounts=tuple(self.catalog.mounts),
+                    source_text=source_text,
+                    mount_id=mount_id,
+                    dry_run=False,
+                    confirmed=True,
+                )
+
+            self._reindex_author_result(result)
+            node = self.catalog.get_by_slug(slug)
+            ctx = self._author_studio_context(
+                request,
+                node=node,
+                source_text=source_text,
+                result=result,
+                create_slug=slug,
+                title=title,
+                saved=bool(result.ok),
+            )
+            status = 200 if result.ok else 422
+            if request.is_htmx:
+                return Fragment(
+                    "views/author_studio.html",
+                    "author_studio_workspace",
+                    status=status,
+                    **ctx,
+                )
+            if result.ok and node is not None:
+                return Page.mounted("views/author_studio.html", **ctx)
+            return _json_response({"ok": False, "data": result.to_dict()}, status=status)
+
+        @app.route("/docs/_author/page.json")
+        def author_page_status(request: Request):
+            if not self._is_author_mode():
+                return _json_response(
+                    {"ok": False, "error": "author page status is available only in author mode"},
+                    status=404,
+                )
+            self._ensure_catalog()
+            node = self._author_node_from_request(request)
+            return _json_response(self._author_page_chrome(node))
+
+        @app.route("/docs/_author/source")
+        def author_page_source(request: Request):
+            if not self._is_author_mode():
+                return Response("author source is available only in author mode", status=404)
+            self._ensure_catalog()
+            node = self._author_node_from_request(request)
+            source = self._author_source_info(node)
+            path = Path(str(source["path"]))
+            if not path.is_file():
+                raise NotFound(f"Source file not found: {source['path']}")
+            return Response(path.read_text(encoding="utf-8")).with_header(
+                "Content-Type",
+                "text/plain; charset=utf-8",
+            )
+
+        @app.route("/docs/_author/transition")
+        def author_page_transition(request: Request):
+            if not self._is_author_mode():
+                return _json_response(
+                    {
+                        "ok": False,
+                        "error": "author lifecycle transitions are available only in author mode",
+                    },
+                    status=404,
+                )
+            self._ensure_catalog()
+            node = self._author_node_from_request(request)
+            operation = (request.query.get("operation") or "").strip()
+            if operation not in {"draft", "publish", "unpublish", "archive"}:
+                return _json_response(
+                    {
+                        "ok": False,
+                        "diagnostics": [
+                            {
+                                "severity": "error",
+                                "message": "operation must be draft, publish, unpublish, or archive",
+                                "rule_id": "fura.author",
+                            }
+                        ],
+                    },
+                    status=400,
+                )
+            result = author_transition(
+                operation,
+                node.slug,
+                mounts=tuple(self.catalog.mounts),
+                mount_id=node.mount,
+                dry_run=_query_bool(request, "dry_run", default=True),
+                confirmed=_query_bool(request, "confirmed", default=False),
+            )
+            return _json_response({"ok": result.ok, "data": result.to_dict()})
 
         @app.route("/search")
         def search(request: Request):
@@ -861,12 +1330,18 @@ class DocsApp:
             self._ensure_catalog()
             base = self._site_base(request)
             query = (request.query.get("q") or "").strip()
+            include_private = self._include_private_output(request)
             if query:
                 from furatena.catalog.export import search_json_for_query
 
-                body = search_json_for_query(self.catalog, query, base_url=base)
+                body = search_json_for_query(
+                    self.catalog,
+                    query,
+                    base_url=base,
+                    include_private=include_private,
+                )
             else:
-                body = search_json(self.catalog, base_url=base)
+                body = search_json(self.catalog, base_url=base, include_private=include_private)
             return Response(json.dumps(body, indent=2)).with_header(
                 "Content-Type", "application/json; charset=utf-8"
             )
@@ -878,6 +1353,7 @@ class DocsApp:
                 self.catalog,
                 base_url=self._site_base(request),
                 site_name=self.config.site.name,
+                include_private=self._include_private_output(request),
             )
             return Response(json.dumps(body, indent=2)).with_header(
                 "Content-Type", "application/json; charset=utf-8"
@@ -886,7 +1362,11 @@ class DocsApp:
         @app.route("/sitemap.xml", referenced=True)
         def sitemap(request: Request):
             self._ensure_catalog()
-            body = sitemap_xml(self.catalog, base_url=self._site_base(request))
+            body = sitemap_xml(
+                self.catalog,
+                base_url=self._site_base(request),
+                include_private=self._include_private_output(request),
+            )
             return Response(body).with_header("Content-Type", "application/xml; charset=utf-8")
 
         @app.route("/search/semantic", referenced=True)
@@ -896,6 +1376,7 @@ class DocsApp:
             query = (request.query.get("q") or "").strip()
             mount = (request.query.get("mount") or "").strip() or None
             edition = (request.query.get("edition") or "").strip() or None
+            include_private = self._include_private_output(request)
             if not query:
                 body = {"schema_version": 1, "query": "", "count": 0, "results": []}
             else:
@@ -906,6 +1387,7 @@ class DocsApp:
                     base_url=base,
                     mount=mount,
                     edition=edition,
+                    include_private=include_private,
                 )
             return Response(json.dumps(body, indent=2)).with_header(
                 "Content-Type", "application/json; charset=utf-8"
@@ -919,7 +1401,12 @@ class DocsApp:
                 return Response(json.dumps({"error": "missing node id"}), status=400).with_header(
                     "Content-Type", "application/json; charset=utf-8"
                 )
-            payload = retrieve_node(self.catalog, self.embedding_index, node_id)
+            payload = retrieve_node(
+                self.catalog,
+                self.embedding_index,
+                node_id,
+                include_private=self._include_private_output(request),
+            )
             if payload is None:
                 return Response(json.dumps({"error": "not found"}), status=404).with_header(
                     "Content-Type", "application/json; charset=utf-8"
@@ -929,10 +1416,52 @@ class DocsApp:
             )
 
         @app.route("/catalog.json", referenced=True)
-        def catalog_json():
+        def catalog_json(request: Request):
             self._ensure_catalog()
-            body = json.dumps(catalog_graph(self.catalog), indent=2)
+            body = json.dumps(
+                catalog_graph(
+                    self.catalog,
+                    include_private=self._include_private_output(request),
+                ),
+                indent=2,
+            )
             return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+
+        @app.route("/catalog/query.json", referenced=True)
+        @app.route("/graph/query.json", referenced=True)
+        def catalog_query_json(request: Request):
+            self._ensure_catalog()
+            edge_kind = (
+                request.query.get("edge_kind")
+                or request.query.get("edge")
+                or request.query.get("kind")
+                or request.query.get("link_edge")
+            )
+            target = (
+                request.query.get("target")
+                or request.query.get("to")
+                or request.query.get("linked_to")
+            )
+            source = (
+                request.query.get("source")
+                or request.query.get("from")
+                or request.query.get("linked_from")
+            )
+            payload = query_catalog_graph(
+                self.catalog,
+                mount=request.query.get("mount"),
+                tag=request.query.get("tag"),
+                format=request.query.get("format"),
+                owner=request.query.get("owner") or request.query.get("team"),
+                locale=request.query.get("locale") or request.query.get("lang"),
+                edge_kind=edge_kind,
+                source=source,
+                target=target,
+                include_private=self._include_private_output(request),
+            )
+            return Response(json.dumps(payload, indent=2)).with_header(
+                "Content-Type", "application/json; charset=utf-8"
+            )
 
         @app.route("/inventories.json", referenced=True)
         def inventories_json_route(request: Request):
@@ -971,10 +1500,17 @@ class DocsApp:
             )
 
         @app.route("/llms.txt", referenced=True)
-        def llms_txt():
+        def llms_txt(request: Request):
             self._ensure_catalog()
             lines = [f"# {self.config.site.name} Documentation", ""]
-            for node in self.catalog.doc_nodes():
+            from furatena.catalog.lifecycle import public_nodes
+
+            nodes = (
+                self.catalog.doc_nodes()
+                if self._include_private_output(request)
+                else public_nodes(self.catalog.doc_nodes())
+            )
+            for node in nodes:
                 desc = node.description.strip() if node.description else ""
                 if desc:
                     lines.append(f"- [{node.title}]({node.url}): {desc}")
@@ -984,15 +1520,22 @@ class DocsApp:
             return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
 
         @app.route("/llms-full.txt", referenced=True)
-        def llms_full():
+        def llms_full(request: Request):
             self._ensure_catalog()
-            body = llms_full_txt(self.catalog, site_name=self.config.site.name)
+            body = llms_full_txt(
+                self.catalog,
+                site_name=self.config.site.name,
+                include_private=self._include_private_output(request),
+            )
             return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
 
         @app.route("/meta.json", referenced=True)
-        def meta_json_route():
+        def meta_json_route(request: Request):
             self._ensure_catalog()
-            body = json.dumps(meta_json(self.catalog), indent=2)
+            body = json.dumps(
+                meta_json(self.catalog, include_private=self._include_private_output(request)),
+                indent=2,
+            )
             return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
 
         @app.route("/surface.json", referenced=True)
@@ -1109,6 +1652,7 @@ class DocsApp:
                 "views/collection.html",
                 "views/changelog.html",
                 "views/portal.html",
+                "views/author_studio.html",
             ):
                 Template(view)
             Template("error.html")
@@ -1167,3 +1711,94 @@ class DocsApp:
             run_docs_dev_server(self, host=host, port=port)
         finally:
             clear_dev_server_record(pid_path)
+
+
+def _json_response(payload: dict[str, Any], *, status: int = 200) -> Response:
+    return Response(json.dumps(_jsonable(payload), sort_keys=True), status=status).with_header(
+        "Content-Type",
+        "application/json; charset=utf-8",
+    )
+
+
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, dict):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return [_jsonable(item) for item in value]
+    return value
+
+
+def _title_from_slug(slug: str) -> str:
+    leaf = (slug.strip("/").rsplit("/", 1)[-1] or "Untitled").strip()
+    return leaf.replace("-", " ").replace("_", " ").title()
+
+
+def _compose_draft_source(slug: str, title: str | None = None) -> str:
+    page_title = title or _title_from_slug(slug)
+    meta = {
+        "title": page_title,
+        "draft": True,
+        "visibility": "draft",
+        "updated_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+    }
+    front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True).strip()
+    return f"---\n{front}\n---\n\n# {page_title}\n"
+
+
+def _draft_source_text(source_text: str, *, slug: str, title: str | None = None) -> str:
+    try:
+        from furatena.catalog.sources.parse import parse_source_text
+
+        meta, body = parse_source_text(source_text, content_format="patitas-markdown")
+    except Exception:
+        return source_text
+    meta = dict(meta)
+    meta.setdefault("title", title or _title_from_slug(slug))
+    meta["draft"] = True
+    meta["visibility"] = "draft"
+    meta.setdefault(
+        "updated_at",
+        datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+    )
+    front = yaml.safe_dump(meta, sort_keys=False, allow_unicode=True).strip()
+    return f"---\n{front}\n---\n\n{body.lstrip()}"
+
+
+def _source_heading_regions(source_text: str) -> list[dict[str, object]]:
+    regions: list[dict[str, object]] = []
+    for line_number, line in enumerate(source_text.splitlines(), start=1):
+        match = re.match(r"^(#{1,6})\s+(.+?)\s*$", line)
+        if not match:
+            continue
+        heading = match.group(2).strip()
+        anchor = re.sub(r"[^a-z0-9 -]", "", heading.lower()).replace(" ", "-")
+        regions.append(
+            {
+                "line": line_number,
+                "depth": len(match.group(1)),
+                "heading": heading,
+                "anchor": anchor,
+            }
+        )
+    return regions
+
+
+def _messages_for_source(messages: list[str], source_path: str) -> list[str]:
+    if not source_path:
+        return []
+    return [message for message in messages if message.startswith(f"{source_path}:")]
+
+
+def _iso_from_mtime(mtime: float | None) -> str | None:
+    if mtime is None:
+        return None
+    return datetime.fromtimestamp(mtime, UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _query_bool(request: Request, name: str, *, default: bool) -> bool:
+    raw = request.query.get(name)
+    if raw is None:
+        return default
+    return str(raw).strip().lower() in {"1", "true", "yes", "on"}

@@ -1,18 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://chirp.dev/schemas/catalog-v3.schema.json",
-  "title": "Document Catalog Protocol catalog.json v3",
-  "description": "Interchange schema for Furatena federated catalog exports (DCP Tier 1 + Tier 2).",
+  "$id": "https://chirp.dev/schemas/catalog-v2.schema.json",
+  "title": "Document Catalog Protocol catalog.json v2",
+  "description": "Compatibility schema for DCP v2 catalog exports.",
   "type": "object",
   "required": ["schema_version", "channel", "page_count", "pages", "edges", "namespaces"],
   "additionalProperties": true,
   "properties": {
-    "schema_version": { "type": "integer", "const": 3 },
+    "schema_version": { "type": "integer", "const": 2 },
     "version": { "type": "integer" },
     "channel": { "type": "string" },
     "edition": { "type": "string" },
     "page_count": { "type": "integer", "minimum": 0 },
-    "mount": { "type": "string" },
     "pages": {
       "type": "array",
       "items": { "$ref": "#/$defs/page" }
@@ -28,8 +27,7 @@
     "inventories": {
       "type": "array",
       "items": { "$ref": "#/$defs/inventory" }
-    },
-    "structure_index": { "$ref": "#/$defs/structure_index" }
+    }
   },
   "$defs": {
     "page": {
@@ -37,7 +35,7 @@
       "required": ["node_id", "url", "slug", "title", "mount", "edition"],
       "additionalProperties": true,
       "properties": {
-        "node_id": { "type": "string", "pattern": "^[^:]+:[^:]+:.*$" },
+        "node_id": { "type": "string" },
         "url": { "type": "string" },
         "slug": { "type": "string" },
         "title": { "type": "string" },
@@ -47,43 +45,10 @@
         "tags": { "type": "array", "items": { "type": "string" } },
         "source_path": { "type": "string" },
         "source": { "type": "string" },
-        "source_kind": { "enum": ["filesystem", "generated"] },
-        "source_provider": { "type": ["string", "null"] },
-        "source_repo": { "type": ["string", "null"] },
-        "source_ref": { "type": ["string", "null"] },
-        "generated_from": { "type": ["string", "null"] },
-        "owner": { "type": ["string", "null"] },
-        "team": { "type": ["string", "null"] },
-        "tenant": { "type": ["string", "null"] },
-        "site": { "type": ["string", "null"] },
-        "output_channel": { "type": ["string", "null"] },
-        "last_indexed_at": { "type": ["string", "null"] },
-        "provenance": {
-          "type": "object",
-          "properties": {
-            "provider": { "type": ["string", "null"] },
-            "repo": { "type": ["string", "null"] },
-            "ref": { "type": ["string", "null"] },
-            "path": { "type": "string" },
-            "generated_from": { "type": ["string", "null"] },
-            "owner": { "type": ["string", "null"] },
-            "team": { "type": ["string", "null"] },
-            "mount": { "type": "string" },
-            "edition": { "type": "string" },
-            "tenant": { "type": ["string", "null"] },
-            "site": { "type": ["string", "null"] },
-            "output_channel": { "type": ["string", "null"] },
-            "last_indexed_at": { "type": ["string", "null"] }
-          }
-        },
-        "content_format": { "type": "string" },
         "doc_version": { "type": ["string", "null"] },
         "mount": { "type": "string" },
         "edition": { "type": "string" },
         "section_root": { "type": "boolean" },
-        "body_md": { "type": "string" },
-        "body_source": { "type": "string" },
-        "body_text": { "type": "string" },
         "toc": {
           "type": "array",
           "items": {
@@ -108,32 +73,13 @@
           }
         },
         "content": { "$ref": "#/$defs/content_ir" },
-        "sections": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["id", "heading", "depth", "text"],
-            "properties": {
-              "id": { "type": "string" },
-              "heading": { "type": "string" },
-              "depth": { "type": "integer" },
-              "text": { "type": "string" }
-            }
-          }
-        },
-        "ast_path": { "type": "string" },
-        "native_ast": {
-          "type": "object",
-          "required": ["format", "path"],
-          "properties": {
-            "format": { "type": "string" },
-            "path": { "type": "string" }
-          }
-        }
+        "body_md": { "type": "string" },
+        "ast_path": { "type": "string" }
       }
     },
     "content_ir": {
       "type": "object",
+      "additionalProperties": true,
       "properties": {
         "headings": {
           "type": "array",
@@ -160,10 +106,6 @@
             }
           }
         },
-        "extensions": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/extension" }
-        },
         "directives": {
           "type": "array",
           "items": { "$ref": "#/$defs/extension" }
@@ -182,27 +124,12 @@
     "edge": {
       "type": "object",
       "required": ["source", "target", "kind"],
+      "additionalProperties": true,
       "properties": {
         "source": { "type": "string" },
         "target": { "type": "string" },
         "kind": {
-          "enum": [
-            "available_in",
-            "breaks",
-            "explains",
-            "generated_from",
-            "implements",
-            "link",
-            "nav_next",
-            "nav_prev",
-            "owned_by",
-            "parent",
-            "requires",
-            "supersedes",
-            "tag",
-            "translation",
-            "validates"
-          ]
+          "enum": ["parent", "link", "nav_next", "nav_prev", "tag", "translation"]
         },
         "mount": { "type": "string" },
         "edition": { "type": "string" }
@@ -211,6 +138,7 @@
     "namespace": {
       "type": "object",
       "required": ["mount", "label", "edition", "page_count"],
+      "additionalProperties": true,
       "properties": {
         "mount": { "type": "string" },
         "label": { "type": "string" },
@@ -221,23 +149,11 @@
     "inventory": {
       "type": "object",
       "required": ["id"],
+      "additionalProperties": true,
       "properties": {
         "id": { "type": "string" },
         "url": { "type": "string" },
         "format": { "type": "string" }
-      }
-    },
-    "structure_index": {
-      "type": "object",
-      "required": ["schema_version", "directive_count", "heading_count"],
-      "properties": {
-        "schema_version": { "type": "integer" },
-        "directive_count": { "type": "integer", "minimum": 0 },
-        "heading_count": { "type": "integer", "minimum": 0 },
-        "directive_names": {
-          "type": "array",
-          "items": { "type": "string" }
-        }
       }
     }
   }

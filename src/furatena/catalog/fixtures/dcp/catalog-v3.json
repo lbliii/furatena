@@ -1,0 +1,189 @@
+{
+  "schema_version": 3,
+  "version": 3,
+  "channel": "latest",
+  "edition": "latest",
+  "page_count": 2,
+  "pages": [
+    {
+      "node_id": "chirp:latest:index",
+      "url": "/",
+      "slug": "",
+      "title": "Home",
+      "description": "DCP v3 fixture home page.",
+      "section": "root",
+      "weight": 1,
+      "tags": ["fixture"],
+      "source_path": "_index.md",
+      "source": "markdown",
+      "source_kind": "filesystem",
+      "source_provider": "filesystem",
+      "source_repo": "lbliii/furatena",
+      "source_ref": "main",
+      "generated_from": null,
+      "owner": "docs-platform",
+      "team": "docs-platform",
+      "tenant": "default",
+      "site": "docs",
+      "output_channel": "latest",
+      "last_indexed_at": "2026-06-26T00:00:00Z",
+      "provenance": {
+        "provider": "filesystem",
+        "repo": "lbliii/furatena",
+        "ref": "main",
+        "path": "_index.md",
+        "generated_from": null,
+        "owner": "docs-platform",
+        "team": "docs-platform",
+        "mount": "chirp",
+        "edition": "latest",
+        "tenant": "default",
+        "site": "docs",
+        "output_channel": "latest",
+        "last_indexed_at": "2026-06-26T00:00:00Z"
+      },
+      "content_format": "patitas-markdown",
+      "doc_version": null,
+      "mount": "chirp",
+      "edition": "latest",
+      "lang": "en",
+      "translation_key": "index",
+      "section_root": false,
+      "body_md": "# Home\n\n[Install](/docs/install/)\n",
+      "body_source": "# Home\n\n[Install](/docs/install/)\n",
+      "body_text": "Home\nInstall",
+      "toc": [
+        { "anchor": "home", "text": "Home", "depth": 1 }
+      ],
+      "backlinks": [],
+      "content": {
+        "headings": [
+          { "level": 1, "text": "Home", "anchor": "home", "line": 1 }
+        ],
+        "links": [
+          { "href": "/docs/install/", "text": "Install", "line": 3 }
+        ],
+        "extensions": [
+          { "name": "callout", "options": { "type": "tip" }, "line": 5 }
+        ],
+        "directives": [
+          { "name": "callout", "options": { "type": "tip" }, "line": 5 }
+        ]
+      },
+      "sections": [
+        { "id": "home", "heading": "Home", "depth": 1, "text": "Install" }
+      ],
+      "ast_path": "index.json",
+      "native_ast": { "format": "patitas-markdown", "path": "index.json" }
+    },
+    {
+      "node_id": "chirp:latest:docs/install",
+      "url": "/docs/install/",
+      "slug": "docs/install",
+      "title": "Install",
+      "description": "DCP v3 fixture install page.",
+      "section": "docs",
+      "weight": 10,
+      "tags": ["setup"],
+      "source_path": "docs/install.md",
+      "source": "markdown",
+      "source_kind": "filesystem",
+      "source_provider": "filesystem",
+      "source_repo": "lbliii/furatena",
+      "source_ref": "main",
+      "generated_from": null,
+      "owner": "docs-platform",
+      "team": "docs-platform",
+      "tenant": "default",
+      "site": "docs",
+      "output_channel": "latest",
+      "last_indexed_at": "2026-06-26T00:00:00Z",
+      "provenance": {
+        "provider": "filesystem",
+        "repo": "lbliii/furatena",
+        "ref": "main",
+        "path": "docs/install.md",
+        "generated_from": null,
+        "owner": "docs-platform",
+        "team": "docs-platform",
+        "mount": "chirp",
+        "edition": "latest",
+        "tenant": "default",
+        "site": "docs",
+        "output_channel": "latest",
+        "last_indexed_at": "2026-06-26T00:00:00Z"
+      },
+      "content_format": "patitas-markdown",
+      "doc_version": null,
+      "mount": "chirp",
+      "edition": "latest",
+      "lang": "en",
+      "translation_key": "docs/install",
+      "section_root": false,
+      "body_md": "# Install\n",
+      "body_source": "# Install\n",
+      "body_text": "Install",
+      "toc": [
+        { "anchor": "install", "text": "Install", "depth": 1 }
+      ],
+      "backlinks": [
+        { "title": "Home", "href": "/" }
+      ],
+      "content": {
+        "headings": [
+          { "level": 1, "text": "Install", "anchor": "install", "line": 1 }
+        ],
+        "links": [],
+        "extensions": [],
+        "directives": []
+      },
+      "sections": [
+        { "id": "install", "heading": "Install", "depth": 1, "text": "" }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "chirp:latest:index",
+      "target": "chirp:latest:docs/install",
+      "kind": "link",
+      "mount": "chirp",
+      "edition": "latest"
+    },
+    {
+      "source": "chirp:latest:docs/install",
+      "target": "owner:docs-platform",
+      "kind": "owned_by",
+      "mount": "chirp",
+      "edition": "latest"
+    },
+    {
+      "source": "chirp:latest:docs/install",
+      "target": "release:latest",
+      "kind": "available_in",
+      "mount": "chirp",
+      "edition": "latest"
+    }
+  ],
+  "namespaces": [
+    {
+      "mount": "chirp",
+      "label": "Chirp",
+      "edition": "latest",
+      "page_count": 2
+    }
+  ],
+  "inventories": [
+    {
+      "id": "local-catalog",
+      "url": "/objects.inv",
+      "format": "dcp-catalog"
+    }
+  ],
+  "structure_index": {
+    "schema_version": 1,
+    "directive_count": 1,
+    "heading_count": 2,
+    "directive_names": ["callout"]
+  }
+}

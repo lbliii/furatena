@@ -117,6 +117,7 @@ def _parallel_registry_load(workers: int) -> CatalogRegistry:
         config_path=AUTODOC_CONFIG,
         repo_root=REPO,
         frozen_dir=ROOT / "frozen",
+        mount="furatena",
     )
 
     with ThreadPoolExecutor(max_workers=workers) as pool:

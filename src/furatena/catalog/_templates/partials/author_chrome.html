@@ -1,0 +1,70 @@
+{% if author_chrome is defined and author_chrome %}
+<section
+  id="fura-author-chrome"
+  class="chirpui-card chirpui-stack chirpui-stack--sm fura-author-chrome"
+  data-fura-author-chrome
+  data-fura-author-slug="{{ author_chrome.slug }}"
+  data-fura-author-states="{{ author_chrome.states | join(' ') }}"
+  aria-label="Author page status"
+>
+  <div class="chirpui-cluster fura-author-chrome__header">
+    <div class="chirpui-stack chirpui-stack--xs">
+      <strong>Author status</strong>
+      <code>{{ author_chrome.source_path }}</code>
+    </div>
+    <div class="chirpui-cluster" aria-label="Author status indicators">
+      {% for state in author_chrome.states %}
+      <span class="chirpui-badge" data-author-state="{{ state }}">{{ state }}</span>
+      {% end %}
+    </div>
+  </div>
+
+  <dl class="chirpui-description-list">
+    <div>
+      <dt>Format</dt>
+      <dd>{{ author_chrome.content_format }}</dd>
+    </div>
+    <div>
+      <dt>Visibility</dt>
+      <dd>{{ author_chrome.visibility }}</dd>
+    </div>
+    <div>
+      <dt>Validation</dt>
+      <dd>
+        {% if author_chrome.validation.ok %}
+        clean
+        {% else %}
+        invalid ({{ author_chrome.validation.error_count }})
+        {% end %}
+      </dd>
+    </div>
+    <div>
+      <dt>Indexed</dt>
+      <dd>{{ author_chrome.last_indexed_at ?? 'not indexed' }}</dd>
+    </div>
+    <div>
+      <dt>Modified</dt>
+      <dd>{{ author_chrome.source_modified_at ?? 'unknown' }}</dd>
+    </div>
+    <div>
+      <dt>Public output</dt>
+      <dd>{{ author_chrome.export_impact.label }}</dd>
+    </div>
+  </dl>
+
+  <div class="chirpui-cluster" aria-label="Author page actions">
+    <a class="chirpui-btn chirpui-btn--secondary" href="{{ author_chrome.actions.studio }}">Studio</a>
+    <a class="chirpui-btn chirpui-btn--secondary" href="{{ author_chrome.actions.open_source }}">Open source</a>
+    <button
+      class="chirpui-btn chirpui-btn--secondary"
+      type="button"
+      data-action="copy-source-path"
+      data-source-path="{{ author_chrome.source_path }}"
+    >Copy source path</button>
+    <a class="chirpui-btn chirpui-btn--secondary" href="{{ author_chrome.actions.validate }}">Validate page</a>
+    <a class="chirpui-btn chirpui-btn--secondary" href="{{ author_chrome.actions.mark_draft }}">Mark draft</a>
+    <a class="chirpui-btn chirpui-btn--secondary" href="{{ author_chrome.actions.publish }}">Publish</a>
+    <a class="chirpui-btn chirpui-btn--secondary" href="{{ author_chrome.actions.inspect_public }}">Inspect public output</a>
+  </div>
+</section>
+{% end %}

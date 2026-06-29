@@ -56,7 +56,7 @@ def read_autodoc_fingerprint(frozen_dir: Path) -> str | None:
     return path.read_text(encoding="utf-8").strip() or None
 
 
-def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str = "chirp") -> list[DocNode]:
+def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str) -> list[DocNode]:
     """Load autodoc nodes from a frozen mount shard."""
     mount_dir = frozen_dir / "mounts" / mount
     graph_path = mount_dir / "catalog.json"
@@ -96,7 +96,7 @@ def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str = "chirp") -> list
                 toc=toc,
                 source_path=str(page.get("source_path") or ""),
                 meta={"source": "autodoc"},
-                mount=str(page.get("mount") or mount),
+                mount=mount,
                 edition=str(page.get("edition") or "latest"),
                 section_root=bool(page.get("section_root")),
                 html_path=html_path_ref,
@@ -111,6 +111,7 @@ def load_cached_autodoc_nodes(
     config_path: Path | None,
     repo_root: Path,
     frozen_dir: Path | None,
+    mount: str,
 ) -> list[DocNode] | None:
     """Return frozen autodoc nodes when fingerprint matches; else None."""
     if config_path is None or frozen_dir is None:
@@ -120,5 +121,5 @@ def load_cached_autodoc_nodes(
         return None
     if autodoc_fingerprint(config_path, repo_root=repo_root) != expected:
         return None
-    nodes = autodoc_nodes_from_frozen(frozen_dir)
+    nodes = autodoc_nodes_from_frozen(frozen_dir, mount=mount)
     return nodes or None

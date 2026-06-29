@@ -14,12 +14,21 @@ if TYPE_CHECKING:
 class EdgeKind(StrEnum):
     """Relationship kinds in the documentation graph."""
 
-    PARENT = "parent"
-    LINK = "link"
+    AVAILABLE_IN = "available_in"
+    BREAKS = "breaks"
+    EXPLAINS = "explains"
+    GENERATED_FROM = "generated_from"
+    IMPLEMENTS = "implements"
     NAV_NEXT = "nav_next"
     NAV_PREV = "nav_prev"
+    OWNED_BY = "owned_by"
+    PARENT = "parent"
+    LINK = "link"
+    REQUIRES = "requires"
+    SUPERSEDES = "supersedes"
     TAG = "tag"
     TRANSLATION = "translation"
+    VALIDATES = "validates"
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +86,84 @@ def _parent_slug(slug: str) -> str | None:
     return slug.rsplit("/", 1)[0]
 
 
+_META_EDGE_KEYS: dict[str, EdgeKind] = {
+    "available_in": EdgeKind.AVAILABLE_IN,
+    "available-in": EdgeKind.AVAILABLE_IN,
+    "breaks": EdgeKind.BREAKS,
+    "explains": EdgeKind.EXPLAINS,
+    "generated_from": EdgeKind.GENERATED_FROM,
+    "generated-from": EdgeKind.GENERATED_FROM,
+    "implements": EdgeKind.IMPLEMENTS,
+    "requires": EdgeKind.REQUIRES,
+    "supersedes": EdgeKind.SUPERSEDES,
+    "validates": EdgeKind.VALIDATES,
+}
+
+
+def _iter_values(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        stripped = value.strip()
+        return (stripped,) if stripped else ()
+    if isinstance(value, dict):
+        for key in ("id", "node_id", "slug", "url", "path", "name"):
+            item = value.get(key)
+            if item:
+                return (str(item).strip(),)
+        return ()
+    if isinstance(value, (list, tuple, set, frozenset)):
+        values: list[str] = []
+        for item in value:
+            values.extend(_iter_values(item))
+        return tuple(values)
+    return (str(value).strip(),)
+
+
+def _external_target(value: str, *, default_prefix: str) -> str:
+    if ":" in value:
+        return value
+    return f"{default_prefix}:{value}"
+
+
+def _semantic_target(value: str, catalog: DocCatalog, id_by_url: dict[str, str]) -> str:
+    if value.startswith("/"):
+        return id_by_url.get(value if value.endswith("/") else f"{value}/", value)
+    node = catalog.get_by_slug(value.strip("/"))
+    if node is not None:
+        return node.node_id
+    if value.endswith(
+        (
+            ".json",
+            ".md",
+            ".mdx",
+            ".rst",
+            ".html",
+            ".py",
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            ".yaml",
+            ".yml",
+        )
+    ):
+        return _external_target(value, default_prefix="source")
+    return value if ":" in value else f"ref:{value}"
+
+
+def _append_edge(
+    edges: list[GraphEdge],
+    seen: set[tuple[str, str, str, str, str]],
+    edge: GraphEdge,
+) -> None:
+    key = (edge.kind.value, edge.source, edge.target, edge.mount, edge.edition)
+    if key in seen:
+        return
+    seen.add(key)
+    edges.append(edge)
+
+
 def build_graph_edges(
     catalog: DocCatalog,
     *,
@@ -85,6 +172,7 @@ def build_graph_edges(
 ) -> list[GraphEdge]:
     """Build typed edges for all nodes in a catalog shard."""
     edges: list[GraphEdge] = []
+    seen: set[tuple[str, str, str, str, str]] = set()
     local_nodes_by_id = {node.node_id: node for node in catalog.nodes}
     resolved_nodes_by_id = nodes_by_id or local_nodes_by_id
     id_by_url = url_index or {node.url: node.node_id for node in catalog.nodes}
@@ -94,7 +182,9 @@ def build_graph_edges(
         if parent_slug is not None:
             parent = catalog.get_by_slug(parent_slug)
             if parent is not None and parent.mount == node.mount and parent.edition == node.edition:
-                edges.append(
+                _append_edge(
+                    edges,
+                    seen,
                     GraphEdge(
                         kind=EdgeKind.PARENT,
                         source=node.node_id,
@@ -104,16 +194,18 @@ def build_graph_edges(
                     )
                 )
 
-        edges.extend(
-            GraphEdge(
-                kind=EdgeKind.TAG,
-                source=node.node_id,
-                target=f"tag:{tag}",
-                mount=node.mount,
-                edition=node.edition,
+        for tag in sorted(node.tags):
+            _append_edge(
+                edges,
+                seen,
+                GraphEdge(
+                    kind=EdgeKind.TAG,
+                    source=node.node_id,
+                    target=f"tag:{tag}",
+                    mount=node.mount,
+                    edition=node.edition,
+                ),
             )
-            for tag in sorted(node.tags)
-        )
 
         from furatena.catalog.graph import extract_page_links
 
@@ -127,7 +219,9 @@ def build_graph_edges(
                 continue
             if target_node.edition != node.edition:
                 continue
-            edges.append(
+            _append_edge(
+                edges,
+                seen,
                 GraphEdge(
                     kind=EdgeKind.LINK,
                     source=node.node_id,
@@ -139,7 +233,9 @@ def build_graph_edges(
 
         prev_node, next_node = catalog.prev_next(node)
         if prev_node is not None and prev_node.node_id in local_nodes_by_id:
-            edges.append(
+            _append_edge(
+                edges,
+                seen,
                 GraphEdge(
                     kind=EdgeKind.NAV_PREV,
                     source=node.node_id,
@@ -149,7 +245,9 @@ def build_graph_edges(
                 )
             )
         if next_node is not None and next_node.node_id in local_nodes_by_id:
-            edges.append(
+            _append_edge(
+                edges,
+                seen,
                 GraphEdge(
                     kind=EdgeKind.NAV_NEXT,
                     source=node.node_id,
@@ -158,6 +256,39 @@ def build_graph_edges(
                     edition=node.edition,
                 )
             )
+
+        owner = str(node.meta.get("owner") or node.meta.get("team") or "").strip()
+        if owner:
+            _append_edge(
+                edges,
+                seen,
+                GraphEdge(
+                    kind=EdgeKind.OWNED_BY,
+                    source=node.node_id,
+                    target=_external_target(owner, default_prefix="owner"),
+                    mount=node.mount,
+                    edition=node.edition,
+                ),
+            )
+
+        for meta_key, kind in _META_EDGE_KEYS.items():
+            for value in _iter_values(node.meta.get(meta_key)):
+                target = (
+                    _external_target(value, default_prefix="release")
+                    if kind == EdgeKind.AVAILABLE_IN
+                    else _semantic_target(value, catalog, id_by_url)
+                )
+                _append_edge(
+                    edges,
+                    seen,
+                    GraphEdge(
+                        kind=kind,
+                        source=node.node_id,
+                        target=target,
+                        mount=node.mount,
+                        edition=node.edition,
+                    ),
+                )
 
     return edges
 

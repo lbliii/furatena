@@ -158,6 +158,61 @@ class TestCatalogGraphV3:
         assert page["body_text"] == "Test body"
         assert page["body_md"] == "# Test"
 
+    def test_v3_export_includes_provenance_and_owner_fields(self) -> None:
+        node = DocNode(
+            url="/docs/test/",
+            slug="docs/test",
+            title="Test",
+            description="",
+            layout="doc",
+            weight=1,
+            section="test",
+            tags=frozenset(),
+            body_md="# Test",
+            body_html="<h1>Test</h1>",
+            toc=(),
+            source_path="docs/test.md",
+            meta={
+                "owner": "docs-platform",
+                "source_provider": "git",
+                "source_repo": "lbliii/furatena",
+                "source_ref": "main",
+                "tenant": "default",
+                "site": "docs",
+            },
+            mount="docs",
+            edition="latest",
+        )
+
+        class _Catalog:
+            active_channel = "latest"
+            nodes = (node,)
+
+            def doc_nodes(self):
+                return [node]
+
+            def backlinks_for(self, _node):
+                return []
+
+            def graph_edges(self):
+                return []
+
+            def namespaces(self):
+                return []
+
+        payload = catalog_graph(_Catalog(), schema_version=3)
+        page = payload["pages"][0]
+        assert page["source_provider"] == "git"
+        assert page["source_repo"] == "lbliii/furatena"
+        assert page["source_ref"] == "main"
+        assert page["owner"] == "docs-platform"
+        assert page["team"] == "docs-platform"
+        assert page["tenant"] == "default"
+        assert page["site"] == "docs"
+        assert page["output_channel"] == "latest"
+        assert page["provenance"]["path"] == "docs/test.md"
+        assert page["provenance"]["mount"] == "docs"
+
     def test_v2_compat_export(self) -> None:
         node = DocNode(
             url="/docs/test/",

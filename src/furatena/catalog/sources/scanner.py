@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from furatena.catalog.lifecycle import is_public_meta
 from furatena.catalog.sources.parse import parse_source_text
 from furatena.catalog.sources.types import MountSourceConfig, PageSource
 
@@ -50,7 +51,13 @@ class FilesystemScanner:
     def config(self) -> MountSourceConfig:
         return self._config
 
-    def scan(self, content_root: Path, *, url_prefix: str = "") -> list[PageSource]:
+    def scan(
+        self,
+        content_root: Path,
+        *,
+        url_prefix: str = "",
+        include_private: bool = False,
+    ) -> list[PageSource]:
         extensions = self._config.tracked_extensions()
         files: list[Path] = []
         for ext in extensions:
@@ -73,7 +80,7 @@ class FilesystemScanner:
             source = path.read_text(encoding="utf-8")
             content_format = self._config.content_format_for(path)
             meta, body = parse_source_text(source, content_format=content_format)
-            if meta.get("draft"):
+            if not include_private and not is_public_meta(meta):
                 continue
             url, slug = file_to_url(
                 content_root,

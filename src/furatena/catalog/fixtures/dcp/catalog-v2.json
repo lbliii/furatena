@@ -1,0 +1,102 @@
+{
+  "schema_version": 2,
+  "version": 2,
+  "channel": "latest",
+  "edition": "latest",
+  "page_count": 2,
+  "pages": [
+    {
+      "node_id": "chirp:latest:index",
+      "url": "/",
+      "slug": "",
+      "title": "Home",
+      "description": "Compatibility fixture home page.",
+      "section": "root",
+      "weight": 1,
+      "tags": ["fixture"],
+      "source_path": "_index.md",
+      "source": "markdown",
+      "doc_version": null,
+      "mount": "chirp",
+      "edition": "latest",
+      "section_root": false,
+      "toc": [
+        { "anchor": "home", "text": "Home", "depth": 1 }
+      ],
+      "backlinks": [],
+      "content": {
+        "headings": [
+          { "level": 1, "text": "Home", "anchor": "home", "line": 1 }
+        ],
+        "links": [
+          { "href": "/docs/install/", "text": "Install", "line": 3 }
+        ],
+        "directives": [
+          { "name": "callout", "options": { "type": "tip" }, "line": 5 }
+        ]
+      },
+      "body_md": "# Home\n\n[Install](/docs/install/)\n"
+    },
+    {
+      "node_id": "chirp:latest:docs/install",
+      "url": "/docs/install/",
+      "slug": "docs/install",
+      "title": "Install",
+      "description": "Compatibility fixture install page.",
+      "section": "docs",
+      "weight": 10,
+      "tags": ["setup"],
+      "source_path": "docs/install.md",
+      "source": "markdown",
+      "doc_version": null,
+      "mount": "chirp",
+      "edition": "latest",
+      "section_root": false,
+      "toc": [
+        { "anchor": "install", "text": "Install", "depth": 1 }
+      ],
+      "backlinks": [
+        { "title": "Home", "href": "/" }
+      ],
+      "content": {
+        "headings": [
+          { "level": 1, "text": "Install", "anchor": "install", "line": 1 }
+        ],
+        "links": [],
+        "directives": []
+      },
+      "body_md": "# Install\n"
+    }
+  ],
+  "edges": [
+    {
+      "source": "chirp:latest:index",
+      "target": "chirp:latest:docs/install",
+      "kind": "link",
+      "mount": "chirp",
+      "edition": "latest"
+    },
+    {
+      "source": "chirp:latest:docs/install",
+      "target": "tag:setup",
+      "kind": "tag",
+      "mount": "chirp",
+      "edition": "latest"
+    }
+  ],
+  "namespaces": [
+    {
+      "mount": "chirp",
+      "label": "Chirp",
+      "edition": "latest",
+      "page_count": 2
+    }
+  ],
+  "inventories": [
+    {
+      "id": "local-catalog",
+      "url": "/objects.inv",
+      "format": "dcp-catalog"
+    }
+  ]
+}

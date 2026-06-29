@@ -3,6 +3,16 @@
 
 {% block page_root %}
 <div id="page-root" class="chirpui-page-fill" data-fura-surface="{{ chirp_docs_surface | default('app') }}">
+{% if fura_author() and node is defined and node %}
+<div id="fura-author-sse"
+     hidden
+     hx-ext="sse"
+     sse-connect="/docs/_author/events?slug={{ node.slug }}"
+     hx-disinherit="hx-target hx-swap"
+     hx-target="this">
+  <div hidden sse-swap="author-invalidate" hx-target="this" hx-swap="none"></div>
+</div>
+{% end %}
 {% block page_root_inner %}
 {% block page_content %}
 {% let page_title = catalog_title ?? node?.title ?? '' %}
@@ -27,6 +37,7 @@
       </div>
     </section>
 
+    {% include "partials/author_chrome.html" %}
     {% block catalog_article %}{% end %}
     {% block catalog_doc_nav %}{% end %}
   </div>

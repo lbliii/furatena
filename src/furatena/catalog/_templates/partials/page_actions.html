@@ -73,6 +73,39 @@
       <span>Copy LLM text</span>
     </button>
 
+    {% if author_chrome is defined and author_chrome %}
+    <div class="chirp-theme-page-actions__section">Author</div>
+    <a href="{{ author_chrome.actions.studio }}" class="chirp-theme-page-actions__item">
+      {{ docs_icon('external', 15) }}
+      <span>Studio</span>
+    </a>
+    <a href="{{ author_chrome.actions.open_source }}" class="chirp-theme-page-actions__item">
+      {{ docs_icon('external', 15) }}
+      <span>Open source</span>
+    </a>
+    <button
+      class="chirp-theme-page-actions__item"
+      data-action="copy-source-path"
+      data-source-path="{{ author_chrome.source_path }}"
+      type="button"
+    >
+      {{ docs_icon('copy', 15) }}
+      <span>Copy source path</span>
+    </button>
+    <a href="{{ author_chrome.actions.validate }}" class="chirp-theme-page-actions__item">
+      {{ docs_icon('sparkle', 15) }}
+      <span>Validate page</span>
+    </a>
+    <a href="{{ author_chrome.actions.mark_draft }}" class="chirp-theme-page-actions__item">
+      {{ docs_icon('sparkle', 15) }}
+      <span>Mark draft</span>
+    </a>
+    <a href="{{ author_chrome.actions.publish }}" class="chirp-theme-page-actions__item">
+      {{ docs_icon('external', 15) }}
+      <span>Publish</span>
+    </a>
+    {% end %}
+
     <div class="chirp-theme-page-actions__section">Share with AI</div>
     {% set share_prompt = "Please help me understand this documentation: " ~ llm_txt_url %}
     <a href="https://claude.ai/new?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item chirp-theme-page-actions__item--ai" data-ai="claude">

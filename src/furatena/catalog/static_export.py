@@ -57,6 +57,16 @@ class StaticExportOptions:
     include_search: bool = True
     incremental: bool = False
     extra_routes: tuple[str, ...] = ()
+    allow_lifecycle_errors: bool = False
+
+
+class StaticExportLifecycleError(RuntimeError):
+    """Raised when public export would violate lifecycle safety checks."""
+
+    def __init__(self, errors: list[str], warnings: list[str]) -> None:
+        super().__init__("static export blocked by lifecycle safety checks")
+        self.errors = errors
+        self.warnings = warnings
 
 
 def docs_base_path() -> str:
@@ -341,12 +351,14 @@ def _canonical_export_path(url_path: str) -> str:
 
 def _collect_routes(docs_app: DocsApp, options: StaticExportOptions) -> list[str]:
     from furatena.catalog.i18n import collect_i18n_export_routes, collect_i18n_home_routes
+    from furatena.catalog.lifecycle import public_nodes
 
-    routes = {_canonical_export_path(node.url) for node in docs_app.catalog.nodes}
+    public_urls = {node.url for node in public_nodes(docs_app.catalog.nodes)}
+    routes = {_canonical_export_path(url) for url in public_urls}
     i18n = docs_app.config.i18n
     if i18n.enabled:
         routes.update(collect_i18n_home_routes(i18n))
-        routes.update(collect_i18n_export_routes(docs_app.catalog, i18n))
+        routes.update(url for url in collect_i18n_export_routes(docs_app.catalog, i18n) if url in public_urls)
     if options.include_portal and "/portal/" not in routes:
         routes.add("/portal/")
     if options.include_search:
@@ -394,13 +406,16 @@ def _write_hosting_files(output_dir: Path, *, site_url: str | None, base_path: s
 
 
 def _index_txt_routes(docs_app: DocsApp) -> list[str]:
+    from furatena.catalog.lifecycle import public_nodes
+
     routes: list[str] = []
     nodes = (
         docs_app.catalog.all_doc_nodes()
         if hasattr(docs_app.catalog, "all_doc_nodes")
         else docs_app.catalog.doc_nodes()
     )
-    for node in nodes:
+    public_urls = {node.url for node in public_nodes(nodes)}
+    for node in public_nodes(nodes):
         url = node.url.rstrip("/")
         if not url.startswith("/docs/") and url != "/docs":
             continue
@@ -410,6 +425,8 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
         from furatena.catalog.i18n import collect_i18n_export_routes
 
         for url in collect_i18n_export_routes(docs_app.catalog, i18n):
+            if url not in public_urls:
+                continue
             routes.append(f"{url.rstrip('/')}/index.txt")
     return routes
 
@@ -431,11 +448,17 @@ def _prune_stale_outputs(output_dir: Path, *, keep_paths: set[Path]) -> int:
 async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> StaticExportResult:
     from chirp.testing.client import TestClient
 
+    from furatena.catalog.lifecycle import check_lifecycle_sources
+
     output_dir = options.output_dir.resolve()
     base_path = normalize_base_path(options.base_path or docs_base_path())
     frozen_dir = options.frozen_dir
     if frozen_dir is None and docs_app.serve.frozen_dir is not None:
         frozen_dir = docs_app.serve.frozen_dir
+    if not options.allow_lifecycle_errors:
+        lifecycle_errors, lifecycle_warnings = check_lifecycle_sources(docs_app.catalog)
+        if lifecycle_errors:
+            raise StaticExportLifecycleError(lifecycle_errors, lifecycle_warnings)
 
     if options.incremental and output_dir.is_dir():
         pass

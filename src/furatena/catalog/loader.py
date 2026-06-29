@@ -43,6 +43,7 @@ from furatena.catalog.versions import (
 from furatena.catalog.workers import resolve_workers
 
 _MD_LINK_RE = re.compile(r"\]\((/[^)#]+)\)")
+_FULL_AUTHOR_RELOAD_HINTS = ("page-root", "toc-panel", "head-meta", "docs-sidebar")
 
 
 def _normalize_url(url: str) -> str:
@@ -126,6 +127,7 @@ class DocCatalog:
         workers: int | None = None,
         i18n_config: DocsI18nConfig | None = None,
         catalog_nav: CatalogNavConfig | None = None,
+        include_private: bool = False,
     ) -> None:
         self.content_root = content_root
         self.auto_reload = auto_reload
@@ -166,6 +168,7 @@ class DocCatalog:
         self._workers = resolve_workers(workers)
         self.i18n_config = i18n_config or DocsI18nConfig()
         self.catalog_nav = catalog_nav
+        self.include_private = include_private
         self._doc_nodes_lang: str | None = None
         self._load()
 
@@ -203,10 +206,25 @@ class DocCatalog:
         if not self._raw_pages:
             self._scan_sources()
         if len(dirty_paths) > len(source_files) // 2:
+            dirty_slugs = self._slugs_for_paths(dirty_paths)
             self._load()
+            for slug in dirty_slugs:
+                if self.get_by_slug(slug) is not None:
+                    self._last_invalidations[slug] = _FULL_AUTHOR_RELOAD_HINTS
         else:
             self._reindex_paths(dirty_paths)
         return True
+
+    def _slugs_for_paths(self, paths: set[Path]) -> tuple[str, ...]:
+        path_set = {path.resolve() for path in paths}
+        slugs: list[str] = []
+        for page in self._raw_pages:
+            path = page.get("path")
+            if isinstance(path, Path) and path.resolve() in path_set:
+                slug = str(page.get("slug") or "").strip("/")
+                if slug:
+                    slugs.append(slug)
+        return tuple(dict.fromkeys(slugs))
 
     def _iter_source_files(self) -> list[Path]:
         files: list[Path] = []
@@ -268,7 +286,11 @@ class DocCatalog:
             lang_dir = locale_root / lang
             if not lang_dir.is_dir():
                 continue
-            lang_scanned = self._scanner.scan(lang_dir, url_prefix=self.url_prefix)
+            lang_scanned = self._scanner.scan(
+                lang_dir,
+                url_prefix=self.url_prefix,
+                include_private=self.include_private,
+            )
             for page in lang_scanned:
                 self._source_mtimes[page.path] = page.path.stat().st_mtime
                 meta = dict(page.meta)
@@ -289,7 +311,11 @@ class DocCatalog:
         return overlay_pages
 
     def _scan_sources(self) -> list[dict[str, Any]]:
-        scanned = self._scanner.scan(self.content_root, url_prefix=self.url_prefix)
+        scanned = self._scanner.scan(
+            self.content_root,
+            url_prefix=self.url_prefix,
+            include_private=self.include_private,
+        )
         for page in scanned:
             self._source_mtimes[page.path] = page.path.stat().st_mtime
 
@@ -487,6 +513,7 @@ class DocCatalog:
                 config_path=self.autodoc_config,
                 repo_root=self.repo_root,
                 frozen_dir=getattr(self, "_frozen_shard_dir", None),
+                mount=self.mount,
             )
         if cached is not None:
             for node in cached:
@@ -1032,6 +1059,7 @@ class DocCatalog:
         catalog._last_invalidations = {}
         catalog.i18n_config = DocsI18nConfig()
         catalog.catalog_nav = catalog_nav
+        catalog.include_private = False
         catalog._doc_nodes_lang = None
         catalog._workers = 1
         catalog.source_config = MountSourceConfig()
@@ -1077,6 +1105,51 @@ class DocCatalog:
                 ast_file = ast_dir / str(ast_rel)
                 if ast_file.is_file():
                     ast_json = ast_file.read_text(encoding="utf-8")
+            meta = {
+                "source": page.get("source") or "markdown",
+                "doc_version": page.get("doc_version"),
+                "lang": page.get("lang"),
+                "translation_key": page.get("translation_key"),
+            }
+            for key in (
+                "available_in",
+                "breaks",
+                "explains",
+                "generated_from",
+                "implements",
+                "last_indexed_at",
+                "owner",
+                "provider",
+                "repo",
+                "requires",
+                "site",
+                "source_provider",
+                "source_ref",
+                "source_repo",
+                "supersedes",
+                "team",
+                "tenant",
+                "validates",
+            ):
+                value = page.get(key)
+                if value not in (None, ""):
+                    meta[key] = value
+            provenance = page.get("provenance")
+            if isinstance(provenance, dict):
+                for source_key, target_key in (
+                    ("provider", "source_provider"),
+                    ("repo", "source_repo"),
+                    ("ref", "source_ref"),
+                    ("generated_from", "generated_from"),
+                    ("owner", "owner"),
+                    ("team", "team"),
+                    ("tenant", "tenant"),
+                    ("site", "site"),
+                    ("last_indexed_at", "last_indexed_at"),
+                ):
+                    value = provenance.get(source_key)
+                    if value not in (None, ""):
+                        meta[target_key] = value
             node = DocNode(
                 url=page["url"],
                 slug=slug,
@@ -1090,13 +1163,8 @@ class DocCatalog:
                 body_html=body_html,
                 toc=toc,
                 source_path=str(page.get("source_path") or ""),
-                meta={
-                    "source": page.get("source") or "markdown",
-                    "doc_version": page.get("doc_version"),
-                    "lang": page.get("lang"),
-                    "translation_key": page.get("translation_key"),
-                },
-                mount=str(page.get("mount") or mount),
+                meta=meta,
+                mount=mount,
                 edition=str(page.get("edition") or catalog.active_channel),
                 lang=str(page.get("lang") or "en"),
                 translation_key=page.get("translation_key"),

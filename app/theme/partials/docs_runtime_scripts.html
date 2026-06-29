@@ -259,13 +259,81 @@
 
   function setupAuthorReload() {
     if (!{{ 'true' if fura_author | default(false) else 'false' }}) return;
-    if (window.__furaDocsAuthorPoll) return;
-    window.__furaDocsAuthorPoll = true;
+    if (window.__furaDocsAuthorReload) return;
+    window.__furaDocsAuthorReload = true;
     var reloading = false;
+    var pollTimer = null;
+
+    function authorMarker() {
+      return document.getElementById("fura-author-sse");
+    }
+
+    function currentSlug() {
+      var marker = authorMarker();
+      var connect = marker && marker.getAttribute("sse-connect");
+      if (connect) {
+        try {
+          var url = new URL(connect, window.location.origin);
+          var markerSlug = url.searchParams.get("slug");
+          if (markerSlug) return markerSlug;
+        } catch (error) {}
+      }
+      return document.body.getAttribute("data-fura-slug") || "";
+    }
+
+    function focusSnapshot() {
+      var active = document.activeElement;
+      if (!active || active === document.body || !active.matches) return null;
+      var selector = active.id && window.CSS && CSS.escape ? "#" + CSS.escape(active.id) : null;
+      if (!selector && active.name && window.CSS && CSS.escape) {
+        selector = active.tagName.toLowerCase() + "[name=\"" + CSS.escape(active.name) + "\"]";
+      }
+      return {
+        selector: selector,
+        start: typeof active.selectionStart === "number" ? active.selectionStart : null,
+        end: typeof active.selectionEnd === "number" ? active.selectionEnd : null,
+      };
+    }
+
+    function restoreViewport(snapshot) {
+      if (!snapshot) return;
+      if (snapshot.focus && snapshot.focus.selector) {
+        var target = document.querySelector(snapshot.focus.selector);
+        if (target && typeof target.focus === "function") {
+          target.focus({ preventScroll: true });
+          if (snapshot.focus.start !== null && typeof target.setSelectionRange === "function") {
+            target.setSelectionRange(snapshot.focus.start, snapshot.focus.end);
+          }
+        }
+      }
+      window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+    }
+
+    function payloadFromSseEvent(event) {
+      var detail = event && event.detail ? event.detail : event;
+      var raw = detail && typeof detail.data === "string" ? detail.data : "";
+      if (!raw && detail && detail.event && typeof detail.event.data === "string") {
+        raw = detail.event.data;
+      }
+      if (!raw && event && typeof event.data === "string") {
+        raw = event.data;
+      }
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (error) {
+        return null;
+      }
+    }
 
     function reloadCurrentPage() {
       if (reloading || !window.htmx || typeof htmx.ajax !== "function") return;
       reloading = true;
+      var snapshot = {
+        focus: focusSnapshot(),
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+      };
       htmx.ajax("GET", window.location.pathname + window.location.search, {
         source: document.body,
         target: document.body,
@@ -276,25 +344,70 @@
         },
       }).finally(function () {
         reloading = false;
+        restoreViewport(snapshot);
       });
     }
 
+    function applyAuthorInvalidation(payload) {
+      window.__furaAuthorLastInvalidation = payload || null;
+      if (payload && payload.current && payload.current.dirty) {
+        window.__furaAuthorReloadCount = (window.__furaAuthorReloadCount || 0) + 1;
+        window.__furaAuthorLastReloadHints = payload.current.target_hints || payload.current.hints || [];
+        window.__furaAuthorLastReloadKind = payload.current.reload ? "full" : "partial";
+        reloadCurrentPage();
+      }
+    }
+
     function pollAuthorStale() {
-      var slug = document.body.getAttribute("data-fura-slug");
+      var slug = currentSlug();
       if (!slug) return;
       fetch("/docs/_author/stale?slug=" + encodeURIComponent(slug), {
         headers: { "Accept": "application/json" },
       })
         .then(function (response) { return response.json(); })
-        .then(function (payload) {
-          if (payload && payload.current && payload.current.dirty) {
-            reloadCurrentPage();
-          }
-        })
+        .then(applyAuthorInvalidation)
         .catch(function () {});
     }
 
-    window.setInterval(pollAuthorStale, 2000);
+    function startPollingFallback() {
+      if (pollTimer) return;
+      window.__furaAuthorReloadMode = "poll";
+      pollTimer = window.setInterval(pollAuthorStale, 2000);
+    }
+
+    function startSseReload() {
+      var marker = authorMarker();
+      if (marker && window.htmx) {
+        marker.addEventListener("htmx:sseMessage", function (event) {
+          applyAuthorInvalidation(payloadFromSseEvent(event));
+        });
+        window.__furaAuthorReloadMode = "sse";
+        return true;
+      }
+      var slug = currentSlug();
+      if (!slug || !window.EventSource) return false;
+      try {
+        var source = new EventSource("/docs/_author/events?slug=" + encodeURIComponent(slug));
+        window.__furaAuthorReloadMode = "sse";
+        source.addEventListener("author-invalidate", function (event) {
+          applyAuthorInvalidation(payloadFromSseEvent(event));
+        });
+        source.onerror = function () {
+          source.close();
+          window.setTimeout(startPollingFallback, 500);
+        };
+        document.body.addEventListener("htmx:beforeCleanupElement", function () {
+          source.close();
+        }, { once: true });
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    if (!startSseReload()) {
+      startPollingFallback();
+    }
   }
 
   function setupShellMobileNav() {
