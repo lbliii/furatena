@@ -1052,20 +1052,35 @@ class FuraMCPServer:
         for node in self._doc_nodes():
             if "api" not in node.tags and node.meta.get("source") != "autodoc":
                 continue
-            operations.append(
-                {
-                    "node_id": node.node_id,
-                    "url": node.url,
-                    "title": node.title,
-                    "description": node.description,
-                    "mount": node.mount,
-                    "edition": node.edition,
-                    "source_path": node.source_path,
-                    "element_type": node.meta.get("element_type"),
-                    "qualified_name": node.meta.get("qualified_name"),
-                    "tags": sorted(node.tags),
-                }
-            )
+            record = {
+                "node_id": node.node_id,
+                "url": node.url,
+                "title": node.title,
+                "description": node.description,
+                "mount": node.mount,
+                "edition": node.edition,
+                "source_path": node.source_path,
+                "element_type": node.meta.get("element_type"),
+                "qualified_name": node.meta.get("qualified_name"),
+                "tags": sorted(node.tags),
+            }
+            api_operation = node.meta.get("api_operation")
+            if isinstance(api_operation, dict):
+                record.update(
+                    {
+                        "operation_id": api_operation.get("operation_id"),
+                        "method": api_operation.get("method"),
+                        "path": api_operation.get("path"),
+                        "summary": api_operation.get("summary"),
+                        "schemas": api_operation.get("schemas") or [],
+                        "request_bodies": api_operation.get("request_bodies") or [],
+                        "responses": api_operation.get("responses") or [],
+                        "examples": api_operation.get("examples") or [],
+                        "auth": api_operation.get("auth") or [],
+                        "environments": api_operation.get("environments") or [],
+                    }
+                )
+            operations.append(record)
         return {"schema_version": 1, "count": len(operations), "operations": operations}
 
     def _nodes(self) -> list[Any]:

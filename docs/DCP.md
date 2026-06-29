@@ -62,6 +62,7 @@ schema version.
 | `output_channel`, `last_indexed_at` | Export channel and index timestamp for stale analysis |
 | `provenance` | Normalized provenance object with provider, repo, ref, path, owner/team, mount, edition, channel, and timestamp |
 | `content_format` | Open string, e.g. `patitas-markdown`, `docutils-rst` |
+| `api_operation` | Operation projection with id, method, path, summary, tags, schemas, examples, auth, environments, and source spec |
 | `mount`, `edition`, `section_root` | Federation |
 | `lang`, `translation_key` | i18n (v3.1+) |
 | `edges[]` | Typed semantic relationships (see taxonomy below) |
@@ -194,7 +195,9 @@ head or agent can traverse relationships without downloading the full catalog.
 provenance needed by static/offline consumers: `source_path`, `source_provider`,
 `source_repo`, `source_ref`, `generated_from`, `owner`, `team`, `tenant`, `site`,
 `mount`, `edition`, `output_channel`, `last_indexed_at`, and the normalized
-`provenance` object.
+`provenance` object. API operation pages also include the compact `api_operation`
+projection so headless agents can inspect method/path/schema/example/auth metadata
+without scraping rendered HTML.
 
 JSON Schema for v3 exports ships with the runtime at
 ``catalog/schemas/catalog-v3.schema.json`` (validated by ``fura check`` and freeze).

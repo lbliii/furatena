@@ -76,6 +76,23 @@
             "last_indexed_at": { "type": ["string", "null"] }
           }
         },
+        "api_operation": {
+          "type": ["object", "null"],
+          "properties": {
+            "operation_id": { "type": "string" },
+            "method": { "type": "string" },
+            "path": { "type": "string" },
+            "summary": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "schemas": { "type": "array", "items": { "type": "string" } },
+            "request_bodies": { "type": "array", "items": { "type": "string" } },
+            "responses": { "type": "array", "items": { "type": "string" } },
+            "examples": { "type": "array", "items": { "type": "string" } },
+            "auth": { "type": "array", "items": { "type": "string" } },
+            "environments": { "type": "array", "items": { "type": "string" } },
+            "source_spec": { "type": "string" }
+          }
+        },
         "content_format": { "type": "string" },
         "doc_version": { "type": ["string", "null"] },
         "mount": { "type": "string" },
