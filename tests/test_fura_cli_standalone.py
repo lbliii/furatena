@@ -1283,12 +1283,14 @@ def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -
     assert payload["data"]["transport"] == "milo-stdio"
     assert payload["data"]["policy"]["transport"] == "local"
     assert "fura://catalog/nodes" in resource_uris
+    assert "fura://catalog/graph" in resource_uris
     assert "fura://catalog/api-operations" in resource_uris
     assert "fura://reports/validation" in resource_uris
     assert "fura://reports/audit" in resource_uris
     assert {
         "semantic_search",
         "retrieve_node",
+        "query_graph",
         "traverse_graph",
         "run_checks",
         "author_create_draft",
@@ -1302,6 +1304,22 @@ def test_mcp_json_rpc_tools_return_structured_content(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 
     main(["init", str(app_root), "--name", "Acme Docs"])
+    docs_dir = app_root / "content" / "docs"
+    (docs_dir / "mcp-query-target.md").write_text(
+        "---\ntitle: MCP Query Target\ntags: [agent-query]\n---\n# MCP Query Target\n",
+        encoding="utf-8",
+    )
+    (docs_dir / "mcp-query-source.md").write_text(
+        "---\n"
+        "title: MCP Query Source\n"
+        "tags: [agent-query]\n"
+        "owner: docs-platform\n"
+        "api_schemas: [User]\n"
+        "---\n"
+        "# MCP Query Source\n\n"
+        "[Target](/docs/mcp-query-target/)\n",
+        encoding="utf-8",
+    )
     docs = DocsApp.from_paths(
         app_root / "docs.yaml",
         repo_root=app_root,
@@ -1345,6 +1363,21 @@ def test_mcp_json_rpc_tools_return_structured_content(tmp_path: Path) -> None:
             "params": {"name": "traverse_graph", "arguments": {"url": node.url}},
         }
     )
+    query_response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "tools/call",
+            "params": {
+                "name": "query_graph",
+                "arguments": {
+                    "tag": "agent-query",
+                    "edge": "api_schema",
+                    "target": "schema:User",
+                },
+            },
+        }
+    )
 
     assert init_response["result"]["protocolVersion"] == "2025-06-18"
     assert any(tool["outputSchema"] for tool in tools_response["result"]["tools"])
@@ -1355,6 +1388,19 @@ def test_mcp_json_rpc_tools_return_structured_content(tmp_path: Path) -> None:
     assert search_response["result"]["content"][0]["type"] == "text"
     assert retrieve_response["result"]["structuredContent"]["node_id"] == node.node_id
     assert graph_response["result"]["structuredContent"]["node"]["url"] == node.url
+    query_payload = query_response["result"]["structuredContent"]
+    assert query_payload["page_count"] == 1
+    assert query_payload["edge_count"] == 1
+    assert query_payload["edges"][0]["target"] == "schema:User"
+    assert query_payload["graph_nodes"] == [
+        {
+            "id": "schema:User",
+            "kind": "api_schema",
+            "label": "User",
+            "mount": "docs",
+            "edition": "latest",
+        }
+    ]
 
 
 def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path) -> None:
@@ -1380,17 +1426,22 @@ def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path)
     tools = client.list_tools()
     search = client.call("semantic_search", query="Get started", limit=5)
     retrieve = client.call("retrieve_node", node_id=node.node_id)
+    graph_query = client.call("query_graph", mount=node.mount)
 
     assert init["serverInfo"]["name"] == "furatena-catalog"
     assert "fura://catalog/nodes" in {resource["uri"] for resource in resources}
     assert "milo://stats" in {resource["uri"] for resource in resources}
     tool_by_name = {tool.name: tool for tool in tools}
     assert "semantic_search" in tool_by_name
+    assert "query_graph" in tool_by_name
     assert tool_by_name["semantic_search"].output_schema is not None
+    assert tool_by_name["query_graph"].output_schema is not None
     assert search.is_error is False
     assert search.structured["count"] >= 1
     assert retrieve.is_error is False
     assert retrieve.structured["node_id"] == node.node_id
+    assert graph_query.is_error is False
+    assert graph_query.structured["page_count"] >= 1
 
 
 def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> None:

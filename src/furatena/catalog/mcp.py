@@ -11,8 +11,10 @@ from typing import Any
 from urllib.parse import quote, unquote
 
 from furatena.catalog.check import check_catalog
+from furatena.catalog.export import catalog_graph
 from furatena.catalog.inventories.export import inventories_json
 from furatena.catalog.lifecycle import public_nodes
+from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.registry import load_mounts
 from furatena.catalog.semantic import hybrid_search, retrieve_node
 from furatena.catalog.structure_index import build_structure_index
@@ -152,6 +154,11 @@ class FuraMCPServer:
         resources = [
             _resource("fura://catalog/nodes", "Catalog nodes", "All catalog page nodes."),
             _resource(
+                "fura://catalog/graph",
+                "Catalog graph",
+                "Full DCP graph projection with pages, edges, graph nodes, and namespaces.",
+            ),
+            _resource(
                 "fura://catalog/api-operations",
                 "API operations",
                 "Autodoc/API catalog nodes exposed as operation records.",
@@ -243,6 +250,38 @@ class FuraMCPServer:
                     "required": ["node_id"],
                 },
                 "outputSchema": _object_schema("node_id", "chunks", "backlinks", "api_operation"),
+            },
+            {
+                "name": "query_graph",
+                "description": "Filter the DCP catalog graph by page metadata and edge source, target, or kind.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mount": _string_schema("Optional mount id used to scope graph source pages."),
+                        "tag": _string_schema("Optional page tag used to scope graph source pages."),
+                        "format": _string_schema(
+                            "Optional content format, source, or source kind used to scope pages."
+                        ),
+                        "owner": _string_schema("Optional owner or team metadata used to scope pages."),
+                        "team": _string_schema("Alias for owner when callers use team metadata."),
+                        "locale": _string_schema("Optional locale or language code used to scope pages."),
+                        "lang": _string_schema("Alias for locale when callers use language metadata."),
+                        "edge_kind": _string_schema("Optional graph edge kind such as link, api_schema, or owned_by."),
+                        "edge": _string_schema("Alias for edge_kind."),
+                        "kind": _string_schema("Alias for edge_kind."),
+                        "link_edge": _string_schema("Alias for edge_kind."),
+                        "source": _string_schema("Optional edge source node id, slug, or URL."),
+                        "from": _string_schema("Alias for source."),
+                        "linked_from": _string_schema("Alias for source."),
+                        "target": _string_schema("Optional edge target node id, slug, URL, or external graph id."),
+                        "to": _string_schema("Alias for target."),
+                        "linked_to": _string_schema("Alias for target."),
+                        "include_private": _boolean_schema(
+                            "Include private nodes only when this MCP session allows private content.",
+                        ),
+                    },
+                },
+                "outputSchema": _object_schema("query", "page_count", "edge_count", "pages", "edges", "graph_nodes"),
             },
             {
                 "name": "traverse_graph",
@@ -408,6 +447,8 @@ class FuraMCPServer:
                 payload = self._semantic_search(arguments)
             elif name == "retrieve_node":
                 payload = self._retrieve_node(arguments)
+            elif name == "query_graph":
+                payload = self._query_graph(arguments)
             elif name == "traverse_graph":
                 payload = self._traverse_graph(arguments)
             elif name == "inspect_source_health":
@@ -871,6 +912,8 @@ class FuraMCPServer:
         if uri == "fura://catalog/nodes":
             nodes = [_node_record(node) for node in self._doc_nodes()]
             return {"schema_version": 1, "count": len(nodes), "nodes": nodes}
+        if uri == "fura://catalog/graph":
+            return catalog_graph(self.catalog, include_private=self.include_private)
         if uri == "fura://catalog/api-operations":
             return self._api_operations()
         if uri == "fura://catalog/structure":
@@ -938,6 +981,37 @@ class FuraMCPServer:
             raise MCPError(-32602, "retrieve_node requires node_id")
         payload = self._node_payload(node_id)
         return payload
+
+    def _query_graph(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        include_private = self.include_private and _bool_arg(
+            arguments.get("include_private"),
+            default=self.include_private,
+        )
+        return query_catalog_graph(
+            self.catalog,
+            mount=_optional_str(arguments.get("mount")),
+            tag=_optional_str(arguments.get("tag")),
+            format=_optional_str(arguments.get("format")),
+            owner=_optional_str(arguments.get("owner")) or _optional_str(arguments.get("team")),
+            locale=_optional_str(arguments.get("locale")) or _optional_str(arguments.get("lang")),
+            edge_kind=(
+                _optional_str(arguments.get("edge_kind"))
+                or _optional_str(arguments.get("edge"))
+                or _optional_str(arguments.get("kind"))
+                or _optional_str(arguments.get("link_edge"))
+            ),
+            source=(
+                _optional_str(arguments.get("source"))
+                or _optional_str(arguments.get("from"))
+                or _optional_str(arguments.get("linked_from"))
+            ),
+            target=(
+                _optional_str(arguments.get("target"))
+                or _optional_str(arguments.get("to"))
+                or _optional_str(arguments.get("linked_to"))
+            ),
+            include_private=include_private,
+        )
 
     def _node_payload(self, node_id: str) -> dict[str, Any]:
         if self._get_by_node_id(node_id) is None:
@@ -1145,6 +1219,52 @@ def build_milo_cli(server: FuraMCPServer):
     )
     def retrieve_node_tool(node_id: str) -> dict:
         return _milo_tool_payload(server, "retrieve_node", {"node_id": node_id})
+
+    @cli.command(
+        "query_graph",
+        description="Filter the DCP catalog graph by page metadata and edge source, target, or kind.",
+        annotations={"readOnlyHint": True},
+    )
+    def query_graph(
+        mount: str = "",
+        tag: str = "",
+        format: str = "",
+        owner: str = "",
+        team: str = "",
+        locale: str = "",
+        lang: str = "",
+        edge_kind: str = "",
+        edge: str = "",
+        kind: str = "",
+        link_edge: str = "",
+        source: str = "",
+        linked_from: str = "",
+        target: str = "",
+        linked_to: str = "",
+        include_private: bool = False,
+    ) -> dict:
+        return _milo_tool_payload(
+            server,
+            "query_graph",
+            {
+                "mount": mount,
+                "tag": tag,
+                "format": format,
+                "owner": owner,
+                "team": team,
+                "locale": locale,
+                "lang": lang,
+                "edge_kind": edge_kind,
+                "edge": edge,
+                "kind": kind,
+                "link_edge": link_edge,
+                "source": source,
+                "linked_from": linked_from,
+                "target": target,
+                "linked_to": linked_to,
+                "include_private": include_private,
+            },
+        )
 
     @cli.command(
         "traverse_graph",
