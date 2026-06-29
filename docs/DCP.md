@@ -66,6 +66,7 @@ schema version.
 | `mount`, `edition`, `section_root` | Federation |
 | `lang`, `translation_key` | i18n (v3.1+) |
 | `edges[]` | Typed semantic relationships (see taxonomy below) |
+| `graph_nodes[]` | Typed non-page graph targets such as API schemas, examples, auth schemes, environments, tags, responses, and operation ids |
 | `namespaces[]` | Mount metadata |
 
 ### Edge taxonomy
@@ -99,6 +100,26 @@ Front matter can add semantic edges with keys matching the edge names, for examp
 `api_schemas: [User, Error]`, `api_auth: oauth2`, `api_environments: [prod, sandbox]`,
 or `owner: docs-platform`. Existing links, tags, nav order, parents, and translations
 continue to map into the same graph automatically.
+
+### Graph node records
+
+`graph_nodes[]` is an additive inventory for typed graph targets that are not
+normal catalog pages. It lets static/headless consumers inspect API graph entities
+without parsing edge target prefixes.
+
+```json
+{
+  "id": "schema:User",
+  "kind": "api_schema",
+  "label": "User",
+  "mount": "furatena",
+  "edition": "latest"
+}
+```
+
+Supported API graph node kinds are `api_operation`, `api_tag`, `api_schema`,
+`api_request_body`, `api_response`, `api_example`, `api_auth`, and
+`api_environment`.
 
 ### Tier 2 — Content IR (recommended)
 
@@ -187,9 +208,10 @@ mounts:
 | `include_private=1` | Author-mode only; include private and draft nodes |
 
 The response is DCP-shaped and contains `schema_version`, `channel`, `query`,
-`page_count`, `edge_count`, `pages`, `edges`, and `namespaces`. Page filters narrow
-the source page set. Edge filters then return the matching graph neighborhood so a
-head or agent can traverse relationships without downloading the full catalog.
+`page_count`, `edge_count`, `pages`, `edges`, `graph_nodes`, and `namespaces`. Page
+filters narrow the source page set. Edge filters then return the matching graph
+neighborhood so a head or agent can traverse relationships without downloading the
+full catalog.
 
 `/meta.json` keeps the page index compact but preserves the same impact-routing
 provenance needed by static/offline consumers: `source_path`, `source_provider`,

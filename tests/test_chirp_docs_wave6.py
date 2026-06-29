@@ -198,6 +198,11 @@ autodoc:
         assert (EdgeKind.API_EXAMPLE.value, "example:sample") in edges
         assert (EdgeKind.API_AUTH.value, "auth:apiKey") in edges
         assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in edges
+        graph_nodes = {(item["kind"], item["id"], item["label"]) for item in payload["graph_nodes"]}
+        assert ("api_schema", "schema:User", "User") in graph_nodes
+        assert ("api_example", "example:sample", "sample") in graph_nodes
+        assert ("api_auth", "auth:apiKey", "apiKey") in graph_nodes
+        assert ("api_environment", "environment:prod", "prod") in graph_nodes
 
         hits = search_nodes(list(nodes), "create user")
         assert hits and hits[0].node.node_id == operation.node_id

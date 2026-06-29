@@ -21,6 +21,10 @@
       "type": "array",
       "items": { "$ref": "#/$defs/edge" }
     },
+    "graph_nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/graph_node" }
+    },
     "namespaces": {
       "type": "array",
       "items": { "$ref": "#/$defs/namespace" }
@@ -228,6 +232,28 @@
             "validates"
           ]
         },
+        "mount": { "type": "string" },
+        "edition": { "type": "string" }
+      }
+    },
+    "graph_node": {
+      "type": "object",
+      "required": ["id", "kind", "label"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "enum": [
+            "api_auth",
+            "api_environment",
+            "api_example",
+            "api_operation",
+            "api_request_body",
+            "api_response",
+            "api_schema",
+            "api_tag"
+          ]
+        },
+        "label": { "type": "string" },
         "mount": { "type": "string" },
         "edition": { "type": "string" }
       }

@@ -49,6 +49,18 @@ class GraphEdge:
     edition: str = "latest"
 
 
+_API_GRAPH_NODE_PREFIXES: dict[str, str] = {
+    "api": "api_operation",
+    "api-tag": "api_tag",
+    "auth": "api_auth",
+    "environment": "api_environment",
+    "example": "api_example",
+    "request-body": "api_request_body",
+    "response": "api_response",
+    "schema": "api_schema",
+}
+
+
 def make_node_id(mount: str, edition: str, slug: str) -> str:
     """Stable node identifier across mounts and editions."""
     normalized = slug.strip("/") or "index"
@@ -375,6 +387,33 @@ def edge_record(edge: GraphEdge) -> dict[str, Any]:
         "mount": edge.mount,
         "edition": edge.edition,
     }
+
+
+def graph_node_records(edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Project external API edge endpoints into typed graph node records."""
+    records: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for edge in edges:
+        target = str(edge.get("target") or "")
+        prefix, separator, label = target.partition(":")
+        if not separator:
+            continue
+        kind = _API_GRAPH_NODE_PREFIXES.get(prefix)
+        if kind is None:
+            continue
+        mount = str(edge.get("mount") or "")
+        edition = str(edge.get("edition") or "")
+        key = (target, mount, edition)
+        records.setdefault(
+            key,
+            {
+                "id": target,
+                "kind": kind,
+                "label": label,
+                "mount": mount,
+                "edition": edition,
+            },
+        )
+    return sorted(records.values(), key=lambda item: (item["kind"], item["id"], item["mount"], item["edition"]))
 
 
 def namespace_record(mount_id: str, label: str, *, edition: str, page_count: int) -> dict[str, Any]:

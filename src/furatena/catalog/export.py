@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from furatena.catalog.content_ir import content_ir_record
+from furatena.catalog.graph_schema import graph_node_records
 from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.patitas_bridge import excerpt_text, llm_text, plain_text, section_texts
 from furatena.catalog.search import search_nodes
@@ -53,6 +54,7 @@ def catalog_graph(
         if edge.get("source") in node_ids
         and (edge.get("target") in node_ids or _is_external_graph_target(str(edge.get("target") or "")))
     ]
+    graph_nodes = graph_node_records(edges)
     payload: dict[str, Any] = {
         "schema_version": schema_version,
         "version": schema_version,
@@ -61,6 +63,7 @@ def catalog_graph(
         "page_count": len(pages),
         "pages": pages,
         "edges": edges,
+        "graph_nodes": graph_nodes,
         "namespaces": catalog.namespaces(),
     }
     inventories = catalog.inventories_metadata() if hasattr(catalog, "inventories_metadata") else []

@@ -174,6 +174,11 @@ class TestAstLinkExtraction:
         assert (EdgeKind.API_EXAMPLE.value, "example:create-user") in by_kind
         assert (EdgeKind.API_AUTH.value, "auth:oauth2") in by_kind
         assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in by_kind
+        graph_nodes = {(node["kind"], node["id"], node["label"]) for node in payload["graph_nodes"]}
+        assert ("api_schema", "schema:User", "User") in graph_nodes
+        assert ("api_example", "example:create-user", "create-user") in graph_nodes
+        assert ("api_auth", "auth:oauth2", "oauth2") in graph_nodes
+        assert ("api_environment", "environment:prod", "prod") in graph_nodes
 
 
 class TestStructureIndex:
