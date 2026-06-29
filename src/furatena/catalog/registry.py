@@ -707,14 +707,17 @@ class CatalogRegistry:
         nodes_by_id = {node.node_id: node for node in self.nodes}
         edges: list[dict[str, Any]] = []
         for shard in self._shards.values():
-            edges.extend(
-                edge_record(edge)
-                for edge in build_graph_edges(
-                    shard,
-                    url_index=url_index,
-                    nodes_by_id=nodes_by_id,
+            if not shard.auto_reload and getattr(shard, "_frozen_edges", None) is not None:
+                edges.extend(shard.graph_edges())
+            else:
+                edges.extend(
+                    edge_record(edge)
+                    for edge in build_graph_edges(
+                        shard,
+                        url_index=url_index,
+                        nodes_by_id=nodes_by_id,
+                    )
                 )
-            )
         if self.i18n_config.enabled:
             edges.extend(edge_record(edge) for edge in build_translation_edges(self.nodes))
         self._edges = edges

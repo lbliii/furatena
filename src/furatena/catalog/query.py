@@ -6,6 +6,7 @@ from typing import Any
 
 from furatena.catalog.content_ir import content_ir_record
 from furatena.catalog.export import catalog_graph
+from furatena.catalog.graph_schema import graph_node_records
 
 
 def _clean(value: str | None) -> str:
@@ -177,6 +178,7 @@ def query_catalog_graph(
         "edge_count": len(edges),
         "pages": pages,
         "edges": edges,
+        "graph_nodes": graph_node_records(edges),
         "namespaces": graph.get("namespaces", []),
     }
 

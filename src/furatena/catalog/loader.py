@@ -143,6 +143,7 @@ class DocCatalog:
         self.channels: tuple[DocChannel, ...] = infer_release_channels(content_root)
         self._frozen_pages_dir: Path | None = None
         self._frozen_shard_dir: Path | None = None
+        self._frozen_edges: list[dict[str, Any]] | None = None
         self._html_cache: dict[str, str] = {}
         self._nodes: list[DocNode] = []
         self._nodes_by_url: dict[str, DocNode] = {}
@@ -271,6 +272,7 @@ class DocCatalog:
         self._ast_documents = {}
         self._body_by_slug = {}
         self._last_invalidations = {}
+        self._frozen_edges = None
 
     def _scan_locale_pages(self, scanned: list[PageSource]) -> list[PageSource]:
         """Load translated pages from ``_locale/{lang}/`` overlay directories."""
@@ -996,6 +998,8 @@ class DocCatalog:
         return search_nodes(self.doc_nodes(), query, limit=limit, documents=self.ast_documents())
 
     def graph_edges(self) -> list[dict[str, Any]]:
+        if not self.auto_reload and self._frozen_edges is not None:
+            return self._frozen_edges
         from furatena.catalog.graph_schema import build_graph_edges, edge_record
 
         return [edge_record(edge) for edge in build_graph_edges(self)]
@@ -1044,6 +1048,11 @@ class DocCatalog:
         catalog.channels = infer_release_channels(catalog.content_root)
         catalog._frozen_pages_dir = pages_dir
         catalog._frozen_shard_dir = frozen_dir
+        catalog._frozen_edges = [
+            edge
+            for edge in raw.get("edges", [])
+            if isinstance(edge, dict)
+        ]
         catalog._html_cache = {}
         catalog._nodes = []
         catalog._nodes_by_url = {}

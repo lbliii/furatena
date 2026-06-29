@@ -36,7 +36,8 @@ def _write_query_fixture(tmp_path: Path) -> tuple[Path, Path]:
         encoding="utf-8",
     )
     (docs / "source.md").write_text(
-        "---\ntitle: Source\ntags: [guide]\nowner: docs-platform\n---\n\n"
+        "---\ntitle: Source\ntags: [guide]\nowner: docs-platform\n"
+        "api_schemas: [User]\napi_auth: oauth2\n---\n\n"
         "# Source\n\n[Target](/docs/target/)\n",
         encoding="utf-8",
     )
@@ -78,6 +79,31 @@ def test_graph_query_endpoint_filters_live_catalog(tmp_path: Path) -> None:
     assert page["owner"] == "docs-platform"
     assert payload["edges"][0]["kind"] == "link"
     assert payload["query"]["target"] == "/docs/target/"
+    assert payload["graph_nodes"] == []
+
+
+def test_graph_query_endpoint_returns_typed_graph_nodes(tmp_path: Path) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    async def _fetch() -> dict[str, object]:
+        resp = await client.get("/catalog/query.json?edge_kind=api_schema&target=schema:User")
+        assert resp.status == 200
+        return json.loads(resp.text)
+
+    payload = asyncio.run(_fetch())
+    assert payload["page_count"] == 1
+    assert payload["edge_count"] == 1
+    assert payload["edges"][0]["target"] == "schema:User"
+    assert payload["graph_nodes"] == [
+        {
+            "id": "schema:User",
+            "kind": "api_schema",
+            "label": "User",
+            "mount": "chirp",
+            "edition": "latest",
+        }
+    ]
 
 
 def test_graph_query_endpoint_filters_by_locale(tmp_path: Path) -> None:
@@ -144,3 +170,21 @@ def test_graph_query_endpoint_uses_frozen_catalog(tmp_path: Path) -> None:
     assert payload["page_count"] == 2
     assert {page["slug"] for page in payload["pages"]} == {"docs/source", "docs/target"}
     assert payload["edge_count"] == 1
+
+    async def _fetch_api_node() -> dict[str, object]:
+        resp = await client.get("/graph/query.json?edge=api_auth&target=auth:oauth2")
+        assert resp.status == 200
+        return json.loads(resp.text)
+
+    api_payload = asyncio.run(_fetch_api_node())
+    assert api_payload["page_count"] == 1
+    assert api_payload["edges"][0]["target"] == "auth:oauth2"
+    assert api_payload["graph_nodes"] == [
+        {
+            "id": "auth:oauth2",
+            "kind": "api_auth",
+            "label": "oauth2",
+            "mount": "chirp",
+            "edition": "latest",
+        }
+    ]
