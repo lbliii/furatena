@@ -506,6 +506,10 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
         preview = await author_client.get(
             "/docs/_author/transition?slug=docs/get-started&operation=publish&dry_run=1"
         )
+        htmx_validate = await author_client.get(
+            "/docs/_author/page.json?slug=docs/get-started&validate=1",
+            headers={"HX-Request": "true"},
+        )
         return {
             "page": page,
             "boosted_page": boosted_page,
@@ -514,6 +518,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
             "private_page": private_page,
             "private_status": private_status,
             "preview": preview,
+            "htmx_validate": htmx_validate,
         }
 
     author_payload = asyncio.run(_fetch_author())
@@ -534,6 +539,9 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert "Copy source path" in author_payload["page"].text
     assert "Inspect public output" in author_payload["page"].text
     assert 'data-action="copy-source-path"' in author_payload["page"].text
+    assert 'hx-target="#fura-author-chrome"' in author_payload["page"].text
+    assert "operation=draft&amp;dry_run=0&amp;confirmed=1" in author_payload["page"].text
+    assert "operation=publish&amp;dry_run=0&amp;confirmed=1" in author_payload["page"].text
     assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" in author_payload[
         "page"
     ].text
@@ -547,6 +555,21 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert {"private", "excluded-output"} <= set(private_payload["states"])
     assert preview_payload["ok"] is True
     assert preview_payload["data"]["dry_run"] is True
+    assert author_payload["htmx_validate"].status == 200
+    assert 'id="fura-author-chrome"' in author_payload["htmx_validate"].text
+    assert "Local author mode" in author_payload["htmx_validate"].text
+    assert '"ok":' not in author_payload["htmx_validate"].text
+
+    draft_response = asyncio.run(
+        author_client.get(
+            "/docs/_author/transition?slug=docs/private&operation=draft&dry_run=0&confirmed=1",
+            headers={"HX-Request": "true"},
+        )
+    )
+    assert draft_response.status == 200
+    assert 'id="fura-author-chrome"' in draft_response.text
+    assert 'data-author-state="draft"' in draft_response.text
+    assert '"ok":' not in draft_response.text
 
     archive_response = asyncio.run(
         author_client.get(

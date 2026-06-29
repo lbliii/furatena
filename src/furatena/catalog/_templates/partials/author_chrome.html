@@ -1,3 +1,4 @@
+{% block author_chrome %}
 {% if author_chrome is defined and author_chrome %}
 {% from "partials/docs_nav_icons.html" import docs_icon %}
 <section
@@ -77,15 +78,35 @@
       {{ docs_icon('copy', 14) }}
       <span>Copy source path</span>
     </button>
-    <a class="fura-author-chrome__action" href="{{ author_chrome.actions.validate }}">
+    <a
+      class="fura-author-chrome__action"
+      href="{{ author_chrome.actions.validate }}"
+      hx-get="{{ author_chrome.actions.validate }}"
+      hx-target="#fura-author-chrome"
+      hx-swap="outerHTML"
+    >
       {{ docs_icon('check-circle', 14) }}
       <span>Validate page</span>
     </a>
-    <a class="fura-author-chrome__action" href="{{ author_chrome.actions.mark_draft }}">
+    <a
+      class="fura-author-chrome__action"
+      href="{{ author_chrome.actions.mark_draft }}"
+      hx-get="{{ author_chrome.actions.mark_draft_confirm }}"
+      hx-target="#fura-author-chrome"
+      hx-swap="outerHTML"
+      hx-confirm="Mark this page as draft?"
+    >
       {{ docs_icon('article', 14) }}
       <span>Mark draft</span>
     </a>
-    <a class="fura-author-chrome__action" href="{{ author_chrome.actions.publish }}">
+    <a
+      class="fura-author-chrome__action"
+      href="{{ author_chrome.actions.publish }}"
+      hx-get="{{ author_chrome.actions.publish_confirm }}"
+      hx-target="#fura-author-chrome"
+      hx-swap="outerHTML"
+      hx-confirm="Publish this page?"
+    >
       {{ docs_icon('rocket', 14) }}
       <span>Publish</span>
     </a>
@@ -95,4 +116,5 @@
     </a>
   </div>
 </section>
+{% end %}
 {% end %}

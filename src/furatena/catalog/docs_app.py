@@ -462,10 +462,24 @@ class DocsApp:
                 "open_source": f"/docs/_author/source?{query}",
                 "validate": f"/docs/_author/page.json?{query}&validate=1",
                 "mark_draft": f"/docs/_author/transition?{query}&operation=draft&dry_run=1",
+                "mark_draft_confirm": (
+                    f"/docs/_author/transition?{query}&operation=draft&dry_run=0&confirmed=1"
+                ),
                 "publish": f"/docs/_author/transition?{query}&operation=publish&dry_run=1",
+                "publish_confirm": (
+                    f"/docs/_author/transition?{query}&operation=publish&dry_run=0&confirmed=1"
+                ),
                 "inspect_public": f"/docs/_author/page.json?{query}&inspect_public=1",
             },
         }
+
+    def _author_page_chrome_fragment(self, node, *, status: int = 200):
+        return Fragment(
+            "partials/author_chrome.html",
+            "author_chrome",
+            status=status,
+            author_chrome=self._author_page_chrome(node),
+        )
 
     def _author_source_info(self, node) -> dict[str, Any]:
         source_path = str(getattr(node, "source_path", "") or "")
@@ -1186,9 +1200,11 @@ class DocsApp:
                 return _json_response(
                     {"ok": False, "error": "author page status is available only in author mode"},
                     status=404,
-                )
+            )
             self._ensure_catalog()
             node = self._author_node_from_request(request)
+            if request.is_htmx:
+                return self._author_page_chrome_fragment(node)
             return _json_response(self._author_page_chrome(node))
 
         @app.route("/docs/_author/source")
@@ -1242,6 +1258,9 @@ class DocsApp:
                 confirmed=_query_bool(request, "confirmed", default=False),
             )
             self._reindex_author_result(result)
+            if request.is_htmx:
+                refreshed = self._author_node_from_request(request)
+                return self._author_page_chrome_fragment(refreshed)
             return _json_response({"ok": result.ok, "data": result.to_dict()})
 
         @app.route("/search")
