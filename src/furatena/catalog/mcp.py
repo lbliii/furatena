@@ -514,18 +514,51 @@ class FuraMCPServer:
     def stale_impact_report(self, *, slug: Any | None = None) -> dict[str, Any]:
         normalized = str(slug).strip("/") if slug else None
         entries = self.catalog.author_stale_entries(normalized)
+        impact = [self._stale_impact_entry(entry) for entry in entries]
         return {
             "schema_version": 1,
             "stale_count": len(entries),
             "entries": entries,
-            "impact": [
-                {
-                    "slug": entry["slug"],
-                    "mount": entry["mount"],
-                    "refresh_targets": entry["hints"],
-                }
-                for entry in entries
-            ],
+            "impact": impact,
+            "groups": {
+                "by_owner": _group_impact(impact, "owner"),
+                "by_source": _group_impact(impact, "source_key"),
+                "by_mount": _group_impact(impact, "mount"),
+                "by_channel": _group_impact(impact, "output_channel"),
+            },
+        }
+
+    def _stale_impact_entry(self, entry: dict[str, object]) -> dict[str, Any]:
+        slug = str(entry.get("slug") or "")
+        mount = str(entry.get("mount") or "")
+        node = self.catalog.get_by_slug(slug, mount=mount) if slug and mount else None
+        meta = getattr(node, "meta", {}) if node is not None else {}
+        owner = _first_meta_value(meta, "owner", "team") or "unassigned"
+        provider = _first_meta_value(meta, "source_provider", "provider") or "filesystem"
+        repo = _first_meta_value(meta, "source_repo", "repo", "repository")
+        ref = _first_meta_value(meta, "source_ref", "ref", "commit", "branch")
+        path = getattr(node, "source_path", None) if node is not None else None
+        source_key = _source_group_key(provider=provider, repo=repo, ref=ref, path=path)
+        output_channel = str(getattr(self.catalog, "active_channel", "") or getattr(node, "edition", "") or "default")
+        return {
+            "slug": slug,
+            "mount": mount,
+            "refresh_targets": list(entry.get("hints") or ()),
+            "owner": owner,
+            "source_key": source_key,
+            "output_channel": output_channel,
+            "provenance": {
+                "provider": provider,
+                "repo": repo,
+                "ref": ref,
+                "path": path,
+                "mount": mount,
+                "edition": getattr(node, "edition", None) if node is not None else None,
+                "owner": owner,
+                "tenant": _first_meta_value(meta, "tenant"),
+                "site": _first_meta_value(meta, "site"),
+                "output_channel": output_channel,
+            },
         }
 
     def audit_report(self) -> dict[str, Any]:
@@ -1559,6 +1592,55 @@ def _attach_author_validation_fields(payload: dict[str, Any], result: AuthorOper
     payload["warnings"] = warnings
     payload["error_count"] = len(errors)
     payload["warning_count"] = len(warnings)
+
+
+def _first_meta_value(meta: Any, *keys: str) -> str | None:
+    if not isinstance(meta, dict):
+        return None
+    for key in keys:
+        value = meta.get(key)
+        if value not in (None, ""):
+            return str(value)
+    return None
+
+
+def _source_group_key(
+    *,
+    provider: str,
+    repo: str | None,
+    ref: str | None,
+    path: Any,
+) -> str:
+    parts = [provider]
+    if repo:
+        parts.append(repo)
+    if ref:
+        parts[-1] = f"{parts[-1]}@{ref}"
+    if path:
+        parts.append(str(path))
+    return ":".join(parts)
+
+
+def _group_impact(impact: list[dict[str, Any]], field: str) -> list[dict[str, Any]]:
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for entry in impact:
+        key = str(entry.get(field) or "unknown")
+        groups.setdefault(key, []).append(entry)
+    return [
+        {
+            "key": key,
+            "count": len(items),
+            "slugs": sorted(str(item.get("slug") or "") for item in items),
+            "refresh_targets": sorted(
+                {
+                    str(target)
+                    for item in items
+                    for target in (item.get("refresh_targets") or [])
+                }
+            ),
+        }
+        for key, items in sorted(groups.items())
+    ]
 
 
 def _bool_arg(value: Any, *, default: bool) -> bool:

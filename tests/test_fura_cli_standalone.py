@@ -1501,6 +1501,70 @@ def test_mcp_remote_policy_rate_limits_tools(tmp_path: Path) -> None:
     assert audit["entries"][-1]["result_status"] == "error"
 
 
+def test_mcp_stale_impact_groups_by_provenance(tmp_path: Path) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    target = app_root / "content" / "docs" / "get-started.md"
+    target.write_text(
+        target.read_text(encoding="utf-8").replace(
+            "---\n",
+            (
+                "---\n"
+                "owner: docs-platform\n"
+                "source_provider: git\n"
+                "source_repo: lbliii/furatena\n"
+                "source_ref: main\n"
+                "tenant: default\n"
+                "site: docs\n"
+            ),
+            1,
+        ),
+        encoding="utf-8",
+    )
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+    )
+    docs.catalog._shards["docs"]._last_invalidations["docs/get-started"] = (
+        "page-root",
+        "search",
+    )
+    server = FuraMCPServer(docs, include_private=True)
+    response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": "stale",
+            "method": "tools/call",
+            "params": {
+                "name": "explain_stale_impact",
+                "arguments": {"slug": "docs/get-started"},
+            },
+        }
+    )
+    payload = response["result"]["structuredContent"]
+    impact = payload["impact"][0]
+
+    assert payload["stale_count"] == 1
+    assert impact["owner"] == "docs-platform"
+    assert impact["source_key"] == "git:lbliii/furatena@main:docs/get-started.md"
+    assert impact["provenance"]["tenant"] == "default"
+    assert impact["provenance"]["site"] == "docs"
+    assert payload["groups"]["by_owner"] == [
+        {
+            "key": "docs-platform",
+            "count": 1,
+            "slugs": ["docs/get-started"],
+            "refresh_targets": ["page-root", "search"],
+        }
+    ]
+    assert payload["groups"]["by_source"][0]["key"] == impact["source_key"]
+    assert payload["groups"]["by_mount"][0]["key"] == "docs"
+    assert payload["groups"]["by_channel"][0]["key"] == "latest"
+
+
 def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 

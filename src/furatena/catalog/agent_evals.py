@@ -343,10 +343,12 @@ def _eval_stale_report(case: AgentEvalCase, client: Any) -> AgentEvalResult:
     slug = case.expectation.citations[0] if case.expectation.citations else ""
     result = client.call("explain_stale_impact", slug=slug)
     payload = result.structured
+    groups = payload.get("groups", {}) if isinstance(payload, dict) else {}
     observed = {
         "stale_count": payload.get("stale_count"),
         "entry_count": len(payload.get("entries", [])),
         "impact_count": len(payload.get("impact", [])),
+        "grouped_dimensions": sorted(groups) if isinstance(groups, dict) else [],
     }
     if isinstance(observed["stale_count"], int):
         return _pass(case, "stale-impact tool returned a structured stale report", observed)
