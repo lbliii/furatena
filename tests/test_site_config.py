@@ -37,8 +37,11 @@ class TestSiteConfig:
         assert len(home.ideas.features) == 3
         assert home.pipeline is not None
         assert len(home.pipeline.modes) == 3
-        assert home.stack is not None
-        assert len(home.stack.rows) == 5
+        assert home.stack is None
+        assert home.sources is not None
+        assert len(home.sources.formats) == 4
+        assert home.deployments is not None
+        assert len(home.deployments.options) == 2
         assert home.quick_start is not None
         assert home.metrics_head is not None
         assert home.explore is not None

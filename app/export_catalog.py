@@ -21,8 +21,8 @@ from furatena.catalog.static_export import (
 DOCS_CONFIG = ROOT / "docs.yaml"
 FROZEN_DIR = ROOT / "frozen"
 AUTODOC_CONFIG = REPO / "config" / "autodoc.yaml"
-DEFAULT_SITE_URL = "https://lbliii.github.io/chirp"
-DEFAULT_BASE_PATH = "/chirp"
+DEFAULT_SITE_URL = "https://lbliii.github.io/furatena"
+DEFAULT_BASE_PATH = "/furatena"
 
 
 def _parse_args(argv: list[str]) -> tuple[StaticExportOptions, Path]:
@@ -43,7 +43,7 @@ def _parse_args(argv: list[str]) -> tuple[StaticExportOptions, Path]:
     parser.add_argument(
         "--base-path",
         default=DEFAULT_BASE_PATH,
-        help="URL path prefix for GitHub Pages project site (default /chirp)",
+        help="URL path prefix for GitHub Pages project site (default /furatena)",
     )
     parser.add_argument(
         "--site-url",

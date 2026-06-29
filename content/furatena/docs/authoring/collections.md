@@ -56,12 +56,6 @@ compose:
 - Member bodies in YAML order with stable anchors
 - Collection chrome (`chirp-theme-track-layout`)
 
-## Example in this repo
-
-The Chirp mount includes a read-through collection at
-[`/chirp/docs/get-started/read-through/`](/chirp/docs/get-started/read-through/) — useful
-as a regression test for compose views.
-
 ## When to use collections
 
 | Use collection | Use separate pages + nav |

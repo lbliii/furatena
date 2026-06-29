@@ -35,7 +35,7 @@ Runs on every indexed page via Content IR:
 | Front matter | Unknown `collection:` id, invalid view kind |
 | Cross-edition links | Link to a page on a different release channel |
 
-Federated mounts: links like `/docs/foo` from a prefixed mount (e.g. Chirp at `/chirp/`)
+Federated mounts: links like `/docs/foo` from a prefixed mount (e.g. shared at `/shared/`)
 resolve against the correct mount prefix during check.
 
 Strict edition mismatches:

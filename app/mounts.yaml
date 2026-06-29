@@ -4,11 +4,6 @@ mounts:
     content_root: ../content/furatena
     default: true
 
-  - id: chirp
-    label: Chirp Documentation
-    content_root: ../content/chirp
-    url_prefix: /chirp
-
   - id: shared
     label: Shared Reference
     content_root: content/shared

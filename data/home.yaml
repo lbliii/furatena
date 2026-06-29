@@ -7,192 +7,200 @@ cta_primary:
   label: Get started
   href: /docs/get-started/
 cta_secondary:
-  label: CLI reference
-  href: /docs/reference/cli/
+  label: Browse docs
+  href: /docs/
+
+hero_points:
+  - Edit Markdown locally
+  - Preview changes instantly
+  - Publish to GitHub Pages
 
 metrics_head:
-  eyebrow: Indexed at serve time
-  title: One corpus, three guarantees
+  eyebrow: What changes
+  title: Less tool juggling, more docs shipping
+  subtitle: Furatena turns a Markdown folder into a fast docs site with search, navigation, and static publishing built in.
 
 metrics:
-  - value: "1"
-    label: markdown corpus
-    hint: Index pages from content/ mounts at serve time.
-  - value: "0"
-    label: rebuild loops while authoring
-    hint: Partial reload on the open page via htmx swaps — no export step.
-  - value: "∞"
-    label: graph edges
-    hint: Nav, search, and agents read the same catalog.
+  - value: "01"
+    label: One source of truth
+    hint: Write in Markdown and let the site build navigation, search, and exports from it.
+  - value: Live
+    label: Live preview loop
+    hint: Preview your docs while you write instead of running a publish step after every edit.
+  - value: Static
+    label: Static publishing target
+    hint: Ship to GitHub Pages or any static host without changing how authors write docs.
 
 visual:
   aria_label: Preview of Furatena documentation surfaces
-  eyebrow: Live catalog
-  title: docs/get-started/installation.md
+  eyebrow: Write to publish
+  title: Write docs. Preview instantly. Publish anywhere.
   description: >
-    Shell persists. #page-root swaps on edit — no export loop, no full reload.
+    Keep your docs in Markdown, get a polished local preview, and ship the same content as a static site.
   proof_tags:
-    - content/
-    - graph
-    - "#page-root"
-  feature_title: Author reload
-  feature_body: Partial htmx swap on the open doc page.
-  cta_label: Open get started
-  cta_href: /docs/get-started/
+    - Markdown
+    - Search
+    - GitHub Pages
+    - AI-ready
+  feature_title: Everything stays in sync
+  feature_body: Navigation, search, references, and machine-readable indexes all come from the same docs.
+  cta_label: Open docs
+  cta_href: /docs/
 
 ideas:
-  eyebrow: Catalog graph
-  title: Markdown indexed into a live catalog
-  subtitle: Structure for nav, search, and agents — not regex on rendered HTML.
+  eyebrow: Why teams use it
+  title: A calmer way to build product docs
+  subtitle: Keep authoring simple, keep previews fast, and keep every publishing output tied to the same source.
   features:
-    - eyebrow: Docs as data
-      title: Markdown indexed into a queryable graph
+    - eyebrow: Author
+      title: Write in plain Markdown
       body: >
-        Headings, links, and directives become Content IR at index time. Navigation,
-        backlinks, search chunks, and agent tools read structure — not regex on HTML.
+        Keep docs close to the codebase. Furatena turns folders, front matter,
+        headings, and links into a navigable site without making authors learn a CMS.
       action:
-        label: Concepts
-        href: /docs/concepts/
-      code: |
-        content/**/*.md
-          └─► DocNode graph
-               ├─ edges: nav, links
-               ├─ chunks: search
-               └─ exports: /catalog.json
-    - eyebrow: Hypermedia shell
-      title: Persistent chrome, swapping fragments
+        label: Start writing
+        href: /docs/get-started/
+    - eyebrow: Preview
+      title: See changes while you write
       body: >
-        Boosted navigation replaces #page-root while the shell, search modal,
-        and theme persist. No client framework. No npm build step for authoring.
+        Run the local server, edit a page, and keep moving. The authoring loop
+        feels like working in your app, not waiting on a static-site pipeline.
       action:
-        label: Philosophy
-        href: /docs/about/philosophy/
-      reverse: true
-      code: |
-        #shell (persistent)
-          nav · search · theme
-          #page-root ← htmx swap
-            └─ doc fragment
-    - eyebrow: Dual IR
-      title: Content IR + Presentation IR
+        label: Local workflow
+        href: /docs/operations/
+    - eyebrow: Publish
+      title: Ship once, reuse everywhere
       body: >
-        Patitas captures author intent. Kida captures view composition. Lint, incremental
-        reload, and /catalog.json export use structure instead of scraping rendered HTML.
+        Publish a static docs site and reuse the same source for search,
+        AI-friendly indexes, and reference pages.
       action:
-        label: Dual IR
-        href: /docs/concepts/dual-ir/
-      code: |
-        Markdown ──► Content IR
-        Kida views ──► Presentation IR
-                 └──► #page-root HTML
+        label: Publishing options
+        href: /develop/
+
+sources:
+  eyebrow: Source adapters
+  title: Bring the docs you already have
+  subtitle: >
+    Markdown is the polished default, but Furatena is not locked to one authoring
+    syntax. Configure mounts to adapt other source formats into the same pages,
+    navigation, search, and outputs.
+  formats:
+    - label: Markdown
+      detail: First-class authoring
+      body: >
+        Write with front matter, wikilinks, directives, and local preview as the
+        primary authoring loop.
+    - label: MDX
+      detail: JSX-aware migration path
+      body: >
+        Lower MDX components into Furatena directives so existing JS-docs content
+        can move into the catalog instead of starting from scratch.
+    - label: reStructuredText
+      detail: docutils adapter
+      body: >
+        Bring RST pages forward when migrating Sphinx-style docs, while preserving
+        headings, links, and page text for search.
+    - label: HTML
+      detail: Bridge adapter
+      body: >
+        Index existing HTML headings, links, and structured markers when a page
+        needs to enter the docs system as-is.
+  note: Register custom adapters and map file extensions in mounts.yaml when a source needs its own parser.
 
 explore:
-  title: Go deeper
+  title: Start with
   links:
-    - label: Hypermedia philosophy
-      href: /docs/about/philosophy/
-    - label: Dual IR
-      href: /docs/concepts/dual-ir/
-    - label: Agent exports
+    - label: Get started
+      href: /docs/get-started/
+    - label: Local preview
+      href: /docs/operations/
+    - label: CLI reference
+      href: /docs/reference/cli/
+    - label: Search and AI outputs
       href: /develop/
-    - label: Bengal stack
-      href: /docs/about/
 
 pipeline:
-  eyebrow: Delivery modes
-  title: The pipeline
-  subtitle: One markdown edit through the catalog graph to serve, freeze, or export.
+  eyebrow: Workflow
+  title: From draft to published docs
+  subtitle: One editing flow carries your docs from local writing to static hosting, app deployment, and reusable indexes.
   current_step: 4
   steps:
     - id: markdown
-      label: Markdown
-    - id: content-ir
-      label: Content IR
-    - id: view
-      label: View
-    - id: htmx
-      label: htmx swap
+      label: Write
+    - id: preview
+      label: Preview
+    - id: review
+      label: Review
     - id: export
-      label: Export
+      label: Publish
+    - id: reuse
+      label: Reuse
   modes:
-    - title: fura serve
-      subtitle: Live authoring
+    - title: Local preview
+      subtitle: While you write
       body: >
-        Catalog graph + Kida views + htmx shell. Edit markdown and reload the open page
-        via partial swaps.
-    - title: fura freeze
-      subtitle: Snapshot
+        Work against a fast local docs site, with navigation and search built from your Markdown.
+    - title: Shareable build
+      subtitle: Before launch
       body: >
-        Write catalog metadata and HTML shards for preview — same graph, frozen artifact.
-    - title: fura export
-      subtitle: Static site
-      body: Ship GitHub Pages or offline bundles from the same indexed corpus.
+        Generate the same pages your users will see, then review them before publishing.
+    - title: Static site
+      subtitle: Ready to host
+      body: Ship GitHub Pages or offline bundles without changing how authors write docs.
       variant: ship
 
+deployments:
+  eyebrow: Deployment choices
+  title: Static site when simple is enough. Living app when docs need to respond.
+  subtitle: >
+    Furatena can publish traditional static docs or run as a deployed Chirp app,
+    so teams can start simple and add runtime behavior when the product needs it.
+  options:
+    - label: Static docs site
+      title: Fast, portable, and easy to host
+      body: >
+        Export HTML for GitHub Pages, a CDN, or an offline bundle. This is the
+        right default when public docs need to be fast, cheap, and durable.
+    - label: Living docs app
+      title: Runtime docs with product context
+      body: >
+        Deploy the docs app on Railway or another app host when you need login,
+        gated sections, user-specific content, telemetry, or live integrations.
+  future:
+    label: Opens the door to
+    items:
+      - Authenticated docs
+      - Persona-aware content
+      - Usage analytics
+      - MCP or API endpoints
+
 exports:
-  title: Agent-native exports
-  subtitle: Machine-readable surfaces ship with the product.
+  title: Ready for search and AI tools
+  subtitle: Publish the docs site and keep structured outputs for search, references, and AI assistants.
   action:
-    label: All exports
+    label: View outputs
     href: /develop/
 
 quick_start:
   eyebrow: Run locally
-  title: Quick start
+  title: Start in two commands
   commands: |
     uv sync --group dev
     uv run fura serve
-  caption: Open http://127.0.0.1:8001/ — edit markdown and watch the open page reload via partial swaps.
+  caption: Open http://127.0.0.1:8001/ and edit Markdown while the local docs site updates.
 
 workflows:
-  eyebrow: Authoring
-  title: Common workflows
+  eyebrow: Everyday use
+  title: What this replaces
   items:
-    - text: Dogfood your own product docs from content/<product>/
-    - text: Keep a reference mount for regression testing
-      link:
-        label: Chirp
-        href: /chirp/
-    - text: Run fura check in CI for broken links, directive contracts, and theme lint
-    - text: Expose /catalog.json, /search.json, and /tools.json for agents and IDE tooling
-
-brand:
-  eyebrow: Gold in the ledger
-  title: The mark
-  body: >
-    The navbar mark 𐂛 is Linear B ideogram B141 — gold in Mycenaean palace inventories.
-    Furatena tags markdown the same way: a live catalog of indexed docs, not a one-shot static build.
-
-stack:
-  eyebrow: Bengal
-  title: The Bengal stack
-  intro: Furatena is the documentation surface for the Bengal hypermedia ecosystem.
-  footer: Python-native. Free-threading ready. Markdown-first authoring.
-  rows:
-    - mark: "𐂛"
-      name: Furatena
-      description: Documentation catalog ← You are here
-      here: true
-    - mark: "ᗢ"
-      name: Chirp
-      description: Web framework
-      href: /chirp/
-    - mark: "=^..^="
-      name: Pounce
-      description: ASGI server
-      href: https://github.com/lbliii/pounce
-    - mark: ")彡"
-      name: Kida
-      description: Template engine
-      href: https://github.com/lbliii/kida
-    - mark: "ฅᨐฅ"
-      name: Patitas
-      description: Markdown parser
-      href: https://github.com/lbliii/patitas
+    - text: Keep product docs next to the code they explain
+    - text: Maintain reference docs without a separate publishing tool
+    - text: Check links and docs structure in CI
+    - text: Reuse the same docs for search, AI tools, and developer references
 
 cta:
-  title: Start authoring
-  body: Run fura serve, edit markdown, and ship the same corpus to agents and static hosting.
+  title: Start with your existing Markdown
+  body: Run the local preview, edit docs in place, and publish the same content when it is ready.
   secondary:
-    label: Browse exports
+    label: See outputs
     href: /develop/

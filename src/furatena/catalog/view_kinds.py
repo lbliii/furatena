@@ -141,16 +141,19 @@ _APP_OPTIONAL = (
     | _CHIRP_UI_MACROS
     | frozenset(
         {
+            "develop_exports",
             "home",
             "home.aria_label",
             "home.cta_primary.href",
             "home.cta_primary.label",
             "home.cta_secondary.href",
             "home.cta_secondary.label",
+            "home.hero_points",
             "home.visual",
             "node.description",
             "node.slug",
             "node.title",
+            "shell_mega_item",
             "site_home",
             "site_mark",
             "site_tagline",

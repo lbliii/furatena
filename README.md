@@ -24,7 +24,6 @@ uv run fura --app-root /tmp/my-docs serve
 Open http://127.0.0.1:8001/
 
 The default **`app/`** instance dogfoods the Furatena documentation corpus under `content/furatena/`.
-The Chirp docs mount under `content/chirp/` remains available at `/chirp/` for testing.
 
 ## Commands
 
@@ -46,7 +45,7 @@ uv run fura author status docs/get-started --json
 
 ```
 app/           Default deployment (docs.yaml, theme, mounts)
-content/       Markdown corpora (content/furatena = default; content/chirp = test mount)
+content/       Markdown corpora (content/furatena = default; content/chirp = test fixture)
 data/          Collections, glossary, rewrites
 config/        Autodoc and shared config
 src/furatena/  Library (catalog graph, directives, CLI)

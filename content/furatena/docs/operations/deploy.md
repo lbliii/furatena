@@ -37,9 +37,9 @@ Legacy deploy prefixes map to app routes via **`data/url_rewrites.yaml`**:
 
 ```yaml
 prefixes:
-  - from: /chirp/docs/
+  - from: /furatena/docs/
     to: /docs/
-  - from: /chirp/
+  - from: /furatena/
     to: /
 ```
 
@@ -49,7 +49,7 @@ Useful when GitHub Pages serves under a subpath but local dev uses root paths.
 
 Multi-mount sites export a **`registry.json`** with per-mount shards under
 `frozen/mounts/<id>/`. The default mount serves `/`; secondary mounts use `url_prefix`
-(for example `/chirp/`).
+(for example `/shared/`).
 
 ## Machine-readable endpoints
 

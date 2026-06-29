@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -517,7 +518,7 @@ class DocCatalog:
             )
         if cached is not None:
             for node in cached:
-                self._register_node(node)
+                self._register_node(replace(node, mount=self.mount))
             if self._frozen_pages_dir is None and self._frozen_shard_dir is not None:
                 pages_dir = self._frozen_shard_dir / "pages"
                 if pages_dir.is_dir():
@@ -528,7 +529,7 @@ class DocCatalog:
             repo_root=self.repo_root,
             workers=self._workers,
         ):
-            self._register_node(node)
+            self._register_node(replace(node, mount=self.mount))
 
     def _finalize_graph(self) -> None:
         self._doc_nodes = None

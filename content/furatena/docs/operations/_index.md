@@ -1,6 +1,6 @@
 ---
 title: Operations
-description: Serve, freeze, export, check, and deploy Furatena sites
+description: Preview, build, check, and deploy Furatena sites
 draft: false
 weight: 40
 lang: en
@@ -12,7 +12,7 @@ cascade:
   type: doc
 ---
 
-Run Furatena locally, freeze for preview, export static HTML, and validate in CI.
+Run Furatena locally, build static HTML, publish it, and validate docs in CI.
 
 ## Guides
 

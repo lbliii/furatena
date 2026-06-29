@@ -1,11 +1,11 @@
 ---
 title: Documentation
-description: Guides and reference for building hypermedia documentation with Furatena
+description: Guides and reference for publishing Markdown docs with Furatena
 draft: false
 weight: 10
 lang: en
 type: doc
-keywords: [furatena, documentation, hypermedia, catalog, fura]
+keywords: [furatena, documentation, markdown, static docs, fura]
 category: overview
 
 cascade:
@@ -14,9 +14,9 @@ cascade:
 
 ## Get oriented
 
-Furatena turns markdown under `content/` into a live document graph served through an htmx
-shell. You author pages, Furatena indexes structure at parse time, and views decide how
-each node renders inside `#page-root`.
+Furatena turns Markdown files into a searchable documentation site. Write locally,
+preview changes as you go, and publish the same content as static pages when it is
+ready.
 
 New here? Start with **Get Started**. Building a mental model? Read **Concepts**. Running
 a site in production? Jump to **Operations** or the **Reference**.
@@ -25,15 +25,15 @@ a site in production? Jump to **Operations** or the **Reference**.
 
 | Lane | Use when |
 |------|----------|
-| [Get Started](/docs/get-started/) | First hour — install, quickstart, project layout |
-| [Concepts](/docs/concepts/) | Catalog graph, dual IR, views, federation |
+| [Get Started](/docs/get-started/) | First hour: install, quickstart, project layout |
+| [Concepts](/docs/concepts/) | How pages, navigation, search, and outputs fit together |
 | [Authoring](/docs/authoring/) | Markdown, directives, navigation, collections |
 | [Theming](/docs/theming/) | Tokens, skin, views, branding |
-| [Operations](/docs/operations/) | Serve, freeze, export, check, deploy |
+| [Operations](/docs/operations/) | Preview locally, build static pages, check links, deploy |
 | [Reference](/docs/reference/) | CLI, config files, glossary |
-| [About](/docs/about/) | Philosophy, Chirp relationship, roadmap |
+| [About](/docs/about/) | Product principles, project direction, roadmap |
 
-Machine-readable doc index: [`/llms.txt`](/llms.txt) (generated on site build).
+AI-ready page index: [`/llms.txt`](/llms.txt) (generated on site build).
 
 :::{cards}
 :columns: 2
@@ -48,7 +48,7 @@ Install Furatena, run `fura serve`, and edit your first page.
 :::{card} Concepts
 :icon: layers
 :link: /docs/concepts/
-How the catalog graph, views, and shell fit together.
+How pages, navigation, search, and outputs fit together.
 :::{/card}
 
 :::{card} Authoring
@@ -60,7 +60,7 @@ Markdown, directives, front matter, and collections.
 :::{card} Operations
 :icon: check-circle
 :link: /docs/operations/
-Serve modes, freeze, export, and CI checks.
+Local preview, static builds, deploys, and CI checks.
 :::{/card}
 
 :::{/cards}

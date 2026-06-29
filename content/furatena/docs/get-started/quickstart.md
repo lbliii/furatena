@@ -28,8 +28,7 @@ Or use the app wrapper:
 
 Open http://127.0.0.1:8001/
 
-The default instance dogfoods this documentation corpus under `content/furatena/`. The
-[Chirp docs mount](/chirp/) remains available for testing.
+The default instance dogfoods this documentation corpus under `content/furatena/`.
 
 ## Edit a page
 

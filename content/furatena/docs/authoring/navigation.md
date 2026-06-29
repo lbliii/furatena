@@ -67,7 +67,7 @@ Customize product name, mark, and mega-menu links via `site:` — see
 
 ## Portal and federated mounts
 
-With multiple mounts, `/portal/` lists corpora. Prefixed mounts (like `/chirp/`) keep their
+With multiple mounts, `/portal/` lists corpora. Prefixed mounts (like `/shared/`) keep their
 own section sidebars scoped to that mount's docs tree.
 
 See [[docs/concepts/federation|Federation]].

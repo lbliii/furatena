@@ -124,6 +124,44 @@ class SiteHomePipelineConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class SiteHomeDeploymentOptionConfig:
+    label: str
+    title: str
+    body: str
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeDeploymentFutureConfig:
+    label: str
+    items: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeDeploymentsConfig:
+    eyebrow: str
+    title: str
+    subtitle: str
+    options: tuple[SiteHomeDeploymentOptionConfig, ...]
+    future: SiteHomeDeploymentFutureConfig | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeSourceFormatConfig:
+    label: str
+    detail: str
+    body: str
+
+
+@dataclass(frozen=True, slots=True)
+class SiteHomeSourcesConfig:
+    eyebrow: str
+    title: str
+    subtitle: str
+    formats: tuple[SiteHomeSourceFormatConfig, ...]
+    note: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class SiteHomeExportsConfig:
     title: str
     subtitle: str
@@ -218,6 +256,8 @@ class SiteHomeConfig:
     ideas: SiteHomeIdeasConfig | None = None
     explore: SiteHomeExploreConfig | None = None
     pipeline: SiteHomePipelineConfig | None = None
+    deployments: SiteHomeDeploymentsConfig | None = None
+    sources: SiteHomeSourcesConfig | None = None
     exports: SiteHomeExportsConfig | None = None
     quick_start: SiteHomeQuickStartConfig | None = None
     workflows: SiteHomeWorkflowsConfig | None = None
@@ -493,6 +533,69 @@ def _parse_home_pipeline(raw: object) -> SiteHomePipelineConfig | None:
     )
 
 
+def _parse_home_deployments(raw: object) -> SiteHomeDeploymentsConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    options_raw = raw.get("options")
+    if not isinstance(options_raw, list):
+        return None
+    options: list[SiteHomeDeploymentOptionConfig] = []
+    for item in options_raw:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or "").strip()
+        title = str(item.get("title") or "").strip()
+        body = str(item.get("body") or "").strip()
+        if label and title and body:
+            options.append(SiteHomeDeploymentOptionConfig(label=label, title=title, body=body))
+    if not options:
+        return None
+    future = None
+    future_raw = raw.get("future")
+    if isinstance(future_raw, dict):
+        items_raw = future_raw.get("items")
+        if isinstance(items_raw, list):
+            items = tuple(str(item).strip() for item in items_raw if str(item).strip())
+            if items:
+                future = SiteHomeDeploymentFutureConfig(
+                    label=str(future_raw.get("label") or "Opens the door to").strip(),
+                    items=items,
+                )
+    return SiteHomeDeploymentsConfig(
+        eyebrow=str(raw.get("eyebrow") or "Deployment choices").strip(),
+        title=str(raw.get("title") or "Choose how your docs run").strip(),
+        subtitle=str(raw.get("subtitle") or "").strip(),
+        options=tuple(options),
+        future=future,
+    )
+
+
+def _parse_home_sources(raw: object) -> SiteHomeSourcesConfig | None:
+    if not isinstance(raw, dict):
+        return None
+    formats_raw = raw.get("formats")
+    if not isinstance(formats_raw, list):
+        return None
+    formats: list[SiteHomeSourceFormatConfig] = []
+    for item in formats_raw:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or "").strip()
+        detail = str(item.get("detail") or "").strip()
+        body = str(item.get("body") or "").strip()
+        if label and body:
+            formats.append(SiteHomeSourceFormatConfig(label=label, detail=detail, body=body))
+    if not formats:
+        return None
+    return SiteHomeSourcesConfig(
+        eyebrow=str(raw.get("eyebrow") or "Source adapters").strip(),
+        title=str(raw.get("title") or "Bring the docs you already have").strip(),
+        subtitle=str(raw.get("subtitle") or "").strip(),
+        formats=tuple(formats),
+        note=str(raw.get("note") or "").strip(),
+    )
+
+
 def _parse_home_exports(raw: object) -> SiteHomeExportsConfig | None:
     if not isinstance(raw, dict):
         return None
@@ -696,6 +799,8 @@ def _parse_home_config(raw: object, *, site_name: str, app_root: Path) -> SiteHo
         ideas=_parse_home_ideas(merged.get("ideas")),
         explore=_parse_home_explore(merged.get("explore")),
         pipeline=_parse_home_pipeline(merged.get("pipeline")),
+        deployments=_parse_home_deployments(merged.get("deployments")),
+        sources=_parse_home_sources(merged.get("sources")),
         exports=_parse_home_exports(merged.get("exports")),
         quick_start=_parse_home_quick_start(merged.get("quick_start")),
         workflows=_parse_home_workflows(merged.get("workflows")),
@@ -763,7 +868,7 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
                 SiteNavLinkConfig(
                     "/docs/concepts/",
                     "Concepts",
-                    "Catalog graph, views, shell, and dual IR.",
+                    "How pages, navigation, search, and outputs fit together.",
                     "layers",
                 ),
                 SiteNavLinkConfig(
@@ -781,7 +886,7 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
                 SiteNavLinkConfig(
                     "/docs/operations/",
                     "Operations",
-                    "Serve, freeze, export, check, and deploy.",
+                    "Preview locally, build static pages, check links, and deploy.",
                     "rocket",
                 ),
                 SiteNavLinkConfig(
@@ -793,7 +898,7 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
                 SiteNavLinkConfig(
                     "/docs/about/",
                     "About",
-                    "Philosophy, roadmap, and ecosystem.",
+                    "Product principles, roadmap, and project direction.",
                     "info",
                 ),
             ),
@@ -804,15 +909,15 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
             overview_href="/develop/",
             overview_kicker="Build",
             overview_title="Developer tools",
-            overview_blurb="Machine-readable indexes and release channels.",
+            overview_blurb="Structured outputs for search, references, and AI tools.",
             links=(
                 SiteNavLinkConfig("/api/", "Autodoc API", "Python modules indexed from the repo.", "code"),
                 SiteNavLinkConfig("/shared/", "Shared reference", "Cross-mount glossary and formats.", "globe"),
                 SiteNavLinkConfig("/releases/", "Releases", "Version notes and channel history.", "rocket"),
-                SiteNavLinkConfig("/develop/catalog/", "Catalog JSON", "Live document graph export.", "file-code"),
-                SiteNavLinkConfig("/develop/llms/", "llms.txt", "Agent-friendly page index.", "article"),
+                SiteNavLinkConfig("/develop/catalog/", "Catalog JSON", "Structured page metadata.", "file-code"),
+                SiteNavLinkConfig("/develop/llms/", "llms.txt", "AI-ready page index.", "article"),
                 SiteNavLinkConfig("/develop/search/", "search.json", "Keyword search index.", "magnifying-glass"),
-                SiteNavLinkConfig("/develop/tools/", "tools.json", "Agent tool manifest.", "stack"),
+                SiteNavLinkConfig("/develop/tools/", "tools.json", "Tool metadata for integrations.", "stack"),
             ),
         ),
     )
@@ -821,12 +926,12 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
 def _parse_site_config(raw: object, *, app_root: Path) -> SiteConfig:
     site_raw = raw if isinstance(raw, dict) else {}
     name = str(site_raw.get("name") or "Furatena").strip() or "Furatena"
-    tagline = str(site_raw.get("tagline") or "Live documentation from markdown").strip()
+    tagline = str(site_raw.get("tagline") or "Polished docs from Markdown").strip()
     description = str(
         site_raw.get("description")
         or (
-            "Write markdown. Get a fast, searchable doc site that reloads while you work — "
-            "and exports to GitHub Pages when you're ready to ship."
+            "Write locally, preview instantly, and publish a fast, searchable "
+            "documentation site from the same Markdown source."
         )
     ).strip()
     mark = str(site_raw.get("mark") or "𐂛").strip() or "𐂛"

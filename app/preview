@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Serve the static export under /chirp/ like GitHub Pages project sites.
+# Serve the static export under /furatena/ like GitHub Pages project sites.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLIC="${1:-$ROOT/public}"
-BASE_PATH="${FURA_BASE_PATH:-/chirp}"
+BASE_PATH="${FURA_BASE_PATH:-/furatena}"
 PORT="${FURA_PREVIEW_PORT:-8080}"
 PREVIEW_ROOT="${FURA_PREVIEW_ROOT:-$ROOT/.preview}"
 
@@ -21,7 +21,7 @@ mkdir -p "$MOUNT"
 rsync -a --delete "$PUBLIC/" "$MOUNT/"
 cd "$PREVIEW_ROOT"
 
-echo "Chirp docs static preview"
+echo "Furatena docs static preview"
 echo "  source:  $PUBLIC"
 echo "  mount:   $MOUNT"
 echo "  open:    http://127.0.0.1:${PORT}${BASE_PATH}/"
