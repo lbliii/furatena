@@ -28,19 +28,81 @@
     </div>
   </div>
 
-  <div class="fura-author-chrome__source" aria-label="Author source file">
-    <span class="fura-author-chrome__source-icon" aria-hidden="true">{{ docs_icon('file-code', 14) }}</span>
-    <span class="fura-author-chrome__source-label">Source</span>
-    <code title="{{ author_chrome.source_path }}">{{ author_chrome.source_path }}</code>
-  </div>
+  <div class="fura-author-chrome__body">
+    <div class="fura-author-chrome__primary">
+      <div class="fura-author-chrome__actions" aria-label="Author page actions">
+        <div class="fura-author-chrome__action-group fura-author-chrome__action-group--primary" aria-label="Lifecycle actions">
+          <a class="fura-author-chrome__action fura-author-chrome__action--primary" href="{{ author_chrome.actions.studio }}">
+            {{ docs_icon('external', 14) }}
+            <span>Studio</span>
+          </a>
+          <a
+            class="fura-author-chrome__action"
+            href="{{ author_chrome.actions.publish }}"
+            hx-get="{{ author_chrome.actions.publish_confirm }}"
+            hx-target="#fura-author-chrome"
+            hx-swap="outerHTML"
+            hx-confirm="Publish this page?"
+          >
+            {{ docs_icon('rocket', 14) }}
+            <span>Publish</span>
+          </a>
+          <a
+            class="fura-author-chrome__action"
+            href="{{ author_chrome.actions.mark_draft }}"
+            hx-get="{{ author_chrome.actions.mark_draft_confirm }}"
+            hx-target="#fura-author-chrome"
+            hx-swap="outerHTML"
+            hx-confirm="Mark this page as draft?"
+          >
+            {{ docs_icon('article', 14) }}
+            <span>Mark draft</span>
+          </a>
+        </div>
+        <div class="fura-author-chrome__action-group" aria-label="Source and output actions">
+          <a class="fura-author-chrome__action" href="{{ author_chrome.actions.open_source }}">
+            {{ docs_icon('file-code', 14) }}
+            <span>Open source</span>
+          </a>
+          <button
+            class="fura-author-chrome__action"
+            type="button"
+            data-action="copy-source-path"
+            data-source-path="{{ author_chrome.source_path }}"
+          >
+            {{ docs_icon('copy', 14) }}
+            <span>Copy source path</span>
+          </button>
+          <a
+            class="fura-author-chrome__action"
+            href="{{ author_chrome.actions.validate }}"
+            hx-get="{{ author_chrome.actions.validate }}"
+            hx-target="#fura-author-chrome"
+            hx-swap="outerHTML"
+          >
+            {{ docs_icon('check-circle', 14) }}
+            <span>Validate page</span>
+          </a>
+          <a class="fura-author-chrome__action" href="{{ author_chrome.actions.inspect_public }}">
+            {{ docs_icon('external', 14) }}
+            <span>Inspect public output</span>
+          </a>
+        </div>
+      </div>
 
-  <div class="fura-author-chrome__workspace">
-    <section class="fura-author-chrome__group fura-author-chrome__group--status" aria-labelledby="fura-author-lifecycle-heading">
-      <h2 id="fura-author-lifecycle-heading">
+      <div class="fura-author-chrome__source" aria-label="Author source file">
+        <span class="fura-author-chrome__source-icon" aria-hidden="true">{{ docs_icon('file-code', 14) }}</span>
+        <span class="fura-author-chrome__source-label">Source</span>
+        <code title="{{ author_chrome.source_path }}">{{ author_chrome.source_path }}</code>
+      </div>
+    </div>
+
+    <div class="fura-author-chrome__metadata" aria-labelledby="fura-author-metadata-heading">
+      <h2 id="fura-author-metadata-heading">
         {{ docs_icon('check-circle', 14) }}
         <span>Lifecycle</span>
       </h2>
-      <dl class="fura-author-chrome__meta">
+      <dl class="fura-author-chrome__meta" aria-label="Author metadata">
         <div class="fura-author-chrome__meta-item" data-author-meta="visibility">
           <dt>
             <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('article', 13) }}</span>
@@ -74,15 +136,6 @@
             <span class="fura-author-chrome__meta-value">{{ author_chrome.export_impact.label }}</span>
           </dd>
         </div>
-      </dl>
-    </section>
-
-    <section class="fura-author-chrome__group fura-author-chrome__group--source" aria-labelledby="fura-author-source-heading">
-      <h2 id="fura-author-source-heading">
-        {{ docs_icon('file-code', 14) }}
-        <span>Source</span>
-      </h2>
-      <dl class="fura-author-chrome__meta">
         <div class="fura-author-chrome__meta-item" data-author-meta="format">
           <dt>
             <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('file-code', 13) }}</span>
@@ -111,66 +164,6 @@
           </dd>
         </div>
       </dl>
-    </section>
-  </div>
-
-  <div class="fura-author-chrome__actions" aria-label="Author page actions">
-    <div class="fura-author-chrome__action-group fura-author-chrome__action-group--primary" aria-label="Lifecycle actions">
-      <a class="fura-author-chrome__action fura-author-chrome__action--primary" href="{{ author_chrome.actions.studio }}">
-        {{ docs_icon('external', 14) }}
-        <span>Studio</span>
-      </a>
-      <a
-        class="fura-author-chrome__action"
-        href="{{ author_chrome.actions.publish }}"
-        hx-get="{{ author_chrome.actions.publish_confirm }}"
-        hx-target="#fura-author-chrome"
-        hx-swap="outerHTML"
-        hx-confirm="Publish this page?"
-      >
-        {{ docs_icon('rocket', 14) }}
-        <span>Publish</span>
-      </a>
-      <a
-        class="fura-author-chrome__action"
-        href="{{ author_chrome.actions.mark_draft }}"
-        hx-get="{{ author_chrome.actions.mark_draft_confirm }}"
-        hx-target="#fura-author-chrome"
-        hx-swap="outerHTML"
-        hx-confirm="Mark this page as draft?"
-      >
-        {{ docs_icon('article', 14) }}
-        <span>Mark draft</span>
-      </a>
-    </div>
-    <div class="fura-author-chrome__action-group" aria-label="Source and output actions">
-      <a class="fura-author-chrome__action" href="{{ author_chrome.actions.open_source }}">
-        {{ docs_icon('file-code', 14) }}
-        <span>Open source</span>
-      </a>
-      <button
-        class="fura-author-chrome__action"
-        type="button"
-        data-action="copy-source-path"
-        data-source-path="{{ author_chrome.source_path }}"
-      >
-        {{ docs_icon('copy', 14) }}
-        <span>Copy source path</span>
-      </button>
-      <a
-        class="fura-author-chrome__action"
-        href="{{ author_chrome.actions.validate }}"
-        hx-get="{{ author_chrome.actions.validate }}"
-        hx-target="#fura-author-chrome"
-        hx-swap="outerHTML"
-      >
-        {{ docs_icon('check-circle', 14) }}
-        <span>Validate page</span>
-      </a>
-      <a class="fura-author-chrome__action" href="{{ author_chrome.actions.inspect_public }}">
-        {{ docs_icon('external', 14) }}
-        <span>Inspect public output</span>
-      </a>
     </div>
   </div>
 </section>

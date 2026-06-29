@@ -292,11 +292,12 @@ class TestAuthorStaleRoute:
         )
         assert "width: min(22rem, calc(100vw - 1rem));" in css
         assert "grid-template-columns: 1.35rem minmax(0, 1fr);" in css
-        assert ".fura-author-chrome__workspace" in css
+        assert ".fura-author-chrome__body" in css
+        assert ".fura-author-chrome__metadata" in css
         assert ".fura-author-chrome__action-group--primary" in css
         assert ".fura-author-chrome__meta-icon" in css
-        assert "grid-template-columns: minmax(7.5rem, 0.3fr) minmax(0, 1fr);" in css
-        assert "justify-content: space-between;" in css
+        assert "grid-template-columns: minmax(14rem, 0.9fr) minmax(18rem, 1.15fr);" in css
+        assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in css
         assert "@media (max-width: 480px)" in css
 
     def test_author_reload_after_source_edit_updates_dom_and_clears_hints(self, tmp_path: Path) -> None:
