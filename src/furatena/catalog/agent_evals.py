@@ -103,6 +103,8 @@ def run_agent_evaluations(
             results.append(_eval_author_publish_dry_run(case, private_client, include_private))
         elif case.id == "author-publish-remediation":
             results.append(_eval_author_publish_remediation(case, private_client, include_private))
+        elif case.id == "author-validation-repair":
+            results.append(_eval_author_validation_repair(case, private_client, include_private))
         elif case.id == "author-publish-round-trip":
             results.append(
                 _eval_author_publish_round_trip(case, public_client, private_client, include_private)
@@ -254,6 +256,17 @@ def _build_cases(catalog: Any) -> tuple[AgentEvalCase, ...]:
             ),
         ),
         AgentEvalCase(
+            id="author-validation-repair",
+            category="author_workflows",
+            prompt="Fix a lifecycle validation error with a previewed source edit, then validate clean.",
+            description="Author validation repair creates a scoped lifecycle error, previews a repair, applies it, and restores clean validation.",
+            expectation=AgentEvalExpectation(
+                tool="author_validate",
+                node_ids=tuple([private_node.node_id] if private_node is not None else []),
+                citations=tuple([_author_target(private_node)] if private_node is not None else []),
+            ),
+        ),
+        AgentEvalCase(
             id="author-publish-round-trip",
             category="author_workflows",
             prompt="Publish a reviewed draft, verify public retrieval, then unpublish it safely.",
@@ -388,17 +401,17 @@ def _eval_author_draft_dry_run(case: AgentEvalCase, client: Any, include_private
     )
     payload = _structured(result)
     observed = {
-        "is_error": result.is_error,
+        "is_error": _milo_failed(result),
         "ok": payload.get("ok"),
         "dry_run": payload.get("dry_run"),
         "changed_files": payload.get("changed_files"),
         "resulting_visibility": payload.get("resulting_visibility"),
         "diagnostics": payload.get("diagnostics", []),
     }
-    if result.is_error and _diagnostic_mentions(payload, "target already exists"):
+    if _milo_failed(result) and _diagnostic_mentions(payload, "target already exists"):
         return _skip(case, "reserved eval draft slug already exists", observed)
     if (
-        not result.is_error
+        not _milo_failed(result)
         and payload.get("ok") is True
         and payload.get("dry_run") is True
         and payload.get("changed_files") == []
@@ -419,7 +432,7 @@ def _eval_author_publish_dry_run(case: AgentEvalCase, client: Any, include_priva
     impact = payload.get("publication_impact") if isinstance(payload, dict) else {}
     observed = {
         "target": target,
-        "is_error": result.is_error,
+        "is_error": _milo_failed(result),
         "ok": payload.get("ok"),
         "dry_run": payload.get("dry_run"),
         "changed_files": payload.get("changed_files"),
@@ -428,7 +441,7 @@ def _eval_author_publish_dry_run(case: AgentEvalCase, client: Any, include_priva
         "affected_surfaces": impact.get("affected_surfaces") if isinstance(impact, dict) else None,
     }
     if (
-        not result.is_error
+        not _milo_failed(result)
         and payload.get("ok") is True
         and payload.get("dry_run") is True
         and payload.get("changed_files") == []
@@ -474,25 +487,125 @@ def _eval_author_publish_remediation(case: AgentEvalCase, client: Any, include_p
     )
     observed = {
         "target": target,
-        "failed_publish_is_error": failed_publish.is_error,
+        "failed_publish_is_error": _milo_failed(failed_publish),
         "failed_publish_diagnostics": _structured(failed_publish).get("diagnostics", []),
         "source_unchanged_after_failed_publish": before_source == after_source,
-        "validation_is_error": validation.is_error,
+        "validation_is_error": _milo_failed(validation),
         "validation_has_audit": "audit" in _structured(validation),
-        "repair_preview_is_error": repair_preview.is_error,
+        "repair_preview_is_error": _milo_failed(repair_preview),
         "repair_preview_dry_run": _structured(repair_preview).get("dry_run"),
         "repair_preview_changed_files": _structured(repair_preview).get("changed_files"),
     }
     if (
-        failed_publish.is_error
+        _milo_failed(failed_publish)
         and before_source == after_source
         and "audit" in _structured(validation)
-        and not repair_preview.is_error
+        and not _milo_failed(repair_preview)
         and _structured(repair_preview).get("dry_run") is True
         and _structured(repair_preview).get("changed_files") == []
     ):
         return _pass(case, "failed publish remediation stayed diagnostics-first and non-mutating", observed)
     return _fail(case, "failed publish remediation did not preserve the expected safety gates", observed)
+
+
+def _eval_author_validation_repair(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+    if not include_private:
+        return _skip(case, "rerun with --include-private to exercise author workflow evals")
+    target = _expected_author_target(case)
+    if not target:
+        return _skip(case, "catalog has no private author target for validation repair")
+
+    source_before = client.call("author_read_source", target=target)
+    if source_before.is_error:
+        return _fail(
+            case,
+            "validation repair eval could not read target source",
+            {"target": target, "read_error": _structured(source_before)},
+        )
+    original_source = str(_structured(source_before).get("source") or "")
+    source_target = str(_structured(source_before).get("target_path") or target)
+    clean_span, invalid_span = _validation_repair_spans(original_source)
+    if not clean_span or not invalid_span:
+        return _skip(case, "target source has no lifecycle frontmatter span suitable for repair")
+
+    introduce_error = client.call(
+        "author_apply_edit",
+        target=source_target,
+        old_text=clean_span,
+        new_text=invalid_span,
+        dry_run=False,
+        confirmed=True,
+    )
+    invalid_validation = client.call("author_validate", target=source_target)
+    repair_preview = client.call(
+        "author_propose_edit",
+        target=source_target,
+        old_text=invalid_span,
+        new_text=clean_span,
+    )
+    repair_apply = client.call(
+        "author_apply_edit",
+        target=source_target,
+        old_text=invalid_span,
+        new_text=clean_span,
+        dry_run=False,
+        confirmed=True,
+    )
+    clean_validation = client.call("author_validate", target=source_target)
+    source_after = client.call("author_read_source", target=source_target)
+
+    restore_payload: dict[str, Any] = {}
+    after_source = str(_structured(source_after).get("source") or "")
+    if original_source and after_source and after_source != original_source:
+        restore = client.call(
+            "author_apply_edit",
+            target=source_target,
+            old_text=after_source,
+            new_text=original_source,
+            dry_run=False,
+            confirmed=True,
+        )
+        restore_payload = {
+            "restore_is_error": _milo_failed(restore),
+            "restore_changed_files": _structured(restore).get("changed_files"),
+        }
+
+    invalid_payload = _structured(invalid_validation)
+    clean_payload = _structured(clean_validation)
+    observed = {
+        "target": target,
+        "source_target": source_target,
+        "introduce_error_is_error": _milo_failed(introduce_error),
+        "introduce_error_changed_files": _structured(introduce_error).get("changed_files"),
+        "invalid_validation_is_error": _milo_failed(invalid_validation),
+        "invalid_error_count": invalid_payload.get("error_count"),
+        "invalid_errors": invalid_payload.get("errors", []),
+        "invalid_diagnostics": invalid_payload.get("diagnostics", []),
+        "repair_preview_is_error": _milo_failed(repair_preview),
+        "repair_preview_dry_run": _structured(repair_preview).get("dry_run"),
+        "repair_preview_changed_files": _structured(repair_preview).get("changed_files"),
+        "repair_apply_is_error": _milo_failed(repair_apply),
+        "repair_apply_changed_files": _structured(repair_apply).get("changed_files"),
+        "clean_validation_is_error": _milo_failed(clean_validation),
+        "clean_error_count": clean_payload.get("error_count"),
+        "source_restored": after_source == original_source,
+        **restore_payload,
+    }
+    if (
+        not _milo_failed(introduce_error)
+        and _milo_failed(invalid_validation)
+        and int(invalid_payload.get("error_count") or 0) >= 1
+        and not _milo_failed(repair_preview)
+        and _structured(repair_preview).get("dry_run") is True
+        and _structured(repair_preview).get("changed_files") == []
+        and not _milo_failed(repair_apply)
+        and not _milo_failed(clean_validation)
+        and clean_payload.get("error_count") == 0
+        and observed.get("restore_is_error") is not True
+        and after_source == original_source
+    ):
+        return _pass(case, "validation repair failed, previewed, applied, and validated clean", observed)
+    return _fail(case, "validation repair did not complete the expected safe repair loop", observed)
 
 
 def _eval_author_publish_round_trip(
@@ -536,7 +649,7 @@ def _eval_author_publish_round_trip(
                 confirmed=True,
             )
             restore_payload = {
-                "restore_is_error": restore.is_error,
+                "restore_is_error": _milo_failed(restore),
                 "restore_changed_files": _structured(restore).get("changed_files"),
             }
 
@@ -544,22 +657,22 @@ def _eval_author_publish_round_trip(
         "target": target,
         "node_id": node_id,
         "public_before_is_error": public_before.is_error,
-        "publish_is_error": publish.is_error,
+        "publish_is_error": _milo_failed(publish),
         "publish_resulting_visibility": _structured(publish).get("resulting_visibility"),
         "public_after_publish_is_error": public_after_publish.is_error,
         "public_after_publish_node_id": _structured(public_after_publish).get("node_id"),
-        "unpublish_is_error": unpublish.is_error,
+        "unpublish_is_error": _milo_failed(unpublish),
         "unpublish_resulting_visibility": _structured(unpublish).get("resulting_visibility"),
         "public_after_unpublish_is_error": public_after_unpublish.is_error,
         **restore_payload,
     }
     if (
         public_before.is_error
-        and not publish.is_error
+        and not _milo_failed(publish)
         and _structured(publish).get("resulting_visibility") == "public"
         and not public_after_publish.is_error
         and _structured(public_after_publish).get("node_id") == node_id
-        and not unpublish.is_error
+        and not _milo_failed(unpublish)
         and _structured(unpublish).get("resulting_visibility") == "draft"
         and public_after_unpublish.is_error
         and observed.get("restore_is_error") is not True
@@ -594,6 +707,11 @@ def _read_json_resource(client: Any, uri: str) -> dict[str, Any]:
 def _structured(result: Any) -> dict[str, Any]:
     payload = getattr(result, "structured", None)
     return payload if isinstance(payload, dict) else {}
+
+
+def _milo_failed(result: Any) -> bool:
+    payload = _structured(result)
+    return bool(getattr(result, "is_error", False) or payload.get("ok") is False)
 
 
 def _pick_node(nodes: list[Any], *, preferred_urls: tuple[str, ...]) -> Any | None:
@@ -631,6 +749,18 @@ def _first_heading_span(source: str) -> str:
         if line.startswith("# "):
             return line
     return ""
+
+
+def _validation_repair_spans(source: str) -> tuple[str, str]:
+    if "draft: true\n" in source:
+        return "draft: true\n", "draft: true\npublished_at: 2026-01-01T00:00:00Z\n"
+    if "visibility: private\n" in source:
+        return "visibility: private\n", "visibility: private\npublished_at: 2026-01-01T00:00:00Z\n"
+    if "visibility: draft\n" in source:
+        return "visibility: draft\n", "visibility: draft\npublished_at: 2026-01-01T00:00:00Z\n"
+    if "visibility: internal\n" in source:
+        return "visibility: internal\n", "visibility: internal\npublished_at: 2026-01-01T00:00:00Z\n"
+    return "", ""
 
 
 def _pass(case: AgentEvalCase, message: str, observed: dict[str, Any]) -> AgentEvalResult:

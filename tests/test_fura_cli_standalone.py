@@ -233,6 +233,10 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     assert results["author-publish-dry-run"]["observed"]["publication_change"] == "added_to_public_output"
     assert results["author-publish-remediation"]["status"] == "pass"
     assert results["author-publish-remediation"]["observed"]["source_unchanged_after_failed_publish"] is True
+    assert results["author-validation-repair"]["status"] == "pass"
+    assert results["author-validation-repair"]["observed"]["invalid_validation_is_error"] is True
+    assert results["author-validation-repair"]["observed"]["clean_validation_is_error"] is False
+    assert results["author-validation-repair"]["observed"]["source_restored"] is True
     assert results["author-publish-round-trip"]["status"] == "pass"
     assert results["author-publish-round-trip"]["observed"]["public_before_is_error"] is True
     assert results["author-publish-round-trip"]["observed"]["public_after_publish_is_error"] is False
@@ -1457,6 +1461,7 @@ def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path)
     search = client.call("semantic_search", query="Get started", limit=5)
     retrieve = client.call("retrieve_node", node_id=node.node_id)
     graph_query = client.call("query_graph", mount=node.mount)
+    author_denied = client.call("author_read_source", target="docs/get-started")
 
     assert init["serverInfo"]["name"] == "furatena-catalog"
     assert "fura://catalog/nodes" in {resource["uri"] for resource in resources}
@@ -1472,6 +1477,9 @@ def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path)
     assert retrieve.structured["node_id"] == node.node_id
     assert graph_query.is_error is False
     assert graph_query.structured["page_count"] >= 1
+    assert author_denied.is_error is False
+    assert author_denied.structured["ok"] is False
+    assert author_denied.structured["diagnostics"][0]["rule_id"] == "fura.mcp.author"
 
 
 def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> None:

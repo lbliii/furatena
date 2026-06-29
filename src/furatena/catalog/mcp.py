@@ -1581,7 +1581,9 @@ def _milo_tool_payload(
     result = server.call_tool(name, arguments)
     payload = result.get("structuredContent")
     if result.get("isError"):
-        raise MCPError(-32602, _dumps(payload or result))
+        if isinstance(payload, dict):
+            return payload
+        raise MCPError(-32602, _dumps(result))
     return payload if isinstance(payload, dict) else {"result": payload}
 
 

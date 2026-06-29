@@ -63,7 +63,7 @@ The `fura://reports/audit` resource records sanitized tool calls with actor, ten
 Run `fura check --agent --json` before publishing MCP changes; it lints tool/resource descriptions, input/output schemas, mutating-tool permission boundaries, Milo adapter parity, and descriptions that feed llms/search exports.
 Run `fura evals --json` for deterministic golden-path agent checks. The suite exercises the Milo MCP adapter for prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, tool selection, and non-mutating author workflows without paid model calls.
 
-Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the publish round-trip case performs confirmed writes against a private fixture and restores the original source before finishing.
+Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, validation-error repair, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the validation repair and publish round-trip cases perform confirmed writes against a private fixture and restore the original source before finishing.
 
 MCP tools return both text content and `structuredContent` payloads:
 
