@@ -761,6 +761,15 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert status_payload["ok"] is True
     assert status_payload["data"]["resulting_visibility"] == "draft"
 
+    main(["--app-root", str(app_root), "author", "validate", "docs/release-notes", "--json"])
+    validate_payload = json.loads(capsys.readouterr().out)
+    assert validate_payload["ok"] is True
+    assert validate_payload["command"] == "author validate"
+    assert validate_payload["data"]["operation_id"].startswith("author.validate.")
+    assert validate_payload["data"]["target_path"] == str(target)
+    assert validate_payload["data"]["resulting_visibility"] == "draft"
+    assert validate_payload["data"]["changed_files"] == []
+
     try:
         main(["--app-root", str(app_root), "author", "publish", "docs/release-notes", "--json"])
     except SystemExit as exc:
@@ -826,6 +835,31 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert unpublish_dry["data"]["publication_impact"]["resulting_public"] is False
     assert unpublish_dry["data"]["publication_impact"]["change"] == "removed_from_public_output"
     assert "visibility: draft" not in target.read_text(encoding="utf-8")
+
+
+def test_author_validate_reports_lifecycle_failure(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+    target = app_root / "content" / "docs" / "get-started.md"
+    source = target.read_text(encoding="utf-8")
+    target.write_text(source.replace("---\n", "---\nvisibility: invalid\n", 1), encoding="utf-8")
+
+    try:
+        main(["--app-root", str(app_root), "author", "validate", "docs/get-started", "--json"])
+    except SystemExit as exc:
+        assert exc.code == 2
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("author validate should fail for invalid lifecycle frontmatter")
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert payload["exit_code"] == 2
+    assert payload["data"]["operation"] == "validate"
+    assert payload["data"]["target_path"] == str(target)
+    assert payload["data"]["diagnostics"][0]["severity"] == "error"
+    assert "visibility must be one of" in payload["data"]["diagnostics"][0]["message"]
+    assert payload["diagnostics"][0]["source_path"] == str(target)
 
 
 def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys) -> None:

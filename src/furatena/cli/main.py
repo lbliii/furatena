@@ -772,6 +772,7 @@ def _run_author(args: argparse.Namespace) -> None:
         author_new,
         author_status,
         author_transition,
+        author_validate,
     )
 
     app_root = _app_root(args)
@@ -783,6 +784,17 @@ def _run_author(args: argparse.Namespace) -> None:
 
     if command == "status":
         result = author_status(args.target, mounts=mounts, mount_id=mount_id)
+    elif command == "validate":
+        result = author_validate(args.target, mounts=mounts, mount_id=mount_id)
+        if result.ok:
+            errors, warnings = _run_docs_content_check(args=args)
+            result = author_validate(
+                args.target,
+                mounts=mounts,
+                mount_id=mount_id,
+                validation_errors=tuple(errors),
+                validation_warnings=tuple(warnings),
+            )
     elif command == "new":
         result = author_new(
             args.slug,
@@ -813,7 +825,13 @@ def _run_author(args: argparse.Namespace) -> None:
         )
 
     diagnostics = _author_diagnostics(result)
-    exit_code = ExitCode.SUCCESS if result.ok else ExitCode.CONFIG_ERROR
+    exit_code = (
+        ExitCode.SUCCESS
+        if result.ok
+        else ExitCode.VALIDATION_ERROR
+        if command == "validate" and result.target_path is not None
+        else ExitCode.CONFIG_ERROR
+    )
     summary = (
         f"author {command} completed"
         if result.ok
@@ -1909,6 +1927,12 @@ def _build_parser() -> argparse.ArgumentParser:
     author_status_cmd.add_argument("--mount", default=None, help="Mount id from mounts.yaml")
     author_status_cmd.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     author_status_cmd.set_defaults(handler=_run_author)
+
+    author_validate_cmd = author_sub.add_parser("validate", help="Validate a source page")
+    author_validate_cmd.add_argument("target", help="Source path or page slug")
+    author_validate_cmd.add_argument("--mount", default=None, help="Mount id from mounts.yaml")
+    author_validate_cmd.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
+    author_validate_cmd.set_defaults(handler=_run_author)
 
     author_edit_cmd = author_sub.add_parser("edit", help="Apply an exact-text edit to a source page")
     author_edit_cmd.add_argument("target", help="Source path or page slug")

@@ -98,6 +98,55 @@ def author_status(target: str, *, mounts: tuple[Any, ...], mount_id: str | None 
     )
 
 
+def author_validate(
+    target: str,
+    *,
+    mounts: tuple[Any, ...],
+    mount_id: str | None = None,
+    validation_errors: tuple[str, ...] = (),
+    validation_warnings: tuple[str, ...] = (),
+) -> AuthorOperationResult:
+    operation = "validate"
+    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation=operation)
+    if isinstance(resolved, AuthorOperationResult):
+        return resolved
+
+    source = resolved.path.read_text(encoding="utf-8")
+    meta, _body = _validate_source_text(
+        source,
+        content_format=resolved.source_format,
+        operation=operation,
+        target_path=resolved.path,
+        mount=resolved.mount_id,
+    )
+    if isinstance(meta, AuthorOperationResult):
+        return meta
+
+    diagnostics = tuple(
+        _validation_diagnostic(message, severity, resolved.path)
+        for severity, messages in (("error", validation_errors), ("warning", validation_warnings))
+        for message in messages
+        if _validation_message_applies(message, resolved.path)
+    )
+    ok = not any(diagnostic.severity == "error" for diagnostic in diagnostics)
+    visibility = visibility_state(meta)
+    return AuthorOperationResult(
+        operation_id=_operation_id(operation),
+        operation=operation,
+        ok=ok,
+        target_path=resolved.path,
+        mount=resolved.mount_id,
+        previous_visibility=visibility,
+        resulting_visibility=visibility,
+        diagnostics=diagnostics,
+        next_actions=(
+            ("Fix the reported validation errors and rerun fura author validate.",)
+            if not ok
+            else ("Run fura author publish --dry-run to inspect publication impact.",)
+        ),
+    )
+
+
 def author_read_source(
     target: str,
     *,
@@ -714,3 +763,42 @@ def _next_actions_for(operation: str) -> tuple[str, ...]:
     if operation == "archive":
         return ("Run fura check --content-only --json to verify archived visibility.",)
     return ("Preview locally with fura serve --author.",)
+
+
+def _validation_message_applies(message: str, target_path: Path) -> bool:
+    source = _validation_message_source(message)
+    if source is None:
+        return True
+    source_path = Path(source)
+    if not source_path.is_absolute():
+        normalized_source = source_path.as_posix().strip("/")
+        return target_path.resolve().as_posix().endswith(f"/{normalized_source}")
+    try:
+        return source_path.expanduser().resolve() == target_path.resolve()
+    except OSError:
+        return source == str(target_path)
+
+
+def _validation_diagnostic(message: str, severity: str, target_path: Path) -> AuthorDiagnostic:
+    source = _validation_message_source(message)
+    source_path = str(target_path) if source is not None else None
+    return AuthorDiagnostic(
+        severity=severity,
+        message=message,
+        rule_id="fura.content",
+        source_path=source_path,
+        next_action=(
+            "Fix the content validation error and rerun fura author validate."
+            if severity == "error"
+            else "Review the content validation warning."
+        ),
+    )
+
+
+def _validation_message_source(message: str) -> str | None:
+    if ": " not in message:
+        return None
+    source = message.split(": ", 1)[0]
+    if "/" not in source and "\\" not in source:
+        return None
+    return source
