@@ -474,7 +474,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
         app_root / "docs.yaml",
         repo_root=app_root,
         autodoc=False,
-        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, True),
     )
     author_client = TestClient(docs.create_app())
 
@@ -518,7 +518,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert 'data-fura-author-chrome' in author_payload["page"].text
     assert 'id="fura-author-sse"' in author_payload["page"].text
     assert 'sse-connect="/docs/_author/events?slug=docs/get-started"' in author_payload["page"].text
-    assert 'hx-trigger="sse:fura-author-invalidate"' in author_payload["page"].text
+    assert 'hx-trigger="sse:author-invalidate"' in author_payload["page"].text
     assert 'HX-Docs-Author-Reload' in author_payload["page"].text
     assert author_payload["boosted_page"].status == 200
     assert 'data-fura-author-chrome' in author_payload["boosted_page"].text
@@ -542,15 +542,52 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
 
     target = app_root / "content" / "docs" / "get-started.md"
     target.write_text(
-        target.read_text(encoding="utf-8").replace("weight: 20", "visibility: invalid"),
+        target.read_text(encoding="utf-8").replace(
+            "Run the local docs server:",
+            "Run the local author preview:",
+        ),
         encoding="utf-8",
     )
     future = time.time() + 5
     os.utime(target, (future, future))
+    time.sleep(1.1)
 
+    stale_status = asyncio.run(author_client.get("/docs/_author/stale?slug=docs/get-started"))
+    stale_payload = parse_json(stale_status)
+    assert stale_payload["event"] == "author-invalidate"
+    assert stale_payload["generation"]
+    assert stale_payload["current"]["slug"] == "docs/get-started"
+    assert "page-root" in stale_payload["current"]["target_hints"]
+    assert stale_payload["current"]["dirty_paths"] == ["docs/get-started.md"]
     dirty_status = asyncio.run(author_client.get("/docs/_author/page.json?slug=docs/get-started"))
     dirty_payload = parse_json(dirty_status)
-    assert {"dirty", "stale", "invalid"} <= set(dirty_payload["states"])
+    assert {"stale", "valid"} <= set(dirty_payload["states"])
+    assert dirty_payload["validation"]["error_count"] == 0
+
+    reload_page = asyncio.run(
+        author_client.get(
+            "/docs/get-started/",
+            headers={
+                "HX-Request": "true",
+                "HX-Docs-Author-Reload": "1",
+            },
+        )
+    )
+    assert reload_page.status == 200
+    assert "Run the local author preview:" in reload_page.text
+    clean_stale_status = asyncio.run(author_client.get("/docs/_author/stale?slug=docs/get-started"))
+    clean_stale_payload = parse_json(clean_stale_status)
+    assert clean_stale_payload["current"] is None
+
+    target.write_text(
+        target.read_text(encoding="utf-8").replace("weight: 20", "visibility: invalid"),
+        encoding="utf-8",
+    )
+    os.utime(target, (future + 1, future + 1))
+    time.sleep(1.1)
+    dirty_status = asyncio.run(author_client.get("/docs/_author/page.json?slug=docs/get-started"))
+    dirty_payload = parse_json(dirty_status)
+    assert {"stale", "invalid"} <= set(dirty_payload["states"])
     assert dirty_payload["validation"]["error_count"] >= 1
 
     async def _fetch_public() -> dict[str, object]:
