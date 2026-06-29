@@ -42,13 +42,19 @@
       </h2>
       <dl class="fura-author-chrome__meta">
         <div class="fura-author-chrome__meta-item" data-author-meta="visibility">
-          <dt>Visibility</dt>
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('article', 13) }}</span>
+            <span>Visibility</span>
+          </dt>
           <dd title="{{ author_chrome.visibility }}">
             <span class="fura-author-chrome__meta-value">{{ author_chrome.visibility }}</span>
           </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="validation">
-          <dt>Validation</dt>
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('check-circle', 13) }}</span>
+            <span>Validation</span>
+          </dt>
           <dd title="{% if author_chrome.validation.ok %}clean{% else %}invalid ({{ author_chrome.validation.error_count }}){% end %}">
             <span class="fura-author-chrome__meta-value">
             {% if author_chrome.validation.ok %}
@@ -60,7 +66,10 @@
           </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="public-output">
-          <dt>Public output</dt>
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('external', 13) }}</span>
+            <span>Public output</span>
+          </dt>
           <dd title="{{ author_chrome.export_impact.label }}">
             <span class="fura-author-chrome__meta-value">{{ author_chrome.export_impact.label }}</span>
           </dd>
@@ -75,19 +84,28 @@
       </h2>
       <dl class="fura-author-chrome__meta">
         <div class="fura-author-chrome__meta-item" data-author-meta="format">
-          <dt>Format</dt>
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('file-code', 13) }}</span>
+            <span>Format</span>
+          </dt>
           <dd title="{{ author_chrome.content_format }}">
             <span class="fura-author-chrome__meta-value">{{ author_chrome.content_format }}</span>
           </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="indexed">
-          <dt>Indexed</dt>
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('check-circle', 13) }}</span>
+            <span>Indexed</span>
+          </dt>
           <dd title="{{ author_chrome.last_indexed_at ?? 'not indexed' }}">
             <span class="fura-author-chrome__meta-value">{{ author_chrome.last_indexed_at ?? 'not indexed' }}</span>
           </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="modified">
-          <dt>Modified</dt>
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('hammer', 13) }}</span>
+            <span>Modified</span>
+          </dt>
           <dd title="{{ author_chrome.source_modified_at ?? 'unknown' }}">
             <span class="fura-author-chrome__meta-value">{{ author_chrome.source_modified_at ?? 'unknown' }}</span>
           </dd>
@@ -97,7 +115,7 @@
   </div>
 
   <div class="fura-author-chrome__actions" aria-label="Author page actions">
-    <div class="fura-author-chrome__action-group fura-author-chrome__action-group--primary">
+    <div class="fura-author-chrome__action-group fura-author-chrome__action-group--primary" aria-label="Lifecycle actions">
       <a class="fura-author-chrome__action fura-author-chrome__action--primary" href="{{ author_chrome.actions.studio }}">
         {{ docs_icon('external', 14) }}
         <span>Studio</span>
@@ -125,7 +143,7 @@
         <span>Mark draft</span>
       </a>
     </div>
-    <div class="fura-author-chrome__action-group">
+    <div class="fura-author-chrome__action-group" aria-label="Source and output actions">
       <a class="fura-author-chrome__action" href="{{ author_chrome.actions.open_source }}">
         {{ docs_icon('file-code', 14) }}
         <span>Open source</span>
