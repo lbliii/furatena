@@ -1097,6 +1097,29 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
     assert "unknown mount" in missing_payload["diagnostics"][0]["message"]
 
     try:
+        main([
+            "--app-root",
+            str(app_root),
+            "author",
+            "new",
+            "../outside",
+            "--title",
+            "Outside",
+            "--yes",
+            "--json",
+        ])
+    except SystemExit as exc:
+        assert exc.code == 3
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("escaping author slug should fail")
+    escape_payload = json.loads(capsys.readouterr().out)
+    outside = app_root / "outside.md"
+    assert escape_payload["ok"] is False
+    assert "escapes the selected content root" in escape_payload["diagnostics"][0]["message"]
+    assert escape_payload["diagnostics"][0]["source_path"] == str(outside)
+    assert not outside.exists()
+
+    try:
         main(["--app-root", str(app_root), "author", "status", "docs/same", "--json"])
     except SystemExit as exc:
         assert exc.code == 3
