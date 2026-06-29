@@ -245,7 +245,7 @@ Registered modules (`theme/js/docs-enhance.js`):
 
 Add a module with `FuraDocs.enhance.register(name, { enhance, cleanup })`.
 
-Shell-only glue (search modal, mobile drawer, version select, author poll) lives in
+Shell-only glue (search modal, mobile drawer, version select, author SSE/poll fallback) lives in
 `partials/docs_runtime_scripts.html` and re-syncs on `htmx:afterSettle`.
 
 ## Directive coverage

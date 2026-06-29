@@ -224,7 +224,36 @@ class TestAuthorStaleRoute:
         assert payload["generation"]
         assert payload["current"]["slug"] == "docs/page"
         assert "toc-panel" in payload["current"]["target_hints"]
+        assert payload["current"]["reload"] is False
         assert payload["current"]["dirty_paths"] == ["docs/page.md"]
+
+    def test_author_sse_event_marks_full_reload_for_theme_level_hints(self, tmp_path: Path) -> None:
+        import asyncio
+
+        docs, _page = self._write_author_app(tmp_path)
+        docs.catalog._shards["chirp"]._last_invalidations["docs/page"] = (
+            "page-root",
+            "toc-panel",
+            "head-meta",
+            "docs-sidebar",
+        )
+        client = TestClient(docs.create_app())
+
+        async def _collect():
+            return await client.sse("/docs/_author/events?slug=docs/page", max_events=1)
+
+        result = asyncio.run(_collect())
+        assert result.status == 200
+        event = result.events[0]
+        assert event.event == "author-invalidate"
+        payload = json.loads(event.data)
+        assert payload["current"]["reload"] is True
+        assert payload["current"]["target_hints"] == [
+            "page-root",
+            "toc-panel",
+            "head-meta",
+            "docs-sidebar",
+        ]
 
     def test_author_page_wires_htmx_sse_before_polling_fallback(self, tmp_path: Path) -> None:
         import asyncio
@@ -247,14 +276,25 @@ class TestAuthorStaleRoute:
         assert 'marker.dataset.furaAuthorSseBound !== "1"' in response.text
         assert 'marker.addEventListener("htmx:sseMessage"' in response.text
         assert "state.eventSourceSlug === slug" in response.text
+        assert 'new EventSource("/docs/_author/events?slug="' in response.text
+        assert 'source.addEventListener("author-invalidate"' in response.text
+        assert 'source.onerror = function ()' in response.text
+        assert "window.setTimeout(startPollingFallback, 500);" in response.text
         assert "function stopPollingFallback" in response.text
         assert "window.clearInterval(state.pollTimer)" in response.text
+        assert "window.setInterval(pollAuthorStale, 2000)" in response.text
         assert "function restoreViewport" in response.text
+        assert "target.focus({ preventScroll: true });" in response.text
+        assert "target.setSelectionRange(snapshot.focus.start, snapshot.focus.end);" in response.text
+        assert "window.scrollTo(snapshot.scrollX, snapshot.scrollY);" in response.text
         assert "function requestHardReload" in response.text
         assert "window.__furaAuthorLastReloadKind" in response.text
+        assert "window.__furaAuthorLastReloadHints" in response.text
         assert "var forceFullReload = Boolean(payload.current.reload);" in response.text
         assert "reloadCurrentPage(forceFullReload);" in response.text
         assert "if (forceFullReload) requestHardReload();" in response.text
+        assert '"HX-Docs-Author-Reload": "1"' in response.text
+        assert 'swap: "none"' in response.text
         assert "window.__furaAuthorReloadMode = \"poll\"" in response.text
         assert "function setupPageActionCopies" in response.text
         assert 'target.closest("[data-action]")' in response.text
@@ -298,7 +338,12 @@ class TestAuthorStaleRoute:
         assert ".fura-author-chrome__meta-icon" in css
         assert "grid-template-columns: minmax(14rem, 0.9fr) minmax(18rem, 1.15fr);" in css
         assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in css
+        assert "@media (max-width: 760px)" in css
+        assert ".fura-author-chrome__body {\n      grid-template-columns: 1fr;" in css
+        assert ".fura-author-chrome__metadata {\n      grid-template-columns: 1fr;" in css
         assert "@media (max-width: 480px)" in css
+        assert ".fura-author-chrome__source {\n      grid-template-columns: 1rem minmax(0, 1fr);" in css
+        assert ".fura-author-chrome__action {\n      flex: 1 1 9rem;" in css
 
     def test_author_reload_after_source_edit_updates_dom_and_clears_hints(self, tmp_path: Path) -> None:
         import asyncio
