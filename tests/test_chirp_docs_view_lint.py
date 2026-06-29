@@ -242,7 +242,13 @@ class TestAuthorStaleRoute:
         assert "author-invalidate" in swaps
         assert 'window.__furaAuthorReloadMode = "sse"' in response.text
         assert "if (!startSseReload())" in response.text
+        assert "window.__furaDocsAuthorReloadState" in response.text
+        assert "if (window.__furaDocsAuthorReload) return;" not in response.text
+        assert 'marker.dataset.furaAuthorSseBound !== "1"' in response.text
         assert 'marker.addEventListener("htmx:sseMessage"' in response.text
+        assert "state.eventSourceSlug === slug" in response.text
+        assert "function stopPollingFallback" in response.text
+        assert "window.clearInterval(state.pollTimer)" in response.text
         assert "function restoreViewport" in response.text
         assert "function requestHardReload" in response.text
         assert "window.__furaAuthorLastReloadKind" in response.text

@@ -259,10 +259,13 @@
 
   {% if fura_author_mode() %}
   function setupAuthorReload() {
-    if (window.__furaDocsAuthorReload) return;
-    window.__furaDocsAuthorReload = true;
-    var reloading = false;
-    var pollTimer = null;
+    var state = window.__furaDocsAuthorReloadState || {
+      reloading: false,
+      pollTimer: null,
+      eventSource: null,
+      eventSourceSlug: "",
+    };
+    window.__furaDocsAuthorReloadState = state;
 
     function authorMarker() {
       return document.getElementById("fura-author-sse");
@@ -333,12 +336,12 @@
     }
 
     function reloadCurrentPage(forceFullReload) {
-      if (reloading) return;
+      if (state.reloading) return;
       if (!window.htmx || typeof htmx.ajax !== "function") {
         if (forceFullReload) requestHardReload();
         return;
       }
-      reloading = true;
+      state.reloading = true;
       var snapshot = {
         focus: focusSnapshot(),
         scrollX: window.scrollX,
@@ -353,7 +356,7 @@
           "HX-Docs-Author-Reload": "1",
         },
       }).finally(function () {
-        reloading = false;
+        state.reloading = false;
         restoreViewport(snapshot);
         if (forceFullReload) requestHardReload();
       });
@@ -382,34 +385,69 @@
     }
 
     function startPollingFallback() {
-      if (pollTimer) return;
+      if (state.pollTimer) return;
       window.__furaAuthorReloadMode = "poll";
-      pollTimer = window.setInterval(pollAuthorStale, 2000);
+      state.pollTimer = window.setInterval(pollAuthorStale, 2000);
+    }
+
+    function stopPollingFallback() {
+      if (!state.pollTimer) return;
+      window.clearInterval(state.pollTimer);
+      state.pollTimer = null;
     }
 
     function startSseReload() {
       var marker = authorMarker();
       if (marker && window.htmx) {
-        marker.addEventListener("htmx:sseMessage", function (event) {
-          applyAuthorInvalidation(payloadFromSseEvent(event));
-        });
+        if (marker.dataset.furaAuthorSseBound !== "1") {
+          marker.dataset.furaAuthorSseBound = "1";
+          marker.addEventListener("htmx:sseMessage", function (event) {
+            applyAuthorInvalidation(payloadFromSseEvent(event));
+          });
+        }
+        stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
         return true;
       }
       var slug = currentSlug();
       if (!slug || !window.EventSource) return false;
+      if (
+        state.eventSource &&
+        state.eventSourceSlug === slug &&
+        state.eventSource.readyState !== EventSource.CLOSED
+      ) {
+        stopPollingFallback();
+        window.__furaAuthorReloadMode = "sse";
+        return true;
+      }
+      if (state.eventSource) {
+        state.eventSource.close();
+        state.eventSource = null;
+        state.eventSourceSlug = "";
+      }
       try {
         var source = new EventSource("/docs/_author/events?slug=" + encodeURIComponent(slug));
+        state.eventSource = source;
+        state.eventSourceSlug = slug;
+        stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
         source.addEventListener("author-invalidate", function (event) {
           applyAuthorInvalidation(payloadFromSseEvent(event));
         });
         source.onerror = function () {
           source.close();
+          if (state.eventSource === source) {
+            state.eventSource = null;
+            state.eventSourceSlug = "";
+          }
           window.setTimeout(startPollingFallback, 500);
         };
         document.body.addEventListener("htmx:beforeCleanupElement", function () {
           source.close();
+          if (state.eventSource === source) {
+            state.eventSource = null;
+            state.eventSourceSlug = "";
+          }
         }, { once: true });
         return true;
       } catch (error) {
