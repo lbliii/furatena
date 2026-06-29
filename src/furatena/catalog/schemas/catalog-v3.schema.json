@@ -187,6 +187,13 @@
         "target": { "type": "string" },
         "kind": {
           "enum": [
+            "api_auth",
+            "api_environment",
+            "api_example",
+            "api_request_body",
+            "api_response",
+            "api_schema",
+            "api_tag",
             "available_in",
             "breaks",
             "explains",

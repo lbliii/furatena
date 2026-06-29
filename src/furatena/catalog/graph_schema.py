@@ -14,6 +14,13 @@ if TYPE_CHECKING:
 class EdgeKind(StrEnum):
     """Relationship kinds in the documentation graph."""
 
+    API_AUTH = "api_auth"
+    API_ENVIRONMENT = "api_environment"
+    API_EXAMPLE = "api_example"
+    API_REQUEST_BODY = "api_request_body"
+    API_RESPONSE = "api_response"
+    API_SCHEMA = "api_schema"
+    API_TAG = "api_tag"
     AVAILABLE_IN = "available_in"
     BREAKS = "breaks"
     EXPLAINS = "explains"
@@ -89,14 +96,50 @@ def _parent_slug(slug: str) -> str | None:
 _META_EDGE_KEYS: dict[str, EdgeKind] = {
     "available_in": EdgeKind.AVAILABLE_IN,
     "available-in": EdgeKind.AVAILABLE_IN,
+    "api_auth": EdgeKind.API_AUTH,
+    "api-auth": EdgeKind.API_AUTH,
+    "api_auth_schemes": EdgeKind.API_AUTH,
+    "api-auth-schemes": EdgeKind.API_AUTH,
+    "api_environments": EdgeKind.API_ENVIRONMENT,
+    "api-environments": EdgeKind.API_ENVIRONMENT,
+    "api_examples": EdgeKind.API_EXAMPLE,
+    "api-examples": EdgeKind.API_EXAMPLE,
+    "api_request_bodies": EdgeKind.API_REQUEST_BODY,
+    "api-request-bodies": EdgeKind.API_REQUEST_BODY,
+    "api_responses": EdgeKind.API_RESPONSE,
+    "api-responses": EdgeKind.API_RESPONSE,
+    "api_schemas": EdgeKind.API_SCHEMA,
+    "api-schemas": EdgeKind.API_SCHEMA,
+    "api_tags": EdgeKind.API_TAG,
+    "api-tags": EdgeKind.API_TAG,
+    "auth": EdgeKind.API_AUTH,
+    "auth_schemes": EdgeKind.API_AUTH,
+    "auth-schemes": EdgeKind.API_AUTH,
     "breaks": EdgeKind.BREAKS,
+    "environments": EdgeKind.API_ENVIRONMENT,
     "explains": EdgeKind.EXPLAINS,
+    "examples": EdgeKind.API_EXAMPLE,
     "generated_from": EdgeKind.GENERATED_FROM,
     "generated-from": EdgeKind.GENERATED_FROM,
     "implements": EdgeKind.IMPLEMENTS,
+    "request_bodies": EdgeKind.API_REQUEST_BODY,
+    "request-bodies": EdgeKind.API_REQUEST_BODY,
     "requires": EdgeKind.REQUIRES,
+    "responses": EdgeKind.API_RESPONSE,
+    "schemas": EdgeKind.API_SCHEMA,
     "supersedes": EdgeKind.SUPERSEDES,
     "validates": EdgeKind.VALIDATES,
+}
+
+_EXTERNAL_TARGET_PREFIXES: dict[EdgeKind, str] = {
+    EdgeKind.API_AUTH: "auth",
+    EdgeKind.API_ENVIRONMENT: "environment",
+    EdgeKind.API_EXAMPLE: "example",
+    EdgeKind.API_REQUEST_BODY: "request-body",
+    EdgeKind.API_RESPONSE: "response",
+    EdgeKind.API_SCHEMA: "schema",
+    EdgeKind.API_TAG: "api-tag",
+    EdgeKind.AVAILABLE_IN: "release",
 }
 
 
@@ -274,8 +317,8 @@ def build_graph_edges(
         for meta_key, kind in _META_EDGE_KEYS.items():
             for value in _iter_values(node.meta.get(meta_key)):
                 target = (
-                    _external_target(value, default_prefix="release")
-                    if kind == EdgeKind.AVAILABLE_IN
+                    _external_target(value, default_prefix=_EXTERNAL_TARGET_PREFIXES[kind])
+                    if kind in _EXTERNAL_TARGET_PREFIXES
                     else _semantic_target(value, catalog, id_by_url)
                 )
                 _append_edge(

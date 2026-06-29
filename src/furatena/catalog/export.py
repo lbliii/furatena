@@ -156,12 +156,17 @@ def _is_external_graph_target(target: str) -> bool:
     return target.startswith(
         (
             "api:",
+            "api-tag:",
+            "auth:",
             "cli:",
+            "environment:",
             "example:",
             "inventory:",
             "owner:",
             "ref:",
             "release:",
+            "request-body:",
+            "response:",
             "schema:",
             "sdk:",
             "source:",

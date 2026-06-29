@@ -95,6 +95,13 @@ class TestAstLinkExtraction:
                 "requires": "/docs/auth/",
                 "available_in": "latest",
                 "validates": "tests/api/test_users.py",
+                "api_tags": ["Users", "Admin"],
+                "api_schemas": ["User", "Error"],
+                "api_request_bodies": "CreateUser",
+                "api_responses": ["200", "default"],
+                "api_examples": "create-user",
+                "api_auth": "oauth2",
+                "api_environments": ["prod", "sandbox"],
             },
         )
         target = _node(slug="docs/auth", url="/docs/auth/")
@@ -116,6 +123,57 @@ class TestAstLinkExtraction:
         assert (EdgeKind.REQUIRES.value, target.node_id) in by_kind
         assert (EdgeKind.AVAILABLE_IN.value, "release:latest") in by_kind
         assert (EdgeKind.VALIDATES.value, "source:tests/api/test_users.py") in by_kind
+        assert (EdgeKind.API_TAG.value, "api-tag:Users") in by_kind
+        assert (EdgeKind.API_TAG.value, "api-tag:Admin") in by_kind
+        assert (EdgeKind.API_SCHEMA.value, "schema:User") in by_kind
+        assert (EdgeKind.API_SCHEMA.value, "schema:Error") in by_kind
+        assert (EdgeKind.API_REQUEST_BODY.value, "request-body:CreateUser") in by_kind
+        assert (EdgeKind.API_RESPONSE.value, "response:200") in by_kind
+        assert (EdgeKind.API_RESPONSE.value, "response:default") in by_kind
+        assert (EdgeKind.API_EXAMPLE.value, "example:create-user") in by_kind
+        assert (EdgeKind.API_AUTH.value, "auth:oauth2") in by_kind
+        assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in by_kind
+        assert (EdgeKind.API_ENVIRONMENT.value, "environment:sandbox") in by_kind
+
+    def test_catalog_graph_preserves_api_external_edges(self) -> None:
+        node = replace(
+            _node(slug="docs/api", url="/docs/api/"),
+            meta={
+                "api_schemas": "User",
+                "api_examples": "create-user",
+                "api_auth": "oauth2",
+                "api_environments": "prod",
+            },
+        )
+
+        class _Catalog:
+            active_channel = "latest"
+            nodes = (node,)
+
+            def doc_nodes(self):
+                return [node]
+
+            def backlinks_for(self, _node):
+                return []
+
+            def get_by_slug(self, slug: str):
+                return {"docs/api": node}.get(slug)
+
+            def prev_next(self, _node):
+                return (None, None)
+
+            def graph_edges(self):
+                return [edge_record(edge) for edge in build_graph_edges(self)]
+
+            def namespaces(self):
+                return []
+
+        payload = catalog_graph(_Catalog())
+        by_kind = {(edge["kind"], edge["target"]) for edge in payload["edges"]}
+        assert (EdgeKind.API_SCHEMA.value, "schema:User") in by_kind
+        assert (EdgeKind.API_EXAMPLE.value, "example:create-user") in by_kind
+        assert (EdgeKind.API_AUTH.value, "auth:oauth2") in by_kind
+        assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in by_kind
 
 
 class TestStructureIndex:

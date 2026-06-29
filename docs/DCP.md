@@ -78,6 +78,13 @@ schema version.
 | `translation` | localized page → anchor page | i18n sibling grouping |
 | `explains` | prose page → `api:*`, `cli:*`, page, or `ref:*` | Conceptual documentation coverage |
 | `implements` | page/API node → `schema:*`, `cli:*`, `sdk:*`, page, or `ref:*` | Implementation relationship |
+| `api_tag` | API operation/page → `api-tag:name` | API tag grouping |
+| `api_schema` | API operation/page → `schema:name` | Request/response schema dependency |
+| `api_request_body` | API operation/page → `request-body:name` | Request payload model |
+| `api_response` | API operation/page → `response:code-or-name` | Response model/status grouping |
+| `api_example` | API operation/page → `example:name` | Runnable or documented API example |
+| `api_auth` | API operation/page → `auth:scheme` | Required auth scheme |
+| `api_environment` | API operation/page → `environment:name` | Available or required API environment |
 | `generated_from` | generated output page → `source:*`, `api:*`, or page | Source-to-output provenance |
 | `supersedes` | release/change page → older page/change | Replacement history |
 | `breaks` | release/change page → API/schema/SDK target | Breaking-change impact |
@@ -88,6 +95,7 @@ schema version.
 
 Front matter can add semantic edges with keys matching the edge names, for example
 `implements: api:get-user`, `requires: /docs/auth/`, `generated_from: specs/openapi.yaml`,
+`api_schemas: [User, Error]`, `api_auth: oauth2`, `api_environments: [prod, sandbox]`,
 or `owner: docs-platform`. Existing links, tags, nav order, parents, and translations
 continue to map into the same graph automatically.
 
