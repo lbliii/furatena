@@ -14,6 +14,44 @@ from furatena.catalog.mcp import FuraMCPServer, MCPAccessPolicy
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.cli.main import main
 
+_UNSET = object()
+
+
+def _assert_author_json_envelope(
+    payload: dict[str, object],
+    *,
+    command: str,
+    operation: str,
+    ok: bool = True,
+    target_path: str | None | object = _UNSET,
+    resulting_visibility: str | None | object = _UNSET,
+) -> dict[str, object]:
+    assert payload["ok"] is ok
+    assert payload["command"] == f"author {command}"
+    assert isinstance(payload["exit_code"], int)
+    assert isinstance(payload["summary"], str)
+    assert payload["summary"]
+    assert isinstance(payload["diagnostics"], list)
+
+    data = payload["data"]
+    assert isinstance(data, dict)
+    assert data["ok"] is ok
+    assert data["operation"] == operation
+    assert isinstance(data["operation_id"], str)
+    assert data["operation_id"].startswith(f"author.{operation}.")
+    assert "target_path" in data
+    assert "mount" in data
+    assert "previous_visibility" in data
+    assert "resulting_visibility" in data
+    assert isinstance(data["changed_files"], list)
+    assert isinstance(data["diagnostics"], list)
+    assert isinstance(data["next_actions"], list)
+    if target_path is not _UNSET:
+        assert data["target_path"] == target_path
+    if resulting_visibility is not _UNSET:
+        assert data["resulting_visibility"] == resulting_visibility
+    return data
+
 
 def test_init_scaffolds_standalone_app(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
@@ -795,12 +833,17 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     ])
     dry_payload = json.loads(capsys.readouterr().out)
     target = app_root / "content" / "docs" / "release-notes.md"
+    dry_data = _assert_author_json_envelope(
+        dry_payload,
+        command="new",
+        operation="new",
+        target_path=str(target),
+        resulting_visibility="draft",
+    )
     assert dry_payload["ok"] is True
     assert dry_payload["command"] == "author new"
-    assert dry_payload["data"]["operation_id"].startswith("author.new.")
-    assert dry_payload["data"]["resulting_visibility"] == "draft"
-    assert dry_payload["data"]["dry_run"] is True
-    assert dry_payload["data"]["changed_files"] == []
+    assert dry_data["dry_run"] is True
+    assert dry_data["changed_files"] == []
     assert not target.exists()
 
     main([
@@ -815,23 +858,41 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
         "--json",
     ])
     create_payload = json.loads(capsys.readouterr().out)
+    create_data = _assert_author_json_envelope(
+        create_payload,
+        command="new",
+        operation="new",
+        target_path=str(target),
+        resulting_visibility="draft",
+    )
     assert create_payload["ok"] is True
-    assert create_payload["data"]["changed_files"] == [str(target)]
+    assert create_data["changed_files"] == [str(target)]
     assert "draft: true" in target.read_text(encoding="utf-8")
 
     main(["--app-root", str(app_root), "author", "status", "docs/release-notes", "--json"])
     status_payload = json.loads(capsys.readouterr().out)
+    status_data = _assert_author_json_envelope(
+        status_payload,
+        command="status",
+        operation="status",
+        target_path=str(target),
+        resulting_visibility="draft",
+    )
     assert status_payload["ok"] is True
-    assert status_payload["data"]["resulting_visibility"] == "draft"
+    assert status_data["resulting_visibility"] == "draft"
 
     main(["--app-root", str(app_root), "author", "validate", "docs/release-notes", "--json"])
     validate_payload = json.loads(capsys.readouterr().out)
+    validate_data = _assert_author_json_envelope(
+        validate_payload,
+        command="validate",
+        operation="validate",
+        target_path=str(target),
+        resulting_visibility="draft",
+    )
     assert validate_payload["ok"] is True
     assert validate_payload["command"] == "author validate"
-    assert validate_payload["data"]["operation_id"].startswith("author.validate.")
-    assert validate_payload["data"]["target_path"] == str(target)
-    assert validate_payload["data"]["resulting_visibility"] == "draft"
-    assert validate_payload["data"]["changed_files"] == []
+    assert validate_data["changed_files"] == []
 
     try:
         main(["--app-root", str(app_root), "author", "publish", "docs/release-notes", "--json"])
@@ -840,6 +901,14 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("publish should require --yes or --dry-run")
     confirm_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        confirm_payload,
+        command="publish",
+        operation="publish",
+        ok=False,
+        target_path=str(target),
+        resulting_visibility=None,
+    )
     assert confirm_payload["ok"] is False
     assert confirm_payload["diagnostics"][0]["rule_id"] == "fura.author"
 
@@ -853,11 +922,17 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
         "--json",
     ])
     publish_dry = json.loads(capsys.readouterr().out)
+    publish_dry_data = _assert_author_json_envelope(
+        publish_dry,
+        command="publish",
+        operation="publish",
+        target_path=str(target),
+        resulting_visibility="public",
+    )
     assert publish_dry["ok"] is True
-    assert publish_dry["data"]["previous_visibility"] == "draft"
-    assert publish_dry["data"]["resulting_visibility"] == "public"
-    assert "visibility: public" in publish_dry["data"]["diff"]
-    impact = publish_dry["data"]["publication_impact"]
+    assert publish_dry_data["previous_visibility"] == "draft"
+    assert "visibility: public" in publish_dry_data["diff"]
+    impact = publish_dry_data["publication_impact"]
     assert impact["previous_public"] is False
     assert impact["resulting_public"] is True
     assert impact["change"] == "added_to_public_output"
@@ -875,11 +950,17 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
         "--json",
     ])
     publish_payload = json.loads(capsys.readouterr().out)
+    publish_data = _assert_author_json_envelope(
+        publish_payload,
+        command="publish",
+        operation="publish",
+        target_path=str(target),
+        resulting_visibility="public",
+    )
     source = target.read_text(encoding="utf-8")
     assert publish_payload["ok"] is True
-    assert publish_payload["data"]["changed_files"] == [str(target)]
-    assert publish_payload["data"]["resulting_visibility"] == "public"
-    assert publish_payload["data"]["publication_impact"]["resulting_public"] is True
+    assert publish_data["changed_files"] == [str(target)]
+    assert publish_data["publication_impact"]["resulting_public"] is True
     assert "visibility: public" in source
     assert "published_at:" in source
 
@@ -893,10 +974,17 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
         "--json",
     ])
     unpublish_dry = json.loads(capsys.readouterr().out)
+    unpublish_data = _assert_author_json_envelope(
+        unpublish_dry,
+        command="unpublish",
+        operation="unpublish",
+        target_path=str(target),
+        resulting_visibility="draft",
+    )
     assert unpublish_dry["ok"] is True
-    assert unpublish_dry["data"]["publication_impact"]["previous_public"] is True
-    assert unpublish_dry["data"]["publication_impact"]["resulting_public"] is False
-    assert unpublish_dry["data"]["publication_impact"]["change"] == "removed_from_public_output"
+    assert unpublish_data["publication_impact"]["previous_public"] is True
+    assert unpublish_data["publication_impact"]["resulting_public"] is False
+    assert unpublish_data["publication_impact"]["change"] == "removed_from_public_output"
     assert "visibility: draft" not in target.read_text(encoding="utf-8")
 
 
@@ -916,12 +1004,17 @@ def test_author_validate_reports_lifecycle_failure(tmp_path: Path, capsys) -> No
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("author validate should fail for invalid lifecycle frontmatter")
     payload = json.loads(capsys.readouterr().out)
+    data = _assert_author_json_envelope(
+        payload,
+        command="validate",
+        operation="validate",
+        ok=False,
+        target_path=str(target),
+    )
     assert payload["ok"] is False
     assert payload["exit_code"] == 2
-    assert payload["data"]["operation"] == "validate"
-    assert payload["data"]["target_path"] == str(target)
-    assert payload["data"]["diagnostics"][0]["severity"] == "error"
-    assert "visibility must be one of" in payload["data"]["diagnostics"][0]["message"]
+    assert data["diagnostics"][0]["severity"] == "error"
+    assert "visibility must be one of" in data["diagnostics"][0]["message"]
     assert payload["diagnostics"][0]["source_path"] == str(target)
 
 
@@ -934,22 +1027,42 @@ def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, caps
 
     main(["--app-root", str(app_root), "author", "archive", "docs/get-started", "--yes", "--json"])
     archive_payload = json.loads(capsys.readouterr().out)
+    archive_data = _assert_author_json_envelope(
+        archive_payload,
+        command="archive",
+        operation="archive",
+        target_path=str(target),
+        resulting_visibility="archived",
+    )
     assert archive_payload["ok"] is True
-    assert archive_payload["data"]["resulting_visibility"] == "archived"
+    assert archive_data["changed_files"] == [str(target)]
     archived_source = target.read_text(encoding="utf-8")
     assert "visibility: archived" in archived_source
     assert "archived_at:" in archived_source
 
     main(["--app-root", str(app_root), "author", "publish", "docs/get-started", "--dry-run", "--json"])
     preview_payload = json.loads(capsys.readouterr().out)
+    preview_data = _assert_author_json_envelope(
+        preview_payload,
+        command="publish",
+        operation="publish",
+        target_path=str(target),
+        resulting_visibility="public",
+    )
     assert preview_payload["ok"] is True
-    assert preview_payload["data"]["previous_visibility"] == "archived"
-    assert preview_payload["data"]["resulting_visibility"] == "public"
-    assert "-archived_at:" in preview_payload["data"]["diff"]
+    assert preview_data["previous_visibility"] == "archived"
+    assert "-archived_at:" in preview_data["diff"]
     assert "archived_at:" in target.read_text(encoding="utf-8")
 
     main(["--app-root", str(app_root), "author", "publish", "docs/get-started", "--yes", "--json"])
     publish_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        publish_payload,
+        command="publish",
+        operation="publish",
+        target_path=str(target),
+        resulting_visibility="public",
+    )
     assert publish_payload["ok"] is True
     published_source = target.read_text(encoding="utf-8")
     assert "visibility: public" in published_source
@@ -958,6 +1071,13 @@ def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, caps
 
     main(["--app-root", str(app_root), "author", "validate", "docs/get-started", "--json"])
     validate_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        validate_payload,
+        command="validate",
+        operation="validate",
+        target_path=str(target),
+        resulting_visibility="public",
+    )
     assert validate_payload["ok"] is True
 
 
@@ -985,12 +1105,18 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
         "--json",
     ])
     dry_payload = json.loads(capsys.readouterr().out)
+    dry_data = _assert_author_json_envelope(
+        dry_payload,
+        command="edit",
+        operation="apply_edit",
+        target_path=str(target),
+        resulting_visibility="public",
+    )
     assert dry_payload["ok"] is True
     assert dry_payload["command"] == "author edit"
-    assert dry_payload["data"]["operation_id"].startswith("author.apply_edit.")
-    assert dry_payload["data"]["dry_run"] is True
-    assert dry_payload["data"]["changed_files"] == []
-    assert new_text in dry_payload["data"]["diff"]
+    assert dry_data["dry_run"] is True
+    assert dry_data["changed_files"] == []
+    assert new_text in dry_data["diff"]
     assert target.read_text(encoding="utf-8") == original
 
     try:
@@ -1011,6 +1137,14 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("edit should require --yes or --dry-run")
     confirm_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        confirm_payload,
+        command="edit",
+        operation="apply_edit",
+        ok=False,
+        target_path=str(target),
+        resulting_visibility=None,
+    )
     assert confirm_payload["ok"] is False
     assert confirm_payload["diagnostics"][0]["rule_id"] == "fura.author"
     assert target.read_text(encoding="utf-8") == original
@@ -1029,10 +1163,16 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
         "--json",
     ])
     edit_payload = json.loads(capsys.readouterr().out)
+    edit_data = _assert_author_json_envelope(
+        edit_payload,
+        command="edit",
+        operation="apply_edit",
+        target_path=str(target),
+        resulting_visibility="public",
+    )
     assert edit_payload["ok"] is True
-    assert edit_payload["data"]["changed_files"] == [str(target)]
-    assert edit_payload["data"]["previous_visibility"] == "public"
-    assert edit_payload["data"]["resulting_visibility"] == "public"
+    assert edit_data["changed_files"] == [str(target)]
+    assert edit_data["previous_visibility"] == "public"
     assert new_text in target.read_text(encoding="utf-8")
 
     try:
@@ -1054,6 +1194,14 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("stale edit span should fail")
     stale_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        stale_payload,
+        command="edit",
+        operation="apply_edit",
+        ok=False,
+        target_path=str(target),
+        resulting_visibility=None,
+    )
     assert stale_payload["ok"] is False
     assert "old_text was not found" in stale_payload["diagnostics"][0]["message"]
 
@@ -1103,6 +1251,14 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("missing mount should fail")
     missing_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        missing_payload,
+        command="status",
+        operation="status",
+        ok=False,
+        target_path=None,
+        resulting_visibility=None,
+    )
     assert missing_payload["ok"] is False
     assert "unknown mount" in missing_payload["diagnostics"][0]["message"]
 
@@ -1124,6 +1280,14 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
         raise AssertionError("escaping author slug should fail")
     escape_payload = json.loads(capsys.readouterr().out)
     outside = app_root / "outside.md"
+    _assert_author_json_envelope(
+        escape_payload,
+        command="new",
+        operation="new",
+        ok=False,
+        target_path=str(outside),
+        resulting_visibility=None,
+    )
     assert escape_payload["ok"] is False
     assert "escapes the selected content root" in escape_payload["diagnostics"][0]["message"]
     assert escape_payload["diagnostics"][0]["source_path"] == str(outside)
@@ -1136,6 +1300,14 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
     else:  # pragma: no cover - defensive assertion
         raise AssertionError("ambiguous slug should fail")
     ambiguous_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        ambiguous_payload,
+        command="status",
+        operation="status",
+        ok=False,
+        target_path=None,
+        resulting_visibility=None,
+    )
     assert ambiguous_payload["ok"] is False
     assert "ambiguous author target" in ambiguous_payload["diagnostics"][0]["message"]
 
@@ -1150,8 +1322,16 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
         "--json",
     ])
     shared_payload = json.loads(capsys.readouterr().out)
+    shared_target = shared / "docs" / "same.md"
+    shared_data = _assert_author_json_envelope(
+        shared_payload,
+        command="status",
+        operation="status",
+        target_path=str(shared_target),
+        resulting_visibility="public",
+    )
     assert shared_payload["ok"] is True
-    assert shared_payload["data"]["mount"] == "shared"
+    assert shared_data["mount"] == "shared"
 
 
 def test_migrate_json_reports_validation_errors(tmp_path: Path, capsys) -> None:
