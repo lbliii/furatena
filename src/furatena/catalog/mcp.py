@@ -684,6 +684,20 @@ class FuraMCPServer:
                 "site": self.policy.site,
                 "transport": self.policy.transport,
                 "tool": name,
+                "command": _optional_str(payload.get("audit", {}).get("command"))
+                if isinstance(payload.get("audit"), dict)
+                else name,
+                "target": _optional_str(arguments.get("target")) or _optional_str(arguments.get("slug")),
+                "target_path": payload.get("target_path"),
+                "previous_state": payload.get("previous_visibility"),
+                "resulting_state": payload.get("resulting_visibility"),
+                "diagnostics": payload.get("diagnostics", []),
+                "dry_run": payload.get("dry_run")
+                if "dry_run" in payload
+                else _bool_arg(arguments.get("dry_run"), default=True),
+                "confirmed": payload.get("confirmed")
+                if "confirmed" in payload
+                else _bool_arg(arguments.get("confirmed"), default=False),
                 "inputs": _sanitize_inputs(arguments),
                 "status": status,
                 "is_error": is_error,

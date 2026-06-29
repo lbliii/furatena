@@ -2057,6 +2057,40 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     )
     assert public_archived_retrieve["error"]["code"] == -32602
 
+    audit = json.loads(private_server.read_resource("fura://reports/audit")["text"])
+    draft_preview_entry = next(
+        entry
+        for entry in audit["entries"]
+        if entry["tool"] == "author_create_draft" and entry["actor"] == "agent-test"
+    )
+    unsafe_publish_entry = next(
+        entry
+        for entry in audit["entries"]
+        if entry["tool"] == "author_publish" and entry["status"] == "error"
+    )
+    publish_entry = next(
+        entry
+        for entry in audit["entries"]
+        if entry["tool"] == "author_publish"
+        and entry["status"] == "ok"
+        and entry["resulting_state"] == "public"
+        and entry["confirmed"] is True
+    )
+    assert draft_preview_entry["command"] == "author_create_draft"
+    assert draft_preview_entry["target"] == "docs/mcp-draft"
+    assert draft_preview_entry["target_path"] == str(target)
+    assert draft_preview_entry["dry_run"] is True
+    assert draft_preview_entry["confirmed"] is False
+    assert unsafe_publish_entry["command"] == "author_publish"
+    assert unsafe_publish_entry["target_path"] == str(target)
+    assert unsafe_publish_entry["dry_run"] is False
+    assert unsafe_publish_entry["confirmed"] is False
+    assert unsafe_publish_entry["diagnostics"][0]["rule_id"] == "fura.author"
+    assert publish_entry["previous_state"] == "draft"
+    assert publish_entry["resulting_state"] == "public"
+    assert publish_entry["dry_run"] is False
+    assert publish_entry["confirmed"] is True
+
 
 def test_mcp_author_validate_scopes_lifecycle_errors_to_target(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
