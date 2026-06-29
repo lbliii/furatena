@@ -220,12 +220,19 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
         "stale_content",
         "multi_mount_hubs",
         "tool_selection",
+        "author_workflows",
     } <= set(payload["data"]["categories"])
     assert results["api-operation-discovery"]["status"] == "pass"
     assert results["private-content-boundary"]["status"] == "pass"
     assert results["multi-mount-hub-discovery"]["status"] == "pass"
     assert results["tool-selection-search"]["expected"]["tool"] == "semantic_search"
     assert results["tool-selection-author-edit"]["expected"]["tool"] == "author_propose_edit"
+    assert results["author-draft-dry-run"]["status"] == "pass"
+    assert results["author-draft-dry-run"]["observed"]["changed_files"] == []
+    assert results["author-publish-dry-run"]["status"] == "pass"
+    assert results["author-publish-dry-run"]["observed"]["publication_change"] == "added_to_public_output"
+    assert results["author-publish-remediation"]["status"] == "pass"
+    assert results["author-publish-remediation"]["observed"]["source_unchanged_after_failed_publish"] is True
 
 
 def test_query_json_uses_standard_result_envelope(tmp_path: Path, capsys) -> None:

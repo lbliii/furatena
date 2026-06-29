@@ -59,7 +59,9 @@ The stdio transport is served through Milo's MCP runtime, while Furatena owns th
 Remote MCP sessions should start with `--remote` and stable `--actor`, `--tenant`, and `--site` metadata. Remote sessions deny sensitive authoring tools unless the request includes a valid `privileged_token`; remote `--include-private` only enables private content when a privileged token is configured.
 The `fura://reports/audit` resource records sanitized tool calls with actor, tenant, site, tool name, redacted inputs, result status, duration, and the configured timeout. `--rate-limit`, `--timeout`, and `--max-output-chars` define per-session call limits, timeout metadata, and output truncation bounds for local and remote transports.
 Run `fura check --agent --json` before publishing MCP changes; it lints tool/resource descriptions, input/output schemas, mutating-tool permission boundaries, Milo adapter parity, and descriptions that feed llms/search exports.
-Run `fura evals --json` for deterministic golden-path agent checks. The suite exercises the Milo MCP adapter for prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, and tool selection without paid model calls.
+Run `fura evals --json` for deterministic golden-path agent checks. The suite exercises the Milo MCP adapter for prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, tool selection, and non-mutating author workflows without paid model calls.
+
+Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, and failed-publish remediation paths. These evals use dry-run or intentionally unconfirmed writes so source files remain unchanged.
 
 MCP tools return both text content and `structuredContent` payloads:
 

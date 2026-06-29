@@ -97,6 +97,12 @@ def run_agent_evaluations(
             results.append(_eval_multi_mounts(case, active_client))
         elif case.id in {"tool-selection-search", "tool-selection-author-edit"}:
             results.append(_eval_tool_selection(case, public_client))
+        elif case.id == "author-draft-dry-run":
+            results.append(_eval_author_draft_dry_run(case, private_client, include_private))
+        elif case.id == "author-publish-dry-run":
+            results.append(_eval_author_publish_dry_run(case, private_client, include_private))
+        elif case.id == "author-publish-remediation":
+            results.append(_eval_author_publish_remediation(case, private_client, include_private))
     fail_count = sum(1 for result in results if result.status == "fail")
     skip_count = sum(1 for result in results if result.status == "skip")
     pass_count = sum(1 for result in results if result.status == "pass")
@@ -214,6 +220,35 @@ def _build_cases(catalog: Any) -> tuple[AgentEvalCase, ...]:
             description="Tool metadata lets an agent select author_propose_edit for non-mutating edit previews.",
             expectation=AgentEvalExpectation(tool="author_propose_edit"),
         ),
+        AgentEvalCase(
+            id="author-draft-dry-run",
+            category="author_workflows",
+            prompt="Create a draft page only after previewing the write.",
+            description="Author draft creation returns a dry-run result without writing source files.",
+            expectation=AgentEvalExpectation(tool="author_create_draft"),
+        ),
+        AgentEvalCase(
+            id="author-publish-dry-run",
+            category="author_workflows",
+            prompt="Preview publishing a private draft without changing public output.",
+            description="Author publish defaults to dry-run and reports publication impact.",
+            expectation=AgentEvalExpectation(
+                tool="author_publish",
+                node_ids=tuple([private_node.node_id] if private_node is not None else []),
+                citations=tuple([_author_target(private_node)] if private_node is not None else []),
+            ),
+        ),
+        AgentEvalCase(
+            id="author-publish-remediation",
+            category="author_workflows",
+            prompt="Recover from a failed publish attempt with diagnostics and a reviewed repair preview.",
+            description="Failed publish remediation stays non-mutating and proposes exact source edits.",
+            expectation=AgentEvalExpectation(
+                tool="author_publish",
+                node_ids=tuple([private_node.node_id] if private_node is not None else []),
+                citations=tuple([_author_target(private_node)] if private_node is not None else []),
+            ),
+        ),
     )
 
 
@@ -325,6 +360,124 @@ def _eval_tool_selection(case: AgentEvalCase, client: Any) -> AgentEvalResult:
     return _fail(case, f"expected tool {expected} was missing from MCP tool metadata", {"tool_names": observed_names})
 
 
+def _eval_author_draft_dry_run(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+    if not include_private:
+        return _skip(case, "rerun with --include-private to exercise author workflow evals")
+    slug = "__fura-agent-eval-draft-preview"
+    result = client.call(
+        "author_create_draft",
+        slug=slug,
+        title="Fura Agent Eval Draft Preview",
+    )
+    payload = _structured(result)
+    observed = {
+        "is_error": result.is_error,
+        "ok": payload.get("ok"),
+        "dry_run": payload.get("dry_run"),
+        "changed_files": payload.get("changed_files"),
+        "resulting_visibility": payload.get("resulting_visibility"),
+        "diagnostics": payload.get("diagnostics", []),
+    }
+    if result.is_error and _diagnostic_mentions(payload, "target already exists"):
+        return _skip(case, "reserved eval draft slug already exists", observed)
+    if (
+        not result.is_error
+        and payload.get("ok") is True
+        and payload.get("dry_run") is True
+        and payload.get("changed_files") == []
+        and payload.get("resulting_visibility") == "draft"
+    ):
+        return _pass(case, "draft creation preview was structured and non-mutating", observed)
+    return _fail(case, "draft dry-run did not return the expected non-mutating result", observed)
+
+
+def _eval_author_publish_dry_run(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+    if not include_private:
+        return _skip(case, "rerun with --include-private to exercise author workflow evals")
+    target = _expected_author_target(case)
+    if not target:
+        return _skip(case, "catalog has no private author target to publish-preview")
+    result = client.call("author_publish", target=target)
+    payload = _structured(result)
+    impact = payload.get("publication_impact") if isinstance(payload, dict) else {}
+    observed = {
+        "target": target,
+        "is_error": result.is_error,
+        "ok": payload.get("ok"),
+        "dry_run": payload.get("dry_run"),
+        "changed_files": payload.get("changed_files"),
+        "resulting_visibility": payload.get("resulting_visibility"),
+        "publication_change": impact.get("change") if isinstance(impact, dict) else None,
+        "affected_surfaces": impact.get("affected_surfaces") if isinstance(impact, dict) else None,
+    }
+    if (
+        not result.is_error
+        and payload.get("ok") is True
+        and payload.get("dry_run") is True
+        and payload.get("changed_files") == []
+        and payload.get("resulting_visibility") == "public"
+        and isinstance(impact, dict)
+        and impact.get("resulting_public") is True
+    ):
+        return _pass(case, "publish preview reported public impact without writing files", observed)
+    return _fail(case, "publish dry-run did not return expected publication-impact metadata", observed)
+
+
+def _eval_author_publish_remediation(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+    if not include_private:
+        return _skip(case, "rerun with --include-private to exercise author workflow evals")
+    target = _expected_author_target(case)
+    if not target:
+        return _skip(case, "catalog has no private author target for publish remediation")
+
+    source_before = client.call("author_read_source", target=target)
+    failed_publish = client.call("author_publish", target=target, dry_run=False)
+    source_after = client.call("author_read_source", target=target)
+    validation = client.call("author_validate", target=target)
+    if source_before.is_error or source_after.is_error:
+        return _fail(
+            case,
+            "remediation eval could not read target source",
+            {
+                "target": target,
+                "read_before_error": _structured(source_before),
+                "read_after_error": _structured(source_after),
+            },
+        )
+    before_source = str(_structured(source_before).get("source") or "")
+    after_source = str(_structured(source_after).get("source") or "")
+    span = _first_heading_span(before_source)
+    if not span:
+        return _skip(case, "target source has no heading span for a remediation preview")
+    repair_preview = client.call(
+        "author_propose_edit",
+        target=target,
+        old_text=span,
+        new_text=f"{span}\nReviewed remediation note.\n",
+    )
+    observed = {
+        "target": target,
+        "failed_publish_is_error": failed_publish.is_error,
+        "failed_publish_diagnostics": _structured(failed_publish).get("diagnostics", []),
+        "source_unchanged_after_failed_publish": before_source == after_source,
+        "validation_is_error": validation.is_error,
+        "validation_has_audit": "audit" in _structured(validation),
+        "repair_preview_is_error": repair_preview.is_error,
+        "repair_preview_dry_run": _structured(repair_preview).get("dry_run"),
+        "repair_preview_changed_files": _structured(repair_preview).get("changed_files"),
+    }
+    if (
+        failed_publish.is_error
+        and before_source == after_source
+        and "audit" in _structured(validation)
+        and not repair_preview.is_error
+        and _structured(repair_preview).get("dry_run") is True
+        and _structured(repair_preview).get("changed_files") == []
+    ):
+        return _pass(case, "failed publish remediation stayed diagnostics-first and non-mutating", observed)
+    return _fail(case, "failed publish remediation did not preserve the expected safety gates", observed)
+
+
 def _read_json_resource(client: Any, uri: str) -> dict[str, Any]:
     payload = client.read_resource(uri)
     if not isinstance(payload, dict):
@@ -344,6 +497,11 @@ def _read_json_resource(client: Any, uri: str) -> dict[str, Any]:
     return decoded if isinstance(decoded, dict) else {}
 
 
+def _structured(result: Any) -> dict[str, Any]:
+    payload = getattr(result, "structured", None)
+    return payload if isinstance(payload, dict) else {}
+
+
 def _pick_node(nodes: list[Any], *, preferred_urls: tuple[str, ...]) -> Any | None:
     for url in preferred_urls:
         for node in nodes:
@@ -358,6 +516,27 @@ def _node_query(node: Any | None, *, fallback: str) -> str:
     parts = [str(node.title or "").strip(), str(node.description or "").strip(), str(node.url or "").strip()]
     query = " ".join(part for part in parts if part)
     return query or fallback
+
+
+def _author_target(node: Any | None) -> str:
+    if node is None:
+        return ""
+    return str(getattr(node, "slug", "") or getattr(node, "source_path", "") or "").strip()
+
+
+def _expected_author_target(case: AgentEvalCase) -> str:
+    return next((item for item in case.expectation.citations if item), "")
+
+
+def _diagnostic_mentions(payload: dict[str, Any], needle: str) -> bool:
+    return any(needle in str(item.get("message") or "") for item in payload.get("diagnostics", []))
+
+
+def _first_heading_span(source: str) -> str:
+    for line in source.splitlines(keepends=True):
+        if line.startswith("# "):
+            return line
+    return ""
 
 
 def _pass(case: AgentEvalCase, message: str, observed: dict[str, Any]) -> AgentEvalResult:
