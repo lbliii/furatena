@@ -326,8 +326,18 @@
       }
     }
 
-    function reloadCurrentPage() {
-      if (reloading || !window.htmx || typeof htmx.ajax !== "function") return;
+    function requestHardReload() {
+      if (window.location && typeof window.location.reload === "function") {
+        window.location.reload();
+      }
+    }
+
+    function reloadCurrentPage(forceFullReload) {
+      if (reloading) return;
+      if (!window.htmx || typeof htmx.ajax !== "function") {
+        if (forceFullReload) requestHardReload();
+        return;
+      }
       reloading = true;
       var snapshot = {
         focus: focusSnapshot(),
@@ -345,6 +355,7 @@
       }).finally(function () {
         reloading = false;
         restoreViewport(snapshot);
+        if (forceFullReload) requestHardReload();
       });
     }
 
@@ -353,8 +364,9 @@
       if (payload && payload.current && payload.current.dirty) {
         window.__furaAuthorReloadCount = (window.__furaAuthorReloadCount || 0) + 1;
         window.__furaAuthorLastReloadHints = payload.current.target_hints || payload.current.hints || [];
-        window.__furaAuthorLastReloadKind = payload.current.reload ? "full" : "partial";
-        reloadCurrentPage();
+        var forceFullReload = Boolean(payload.current.reload);
+        window.__furaAuthorLastReloadKind = forceFullReload ? "full" : "partial";
+        reloadCurrentPage(forceFullReload);
       }
     }
 

@@ -244,7 +244,11 @@ class TestAuthorStaleRoute:
         assert "if (!startSseReload())" in response.text
         assert 'marker.addEventListener("htmx:sseMessage"' in response.text
         assert "function restoreViewport" in response.text
+        assert "function requestHardReload" in response.text
         assert "window.__furaAuthorLastReloadKind" in response.text
+        assert "var forceFullReload = Boolean(payload.current.reload);" in response.text
+        assert "reloadCurrentPage(forceFullReload);" in response.text
+        assert "if (forceFullReload) requestHardReload();" in response.text
         assert "window.__furaAuthorReloadMode = \"poll\"" in response.text
         assert "function setupPageActionCopies" in response.text
         assert 'target.closest("[data-action]")' in response.text
