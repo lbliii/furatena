@@ -547,6 +547,21 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert preview_payload["ok"] is True
     assert preview_payload["data"]["dry_run"] is True
 
+    archive_response = asyncio.run(
+        author_client.get(
+            "/docs/_author/transition?slug=docs/private&operation=archive&dry_run=0&confirmed=1"
+        )
+    )
+    archive_payload = parse_json(archive_response)
+    assert archive_payload["ok"] is True
+    assert archive_payload["data"]["resulting_visibility"] == "archived"
+    archive_status = asyncio.run(author_client.get("/docs/_author/page.json?slug=docs/private"))
+    archive_status_payload = parse_json(archive_status)
+    assert {"archived", "valid", "excluded-output"} <= set(archive_status_payload["states"])
+    assert "public-output" not in archive_status_payload["states"]
+    assert archive_status_payload["visibility"] == "archived"
+    assert archive_status_payload["export_impact"]["included"] is False
+
     target = app_root / "content" / "docs" / "get-started.md"
     target.write_text(
         target.read_text(encoding="utf-8").replace(

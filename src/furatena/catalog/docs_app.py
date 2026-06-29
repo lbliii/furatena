@@ -1241,6 +1241,7 @@ class DocsApp:
                 dry_run=_query_bool(request, "dry_run", default=True),
                 confirmed=_query_bool(request, "confirmed", default=False),
             )
+            self._reindex_author_result(result)
             return _json_response({"ok": result.ok, "data": result.to_dict()})
 
         @app.route("/search")
