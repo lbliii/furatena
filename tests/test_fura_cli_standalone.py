@@ -525,8 +525,9 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert 'data-fura-author-chrome' in author_payload["page"].text
     assert 'id="fura-author-sse"' in author_payload["page"].text
     assert 'sse-connect="/docs/_author/events?slug=docs/get-started"' in author_payload["page"].text
-    assert 'hx-trigger="sse:author-invalidate"' in author_payload["page"].text
-    assert 'HX-Docs-Author-Reload' in author_payload["page"].text
+    assert 'sse-swap="author-invalidate"' in author_payload["page"].text
+    assert 'hx-disinherit="hx-target hx-swap"' in author_payload["page"].text
+    assert 'hx-swap="none"' in author_payload["page"].text
     assert author_payload["boosted_page"].status == 200
     assert 'data-fura-author-chrome' in author_payload["boosted_page"].text
     assert "Open source" in author_payload["page"].text
