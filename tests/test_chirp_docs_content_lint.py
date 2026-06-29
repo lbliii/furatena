@@ -161,6 +161,18 @@ class TestCheckIntegration:
         assert any("draft pages cannot set published_at" in error for error in errors)
         assert any("public page links to draft/private target" in error for error in errors)
 
+    def test_lifecycle_reports_malformed_frontmatter(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        docs = content / "docs"
+        docs.mkdir(parents=True)
+        broken = docs / "broken.md"
+        broken.write_text("---\ntitle: [broken\n---\n# Broken\n", encoding="utf-8")
+
+        catalog = DocCatalog(content, autodoc=False, autodoc_config=None)
+        errors, _warnings = check_catalog(catalog)
+
+        assert any("broken.md: source frontmatter could not be parsed" in error for error in errors)
+
     def test_lifecycle_public_state_warns_without_publish_metadata(self, tmp_path: Path) -> None:
         content = tmp_path / "content"
         docs = content / "docs"

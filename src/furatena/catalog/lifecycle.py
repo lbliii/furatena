@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 _ALLOWED_VISIBILITY = frozenset({"public", "private", "internal", "draft", "unlisted", "archived"})
 _DATE_FIELDS = ("published_at", "updated_at", "expires_at", "archived_at")
 _MD_LINK_RE = re.compile(r"\]\((/[^)#?]+)(?:[)#?][^)]*)?\)")
@@ -29,8 +31,8 @@ class SourceLifecycleRecord:
 
 def check_lifecycle_sources(catalog: Any) -> tuple[list[str], list[str]]:
     """Validate lifecycle front matter and draft/private reachability."""
-    records = _collect_lifecycle_records(catalog)
-    errors: list[str] = []
+    records, parse_errors = _collect_lifecycle_records(catalog)
+    errors: list[str] = list(parse_errors)
     warnings: list[str] = []
 
     for record in records:
@@ -101,27 +103,28 @@ def lint_lifecycle_record(record: SourceLifecycleRecord) -> tuple[list[str], lis
     return errors, warnings
 
 
-def _collect_lifecycle_records(catalog: Any) -> list[SourceLifecycleRecord]:
+def _collect_lifecycle_records(catalog: Any) -> tuple[list[SourceLifecycleRecord], list[str]]:
     mounts = getattr(catalog, "mounts", None)
     if mounts:
         records: list[SourceLifecycleRecord] = []
+        errors: list[str] = []
         for mount in mounts:
-            records.extend(
-                _scan_root(
-                    mount.content_root,
-                    source_config=mount.source,
-                    mount_id=mount.id,
-                    url_prefix=mount.url_prefix,
-                )
+            mount_records, mount_errors = _scan_root(
+                mount.content_root,
+                source_config=mount.source,
+                mount_id=mount.id,
+                url_prefix=mount.url_prefix,
             )
-        return records
+            records.extend(mount_records)
+            errors.extend(mount_errors)
+        return records, errors
 
     content_root = getattr(catalog, "content_root", None)
     source_config = getattr(catalog, "source_config", None)
     mount = getattr(catalog, "mount", "chirp")
     url_prefix = getattr(catalog, "url_prefix", "")
     if content_root is None or source_config is None:
-        return []
+        return [], []
     return _scan_root(content_root, source_config=source_config, mount_id=mount, url_prefix=url_prefix)
 
 
@@ -131,21 +134,31 @@ def _scan_root(
     source_config: Any,
     mount_id: str,
     url_prefix: str = "",
-) -> list[SourceLifecycleRecord]:
+) -> tuple[list[SourceLifecycleRecord], list[str]]:
     from furatena.catalog.sources.parse import parse_source_text
     from furatena.catalog.sources.scanner import file_to_url
 
     if not content_root.is_dir():
-        return []
+        return [], []
     files: set[Path] = set()
     for ext in source_config.tracked_extensions():
         files.update(path.resolve() for path in content_root.rglob(f"*{ext}"))
 
     records: list[SourceLifecycleRecord] = []
+    errors: list[str] = []
     for path in sorted(files, key=lambda item: str(item)):
         source = path.read_text(encoding="utf-8")
         content_format = source_config.content_format_for(path)
-        meta, body = parse_source_text(source, content_format=content_format)
+        source_path = str(path.relative_to(content_root))
+        frontmatter_error = _frontmatter_parse_error(source)
+        if frontmatter_error is not None:
+            errors.append(f"{source_path}: source frontmatter could not be parsed: {frontmatter_error}")
+            continue
+        try:
+            meta, body = parse_source_text(source, content_format=content_format)
+        except Exception as exc:
+            errors.append(f"{source_path}: source frontmatter could not be parsed: {exc}")
+            continue
         url, slug = file_to_url(
             content_root,
             path,
@@ -155,7 +168,7 @@ def _scan_root(
         records.append(
             SourceLifecycleRecord(
                 path=path,
-                source_path=str(path.relative_to(content_root)),
+                source_path=source_path,
                 url=url,
                 slug=slug,
                 mount=mount_id,
@@ -163,7 +176,7 @@ def _scan_root(
                 body=body,
             )
         )
-    return records
+    return records, errors
 
 
 def _check_private_target_links(records: list[SourceLifecycleRecord]) -> list[str]:
@@ -205,6 +218,28 @@ def _source_links(body: str, slug_to_url: dict[str, str]) -> set[str]:
                 links.add(slug_to_url[candidate])
                 break
     return links
+
+
+def _frontmatter_parse_error(source: str) -> str | None:
+    stripped = source.lstrip()
+    if not stripped.startswith("---"):
+        return None
+    lines = stripped.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    end = next((index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---"), None)
+    if end is None:
+        return "closing frontmatter marker was not found"
+    frontmatter = "\n".join(lines[1:end])
+    if not frontmatter.strip():
+        return None
+    try:
+        loaded = yaml.safe_load(frontmatter)
+    except yaml.YAMLError as exc:
+        return str(exc).splitlines()[0]
+    if loaded is not None and not isinstance(loaded, dict):
+        return "frontmatter must be a mapping"
+    return None
 
 
 def _visibility(meta: dict[str, Any]) -> str:

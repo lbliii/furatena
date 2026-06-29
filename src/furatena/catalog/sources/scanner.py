@@ -79,7 +79,10 @@ class FilesystemScanner:
             rel_path = path.relative_to(content_root)
             source = path.read_text(encoding="utf-8")
             content_format = self._config.content_format_for(path)
-            meta, body = parse_source_text(source, content_format=content_format)
+            try:
+                meta, body = parse_source_text(source, content_format=content_format)
+            except Exception:
+                continue
             if not include_private and not is_public_meta(meta):
                 continue
             url, slug = file_to_url(

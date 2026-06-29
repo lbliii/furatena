@@ -283,6 +283,8 @@ def test_export_json_blocks_lifecycle_errors_without_override(tmp_path: Path, ca
         "---\ntitle: Secret\ndraft: true\n---\n# Secret\n",
         encoding="utf-8",
     )
+    broken = app_root / "content" / "docs" / "broken.md"
+    broken.write_text("---\ntitle: [broken\n---\n# Broken\n", encoding="utf-8")
     capsys.readouterr()
 
     try:
@@ -296,7 +298,17 @@ def test_export_json_blocks_lifecycle_errors_without_override(tmp_path: Path, ca
     assert payload["ok"] is False
     assert payload["command"] == "export"
     assert payload["exit_code"] == 2
-    assert payload["diagnostics"][0]["rule_id"] == "fura.lifecycle"
+    assert all(diagnostic["rule_id"] == "fura.lifecycle" for diagnostic in payload["diagnostics"])
+    assert any(
+        diagnostic["source_path"] == "docs/broken.md"
+        and "source frontmatter could not be parsed" in diagnostic["message"]
+        for diagnostic in payload["diagnostics"]
+    )
+    assert any(
+        diagnostic["source_path"] == "docs/get-started.md"
+        and "public page links to draft/private target" in diagnostic["message"]
+        for diagnostic in payload["diagnostics"]
+    )
 
     main([
         "--app-root",
