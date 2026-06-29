@@ -242,7 +242,7 @@ class FuraMCPServer:
                     },
                     "required": ["node_id"],
                 },
-                "outputSchema": _object_schema("node_id", "chunks", "backlinks"),
+                "outputSchema": _object_schema("node_id", "chunks", "backlinks", "api_operation"),
             },
             {
                 "name": "traverse_graph",

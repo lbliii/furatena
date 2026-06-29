@@ -28,23 +28,26 @@
     </div>
   </div>
 
-  <div class="fura-author-chrome__source">
+  <div class="fura-author-chrome__source" aria-label="Author source file">
     <span class="fura-author-chrome__source-icon" aria-hidden="true">{{ docs_icon('file-code', 14) }}</span>
-    <span class="fura-author-chrome__source-label">Source</span>
+    <span class="fura-author-chrome__source-label">Source file</span>
     <code title="{{ author_chrome.source_path }}">{{ author_chrome.source_path }}</code>
   </div>
 
   <div class="fura-author-chrome__workspace">
     <section class="fura-author-chrome__group fura-author-chrome__group--status" aria-labelledby="fura-author-lifecycle-heading">
-      <h2 id="fura-author-lifecycle-heading">Lifecycle</h2>
+      <h2 id="fura-author-lifecycle-heading">
+        {{ docs_icon('check-circle', 14) }}
+        <span>Lifecycle</span>
+      </h2>
       <dl class="fura-author-chrome__meta">
-        <div class="fura-author-chrome__meta-item">
+        <div class="fura-author-chrome__meta-item" data-author-meta="visibility">
           <dt>Visibility</dt>
-          <dd>{{ author_chrome.visibility }}</dd>
+          <dd title="{{ author_chrome.visibility }}">{{ author_chrome.visibility }}</dd>
         </div>
-        <div class="fura-author-chrome__meta-item">
+        <div class="fura-author-chrome__meta-item" data-author-meta="validation">
           <dt>Validation</dt>
-          <dd>
+          <dd title="{% if author_chrome.validation.ok %}clean{% else %}invalid ({{ author_chrome.validation.error_count }}){% end %}">
             {% if author_chrome.validation.ok %}
             clean
             {% else %}
@@ -52,27 +55,30 @@
             {% end %}
           </dd>
         </div>
-        <div class="fura-author-chrome__meta-item">
+        <div class="fura-author-chrome__meta-item" data-author-meta="public-output">
           <dt>Public output</dt>
-          <dd>{{ author_chrome.export_impact.label }}</dd>
+          <dd title="{{ author_chrome.export_impact.label }}">{{ author_chrome.export_impact.label }}</dd>
         </div>
       </dl>
     </section>
 
     <section class="fura-author-chrome__group fura-author-chrome__group--source" aria-labelledby="fura-author-source-heading">
-      <h2 id="fura-author-source-heading">Source</h2>
+      <h2 id="fura-author-source-heading">
+        {{ docs_icon('file-code', 14) }}
+        <span>Source</span>
+      </h2>
       <dl class="fura-author-chrome__meta">
-        <div class="fura-author-chrome__meta-item">
+        <div class="fura-author-chrome__meta-item" data-author-meta="format">
           <dt>Format</dt>
-          <dd>{{ author_chrome.content_format }}</dd>
+          <dd title="{{ author_chrome.content_format }}">{{ author_chrome.content_format }}</dd>
         </div>
-        <div class="fura-author-chrome__meta-item">
+        <div class="fura-author-chrome__meta-item" data-author-meta="indexed">
           <dt>Indexed</dt>
-          <dd>{{ author_chrome.last_indexed_at ?? 'not indexed' }}</dd>
+          <dd title="{{ author_chrome.last_indexed_at ?? 'not indexed' }}">{{ author_chrome.last_indexed_at ?? 'not indexed' }}</dd>
         </div>
-        <div class="fura-author-chrome__meta-item">
+        <div class="fura-author-chrome__meta-item" data-author-meta="modified">
           <dt>Modified</dt>
-          <dd>{{ author_chrome.source_modified_at ?? 'unknown' }}</dd>
+          <dd title="{{ author_chrome.source_modified_at ?? 'unknown' }}">{{ author_chrome.source_modified_at ?? 'unknown' }}</dd>
         </div>
       </dl>
     </section>

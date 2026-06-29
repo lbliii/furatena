@@ -185,7 +185,7 @@ def retrieve_node(
     if not include_private:
         public_urls = {item.url for item in catalog.doc_nodes() if is_public_node(item)}
         backlinks = [item for item in backlinks if item.get("href") in public_urls]
-    return {
+    payload: dict[str, Any] = {
         "node_id": node.node_id,
         "url": node.url,
         "title": node.title,
@@ -198,6 +198,10 @@ def retrieve_node(
         "chunks": chunks,
         "similar": similar,
     }
+    api_operation = node.meta.get("api_operation")
+    if isinstance(api_operation, dict):
+        payload["api_operation"] = api_operation
+    return payload
 
 
 def semantic_search_json(

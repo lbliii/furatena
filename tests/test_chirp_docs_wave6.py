@@ -17,10 +17,12 @@ sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog import DocCatalog
 from furatena.catalog.autodoc import generate_autodoc_nodes
+from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.export import catalog_graph, search_json, tools_manifest
 from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
 from furatena.catalog.mcp import FuraMCPServer
 from furatena.catalog.search import search_nodes
+from furatena.catalog.semantic import retrieve_node
 from furatena.catalog.seo import canonical_url, json_ld_article
 from furatena.catalog.versions import infer_release_channels, node_matches_channel
 
@@ -172,8 +174,14 @@ autodoc:
             def get_by_slug(self, slug: str):
                 return {node.slug: node for node in nodes}.get(slug)
 
+            def get_by_node_id(self, node_id: str):
+                return {node.node_id: node for node in nodes}.get(node_id)
+
             def prev_next(self, _node):
                 return (None, None)
+
+            def ast_documents(self):
+                return {}
 
             def graph_edges(self):
                 return [edge_record(edge) for edge in build_graph_edges(self)]
@@ -193,6 +201,10 @@ autodoc:
 
         hits = search_nodes(list(nodes), "create user")
         assert hits and hits[0].node.node_id == operation.node_id
+        retrieved = retrieve_node(_Catalog(), EmbeddingIndex.from_nodes(list(nodes)), operation.node_id)
+        assert retrieved is not None
+        assert retrieved["api_operation"]["operation_id"] == "createUser"
+        assert retrieved["api_operation"]["schemas"] == ["CreateUser", "Error", "User"]
 
         server = FuraMCPServer(SimpleNamespace(catalog=_Catalog(), embedding_index=None))
         resource = server._api_operations()
