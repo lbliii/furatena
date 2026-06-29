@@ -15,10 +15,6 @@
       <span>Author controls</span>
       <strong>{{ author_chrome.title }}</strong>
     </div>
-    <div class="fura-author-chrome__surface" data-author-surface="local">
-      <span class="fura-author-chrome__status-label">Local only</span>
-      <span class="fura-author-chrome__surface-label">Author mode</span>
-    </div>
     <div class="fura-author-chrome__status">
       <div class="fura-author-chrome__states" aria-label="Author status indicators">
         {% for state in author_chrome.states %}
@@ -26,11 +22,15 @@
         {% end %}
       </div>
     </div>
+    <div class="fura-author-chrome__surface" data-author-surface="local">
+      <span class="fura-author-chrome__status-label">Local only</span>
+      <span class="fura-author-chrome__surface-label">Author mode</span>
+    </div>
   </div>
 
   <div class="fura-author-chrome__source" aria-label="Author source file">
     <span class="fura-author-chrome__source-icon" aria-hidden="true">{{ docs_icon('file-code', 14) }}</span>
-    <span class="fura-author-chrome__source-label">Source file</span>
+    <span class="fura-author-chrome__source-label">Source</span>
     <code title="{{ author_chrome.source_path }}">{{ author_chrome.source_path }}</code>
   </div>
 
@@ -43,21 +43,27 @@
       <dl class="fura-author-chrome__meta">
         <div class="fura-author-chrome__meta-item" data-author-meta="visibility">
           <dt>Visibility</dt>
-          <dd title="{{ author_chrome.visibility }}">{{ author_chrome.visibility }}</dd>
+          <dd title="{{ author_chrome.visibility }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.visibility }}</span>
+          </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="validation">
           <dt>Validation</dt>
           <dd title="{% if author_chrome.validation.ok %}clean{% else %}invalid ({{ author_chrome.validation.error_count }}){% end %}">
+            <span class="fura-author-chrome__meta-value">
             {% if author_chrome.validation.ok %}
             clean
             {% else %}
             invalid ({{ author_chrome.validation.error_count }})
             {% end %}
+            </span>
           </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="public-output">
           <dt>Public output</dt>
-          <dd title="{{ author_chrome.export_impact.label }}">{{ author_chrome.export_impact.label }}</dd>
+          <dd title="{{ author_chrome.export_impact.label }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.export_impact.label }}</span>
+          </dd>
         </div>
       </dl>
     </section>
@@ -70,15 +76,21 @@
       <dl class="fura-author-chrome__meta">
         <div class="fura-author-chrome__meta-item" data-author-meta="format">
           <dt>Format</dt>
-          <dd title="{{ author_chrome.content_format }}">{{ author_chrome.content_format }}</dd>
+          <dd title="{{ author_chrome.content_format }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.content_format }}</span>
+          </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="indexed">
           <dt>Indexed</dt>
-          <dd title="{{ author_chrome.last_indexed_at ?? 'not indexed' }}">{{ author_chrome.last_indexed_at ?? 'not indexed' }}</dd>
+          <dd title="{{ author_chrome.last_indexed_at ?? 'not indexed' }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.last_indexed_at ?? 'not indexed' }}</span>
+          </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="modified">
           <dt>Modified</dt>
-          <dd title="{{ author_chrome.source_modified_at ?? 'unknown' }}">{{ author_chrome.source_modified_at ?? 'unknown' }}</dd>
+          <dd title="{{ author_chrome.source_modified_at ?? 'unknown' }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.source_modified_at ?? 'unknown' }}</span>
+          </dd>
         </div>
       </dl>
     </section>

@@ -655,6 +655,8 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     public_payload = asyncio.run(_fetch_public())
     assert 'data-fura-author-chrome' not in public_payload["page"].text
     assert 'id="fura-author-sse"' not in public_payload["page"].text
+    assert "author-invalidate" not in public_payload["page"].text
+    assert "HX-Docs-Author-Reload" not in public_payload["page"].text
     assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" not in public_payload[
         "page"
     ].text

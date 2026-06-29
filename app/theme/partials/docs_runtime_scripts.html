@@ -257,8 +257,8 @@
     syncSearchControls();
   }
 
+  {% if fura_author_mode() %}
   function setupAuthorReload() {
-    if (!{{ 'true' if fura_author | default(false) else 'false' }}) return;
     if (window.__furaDocsAuthorReload) return;
     window.__furaDocsAuthorReload = true;
     var reloading = false;
@@ -421,6 +421,9 @@
       startPollingFallback();
     }
   }
+  {% else %}
+  function setupAuthorReload() {}
+  {% end %}
 
   function setupShellMobileNav() {
     var drawer = document.getElementById("fura-shell-mobile-nav");

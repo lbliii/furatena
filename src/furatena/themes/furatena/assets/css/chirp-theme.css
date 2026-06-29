@@ -3438,16 +3438,18 @@
   .fura-author-chrome {
     display: grid;
     position: relative;
-    gap: 0.64rem;
+    gap: 0.56rem;
     overflow: hidden;
-    margin-block: 0.95rem 1.45rem;
-    padding: 0.7rem;
-    border: 1px solid color-mix(in srgb, var(--chirpui-accent) 22%, var(--color-border));
+    margin-block: 0.8rem 1.35rem;
+    padding: 0.62rem;
+    border: 1px solid color-mix(in srgb, var(--chirpui-accent) 18%, var(--color-border));
     border-radius: var(--radius-sm);
     background:
-      linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 10%, transparent), transparent 38%),
-      color-mix(in srgb, var(--color-bg-elevated) 96%, var(--chirpui-bg));
-    box-shadow: 0 16px 44px color-mix(in srgb, var(--chirpui-bg) 34%, transparent);
+      linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 7%, transparent), transparent 42%),
+      color-mix(in srgb, var(--color-bg-elevated) 92%, var(--chirpui-bg));
+    box-shadow:
+      0 1px 0 color-mix(in srgb, var(--color-bg-elevated) 70%, transparent) inset,
+      0 18px 48px color-mix(in srgb, var(--chirpui-bg) 30%, transparent);
   }
 
   .fura-author-chrome::before {
@@ -3466,10 +3468,10 @@
   .fura-author-chrome__summary {
     display: grid;
     grid-template-columns: 2rem minmax(0, 1fr) auto;
-    gap: 0.42rem 0.62rem;
+    gap: 0.3rem 0.62rem;
     align-items: center;
     min-width: 0;
-    padding: 0.05rem 0.05rem 0.58rem;
+    padding: 0.05rem 0.08rem 0.52rem;
     border-bottom: 1px solid color-mix(in srgb, var(--color-border) 62%, transparent);
   }
 
@@ -3486,7 +3488,7 @@
 
   .fura-author-chrome__heading {
     display: grid;
-    gap: 0.08rem;
+    gap: 0.1rem;
     min-width: 0;
   }
 
@@ -3503,7 +3505,7 @@
   .fura-author-chrome__heading strong {
     overflow: hidden;
     color: var(--color-text-primary);
-    font-size: 0.98rem;
+    font-size: 0.94rem;
     line-height: 1.25;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -3513,19 +3515,21 @@
     display: inline-flex;
     align-items: center;
     gap: 0.34rem;
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    justify-self: end;
     min-width: max-content;
-    padding: 0.26rem 0.42rem;
+    padding: 0.24rem 0.4rem;
     border: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--chirpui-bg) 28%, transparent);
+    background: color-mix(in srgb, var(--chirpui-bg) 34%, transparent);
   }
 
   .fura-author-chrome__status {
     display: flex;
-    grid-column: 2 / -1;
+    grid-column: 2;
     justify-content: flex-start;
     min-width: 0;
-    margin-top: -0.08rem;
   }
 
   .fura-author-chrome__status-label {
@@ -3559,21 +3563,21 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-start;
-    gap: 0.28rem;
+    gap: 0.24rem;
   }
 
   .fura-author-chrome__state {
     display: inline-flex;
     position: relative;
     align-items: center;
-    min-block-size: 1.38rem;
-    padding: 0.12rem 0.5rem 0.12rem 1.22rem;
+    min-block-size: 1.26rem;
+    padding: 0.1rem 0.45rem 0.1rem 1.12rem;
     border: 1px solid color-mix(in srgb, var(--chirpui-accent) 28%, transparent);
     border-radius: 999px;
     background: color-mix(in srgb, var(--chirpui-accent) 9%, transparent);
     color: var(--color-text-secondary);
     font-family: var(--font-family-mono);
-    font-size: 0.68rem;
+    font-size: 0.64rem;
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
@@ -3581,9 +3585,9 @@
 
   .fura-author-chrome__state::before {
     position: absolute;
-    inset-inline-start: 0.48rem;
-    inline-size: 0.38rem;
-    block-size: 0.38rem;
+    inset-inline-start: 0.44rem;
+    inline-size: 0.34rem;
+    block-size: 0.34rem;
     border-radius: 999px;
     background: currentColor;
     content: "";
@@ -3613,13 +3617,14 @@
   .fura-author-chrome__source {
     display: grid;
     grid-template-columns: 1rem auto minmax(0, 1fr);
-    gap: 0.42rem;
+    gap: 0.4rem;
     align-items: center;
     min-width: 0;
-    padding: 0.46rem 0.58rem;
+    min-block-size: 2.14rem;
+    padding: 0.36rem 0.5rem;
     border: 1px solid color-mix(in srgb, var(--color-border) 64%, transparent);
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--chirpui-bg) 34%, transparent);
+    background: color-mix(in srgb, var(--chirpui-bg) 28%, transparent);
     color: var(--color-text-muted);
   }
 
@@ -3642,7 +3647,7 @@
     overflow: hidden;
     min-width: 0;
     color: var(--color-text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -3650,20 +3655,20 @@
   .fura-author-chrome__workspace {
     display: grid;
     grid-template-columns: minmax(0, 1.04fr) minmax(0, 0.96fr);
-    gap: 0.54rem;
+    gap: 0.46rem;
     min-width: 0;
   }
 
   .fura-author-chrome__group {
     display: grid;
-    gap: 0.46rem;
+    gap: 0.42rem;
     min-width: 0;
-    padding: 0.58rem;
+    padding: 0.52rem;
     border: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
     border-radius: var(--radius-sm);
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 45%, transparent), transparent),
-      color-mix(in srgb, var(--chirpui-bg) 18%, transparent);
+      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 36%, transparent), transparent),
+      color-mix(in srgb, var(--chirpui-bg) 16%, transparent);
   }
 
   .fura-author-chrome__group h2 {
@@ -3673,7 +3678,7 @@
     margin: 0;
     color: var(--color-text-primary);
     font-family: var(--font-family-base);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 750;
     letter-spacing: 0;
     line-height: 1.2;
@@ -3686,24 +3691,24 @@
   .fura-author-chrome__meta {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.36rem;
+    gap: 0.32rem;
     margin: 0;
   }
 
   .fura-author-chrome__meta-item {
     display: grid;
     align-content: start;
-    gap: 0.12rem;
+    gap: 0.16rem;
     min-width: 0;
-    min-block-size: 4.15rem;
-    padding: 0.5rem 0.54rem 0.46rem;
+    min-block-size: 3.28rem;
+    padding: 0.42rem 0.46rem;
     border: 1px solid color-mix(in srgb, var(--color-border) 48%, transparent);
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--color-bg-elevated) 48%, transparent);
+    background: color-mix(in srgb, var(--color-bg-elevated) 40%, transparent);
   }
 
   .fura-author-chrome__meta-item:first-child {
-    padding-left: 0.54rem;
+    padding-left: 0.46rem;
   }
 
   .fura-author-chrome__meta-item[data-author-meta="validation"] {
@@ -3717,10 +3722,10 @@
   }
 
   .fura-author-chrome__meta dt {
-    margin: 0 0 0.18rem;
+    margin: 0;
     color: var(--color-text-muted);
     font-family: var(--font-family-mono);
-    font-size: 0.65rem;
+    font-size: 0.61rem;
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1.1;
@@ -3730,9 +3735,20 @@
   .fura-author-chrome__meta dd {
     margin: 0;
     color: var(--color-text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.76rem;
     line-height: 1.3;
     overflow-wrap: anywhere;
+  }
+
+  .fura-author-chrome__meta-value {
+    display: inline-flex;
+    align-items: center;
+    max-inline-size: 100%;
+    min-block-size: 1.32rem;
+    padding: 0.12rem 0.34rem;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--chirpui-bg) 22%, transparent);
+    color: var(--color-text-secondary);
   }
 
   .fura-author-chrome__actions {
@@ -3741,19 +3757,19 @@
     gap: 0.42rem;
     align-items: center;
     min-width: 0;
-    padding: 0.44rem 0 0;
+    padding: 0.36rem 0 0;
     border-top: 1px solid color-mix(in srgb, var(--color-border) 54%, transparent);
   }
 
   .fura-author-chrome__action-group {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.34rem;
+    gap: 0.3rem;
     min-width: 0;
   }
 
   .fura-author-chrome__action-group--primary {
-    padding: 0.22rem;
+    padding: 0.18rem;
     border: 1px solid color-mix(in srgb, var(--chirpui-accent) 16%, var(--color-border));
     border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--chirpui-accent) 6%, transparent);
@@ -3764,14 +3780,14 @@
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
-    min-block-size: 1.86rem;
-    padding: 0.28rem 0.52rem;
+    min-block-size: 1.72rem;
+    padding: 0.24rem 0.48rem;
     border: 1px solid color-mix(in srgb, var(--chirpui-accent) 18%, var(--color-border));
     border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--color-bg-elevated) 70%, transparent);
     color: var(--color-text-secondary);
     font: inherit;
-    font-size: 0.76rem;
+    font-size: 0.73rem;
     font-weight: 650;
     line-height: 1;
     text-decoration: none;
@@ -3812,6 +3828,8 @@
 
     .fura-author-chrome__surface {
       grid-column: 2;
+      grid-row: auto;
+      justify-self: start;
       justify-items: start;
     }
 
