@@ -1485,6 +1485,51 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert "visibility: public" in target.read_text(encoding="utf-8")
 
 
+def test_mcp_author_validate_scopes_lifecycle_errors_to_target(tmp_path: Path) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    target = app_root / "content" / "docs" / "get-started.md"
+    source = target.read_text(encoding="utf-8")
+    target.write_text(source.replace("---\n", "---\nvisibility: invalid\n", 1), encoding="utf-8")
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+    )
+    server = FuraMCPServer(docs, include_private=True)
+
+    def call(name: str, arguments: dict[str, object]) -> dict[str, object]:
+        response = server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": name,
+                "method": "tools/call",
+                "params": {"name": name, "arguments": arguments},
+            }
+        )
+        return response["result"]
+
+    validation = call("author_validate", {"target": "docs/get-started"})
+    payload = validation["structuredContent"]
+    assert validation["isError"] is True
+    assert payload["operation"] == "validate"
+    assert payload["target_path"] == str(target)
+    assert payload["error_count"] == 1
+    assert payload["errors"][0]["source_path"] == str(target)
+    assert "visibility must be one of" in payload["errors"][0]["message"]
+    assert payload["audit"]["command"] == "author_validate"
+    assert payload["audit"]["target_path"] == str(target)
+    assert payload["audit"]["diagnostics"][0]["source_path"] == str(target)
+
+    impact = call("author_inspect_publication_impact", {"target": "docs/get-started"})
+    impact_payload = impact["structuredContent"]
+    assert impact["isError"] is True
+    assert impact_payload["validation"]["error_count"] == 1
+    assert impact_payload["validation"]["errors"][0]["source_path"] == str(target)
+
+
 def test_init_app_freezes_and_exports_static_site(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 

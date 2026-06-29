@@ -23,6 +23,7 @@ from furatena.cli.authoring import (
     author_read_source,
     author_status,
     author_transition,
+    author_validate,
 )
 
 MCP_PROTOCOL_VERSION = "2025-06-18"
@@ -676,19 +677,18 @@ class FuraMCPServer:
             return gate, True
         report = self.validation_report()
         target = _optional_str(arguments.get("target"))
-        status_payload: dict[str, Any] | None = None
         if target:
-            status = author_status(
+            result = author_validate(
                 target,
                 mounts=self._author_mounts(),
                 mount_id=_optional_str(arguments.get("mount")),
+                validation_errors=_validation_messages(report, "errors"),
+                validation_warnings=_validation_messages(report, "warnings"),
             )
-            status_payload = self._author_payload(status, "author_validate", arguments)
-            if not status.ok:
-                return status_payload, True
-            source_path = str(status.target_path) if status.target_path is not None else None
-            report = _filter_validation_report(report, source_path)
-        report["audit"] = self._audit_record("author_validate", arguments, status_payload)
+            payload = self._author_payload(result, "author_validate", arguments)
+            _attach_author_validation_fields(payload, result)
+            return payload, not result.ok
+        report["audit"] = self._audit_record("author_validate", arguments, None)
         return report, not bool(report.get("ok"))
 
     def _author_publication_impact(self, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
@@ -703,14 +703,24 @@ class FuraMCPServer:
         status_payload = self._author_payload(status, "author_inspect_publication_impact", arguments)
         if not status.ok:
             return status_payload, True
-        validation = _filter_validation_report(
-            self.validation_report(),
-            str(status.target_path) if status.target_path is not None else None,
+        report = self.validation_report()
+        validation_result = author_validate(
+            str(arguments.get("target") or ""),
+            mounts=self._author_mounts(),
+            mount_id=_optional_str(arguments.get("mount")),
+            validation_errors=_validation_messages(report, "errors"),
+            validation_warnings=_validation_messages(report, "warnings"),
         )
+        validation = self._author_payload(
+            validation_result,
+            "author_validate",
+            arguments,
+        )
+        _attach_author_validation_fields(validation, validation_result)
         stale = self.stale_impact_report(slug=_optional_str(arguments.get("target")))
         payload = {
             "schema_version": 1,
-            "ok": bool(validation.get("ok")),
+            "ok": bool(validation_result.ok),
             "status": status_payload,
             "validation": validation,
             "stale_impact": stale,
@@ -1496,6 +1506,43 @@ def _filter_validation_report(report: dict[str, Any], source_path: str | None) -
     filtered["ok"] = not errors
     filtered["target_path"] = source_path
     return filtered
+
+
+def _validation_messages(report: dict[str, Any], key: str) -> tuple[str, ...]:
+    return tuple(
+        str(item.get("message") or "")
+        for item in report.get(key, [])
+        if isinstance(item, dict) and item.get("message")
+    )
+
+
+def _attach_author_validation_fields(payload: dict[str, Any], result: AuthorOperationResult) -> None:
+    errors = [
+        {
+            "severity": diagnostic.severity,
+            "message": diagnostic.message,
+            "source_path": diagnostic.source_path,
+            "rule_id": diagnostic.rule_id,
+            "next_action": diagnostic.next_action,
+        }
+        for diagnostic in result.diagnostics
+        if diagnostic.severity == "error"
+    ]
+    warnings = [
+        {
+            "severity": diagnostic.severity,
+            "message": diagnostic.message,
+            "source_path": diagnostic.source_path,
+            "rule_id": diagnostic.rule_id,
+            "next_action": diagnostic.next_action,
+        }
+        for diagnostic in result.diagnostics
+        if diagnostic.severity == "warning"
+    ]
+    payload["errors"] = errors
+    payload["warnings"] = warnings
+    payload["error_count"] = len(errors)
+    payload["warning_count"] = len(warnings)
 
 
 def _bool_arg(value: Any, *, default: bool) -> bool:
