@@ -1139,6 +1139,47 @@ def test_recipes_json_lists_agent_workflows(capsys) -> None:
     } <= recipe_ids
 
 
+def test_author_recipes_encode_safe_mutation_flow(capsys) -> None:
+    main(["recipes", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    recipes = {recipe["id"]: recipe for recipe in payload["data"]["recipes"]}
+
+    draft_steps = {step["id"]: step for step in recipes["author-draft"]["steps"]}
+    assert draft_steps["preview-draft"]["dry_run"] is True
+    assert draft_steps["create-draft"]["requires_confirmation"] is True
+    assert "--dry-run" in draft_steps["preview-draft"]["command"]
+    assert "--yes" in draft_steps["create-draft"]["command"]
+
+    edit_publish_steps = {step["id"]: step for step in recipes["author-edit-publish"]["steps"]}
+    assert edit_publish_steps["read-source"]["command"].startswith("MCP author_read_source")
+    assert edit_publish_steps["preview-edit"]["dry_run"] is True
+    assert edit_publish_steps["apply-edit"]["requires_confirmation"] is True
+    assert "author_apply_edit" in edit_publish_steps["apply-edit"]["command"]
+    assert "confirmed=true dry_run=false" in edit_publish_steps["apply-edit"]["command"]
+    assert edit_publish_steps["publish-dry-run"]["dry_run"] is True
+    assert "author_publish" in edit_publish_steps["publish-dry-run"]["command"]
+    assert "dry_run=true" in edit_publish_steps["publish-dry-run"]["command"]
+    assert edit_publish_steps["publish"]["requires_confirmation"] is True
+    assert "confirmed=true dry_run=false" in edit_publish_steps["publish"]["command"]
+
+    repair_steps = {step["id"]: step for step in recipes["author-stale-repair"]["steps"]}
+    assert repair_steps["inspect-impact"]["command"].startswith("MCP author_inspect_publication_impact")
+    assert repair_steps["preview-fix"]["dry_run"] is True
+    assert repair_steps["apply-fix"]["requires_confirmation"] is True
+    assert "confirmed=true dry_run=false" in repair_steps["apply-fix"]["command"]
+    assert "check --content-only --json" in repair_steps["validate"]["command"]
+
+    remediation_steps = {step["id"]: step for step in recipes["author-publish-remediation"]["steps"]}
+    assert remediation_steps["publish-preview"]["dry_run"] is True
+    assert "author_validate" in remediation_steps["validate-target"]["command"]
+    assert remediation_steps["repair-preview"]["dry_run"] is True
+    assert remediation_steps["repair-write"]["requires_confirmation"] is True
+    assert "confirmed=true dry_run=false" in remediation_steps["repair-write"]["command"]
+    assert remediation_steps["retry-publish"]["requires_confirmation"] is True
+    assert "author_publish" in remediation_steps["retry-publish"]["command"]
+    assert "confirmed=true dry_run=false" in remediation_steps["retry-publish"]["command"]
+
+
 def test_recipe_json_reports_single_workflow(capsys) -> None:
     main(["recipes", "publish", "--json"])
     payload = json.loads(capsys.readouterr().out)
