@@ -270,6 +270,9 @@ class TestAuthorStaleRoute:
         assert 'data-chirp-page-actions' in response.text
         assert 'data-action="copy-source-path"' in response.text
         assert 'data-source-path="' in response.text
+        assert "Author controls" in response.text
+        assert "Local only" in response.text
+        assert "Lifecycle" in response.text
         assert "Inspect public output" in response.text
         assert "/docs/_author/page.json?slug=docs/page&amp;inspect_public=1" in response.text
         assert 'id="fura-author-chrome"' in response.text
@@ -280,6 +283,9 @@ class TestAuthorStaleRoute:
         )
         assert "width: min(22rem, calc(100vw - 1rem));" in css
         assert "grid-template-columns: 1.35rem minmax(0, 1fr);" in css
+        assert ".fura-author-chrome__workspace" in css
+        assert ".fura-author-chrome__action-group--primary" in css
+        assert "@media (max-width: 480px)" in css
 
     def test_author_reload_after_source_edit_updates_dom_and_clears_hints(self, tmp_path: Path) -> None:
         import asyncio
