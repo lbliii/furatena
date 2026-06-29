@@ -64,6 +64,6 @@ Fields such as `source_path`, `line`, `mount`, `node_id`, `rule_id`, and `next_a
 
 `fura check --agent --json` extends normal validation with agent-facing contract lint for MCP resources, MCP tool schemas, Milo adapter parity, and llms/search descriptions. `fura check --agent-only --json` runs just that gate for fast CI or local MCP surface checks.
 
-`fura evals --json` runs deterministic, fixture-style agent evaluations through the Milo MCP adapter. The lightweight suite covers prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, tool selection, and non-mutating author workflows without paid model calls. Use `--include-private --category author_workflows` to exercise draft dry-run, publish preview, and failed-publish remediation paths.
+`fura evals --json` runs deterministic, fixture-style agent evaluations through the Milo MCP adapter. The lightweight suite covers prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, tool selection, and author workflows without paid model calls. Use `--include-private --category author_workflows` to exercise draft dry-run, publish preview, failed-publish remediation, and a reversible publish/unpublish retrieval-boundary check.
 
 See [AGENT_WORKFLOWS.md](AGENT_WORKFLOWS.md) for stable command sequences over these JSON-capable commands.

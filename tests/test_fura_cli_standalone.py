@@ -233,6 +233,11 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     assert results["author-publish-dry-run"]["observed"]["publication_change"] == "added_to_public_output"
     assert results["author-publish-remediation"]["status"] == "pass"
     assert results["author-publish-remediation"]["observed"]["source_unchanged_after_failed_publish"] is True
+    assert results["author-publish-round-trip"]["status"] == "pass"
+    assert results["author-publish-round-trip"]["observed"]["public_before_is_error"] is True
+    assert results["author-publish-round-trip"]["observed"]["public_after_publish_is_error"] is False
+    assert results["author-publish-round-trip"]["observed"]["public_after_unpublish_is_error"] is True
+    assert results["author-publish-round-trip"]["observed"]["restore_is_error"] is False
 
 
 def test_query_json_uses_standard_result_envelope(tmp_path: Path, capsys) -> None:

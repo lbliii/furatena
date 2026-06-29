@@ -103,6 +103,10 @@ def run_agent_evaluations(
             results.append(_eval_author_publish_dry_run(case, private_client, include_private))
         elif case.id == "author-publish-remediation":
             results.append(_eval_author_publish_remediation(case, private_client, include_private))
+        elif case.id == "author-publish-round-trip":
+            results.append(
+                _eval_author_publish_round_trip(case, public_client, private_client, include_private)
+            )
     fail_count = sum(1 for result in results if result.status == "fail")
     skip_count = sum(1 for result in results if result.status == "skip")
     pass_count = sum(1 for result in results if result.status == "pass")
@@ -243,6 +247,17 @@ def _build_cases(catalog: Any) -> tuple[AgentEvalCase, ...]:
             category="author_workflows",
             prompt="Recover from a failed publish attempt with diagnostics and a reviewed repair preview.",
             description="Failed publish remediation stays non-mutating and proposes exact source edits.",
+            expectation=AgentEvalExpectation(
+                tool="author_publish",
+                node_ids=tuple([private_node.node_id] if private_node is not None else []),
+                citations=tuple([_author_target(private_node)] if private_node is not None else []),
+            ),
+        ),
+        AgentEvalCase(
+            id="author-publish-round-trip",
+            category="author_workflows",
+            prompt="Publish a reviewed draft, verify public retrieval, then unpublish it safely.",
+            description="Confirmed author publish/unpublish keeps public retrieval boundaries current.",
             expectation=AgentEvalExpectation(
                 tool="author_publish",
                 node_ids=tuple([private_node.node_id] if private_node is not None else []),
@@ -476,6 +491,83 @@ def _eval_author_publish_remediation(case: AgentEvalCase, client: Any, include_p
     ):
         return _pass(case, "failed publish remediation stayed diagnostics-first and non-mutating", observed)
     return _fail(case, "failed publish remediation did not preserve the expected safety gates", observed)
+
+
+def _eval_author_publish_round_trip(
+    case: AgentEvalCase,
+    public_client: Any,
+    private_client: Any,
+    include_private: bool,
+) -> AgentEvalResult:
+    if not include_private:
+        return _skip(case, "rerun with --include-private to exercise author workflow evals")
+    target = _expected_author_target(case)
+    node_id = next((item for item in case.expectation.node_ids if item), "")
+    if not target or not node_id:
+        return _skip(case, "catalog has no private author target for publish round-trip")
+
+    source_before = private_client.call("author_read_source", target=target)
+    if source_before.is_error:
+        return _fail(
+            case,
+            "publish round-trip could not read target source",
+            {"target": target, "read_error": _structured(source_before)},
+        )
+    original_source = str(_structured(source_before).get("source") or "")
+    public_before = public_client.call("retrieve_node", node_id=node_id)
+    publish = private_client.call("author_publish", target=target, dry_run=False, confirmed=True)
+    public_after_publish = public_client.call("retrieve_node", node_id=node_id)
+    unpublish = private_client.call("author_unpublish", target=target, dry_run=False, confirmed=True)
+    public_after_unpublish = public_client.call("retrieve_node", node_id=node_id)
+
+    restore_payload: dict[str, Any] = {}
+    source_after_unpublish = private_client.call("author_read_source", target=target)
+    if not source_after_unpublish.is_error:
+        round_trip_source = str(_structured(source_after_unpublish).get("source") or "")
+        if original_source and round_trip_source and round_trip_source != original_source:
+            restore = private_client.call(
+                "author_apply_edit",
+                target=target,
+                old_text=round_trip_source,
+                new_text=original_source,
+                dry_run=False,
+                confirmed=True,
+            )
+            restore_payload = {
+                "restore_is_error": restore.is_error,
+                "restore_changed_files": _structured(restore).get("changed_files"),
+            }
+
+    observed = {
+        "target": target,
+        "node_id": node_id,
+        "public_before_is_error": public_before.is_error,
+        "publish_is_error": publish.is_error,
+        "publish_resulting_visibility": _structured(publish).get("resulting_visibility"),
+        "public_after_publish_is_error": public_after_publish.is_error,
+        "public_after_publish_node_id": _structured(public_after_publish).get("node_id"),
+        "unpublish_is_error": unpublish.is_error,
+        "unpublish_resulting_visibility": _structured(unpublish).get("resulting_visibility"),
+        "public_after_unpublish_is_error": public_after_unpublish.is_error,
+        **restore_payload,
+    }
+    if (
+        public_before.is_error
+        and not publish.is_error
+        and _structured(publish).get("resulting_visibility") == "public"
+        and not public_after_publish.is_error
+        and _structured(public_after_publish).get("node_id") == node_id
+        and not unpublish.is_error
+        and _structured(unpublish).get("resulting_visibility") == "draft"
+        and public_after_unpublish.is_error
+        and observed.get("restore_is_error") is not True
+    ):
+        return _pass(
+            case,
+            "publish/unpublish round-trip updated public retrieval boundaries and restored source",
+            observed,
+        )
+    return _fail(case, "publish/unpublish round-trip did not preserve retrieval boundaries", observed)
 
 
 def _read_json_resource(client: Any, uri: str) -> dict[str, Any]:
