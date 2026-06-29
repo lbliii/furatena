@@ -8,5 +8,15 @@
   hx-target="this"
 >
   <div hidden sse-swap="author-invalidate" hx-target="this" hx-swap="none"></div>
+  <button
+    type="button"
+    hidden
+    hx-get="{{ node.url }}"
+    hx-trigger="sse:author-invalidate"
+    hx-target="#page-root"
+    hx-select="#page-root"
+    hx-swap="outerHTML"
+    hx-headers='{"HX-Docs-Author-Reload":"1"}'
+  ></button>
 </div>
 {% end %}
