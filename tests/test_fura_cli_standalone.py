@@ -1550,6 +1550,8 @@ def test_mcp_stale_impact_groups_by_provenance(tmp_path: Path) -> None:
     assert payload["stale_count"] == 1
     assert impact["owner"] == "docs-platform"
     assert impact["source_key"] == "git:lbliii/furatena@main:docs/get-started.md"
+    assert impact["tenant"] == "default"
+    assert impact["site"] == "docs"
     assert impact["provenance"]["tenant"] == "default"
     assert impact["provenance"]["site"] == "docs"
     assert payload["groups"]["by_owner"] == [
@@ -1562,6 +1564,8 @@ def test_mcp_stale_impact_groups_by_provenance(tmp_path: Path) -> None:
     ]
     assert payload["groups"]["by_source"][0]["key"] == impact["source_key"]
     assert payload["groups"]["by_mount"][0]["key"] == "docs"
+    assert payload["groups"]["by_tenant"][0]["key"] == "default"
+    assert payload["groups"]["by_site"][0]["key"] == "docs"
     assert payload["groups"]["by_channel"][0]["key"] == "latest"
 
 

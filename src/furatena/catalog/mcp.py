@@ -524,6 +524,8 @@ class FuraMCPServer:
                 "by_owner": _group_impact(impact, "owner"),
                 "by_source": _group_impact(impact, "source_key"),
                 "by_mount": _group_impact(impact, "mount"),
+                "by_tenant": _group_impact(impact, "tenant"),
+                "by_site": _group_impact(impact, "site"),
                 "by_channel": _group_impact(impact, "output_channel"),
             },
         }
@@ -540,12 +542,16 @@ class FuraMCPServer:
         path = getattr(node, "source_path", None) if node is not None else None
         source_key = _source_group_key(provider=provider, repo=repo, ref=ref, path=path)
         output_channel = str(getattr(self.catalog, "active_channel", "") or getattr(node, "edition", "") or "default")
+        tenant = _first_meta_value(meta, "tenant") or "default"
+        site = _first_meta_value(meta, "site") or "default"
         return {
             "slug": slug,
             "mount": mount,
             "refresh_targets": list(entry.get("hints") or ()),
             "owner": owner,
             "source_key": source_key,
+            "tenant": tenant,
+            "site": site,
             "output_channel": output_channel,
             "provenance": {
                 "provider": provider,
@@ -555,8 +561,8 @@ class FuraMCPServer:
                 "mount": mount,
                 "edition": getattr(node, "edition", None) if node is not None else None,
                 "owner": owner,
-                "tenant": _first_meta_value(meta, "tenant"),
-                "site": _first_meta_value(meta, "site"),
+                "tenant": tenant,
+                "site": site,
                 "output_channel": output_channel,
             },
         }
