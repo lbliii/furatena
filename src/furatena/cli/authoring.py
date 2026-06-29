@@ -406,16 +406,19 @@ def author_transition(
         new_meta["draft"] = True
         new_meta["visibility"] = "draft"
         new_meta.pop("published_at", None)
+        new_meta.pop("archived_at", None)
         resulting_visibility = "draft"
     elif operation == "publish":
         new_meta.pop("draft", None)
         new_meta["visibility"] = "public"
+        new_meta.pop("archived_at", None)
         new_meta.setdefault("published_at", _now_iso())
         resulting_visibility = "public"
     elif operation == "unpublish":
         new_meta["draft"] = True
         new_meta["visibility"] = "draft"
         new_meta.pop("published_at", None)
+        new_meta.pop("archived_at", None)
         resulting_visibility = "draft"
     elif operation == "archive":
         new_meta.pop("draft", None)

@@ -862,6 +862,42 @@ def test_author_validate_reports_lifecycle_failure(tmp_path: Path, capsys) -> No
     assert payload["diagnostics"][0]["source_path"] == str(target)
 
 
+def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+    target = app_root / "content" / "docs" / "get-started.md"
+
+    main(["--app-root", str(app_root), "author", "archive", "docs/get-started", "--yes", "--json"])
+    archive_payload = json.loads(capsys.readouterr().out)
+    assert archive_payload["ok"] is True
+    assert archive_payload["data"]["resulting_visibility"] == "archived"
+    archived_source = target.read_text(encoding="utf-8")
+    assert "visibility: archived" in archived_source
+    assert "archived_at:" in archived_source
+
+    main(["--app-root", str(app_root), "author", "publish", "docs/get-started", "--dry-run", "--json"])
+    preview_payload = json.loads(capsys.readouterr().out)
+    assert preview_payload["ok"] is True
+    assert preview_payload["data"]["previous_visibility"] == "archived"
+    assert preview_payload["data"]["resulting_visibility"] == "public"
+    assert "-archived_at:" in preview_payload["data"]["diff"]
+    assert "archived_at:" in target.read_text(encoding="utf-8")
+
+    main(["--app-root", str(app_root), "author", "publish", "docs/get-started", "--yes", "--json"])
+    publish_payload = json.loads(capsys.readouterr().out)
+    assert publish_payload["ok"] is True
+    published_source = target.read_text(encoding="utf-8")
+    assert "visibility: public" in published_source
+    assert "published_at:" in published_source
+    assert "archived_at:" not in published_source
+
+    main(["--app-root", str(app_root), "author", "validate", "docs/get-started", "--json"])
+    validate_payload = json.loads(capsys.readouterr().out)
+    assert validate_payload["ok"] is True
+
+
 def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 
