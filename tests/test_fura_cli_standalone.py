@@ -403,6 +403,69 @@ def test_export_excludes_unlinked_draft_pages(tmp_path: Path, capsys) -> None:
     assert tools_payload["page_count"] == catalog_payload["page_count"]
 
 
+def test_freeze_excludes_draft_pages_from_frozen_ir_and_preview(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    secret = app_root / "content" / "docs" / "secret.md"
+    secret.write_text(
+        "---\ntitle: Secret\n---\n# Secret\n\nPrivate notes.\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+    frozen = app_root / "frozen"
+    assert list(frozen.glob("mounts/*/pages/docs/secret.html"))
+    assert "Secret" in (frozen / "search.json").read_text(encoding="utf-8")
+
+    secret.write_text(
+        "---\ntitle: Secret\ndraft: true\n---\n# Secret\n\nPrivate notes.\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    frozen_text = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            frozen / "catalog.json",
+            frozen / "search.json",
+            frozen / "semantic.json",
+            frozen / "tools.json",
+        )
+    )
+    secret_pages = list(frozen.glob("mounts/*/pages/docs/secret.html"))
+    secret_ast = list(frozen.glob("mounts/*/ast/docs/secret.json"))
+    preview_docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.PREVIEW, frozen, True, False),
+    )
+    preview_client = TestClient(preview_docs.create_app())
+
+    async def _fetch() -> dict[str, object]:
+        catalog = await preview_client.get("/catalog.json")
+        search = await preview_client.get("/search.json?q=private%20notes")
+        return {
+            "catalog": json.loads(catalog.text.split("<script", 1)[0]),
+            "search": json.loads(search.text.split("<script", 1)[0]),
+        }
+
+    preview_payload = asyncio.run(_fetch())
+
+    assert payload["ok"] is True
+    assert "Secret" not in frozen_text
+    assert secret_pages == []
+    assert secret_ast == []
+    assert preview_docs.catalog.get_path("/docs/secret/") is None
+    assert all(page["title"] != "Secret" for page in preview_payload["catalog"]["pages"])
+    assert preview_payload["search"]["count"] == 0
+
+
 def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 

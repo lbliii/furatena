@@ -319,6 +319,9 @@ class TestAuthorStaleRoute:
         assert "Author controls" in response.text
         assert "Local only" in response.text
         assert "fura-author-chrome__meta-icon" in response.text
+        assert 'data-fura-author-output="included"' in response.text
+        assert 'data-author-validation="clean"' in response.text
+        assert 'data-author-output="included"' in response.text
         assert 'aria-label="Lifecycle actions"' in response.text
         assert 'aria-label="Source and output actions"' in response.text
         assert "Lifecycle" in response.text
@@ -336,11 +339,14 @@ class TestAuthorStaleRoute:
         assert ".fura-author-chrome__metadata" in css
         assert ".fura-author-chrome__action-group--primary" in css
         assert ".fura-author-chrome__meta-icon" in css
+        assert '.fura-author-chrome[data-fura-author-output="excluded"]::before' in css
+        assert '.fura-author-chrome__meta-value[data-author-validation="clean"]' in css
+        assert '.fura-author-chrome__meta-value[data-author-output="excluded"]' in css
         assert "grid-template-columns: minmax(14rem, 0.9fr) minmax(18rem, 1.15fr);" in css
+        assert "grid-template-columns: minmax(0, 1fr);" in css
         assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in css
         assert "@media (max-width: 760px)" in css
         assert ".fura-author-chrome__body {\n      grid-template-columns: 1fr;" in css
-        assert ".fura-author-chrome__metadata {\n      grid-template-columns: 1fr;" in css
         assert "@media (max-width: 480px)" in css
         assert ".fura-author-chrome__source {\n      grid-template-columns: 1rem minmax(0, 1fr);" in css
         assert ".fura-author-chrome__action {\n      flex: 1 1 9rem;" in css

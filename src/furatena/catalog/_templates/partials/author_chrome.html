@@ -7,6 +7,7 @@
   data-fura-author-chrome
   data-fura-author-slug="{{ author_chrome.slug }}"
   data-fura-author-states="{{ author_chrome.states | join(' ') }}"
+  data-fura-author-output="{% if author_chrome.export_impact.included %}included{% else %}excluded{% end %}"
   aria-label="Author page status"
 >
   <div class="fura-author-chrome__summary">
@@ -109,7 +110,10 @@
             <span>Visibility</span>
           </dt>
           <dd title="{{ author_chrome.visibility }}">
-            <span class="fura-author-chrome__meta-value">{{ author_chrome.visibility }}</span>
+            <span
+              class="fura-author-chrome__meta-value"
+              data-author-visibility="{{ author_chrome.visibility }}"
+            >{{ author_chrome.visibility }}</span>
           </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="validation">
@@ -118,7 +122,10 @@
             <span>Validation</span>
           </dt>
           <dd title="{% if author_chrome.validation.ok %}clean{% else %}invalid ({{ author_chrome.validation.error_count }}){% end %}">
-            <span class="fura-author-chrome__meta-value">
+            <span
+              class="fura-author-chrome__meta-value"
+              data-author-validation="{% if author_chrome.validation.ok %}clean{% else %}invalid{% end %}"
+            >
             {% if author_chrome.validation.ok %}
             clean
             {% else %}
@@ -133,7 +140,10 @@
             <span>Public output</span>
           </dt>
           <dd title="{{ author_chrome.export_impact.label }}">
-            <span class="fura-author-chrome__meta-value">{{ author_chrome.export_impact.label }}</span>
+            <span
+              class="fura-author-chrome__meta-value"
+              data-author-output="{% if author_chrome.export_impact.included %}included{% else %}excluded{% end %}"
+            >{{ author_chrome.export_impact.label }}</span>
           </dd>
         </div>
         <div class="fura-author-chrome__meta-item" data-author-meta="format">
