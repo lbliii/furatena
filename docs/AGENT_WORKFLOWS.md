@@ -21,6 +21,7 @@ Each recipe is safe to consume as JSON through the standard CLI envelope documen
 - `author-edit-publish` — read, edit, validate, and publish through reviewable MCP tool results.
 - `author-stale-repair` — inspect stale impact, preview a source fix, and validate after repair.
 - `author-publish-remediation` — recover from failed publish attempts with diagnostics-first repairs.
+- `author-archive` — inspect impact, dry-run archive metadata, and remove obsolete pages from public output after approval.
 - `source-sync` — refresh git-backed sources, validate them, and rebuild frozen graph outputs.
 
 ## Agent Surfaces
@@ -78,7 +79,7 @@ MCP tools return both text content and `structuredContent` payloads:
 - `author_propose_edit` — preview an exact-text source edit without writing files.
 - `author_apply_edit` — apply an exact-text source edit after explicit confirmation.
 - `author_validate` — run validation, optionally scoped to one author target.
-- `author_publish` / `author_unpublish` — change lifecycle state; dry-run by default.
+- `author_publish` / `author_unpublish` / `author_archive` — change lifecycle state; dry-run by default.
 - `author_inspect_publication_impact` — return lifecycle status, validation, and stale impact before a publication change.
 
 Authoring MCP tools require `fura mcp --author --include-private`. Mutating tools default to dry-run behavior and return `isError: true` if a write is requested without `confirmed: true`.
@@ -93,6 +94,8 @@ fura author edit docs/proposed-page --old-text "Draft" --new-text "Reviewed draf
 fura author edit docs/proposed-page --old-text "Draft" --new-text "Reviewed draft" --yes --json
 fura author publish docs/proposed-page --dry-run --json
 fura author publish docs/proposed-page --yes --json
+fura author archive docs/proposed-page --dry-run --json
+fura author archive docs/proposed-page --yes --json
 ```
 
 Lifecycle responses include operation id, target path, mount id, previous/resulting visibility, changed files, diagnostics, diff preview, and next actions. Transition responses also include `publication_impact` so agents can see whether navigation, search, export, and public retrieval/LLM surfaces are affected before writing. `fura author edit` uses exact source span replacement, so run `fura author status` or `author_read_source` first and pass the exact `--old-text` value to avoid stale edits.

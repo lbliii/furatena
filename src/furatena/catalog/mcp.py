@@ -38,6 +38,7 @@ _SENSITIVE_TOOLS = {
     "author_validate",
     "author_publish",
     "author_unpublish",
+    "author_archive",
     "author_inspect_publication_impact",
 }
 _TOKEN_KEYS = {"token", "privileged_token", "authorization", "api_key"}
@@ -410,6 +411,12 @@ class FuraMCPServer:
                 "outputSchema": _object_schema("operation_id", "ok", "audit"),
             },
             {
+                "name": "author_archive",
+                "description": "Archive a source and remove it from public output. Defaults to dry-run and requires confirmed=true to write.",
+                "inputSchema": _author_transition_schema(),
+                "outputSchema": _object_schema("operation_id", "ok", "audit"),
+            },
+            {
                 "name": "author_inspect_publication_impact",
                 "description": "Inspect lifecycle state, validation diagnostics, and stale impact before publication changes.",
                 "inputSchema": {
@@ -471,6 +478,8 @@ class FuraMCPServer:
                 payload, is_error = self._author_transition("publish", arguments)
             elif name == "author_unpublish":
                 payload, is_error = self._author_transition("unpublish", arguments)
+            elif name == "author_archive":
+                payload, is_error = self._author_transition("archive", arguments)
             elif name == "author_inspect_publication_impact":
                 payload, is_error = self._author_publication_impact(arguments)
             else:
@@ -1471,6 +1480,32 @@ def build_milo_cli(server: FuraMCPServer):
         return _milo_tool_payload(
             server,
             "author_unpublish",
+            {
+                "target": target,
+                "mount": mount,
+                "dry_run": dry_run,
+                "confirmed": confirmed,
+                "actor": actor,
+                "privileged_token": privileged_token,
+            },
+        )
+
+    @cli.command(
+        "author_archive",
+        description="Archive a source and remove it from public output. Defaults to dry-run and requires confirmed=true to write.",
+        annotations={"destructiveHint": True},
+    )
+    def author_archive(
+        target: str,
+        mount: str = "",
+        dry_run: bool = True,
+        confirmed: bool = False,
+        actor: str = "",
+        privileged_token: str = "",
+    ) -> dict:
+        return _milo_tool_payload(
+            server,
+            "author_archive",
             {
                 "target": target,
                 "mount": mount,

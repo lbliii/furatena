@@ -1195,6 +1195,7 @@ def test_recipes_json_lists_agent_workflows(capsys) -> None:
         "author-edit-publish",
         "author-stale-repair",
         "author-publish-remediation",
+        "author-archive",
         "source-sync",
     } <= recipe_ids
 
@@ -1238,6 +1239,17 @@ def test_author_recipes_encode_safe_mutation_flow(capsys) -> None:
     assert remediation_steps["retry-publish"]["requires_confirmation"] is True
     assert "author_publish" in remediation_steps["retry-publish"]["command"]
     assert "confirmed=true dry_run=false" in remediation_steps["retry-publish"]["command"]
+
+    archive_steps = {step["id"]: step for step in recipes["author-archive"]["steps"]}
+    assert archive_steps["inspect-impact"]["command"].startswith(
+        "MCP author_inspect_publication_impact"
+    )
+    assert archive_steps["archive-dry-run"]["dry_run"] is True
+    assert "author_archive" in archive_steps["archive-dry-run"]["command"]
+    assert "dry_run=true" in archive_steps["archive-dry-run"]["command"]
+    assert archive_steps["archive"]["requires_confirmation"] is True
+    assert "confirmed=true dry_run=false" in archive_steps["archive"]["command"]
+    assert "check --content-only --json" in archive_steps["validate"]["command"]
 
 
 def test_query_recipe_covers_dcp_and_mcp_graph_queries(capsys) -> None:
@@ -1314,6 +1326,7 @@ def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -
         "author_read_source",
         "author_apply_edit",
         "author_publish",
+        "author_archive",
     } <= tool_names
 
 
@@ -1822,6 +1835,39 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
         {"node_id": draft_again_node.node_id},
     )
     assert public_unpublished_retrieve["error"]["code"] == -32602
+
+    archive_preview = call(private_server, "author_archive", {"target": "docs/mcp-draft"})
+    assert archive_preview["isError"] is False
+    assert archive_preview["structuredContent"]["dry_run"] is True
+    assert archive_preview["structuredContent"]["resulting_visibility"] == "archived"
+    assert archive_preview["structuredContent"]["publication_impact"]["change"] == "private_metadata_updated"
+    assert "visibility: archived" not in target.read_text(encoding="utf-8")
+
+    unsafe_archive = call(
+        private_server,
+        "author_archive",
+        {"target": "docs/mcp-draft", "dry_run": False},
+    )
+    assert unsafe_archive["isError"] is True
+    assert "visibility: archived" not in target.read_text(encoding="utf-8")
+
+    archive = call(
+        private_server,
+        "author_archive",
+        {"target": "docs/mcp-draft", "dry_run": False, "confirmed": True},
+    )
+    assert archive["isError"] is False
+    assert archive["structuredContent"]["audit"]["previous_state"] == "draft"
+    assert archive["structuredContent"]["audit"]["resulting_state"] == "archived"
+    assert "visibility: archived" in target.read_text(encoding="utf-8")
+    archived_node = docs.catalog.get_by_slug("docs/mcp-draft")
+    assert archived_node is not None
+    public_archived_retrieve = raw_call(
+        public_server,
+        "retrieve_node",
+        {"node_id": archived_node.node_id},
+    )
+    assert public_archived_retrieve["error"]["code"] == -32602
 
 
 def test_mcp_author_validate_scopes_lifecycle_errors_to_target(tmp_path: Path) -> None:

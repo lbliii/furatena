@@ -429,6 +429,46 @@ RECIPES: tuple[Recipe, ...] = (
         related_commands=("author publish", "check", "mcp --author --include-private"),
     ),
     Recipe(
+        id="author-archive",
+        title="Archive obsolete public content safely",
+        summary="Inspect publication impact, preview archive metadata, and remove obsolete pages from public output after approval.",
+        applies_to=("Codex", "Claude Code", "Cursor", "local MCP agent", "local shell"),
+        steps=(
+            RecipeStep(
+                id="inspect-impact",
+                title="Inspect publication impact",
+                command="MCP author_inspect_publication_impact target=<SLUG>",
+                purpose="Return lifecycle state, validation diagnostics, and public-output impact before archiving.",
+            ),
+            RecipeStep(
+                id="archive-dry-run",
+                title="Preview archive transition",
+                command="MCP author_archive target=<SLUG> dry_run=true",
+                purpose="Review the archive diff and publication impact without changing source.",
+                dry_run=True,
+            ),
+            RecipeStep(
+                id="archive",
+                title="Archive approved source",
+                command="MCP author_archive target=<SLUG> confirmed=true dry_run=false",
+                purpose="Move the page to archived visibility after approval.",
+                requires_confirmation=True,
+            ),
+            RecipeStep(
+                id="validate",
+                title="Validate archived visibility",
+                command="fura --app-root <APP_ROOT> check --content-only --json",
+                purpose="Confirm archived content is excluded from public catalog output.",
+            ),
+        ),
+        verifies=(
+            "archive impact is reviewed",
+            "archive dry-run precedes writes",
+            "archived content stays out of public retrieval",
+        ),
+        related_commands=("author archive", "mcp --author --include-private", "check"),
+    ),
+    Recipe(
         id="source-sync",
         title="Refresh sources and rebuild derived outputs",
         summary="Synchronize externally managed content, then rebuild and validate generated graph outputs.",
