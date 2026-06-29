@@ -511,6 +511,69 @@
     }
   }
 
+  function copyTextToClipboard(text) {
+    if (!text) return Promise.reject(new Error("Nothing to copy."));
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      return navigator.clipboard.writeText(text);
+    }
+    var textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.insetInlineStart = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    } finally {
+      textarea.remove();
+    }
+  }
+
+  function copyPayloadForAction(button, action) {
+    if (action === "copy-source-path") {
+      return Promise.resolve(button.getAttribute("data-source-path") || "");
+    }
+    if (action === "copy-url") {
+      return Promise.resolve(button.getAttribute("data-url") || window.location.href);
+    }
+    if (action === "copy-llm-txt") {
+      var url = button.getAttribute("data-url");
+      if (!url) return Promise.reject(new Error("Missing LLM text URL."));
+      return fetch(url, { headers: { "Accept": "text/plain" } }).then(function (response) {
+        if (!response.ok) throw new Error("Unable to fetch LLM text.");
+        return response.text();
+      });
+    }
+    return Promise.reject(new Error("Unsupported copy action."));
+  }
+
+  function setupPageActionCopies() {
+    if (document.body.dataset.furaPageActionCopyBound) return;
+    document.body.dataset.furaPageActionCopyBound = "1";
+    document.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!target || typeof target.closest !== "function") return;
+      var button = target.closest("[data-action]");
+      if (!button) return;
+      var action = button.getAttribute("data-action");
+      if (action !== "copy-url" && action !== "copy-llm-txt" && action !== "copy-source-path") return;
+      event.preventDefault();
+      button.setAttribute("data-copy-state", "pending");
+      copyPayloadForAction(button, action)
+        .then(copyTextToClipboard)
+        .then(function () {
+          button.setAttribute("data-copy-state", "copied");
+        })
+        .catch(function () {
+          button.setAttribute("data-copy-state", "failed");
+        });
+    });
+  }
+
   function syncDocsChrome() {
     setupDocsMobileSidebar();
     setupShellMobileNav();
@@ -519,6 +582,7 @@
     setupVersionSelector();
     setupAuthorReload();
     setupShellMegaMenus();
+    setupPageActionCopies();
     if (window.FuraDocs && window.FuraDocs.enhance) {
       window.FuraDocs.enhance.refresh(document.getElementById("page-root") || document);
     }

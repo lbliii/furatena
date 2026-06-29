@@ -508,6 +508,11 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert 'data-fura-author-chrome' in author_payload["boosted_page"].text
     assert "Open source" in author_payload["page"].text
     assert "Copy source path" in author_payload["page"].text
+    assert "Inspect public output" in author_payload["page"].text
+    assert 'data-action="copy-source-path"' in author_payload["page"].text
+    assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" in author_payload[
+        "page"
+    ].text
     assert status_payload["source_path"].endswith("content/docs/get-started.md")
     assert status_payload["content_format"] == "patitas-markdown"
     assert {"public", "valid", "clean", "public-output"} <= set(status_payload["states"])
@@ -540,6 +545,9 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
 
     public_payload = asyncio.run(_fetch_public())
     assert 'data-fura-author-chrome' not in public_payload["page"].text
+    assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" not in public_payload[
+        "page"
+    ].text
     assert public_payload["status"].status == 404
     assert public_payload["source"].status == 404
 

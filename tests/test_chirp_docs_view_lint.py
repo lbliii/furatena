@@ -246,7 +246,36 @@ class TestAuthorStaleRoute:
         assert "function restoreViewport" in response.text
         assert "window.__furaAuthorLastReloadKind" in response.text
         assert "window.__furaAuthorReloadMode = \"poll\"" in response.text
+        assert "function setupPageActionCopies" in response.text
+        assert 'target.closest("[data-action]")' in response.text
+        assert "copyPayloadForAction(button, action)" in response.text
+        assert "data-copy-state" in response.text
         assert response.text.index("function startSseReload") < response.text.index("startPollingFallback();")
+
+    def test_author_page_actions_contract_is_stable_for_mobile_and_htmx(self, tmp_path: Path) -> None:
+        import asyncio
+
+        docs, _page = self._write_author_app(tmp_path)
+        client = TestClient(docs.create_app())
+
+        async def _fetch():
+            return await client.get("/docs/page/")
+
+        response = asyncio.run(_fetch())
+        assert response.status == 200
+        assert 'data-chirp-page-actions' in response.text
+        assert 'data-action="copy-source-path"' in response.text
+        assert 'data-source-path="' in response.text
+        assert "Inspect public output" in response.text
+        assert "/docs/_author/page.json?slug=docs/page&amp;inspect_public=1" in response.text
+        assert 'id="fura-author-chrome"' in response.text
+        assert response.text.count("Copy source path") >= 2
+
+        css = (REPO / "src/furatena/themes/furatena/assets/css/chirp-theme.css").read_text(
+            encoding="utf-8"
+        )
+        assert "width: min(22rem, calc(100vw - 1rem));" in css
+        assert "grid-template-columns: 1.35rem minmax(0, 1fr);" in css
 
     def test_author_reload_after_source_edit_updates_dom_and_clears_hints(self, tmp_path: Path) -> None:
         import asyncio
