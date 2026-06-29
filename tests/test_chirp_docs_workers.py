@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -82,6 +83,34 @@ def test_dcp_compatibility_fixtures_validate():
     assert {path.name for path in fixtures} == {"catalog-v2.json", "catalog-v3.json"}
     for path in fixtures:
         assert validate_catalog_json_file(path) == []
+
+
+def test_dcp_compatibility_fixtures_cover_policy_surfaces():
+    from furatena.catalog.dcp_validate import dcp_fixture_paths
+
+    fixtures = {path.name: json.loads(path.read_text(encoding="utf-8")) for path in dcp_fixture_paths()}
+    v2 = fixtures["catalog-v2.json"]
+    v3 = fixtures["catalog-v3.json"]
+
+    for payload in (v2, v3):
+        assert payload["pages"]
+        assert payload["edges"]
+        assert payload["namespaces"]
+        assert payload["inventories"]
+        assert any(page.get("content", {}).get("headings") for page in payload["pages"])
+        assert any(page.get("content", {}).get("links") for page in payload["pages"])
+        assert any(page.get("content", {}).get("directives") for page in payload["pages"])
+
+    assert v3["graph_nodes"] == [
+        {
+            "id": "schema:User",
+            "kind": "api_schema",
+            "label": "User",
+            "mount": "chirp",
+            "edition": "latest",
+        }
+    ]
+    assert any(edge["kind"] == "api_schema" and edge["target"] == "schema:User" for edge in v3["edges"])
 
 
 def test_dcp_validator_rejects_unsupported_version(tmp_path: Path):

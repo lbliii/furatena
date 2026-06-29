@@ -41,9 +41,9 @@ fura check --content-only --dcp-fixtures
 fura check --content-only --dcp-file path/to/catalog.json
 ```
 
-Bundled compatibility fixtures live under `furatena.catalog/fixtures/dcp/` and cover
-graph nodes, edges, Content IR, inventories, and namespaces for every supported
-schema version.
+Bundled compatibility fixtures live under `furatena.catalog/fixtures/dcp/`. Every
+supported version covers edges, Content IR, inventories, and namespaces. DCP v3
+fixtures additionally cover typed non-page `graph_nodes` such as API schemas.
 
 ## Three tiers
 

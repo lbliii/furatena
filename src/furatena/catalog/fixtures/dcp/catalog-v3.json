@@ -163,6 +163,22 @@
       "kind": "available_in",
       "mount": "chirp",
       "edition": "latest"
+    },
+    {
+      "source": "chirp:latest:docs/install",
+      "target": "schema:User",
+      "kind": "api_schema",
+      "mount": "chirp",
+      "edition": "latest"
+    }
+  ],
+  "graph_nodes": [
+    {
+      "id": "schema:User",
+      "kind": "api_schema",
+      "label": "User",
+      "mount": "chirp",
+      "edition": "latest"
     }
   ],
   "namespaces": [
