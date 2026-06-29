@@ -1483,8 +1483,8 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     private_server = FuraMCPServer(docs, include_private=True)
     target = app_root / "content" / "docs" / "mcp-draft.md"
 
-    def call(server: FuraMCPServer, name: str, arguments: dict[str, object]) -> dict[str, object]:
-        response = server.handle_request(
+    def raw_call(server: FuraMCPServer, name: str, arguments: dict[str, object]) -> dict[str, object]:
+        return server.handle_request(
             {
                 "jsonrpc": "2.0",
                 "id": name,
@@ -1492,7 +1492,9 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
                 "params": {"name": name, "arguments": arguments},
             }
         )
-        return response["result"]
+
+    def call(server: FuraMCPServer, name: str, arguments: dict[str, object]) -> dict[str, object]:
+        return raw_call(server, name, arguments)["result"]
 
     public_create = call(public_server, "author_create_draft", {"slug": "docs/mcp-draft"})
     assert public_create["isError"] is True
@@ -1525,6 +1527,10 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert create["isError"] is False
     assert create["structuredContent"]["changed_files"] == [str(target)]
     assert "visibility: draft" in target.read_text(encoding="utf-8")
+    draft_node = docs.catalog.get_by_slug("docs/mcp-draft")
+    assert draft_node is not None
+    public_draft_retrieve = raw_call(public_server, "retrieve_node", {"node_id": draft_node.node_id})
+    assert public_draft_retrieve["error"]["code"] == -32602
 
     read = call(private_server, "author_read_source", {"target": "docs/mcp-draft"})
     assert read["isError"] is False
@@ -1606,6 +1612,46 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert publish["structuredContent"]["audit"]["previous_state"] == "draft"
     assert publish["structuredContent"]["audit"]["resulting_state"] == "public"
     assert "visibility: public" in target.read_text(encoding="utf-8")
+    published_node = docs.catalog.get_by_slug("docs/mcp-draft")
+    assert published_node is not None
+    public_published_retrieve = raw_call(
+        public_server,
+        "retrieve_node",
+        {"node_id": published_node.node_id},
+    )
+    assert public_published_retrieve["result"]["structuredContent"]["node_id"] == published_node.node_id
+
+    unsafe_unpublish = call(
+        private_server,
+        "author_unpublish",
+        {"target": "docs/mcp-draft", "dry_run": False},
+    )
+    assert unsafe_unpublish["isError"] is True
+    assert "visibility: public" in target.read_text(encoding="utf-8")
+
+    unpublish_preview = call(private_server, "author_unpublish", {"target": "docs/mcp-draft"})
+    assert unpublish_preview["isError"] is False
+    assert unpublish_preview["structuredContent"]["dry_run"] is True
+    assert unpublish_preview["structuredContent"]["resulting_visibility"] == "draft"
+    assert unpublish_preview["structuredContent"]["publication_impact"]["change"] == "removed_from_public_output"
+
+    unpublish = call(
+        private_server,
+        "author_unpublish",
+        {"target": "docs/mcp-draft", "dry_run": False, "confirmed": True},
+    )
+    assert unpublish["isError"] is False
+    assert unpublish["structuredContent"]["audit"]["previous_state"] == "public"
+    assert unpublish["structuredContent"]["audit"]["resulting_state"] == "draft"
+    assert "visibility: draft" in target.read_text(encoding="utf-8")
+    draft_again_node = docs.catalog.get_by_slug("docs/mcp-draft")
+    assert draft_again_node is not None
+    public_unpublished_retrieve = raw_call(
+        public_server,
+        "retrieve_node",
+        {"node_id": draft_again_node.node_id},
+    )
+    assert public_unpublished_retrieve["error"]["code"] == -32602
 
 
 def test_mcp_author_validate_scopes_lifecycle_errors_to_target(tmp_path: Path) -> None:

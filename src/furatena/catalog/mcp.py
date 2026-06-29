@@ -616,6 +616,7 @@ class FuraMCPServer:
             dry_run=_bool_arg(arguments.get("dry_run"), default=True),
             confirmed=_bool_arg(arguments.get("confirmed"), default=False),
         )
+        self._reindex_author_result(result)
         payload = self._author_payload(result, "author_create_draft", arguments)
         return payload, not result.ok
 
@@ -652,6 +653,7 @@ class FuraMCPServer:
             dry_run=dry_run,
             confirmed=False if force_dry_run else _bool_arg(arguments.get("confirmed"), default=False),
         )
+        self._reindex_author_result(result)
         payload = self._author_payload(result, command, arguments)
         return payload, not result.ok
 
@@ -668,6 +670,7 @@ class FuraMCPServer:
             dry_run=_bool_arg(arguments.get("dry_run"), default=True),
             confirmed=_bool_arg(arguments.get("confirmed"), default=False),
         )
+        self._reindex_author_result(result)
         payload = self._author_payload(result, command, arguments)
         return payload, not result.ok
 
@@ -764,6 +767,19 @@ class FuraMCPServer:
         payload["schema_version"] = 1
         payload["audit"] = self._audit_record(command, arguments, payload)
         return payload
+
+    def _reindex_author_result(self, result: AuthorOperationResult) -> None:
+        if not result.ok or not result.changed_files:
+            return
+        shard = getattr(self.catalog, "_shards", {}).get(result.mount)
+        if shard is None:
+            self.catalog.refresh_if_stale()
+            return
+        shard._reindex_paths({Path(path) for path in result.changed_files})
+        self.catalog._edges = None
+        self.catalog._namespaces = None
+        self.catalog._translation_index = None
+        self.catalog._finalize_federated()
 
     def _audit_record(
         self,
