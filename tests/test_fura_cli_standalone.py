@@ -1238,6 +1238,21 @@ def test_author_recipes_encode_safe_mutation_flow(capsys) -> None:
     assert "confirmed=true dry_run=false" in remediation_steps["retry-publish"]["command"]
 
 
+def test_query_recipe_covers_dcp_and_mcp_graph_queries(capsys) -> None:
+    main(["recipes", "query", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    recipe = payload["data"]["recipes"][0]
+    steps = {step["id"]: step for step in recipe["steps"]}
+
+    assert {"by-heading", "by-directive", "by-namespace", "by-dcp-edge", "by-mcp-graph"} <= set(steps)
+    assert "/catalog/query.json" in steps["by-dcp-edge"]["command"]
+    assert "edge_kind=<EDGE_KIND>" in steps["by-dcp-edge"]["command"]
+    assert "target=<TARGET>" in steps["by-dcp-edge"]["command"]
+    assert steps["by-mcp-graph"]["command"].startswith("MCP query_graph")
+    assert "structuredContent" in " ".join(recipe["verifies"])
+    assert "graph/query.json" in recipe["related_commands"]
+
+
 def test_recipe_json_reports_single_workflow(capsys) -> None:
     main(["recipes", "publish", "--json"])
     payload = json.loads(capsys.readouterr().out)

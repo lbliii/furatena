@@ -147,7 +147,7 @@ RECIPES: tuple[Recipe, ...] = (
     Recipe(
         id="query",
         title="Query the graph for agent retrieval",
-        summary="Use stable filters to find pages by directive, heading, mount, edition, tag, or URL prefix.",
+        summary="Use stable Content IR and DCP graph filters without scraping rendered pages.",
         applies_to=("Codex", "Claude Code", "Cursor", "local shell"),
         steps=(
             RecipeStep(
@@ -168,9 +168,29 @@ RECIPES: tuple[Recipe, ...] = (
                 command="fura --app-root <APP_ROOT> query --mount <MOUNT> --edition <EDITION> --url-prefix <PATH> --json",
                 purpose="Keep retrieval scoped to one catalog namespace.",
             ),
+            RecipeStep(
+                id="by-dcp-edge",
+                title="Filter DCP graph edges",
+                command=(
+                    "curl '<BASE_URL>/catalog/query.json?mount=<MOUNT>&edge_kind=<EDGE_KIND>&"
+                    "target=<TARGET>'"
+                ),
+                purpose="Return pages, edges, graph_nodes, and namespaces from the headless DCP graph API.",
+            ),
+            RecipeStep(
+                id="by-mcp-graph",
+                title="Query graph over MCP",
+                command="MCP query_graph mount=<MOUNT> edge_kind=<EDGE_KIND> target=<TARGET>",
+                purpose="Use the Milo-backed MCP tool when the agent is connected to fura mcp.",
+            ),
         ),
-        verifies=("query filters are explicit", "no screen scraping required", "no source files are modified"),
-        related_commands=("query",),
+        verifies=(
+            "query filters are explicit",
+            "DCP graph responses include pages, edges, and graph_nodes",
+            "MCP query_graph returns structuredContent",
+            "no source files are modified",
+        ),
+        related_commands=("query", "mcp", "catalog/query.json", "graph/query.json"),
     ),
     Recipe(
         id="publish",

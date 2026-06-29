@@ -14,7 +14,7 @@ Each recipe is safe to consume as JSON through the standard CLI envelope documen
 - `init` — scaffold a new app, validate it, and start author preview.
 - `inspect` — inspect an existing catalog, theme resolution, and graph sample before editing.
 - `validate` — run strict content, view, API-surface, and deploy checks for CI or approval gates.
-- `query` — retrieve graph nodes by heading, directive, namespace, tag, edition, or URL prefix.
+- `query` — retrieve nodes by Content IR filters, DCP graph filters, or MCP `query_graph`.
 - `publish` — freeze catalog IR, export static HTML, and preview the frozen build before deployment.
 - `repair` — collect diagnostics, preview risky rewrites, and require approval before mutating sources.
 - `author-draft` — create and inspect a draft page with dry-run preview first.
@@ -40,6 +40,7 @@ fura recipes publish --json
 ```
 
 Local shell users can run `fura recipes <id>` for readable commands, then copy the relevant sequence and replace placeholders such as `<APP_ROOT>`, `<BASE_URL>`, and `<TEXT>`.
+For graph traversal, the query recipe includes both HTTP DCP calls such as `/catalog/query.json?edge_kind=<EDGE_KIND>&target=<TARGET>` and the structured MCP `query_graph` tool.
 
 ## MCP Server
 
