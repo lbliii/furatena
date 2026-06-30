@@ -1,4 +1,4 @@
-"""Browser coverage for the author SSE reload loop."""
+"""Browser coverage for local author surfaces."""
 
 from __future__ import annotations
 
@@ -234,5 +234,51 @@ def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         assert boxes["article"]["y"] >= boxes["chrome"]["y"]
         assert page.locator("#fura-author-sse").count() == 1
         assert page.evaluate("window.__furaAuthorReloadMode") == "sse"
+    finally:
+        context.close()
+
+
+@pytest.mark.browser
+def test_author_studio_save_and_create_refresh_preview(
+    browser: Browser,
+    author_server: tuple[str, Path],
+) -> None:
+    base_url, page_path = author_server
+    context = browser.new_context(viewport={"width": 1280, "height": 900})
+    page = context.new_page()
+    draft_path = page_path.parent / "studio-draft.md"
+
+    try:
+        page.goto(f"{base_url}/docs/_author/studio?slug=docs/page", wait_until="domcontentloaded")
+        page.locator("#author-studio-workspace").wait_for()
+        page.get_by_label("Rendered preview").get_by_text("Hello from browser SSE.").wait_for()
+
+        edited = "---\ntitle: Page\n---\n# Page\n\nSaved through the browser studio.\n"
+        page.locator("#author-studio-source").fill(edited)
+        page.get_by_role("button", name="Save source").click()
+        page.locator('[data-author-studio-saved="true"]').wait_for(timeout=10_000)
+        page.get_by_label("Rendered preview").get_by_text(
+            "Saved through the browser studio."
+        ).wait_for()
+        assert page_path.read_text(encoding="utf-8") == edited
+
+        page.goto(
+            f"{base_url}/docs/_author/studio?new=1&slug=docs/studio-draft&title=Studio%20Draft",
+            wait_until="domcontentloaded",
+        )
+        page.locator("#author-studio-workspace").wait_for()
+        assert page.locator("#author-studio-workspace").get_attribute(
+            "data-author-studio-mode"
+        ) == "create"
+        page.locator("#author-studio-source").fill("# Studio Draft\n\nCreated as a private draft.\n")
+        page.get_by_role("button", name="Create draft").click()
+        page.locator('[data-author-studio-saved="true"]').wait_for(timeout=10_000)
+        page.get_by_label("Rendered preview").get_by_text("Created as a private draft.").wait_for()
+
+        assert draft_path.is_file()
+        draft_source = draft_path.read_text(encoding="utf-8")
+        assert "visibility: draft" in draft_source
+        assert "draft: true" in draft_source
+        assert "Created as a private draft." in draft_source
     finally:
         context.close()

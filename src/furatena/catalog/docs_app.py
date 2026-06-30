@@ -1184,10 +1184,12 @@ class DocsApp:
             )
             status = 200 if result.ok else 422
             if request.is_htmx:
+                # htmx does not swap 4xx responses by default, but author save
+                # diagnostics need to render inline in the studio workspace.
                 return Fragment(
                     "views/author_studio.html",
                     "author_studio_workspace",
-                    status=status,
+                    status=200,
                     **ctx,
                 )
             if result.ok and node is not None:
