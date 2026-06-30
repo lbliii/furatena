@@ -541,9 +541,15 @@ def _run_dcp_file_checks(args: argparse.Namespace) -> tuple[list[str], int]:
     return sorted(errors), len(seen)
 
 
-def _run_agent_checks(args: argparse.Namespace):
-    from furatena.catalog.agent_lint import check_agent_contracts
+def _run_agent_checks(
+    args: argparse.Namespace,
+    *,
+    include_safety: bool = False,
+    stale_public_outputs: tuple[str, ...] = (),
+):
+    from furatena.catalog.agent_lint import check_agent_contracts, check_agent_safety
     from furatena.catalog.docs_app import DocsApp
+    from furatena.catalog.impact import stale_impact_report
     from furatena.catalog.mcp import FuraMCPServer
     from furatena.catalog.runtime import ServeConfig, ServeMode
 
@@ -557,7 +563,20 @@ def _run_agent_checks(args: argparse.Namespace):
         serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
     )
     server = FuraMCPServer(docs, include_private=False)
-    return check_agent_contracts(server)
+    errors, warnings = check_agent_contracts(server)
+    if include_safety:
+        stale_report = stale_impact_report(
+            docs.catalog,
+            stale_public_outputs=tuple(dict.fromkeys(stale_public_outputs)),
+            include_private=False,
+        )
+        safety_errors, safety_warnings = check_agent_safety(server, stale_report=stale_report)
+        errors.extend(safety_errors)
+        warnings.extend(safety_warnings)
+    return sorted(errors, key=lambda finding: (finding.rule_id, finding.target, finding.message)), sorted(
+        warnings,
+        key=lambda finding: (finding.rule_id, finding.target, finding.message),
+    )
 
 
 def _agent_diagnostic(finding) -> Diagnostic:
@@ -574,7 +593,7 @@ def _run_check(args: argparse.Namespace) -> None:
     app_check_exit = 0
     if not args.content_only and not args.agent_only:
         _ensure_pythonpath()
-        if _json_output(args):
+        if _json_output(args) or args.report_format:
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 try:
                     _run_chirp_app_check(args)
@@ -601,86 +620,99 @@ def _run_check(args: argparse.Namespace) -> None:
         errors.extend(dcp_errors)
     agent_errors = []
     agent_warnings = []
+    stale_public_outputs = tuple(
+        message for message in [*errors, *warnings] if "public output is stale" in message
+    )
     if args.agent or args.agent_only:
-        agent_errors, agent_warnings = _run_agent_checks(args)
-    if _json_output(args):
-        diagnostics: list[Diagnostic] = []
-        if app_check_exit:
-            diagnostics.append(
-                Diagnostic(
-                    severity="error",
-                    message="Chirp app contract check failed",
-                    rule_id="chirp.app_check",
-                    next_action="Run fura check without --json for the upstream Chirp check output.",
-                )
-            )
-        diagnostics.extend(
-            diagnostic_from_message(
-                message,
+        agent_errors, agent_warnings = _run_agent_checks(
+            args,
+            include_safety=bool(args.agent and not args.agent_only),
+            stale_public_outputs=stale_public_outputs,
+        )
+    diagnostics: list[Diagnostic] = []
+    if app_check_exit:
+        diagnostics.append(
+            Diagnostic(
                 severity="error",
-                rule_id=_content_rule_id(message, dcp_errors=dcp_errors),
-                next_action=(
-                    "Update the sample export or schema version and rerun fura check."
-                    if message in dcp_errors
-                    else "Refresh frozen public output with fura freeze or fura export --fresh."
-                    if "public output is stale" in message
-                    else "Fix the content validation error and rerun fura check."
-                ),
+                message="Chirp app contract check failed",
+                rule_id="chirp.app_check",
+                next_action="Run fura check without --json for the upstream Chirp check output.",
             )
-            for message in errors
         )
-        diagnostics.extend(
-            diagnostic_from_message(
-                message,
-                severity="warning",
-                rule_id=_content_rule_id(message, dcp_errors=dcp_errors),
-                next_action=(
-                    "Refresh frozen public output with fura freeze or fura export --fresh."
-                    if "public output is stale" in message
-                    else "Review the warning or run without --warnings-as-errors."
-                ),
-            )
-            for message in warnings
-        )
-        diagnostics.extend(_agent_diagnostic(finding) for finding in agent_errors)
-        diagnostics.extend(_agent_diagnostic(finding) for finding in agent_warnings)
-        has_error = bool(app_check_exit or errors or agent_errors)
-        warnings_fail = bool((warnings or agent_warnings) and args.warnings_as_errors)
-        exit_code = (
-            ExitCode.VALIDATION_ERROR
-            if has_error
-            else ExitCode.WARNING
-            if warnings_fail
-            else ExitCode.SUCCESS
-        )
-        total_errors = len(errors) + len(agent_errors) + (1 if app_check_exit else 0)
-        total_warnings = len(warnings) + len(agent_warnings)
-        _finish_result(
-            CommandResult(
-                command=command_name(args),
-                ok=exit_code == ExitCode.SUCCESS,
-                exit_code=exit_code,
-                summary=(
-                    f"check completed with {total_errors} error(s) and {total_warnings} warning(s)"
-                ),
-                diagnostics=tuple(diagnostics),
-                data={
-                    "error_count": total_errors,
-                    "warning_count": total_warnings,
-                    "content_only": bool(args.content_only),
-                    "agent": bool(args.agent or args.agent_only),
-                    "agent_only": bool(args.agent_only),
-                    "agent_error_count": len(agent_errors),
-                    "agent_warning_count": len(agent_warnings),
-                    "deploy": bool(args.deploy),
-                    "warnings_as_errors": bool(args.warnings_as_errors),
-                    "strict_edition_links": bool(args.strict_edition_links),
-                    "dcp_file_count": dcp_file_count,
-                    "dcp_fixtures": bool(getattr(args, "dcp_fixtures", False)),
-                },
+    diagnostics.extend(
+        diagnostic_from_message(
+            message,
+            severity="error",
+            rule_id=_content_rule_id(message, dcp_errors=dcp_errors),
+            next_action=(
+                "Update the sample export or schema version and rerun fura check."
+                if message in dcp_errors
+                else "Refresh frozen public output with fura freeze or fura export --fresh."
+                if "public output is stale" in message
+                else "Fix the content validation error and rerun fura check."
             ),
+        )
+        for message in errors
+    )
+    diagnostics.extend(
+        diagnostic_from_message(
+            message,
+            severity="warning",
+            rule_id=_content_rule_id(message, dcp_errors=dcp_errors),
+            next_action=(
+                "Refresh frozen public output with fura freeze or fura export --fresh."
+                if "public output is stale" in message
+                else "Review the warning or run without --warnings-as-errors."
+            ),
+        )
+        for message in warnings
+    )
+    diagnostics.extend(_agent_diagnostic(finding) for finding in agent_errors)
+    diagnostics.extend(_agent_diagnostic(finding) for finding in agent_warnings)
+    has_error = bool(app_check_exit or errors or agent_errors)
+    warnings_fail = bool((warnings or agent_warnings) and args.warnings_as_errors)
+    exit_code = (
+        ExitCode.VALIDATION_ERROR
+        if has_error
+        else ExitCode.WARNING
+        if warnings_fail
+        else ExitCode.SUCCESS
+    )
+    total_errors = len(errors) + len(agent_errors) + (1 if app_check_exit else 0)
+    total_warnings = len(warnings) + len(agent_warnings)
+    result = CommandResult(
+        command=command_name(args),
+        ok=exit_code == ExitCode.SUCCESS,
+        exit_code=exit_code,
+        summary=(f"check completed with {total_errors} error(s) and {total_warnings} warning(s)"),
+        diagnostics=tuple(diagnostics),
+        data={
+            "error_count": total_errors,
+            "warning_count": total_warnings,
+            "content_only": bool(args.content_only),
+            "agent": bool(args.agent or args.agent_only),
+            "agent_only": bool(args.agent_only),
+            "agent_error_count": len(agent_errors),
+            "agent_warning_count": len(agent_warnings),
+            "deploy": bool(args.deploy),
+            "warnings_as_errors": bool(args.warnings_as_errors),
+            "strict_edition_links": bool(args.strict_edition_links),
+            "dcp_file_count": dcp_file_count,
+            "dcp_fixtures": bool(getattr(args, "dcp_fixtures", False)),
+        },
+    )
+    if _json_output(args):
+        _finish_result(
+            result,
             json_output=True,
         )
+        return
+    if args.report_format:
+        from furatena.cli.reports import render_report
+
+        print(render_report(result, args.report_format))
+        if result.exit_code:
+            raise SystemExit(int(result.exit_code))
         return
     for finding in agent_warnings:
         print(f"warning: {finding.message}")
@@ -1926,6 +1958,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--dcp-fixtures",
         action="store_true",
         help="Validate bundled DCP compatibility fixture exports",
+    )
+    check.add_argument(
+        "--report-format",
+        choices=("github", "junit", "checkstyle", "markdown"),
+        default=None,
+        help="Emit a CI report format instead of human-readable output",
     )
     check.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     check.set_defaults(handler=_run_check)

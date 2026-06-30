@@ -60,6 +60,70 @@ def check_agent_contracts(server: Any) -> tuple[list[AgentLintFinding], list[Age
     return sorted(errors, key=_finding_key), sorted(warnings, key=_finding_key)
 
 
+def check_agent_safety(
+    server: Any,
+    *,
+    stale_report: dict[str, Any] | None = None,
+) -> tuple[list[AgentLintFinding], list[AgentLintFinding]]:
+    """Validate public agent surfaces do not leak private or stale context."""
+    import json
+
+    from furatena.catalog.export import (
+        catalog_graph,
+        llms_full_txt,
+        meta_json,
+        search_json,
+        tools_manifest,
+    )
+    from furatena.catalog.impact import stale_impact_report
+    from furatena.catalog.lifecycle import public_nodes
+
+    catalog = server.catalog
+    errors: list[AgentLintFinding] = []
+    warnings: list[AgentLintFinding] = []
+    public_doc_nodes = public_nodes(catalog.doc_nodes())
+    public_node_ids = {node.node_id for node in public_doc_nodes}
+    private_nodes = [node for node in catalog.doc_nodes() if node.node_id not in public_node_ids]
+    public_surfaces = {
+        "catalog": json.dumps(catalog_graph(catalog, include_private=False), sort_keys=True),
+        "search": json.dumps(search_json(catalog, include_private=False), sort_keys=True),
+        "llms-full": llms_full_txt(catalog, include_private=False),
+        "tools": json.dumps(tools_manifest(catalog, include_private=False), sort_keys=True),
+        "meta": json.dumps(meta_json(catalog, include_private=False), sort_keys=True),
+        "mcp-resources": json.dumps(server.list_resources(), sort_keys=True),
+    }
+
+    for node in private_nodes:
+        needles = {node.node_id, node.url, node.title}
+        for surface, payload in public_surfaces.items():
+            if any(needle and needle in payload for needle in needles):
+                errors.append(
+                    _finding(
+                        "error",
+                        "fura.agent_safety.private_leak",
+                        f"Private node {node.node_id} appears in public {surface} agent surface",
+                        f"node:{node.node_id}",
+                        "Filter draft/private/internal/archived content from all public agent exports.",
+                    )
+                )
+
+    report = stale_report if stale_report is not None else stale_impact_report(catalog, include_private=False)
+    for item in report.get("impact", []):
+        node_id = str((item.get("provenance") or {}).get("node_id") or item.get("slug") or "unknown")
+        source_path = str((item.get("provenance") or {}).get("path") or item.get("source_key") or node_id)
+        warnings.append(
+            _finding(
+                "warning",
+                "fura.agent_safety.stale_context",
+                f"Stale agent context for {node_id} should be refreshed or withheld from retrieval",
+                source_path,
+                str(item.get("recommended_remediation") or "Refresh affected agent exports before publishing."),
+            )
+        )
+
+    return sorted(errors, key=_finding_key), sorted(warnings, key=_finding_key)
+
+
 def _lint_resource(resource: dict[str, Any]) -> list[AgentLintFinding]:
     findings: list[AgentLintFinding] = []
     uri = str(resource.get("uri") or "<missing-uri>")
