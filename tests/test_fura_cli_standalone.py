@@ -1200,7 +1200,8 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
     target = app_root / "content" / "docs" / "get-started.md"
-    original = target.read_text(encoding="utf-8")
+    original = target.read_text(encoding="utf-8") + "\nRepeat marker.\nRepeat marker.\n"
+    target.write_text(original, encoding="utf-8")
     old_text = "Run the local docs server:"
     new_text = "Run the local author preview:"
 
@@ -1260,6 +1261,37 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     )
     assert confirm_payload["ok"] is False
     assert confirm_payload["diagnostics"][0]["rule_id"] == "fura.author"
+    assert target.read_text(encoding="utf-8") == original
+
+    try:
+        main([
+            "--app-root",
+            str(app_root),
+            "author",
+            "edit",
+            "docs/get-started",
+            "--old-text",
+            "Repeat marker.",
+            "--new-text",
+            "Unique marker.",
+            "--dry-run",
+            "--json",
+        ])
+    except SystemExit as exc:
+        assert exc.code == 3
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("edit should reject multiple matching source spans")
+    multiple_payload = json.loads(capsys.readouterr().out)
+    _assert_author_json_envelope(
+        multiple_payload,
+        command="edit",
+        operation="apply_edit",
+        ok=False,
+        target_path=str(target),
+        resulting_visibility=None,
+    )
+    assert multiple_payload["ok"] is False
+    assert "old_text matches multiple source spans" in multiple_payload["diagnostics"][0]["message"]
     assert target.read_text(encoding="utf-8") == original
 
     main([
