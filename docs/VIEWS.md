@@ -71,6 +71,7 @@ Registered in `catalog/view_kinds.py` (`VIEW_KINDS`):
 | `doc_list` | `views/doc_list.html` | catalog | no | Section index (also inferred for section roots) |
 | `collection` | `views/collection.html` | catalog | yes | Multi-node read-through |
 | `changelog` | `views/changelog.html` | catalog | no | Release notes |
+| `api_reference` | `views/api_reference.html` | catalog | no | OpenAPI operation index/detail pages |
 | `page` | `views/page.html` | app | no | Simple content page |
 | `home` | `views/home.html` | app | no | Site home |
 | `portal` | `views/portal.html` | app | no | Federated mount hub |
@@ -114,6 +115,18 @@ get-started:
 
 The collection **view** stitches member bodies inline; the **compose** hook loads
 the member list from YAML.
+
+## API Reference Views
+
+OpenAPI autodoc nodes use `layout: api_reference`, which resolves to
+`views/api_reference.html`. The view stays on the catalog surface, so it shares
+the same shell, rail, htmx navigation, static export, mount context, and theme
+tokens as prose docs.
+
+The OpenAPI index node renders the generated operation list. Operation detail
+nodes additionally read `node.meta.api_operation` and present method, path,
+operation id, request bodies, responses, schemas, examples, auth, environments,
+and `externalDocs` links before the generated markdown body.
 
 ## Folder layout
 

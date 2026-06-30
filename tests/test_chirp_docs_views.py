@@ -37,7 +37,7 @@ def catalog() -> DocCatalog:
 class TestViewKinds:
     def test_builtin_kinds_registered(self) -> None:
         kinds = {spec.kind for spec in VIEW_KINDS}
-        assert kinds >= {"doc", "doc_list", "home", "collection", "portal"}
+        assert kinds >= {"doc", "doc_list", "home", "collection", "api_reference", "portal"}
 
     def test_docs_yaml_maps_all_builtin_kinds(self, docs_config) -> None:
         for spec in VIEW_KINDS:
@@ -47,6 +47,7 @@ class TestViewKinds:
 
     def test_surface_for_catalog_doc_view(self, views: ViewRegistry) -> None:
         assert views.surface("views/doc.html") == "catalog"
+        assert views.surface("views/api_reference.html") == "catalog"
         assert views.surface("views/home.html") == "app"
 
     def test_validate_config_is_clean(self, views: ViewRegistry) -> None:
