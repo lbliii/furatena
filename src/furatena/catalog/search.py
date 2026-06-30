@@ -13,6 +13,31 @@ if TYPE_CHECKING:
     from patitas.nodes import Document
 
 _WORD_RE = re.compile(r"\w+")
+_STOP_WORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "into",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "the",
+    "this",
+    "to",
+    "with",
+    "you",
+    "your",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +61,7 @@ def search_nodes(
     if not needle:
         return []
 
-    terms = [t for t in _WORD_RE.findall(needle) if len(t) > 1]
+    terms = [t for t in _WORD_RE.findall(needle) if len(t) > 1 and t not in _STOP_WORDS]
     if not terms:
         terms = [needle]
 
@@ -47,21 +72,43 @@ def search_nodes(
             document = documents.get(node.node_id) or documents.get(node.slug)
         title_l = node.title.lower()
         desc_l = node.description.lower()
+        path_l = " ".join(
+            value
+            for value in (
+                node.url,
+                node.slug,
+                node.source_path,
+                node.section,
+            )
+            if value
+        ).lower()
+        tag_l = " ".join(sorted(node.tags)).lower()
+        meta_l = _metadata_text(node).lower()
         body_l = plain_text(node, document).lower()
+        toc_l = " ".join(entry.text for entry in node.toc).lower()
 
         score = 0
         if needle in title_l:
             score += 20
+        if needle in path_l:
+            score += 16
+        if needle in meta_l:
+            score += 10
         for term in terms:
             if term in title_l:
                 score += 8
             if term in desc_l:
                 score += 5
+            if term in tag_l:
+                score += 10
+            if term in meta_l:
+                score += 6
+            if term in path_l:
+                score += 4
             if term in body_l:
                 score += 2
-            for entry in node.toc:
-                if term in entry.text.lower():
-                    score += 6
+            if term in toc_l:
+                score += 6
 
         if score:
             hits.append(
@@ -74,6 +121,33 @@ def search_nodes(
 
     hits.sort(key=lambda h: (-h.score, h.node.weight, h.node.title.lower()))
     return hits[:limit]
+
+
+def _metadata_text(node: DocNode) -> str:
+    values: list[str] = []
+    for key in ("keywords", "aliases", "summary", "source", "source_provider", "content_format"):
+        values.extend(_flatten_meta(node.meta.get(key)))
+    return " ".join(values)
+
+
+def _flatten_meta(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, (int, float, bool)):
+        return [str(value)]
+    if isinstance(value, dict):
+        items: list[str] = []
+        for child in value.values():
+            items.extend(_flatten_meta(child))
+        return items
+    if isinstance(value, (list, tuple, set, frozenset)):
+        items = []
+        for child in value:
+            items.extend(_flatten_meta(child))
+        return items
+    return []
 
 
 def _snippet(
