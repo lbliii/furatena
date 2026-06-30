@@ -291,6 +291,143 @@ def meta_json(
     }
 
 
+def _api_agent_operation(
+    catalog: CatalogExport | DocCatalog,
+    node: Any,
+    *,
+    base_url: str = "",
+) -> dict[str, Any] | None:
+    api_operation = node.meta.get("api_operation")
+    if not isinstance(api_operation, dict):
+        return None
+    source_kind = node.meta.get("source", "markdown")
+    provenance = _provenance_record(catalog, node, source_kind=source_kind)
+    record: dict[str, Any] = {
+        "node_id": node.node_id,
+        "url": _absolute_url(base_url, node.url),
+        "slug": node.slug,
+        "title": node.title,
+        "operation_id": api_operation.get("operation_id") or node.meta.get("operation_id"),
+        "method": api_operation.get("method"),
+        "path": api_operation.get("path"),
+        "summary": api_operation.get("summary") or node.description,
+        "tags": api_operation.get("tags") or [],
+        "schemas": api_operation.get("schemas") or [],
+        "request_bodies": api_operation.get("request_bodies") or [],
+        "responses": api_operation.get("responses") or [],
+        "examples": api_operation.get("examples") or [],
+        "auth": api_operation.get("auth") or [],
+        "environments": api_operation.get("environments") or [],
+        "external_docs": api_operation.get("external_docs") or [],
+        "source_spec": api_operation.get("source_spec") or provenance.get("generated_from"),
+        "provenance": provenance,
+    }
+    api_try_it = node.meta.get("api_try_it")
+    if isinstance(api_try_it, dict):
+        record["try_it"] = {
+            "modes": api_try_it.get("modes") or [],
+            "static_export": api_try_it.get("static_export") or {},
+            "base_urls": api_try_it.get("base_urls") or [],
+            "auth": api_try_it.get("auth") or [],
+        }
+    return record
+
+
+def _api_agent_operation_groups(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for operation in operations:
+        tags = operation.get("tags") if isinstance(operation.get("tags"), list) else []
+        group_names = [str(tag) for tag in tags if tag] or ["untagged"]
+        for group_name in group_names:
+            group = groups.setdefault(
+                group_name,
+                {
+                    "name": group_name,
+                    "operation_count": 0,
+                    "operations": [],
+                },
+            )
+            group["operation_count"] += 1
+            group["operations"].append(
+                {
+                    "operation_id": operation.get("operation_id"),
+                    "method": operation.get("method"),
+                    "path": operation.get("path"),
+                    "url": operation.get("url"),
+                    "source_spec": operation.get("source_spec"),
+                }
+            )
+    return sorted(groups.values(), key=lambda group: str(group["name"]).lower())
+
+
+def _api_operation_line(node: Any) -> str | None:
+    api_operation = node.meta.get("api_operation")
+    if not isinstance(api_operation, dict):
+        return None
+    method = str(api_operation.get("method") or "").upper()
+    path = str(api_operation.get("path") or "")
+    operation_id = str(api_operation.get("operation_id") or node.meta.get("operation_id") or "")
+    parts = [part for part in (method, path) if part]
+    summary = " ".join(parts)
+    if operation_id:
+        summary = f"{summary} ({operation_id})" if summary else operation_id
+    examples = api_operation.get("examples") if isinstance(api_operation.get("examples"), list) else []
+    schemas = api_operation.get("schemas") if isinstance(api_operation.get("schemas"), list) else []
+    details = []
+    if examples:
+        details.append(f"examples: {', '.join(str(item) for item in examples)}")
+    if schemas:
+        details.append(f"schemas: {', '.join(str(item) for item in schemas)}")
+    if details:
+        summary = f"{summary}; {'; '.join(details)}" if summary else "; ".join(details)
+    return summary or None
+
+
+def api_operations_json(
+    catalog: DocCatalog,
+    *,
+    base_url: str = "",
+    include_private: bool = False,
+) -> dict[str, Any]:
+    """Agent/SDK-friendly API operation inventory."""
+    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    operations = [
+        operation
+        for node in nodes
+        if (operation := _api_agent_operation(catalog, node, base_url=base_url)) is not None
+    ]
+    return {
+        "schema_version": 1,
+        "channel": catalog.active_channel,
+        "operation_count": len(operations),
+        "groups": _api_agent_operation_groups(operations),
+        "operations": operations,
+    }
+
+
+def llms_txt(
+    catalog: DocCatalog,
+    *,
+    site_name: str = "Furatena",
+    include_private: bool = False,
+) -> str:
+    """Compact LLM-safe page index with API operation hints."""
+    lines = [f"# {site_name} Documentation", ""]
+    nodes = catalog.doc_nodes() if include_private else public_nodes(catalog.doc_nodes())
+    for node in nodes:
+        desc = node.description.strip() if node.description else ""
+        api_line = _api_operation_line(node)
+        if api_line and desc:
+            lines.append(f"- [{node.title}]({node.url}): {desc} API: {api_line}")
+        elif api_line:
+            lines.append(f"- [{node.title}]({node.url}): API: {api_line}")
+        elif desc:
+            lines.append(f"- [{node.title}]({node.url}): {desc}")
+        else:
+            lines.append(f"- [{node.title}]({node.url})")
+    return "\n".join(lines) + "\n"
+
+
 def surface_json() -> dict[str, Any]:
     """Machine-readable view-kind / surface registry."""
     from furatena.catalog.view_kinds import VIEW_KINDS
@@ -327,6 +464,9 @@ def llms_full_txt(
         lines.extend((f"## {node.title}", ""))
         if node.description.strip():
             lines.extend((node.description.strip(), ""))
+        api_line = _api_operation_line(node)
+        if api_line:
+            lines.extend((f"API operation: {api_line}", ""))
         document = None
         if isinstance(documents, dict):
             document = documents.get(node.node_id) or documents.get(node.slug)
@@ -401,6 +541,7 @@ def search_json(
                 for entry in node.toc
             ]
         entry: dict[str, Any] = {
+            "node_id": node.node_id,
             "url": _absolute_url(base_url, node.url),
             "title": node.title,
             "description": node.description,
@@ -411,6 +552,9 @@ def search_json(
         }
         if getattr(node, "translation_key", None):
             entry["translation_key"] = node.translation_key
+        api_agent_operation = _api_agent_operation(catalog, node, base_url=base_url)
+        if api_agent_operation is not None:
+            entry["api_operation"] = api_agent_operation
         if blocks:
             entry["sections"] = blocks
         entries.append(entry)
@@ -450,12 +594,25 @@ def search_json_for_query(
         "count": len(hits),
         "results": [
             {
+                "node_id": hit.node.node_id,
                 "url": _absolute_url(base_url, hit.node.url),
                 "title": hit.node.title,
                 "description": hit.node.description,
                 "section": hit.node.section,
                 "snippet": hit.snippet,
                 "score": hit.score,
+                **(
+                    {"api_operation": api_operation}
+                    if (
+                        api_operation := _api_agent_operation(
+                            catalog,
+                            hit.node,
+                            base_url=base_url,
+                        )
+                    )
+                    is not None
+                    else {}
+                ),
             }
             for hit in hits
         ],
@@ -472,6 +629,12 @@ def tools_manifest(
     """Stable MCP-style tool schema over the documentation catalog."""
     origin = base_url.rstrip("/")
     tool_slug = "-".join(part for part in site_name.lower().split() if part) or "furatena"
+    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    api_operations = [
+        operation
+        for node in nodes
+        if (operation := _api_agent_operation(catalog, node, base_url=base_url)) is not None
+    ]
     return {
         "schema_version": 1,
         "name": f"{tool_slug}-docs",
@@ -484,9 +647,15 @@ def tools_manifest(
         "surface_url": f"{origin}/surface.json" if origin else "/surface.json",
         "semantic_url": f"{origin}/semantic.json" if origin else "/semantic.json",
         "structure_url": f"{origin}/structure.json" if origin else "/structure.json",
+        "api_operations_url": (
+            f"{origin}/catalog/api-operations.json" if origin else "/catalog/api-operations.json"
+        ),
         "inventories_url": f"{origin}/inventories.json" if origin else "/inventories.json",
         "objects_inv_url": f"{origin}/objects.inv" if origin else "/objects.inv",
-        "page_count": len(catalog.nodes) if include_private else len(public_nodes(catalog.nodes)),
+        "page_count": len(nodes),
+        "api_operation_count": len(api_operations),
+        "api_operation_groups": _api_agent_operation_groups(api_operations),
+        "api_operations": api_operations,
         "tools": [
             {
                 "name": "search_docs",
@@ -563,6 +732,23 @@ def tools_manifest(
                         },
                     },
                     "required": ["node_id"],
+                },
+            },
+            {
+                "name": "list_api_operations",
+                "description": "List API operations with method, path, schema, example, auth, and source-spec metadata.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "tag": {
+                            "type": "string",
+                            "description": "Optional API tag/group filter.",
+                        },
+                        "operation_id": {
+                            "type": "string",
+                            "description": "Optional OpenAPI operationId filter.",
+                        },
+                    },
                 },
             },
         ],

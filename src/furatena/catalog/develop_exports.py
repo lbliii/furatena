@@ -66,6 +66,15 @@ DEVELOP_EXPORTS: tuple[DevelopExport, ...] = (
         icon="stack",
     ),
     DevelopExport(
+        id="api-operations",
+        label="api-operations.json",
+        raw_href="/catalog/api-operations.json",
+        preview_href="/develop/api-operations/",
+        description="API operation inventory for agents, MCP, and SDK tooling.",
+        content_type="application/json",
+        icon="file-code",
+    ),
+    DevelopExport(
         id="meta",
         label="meta.json",
         raw_href="/meta.json",

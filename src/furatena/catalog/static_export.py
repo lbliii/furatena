@@ -372,6 +372,7 @@ def _collect_routes(docs_app: DocsApp, options: StaticExportOptions) -> list[str
 def _sidecar_routes() -> tuple[str, ...]:
     return (
         "/catalog.json",
+        "/catalog/api-operations.json",
         "/search.json",
         "/tools.json",
         "/sitemap.xml",

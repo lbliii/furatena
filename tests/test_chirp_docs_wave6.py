@@ -21,7 +21,13 @@ from furatena.catalog import DocCatalog
 from furatena.catalog.autodoc import generate_autodoc_nodes
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.embeddings import EmbeddingIndex
-from furatena.catalog.export import catalog_graph, search_json, tools_manifest
+from furatena.catalog.export import (
+    api_operations_json,
+    catalog_graph,
+    llms_txt,
+    search_json,
+    tools_manifest,
+)
 from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
 from furatena.catalog.mcp import FuraMCPServer
 from furatena.catalog.models import DocNode
@@ -102,7 +108,14 @@ class TestToolsManifest:
     def test_tools_manifest_lists_catalog_tools(self, catalog: DocCatalog) -> None:
         manifest = tools_manifest(catalog, base_url="https://docs.example.com")
         names = {tool["name"] for tool in manifest["tools"]}
-        assert names == {"search_docs", "get_doc", "list_docs", "semantic_search", "retrieve_doc"}
+        assert names == {
+            "search_docs",
+            "get_doc",
+            "list_docs",
+            "semantic_search",
+            "retrieve_doc",
+            "list_api_operations",
+        }
         assert manifest["catalog_url"].endswith("/catalog.json")
 
 
@@ -318,6 +331,26 @@ autodoc:
 
         hits = search_nodes(list(nodes), "create user")
         assert hits and hits[0].node.node_id == operation.node_id
+        search_payload = search_json(_Catalog(), base_url="https://docs.example.com")
+        search_entry = next(entry for entry in search_payload["entries"] if entry["node_id"] == operation.node_id)
+        assert search_entry["api_operation"]["operation_id"] == "createUser"
+        assert search_entry["api_operation"]["examples"] == ["sample"]
+        assert search_entry["api_operation"]["source_spec"] == str(spec)
+        llms_payload = llms_txt(_Catalog(), site_name="Acme Docs")
+        assert "API: POST /users (createUser); examples: sample" in llms_payload
+        api_operations_payload = api_operations_json(_Catalog(), base_url="https://docs.example.com")
+        api_operations = {
+            item["operation_id"]: item
+            for item in api_operations_payload["operations"]
+            if item.get("operation_id")
+        }
+        assert api_operations["createUser"]["url"].startswith("https://docs.example.com")
+        assert api_operations["createUser"]["provenance"]["provider"] == "openapi"
+        assert api_operations_payload["groups"][0]["name"] == "Users"
+        tools_payload = tools_manifest(_Catalog(), base_url="https://docs.example.com", site_name="Acme Docs")
+        assert tools_payload["api_operations_url"] == "https://docs.example.com/catalog/api-operations.json"
+        assert tools_payload["api_operation_count"] == 1
+        assert tools_payload["api_operation_groups"][0]["name"] == "Users"
         retrieved = retrieve_node(_Catalog(), EmbeddingIndex.from_nodes(list(nodes)), operation.node_id)
         assert retrieved is not None
         assert retrieved["api_operation"]["operation_id"] == "createUser"
