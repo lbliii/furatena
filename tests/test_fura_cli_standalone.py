@@ -178,6 +178,46 @@ def test_check_reports_stale_public_output_and_deploy_fails(tmp_path: Path, caps
     assert repair_task["dcp_node_id"] == impact["provenance"]["node_id"]
     assert "Refresh stale docs output" in impact_payload["data"]["task_markdown"]
 
+    main(["--app-root", str(app_root), "check", "--content-only", "--report-format", "github"])
+    github_report = capsys.readouterr().out
+    assert "::warning file=docs/get-started.md,title=fura.lifecycle::" in github_report
+    assert "public output is stale" in github_report
+
+    main(["--app-root", str(app_root), "check", "--content-only", "--report-format", "markdown"])
+    markdown_report = capsys.readouterr().out
+    assert "## Furatena check Report" in markdown_report
+    assert "| warning | fura.lifecycle | docs/get-started.md |" in markdown_report
+
+    for report_format, marker in (
+        ("junit", "<testsuite"),
+        ("checkstyle", "<checkstyle"),
+    ):
+        try:
+            main([
+                "--app-root",
+                str(app_root),
+                "check",
+                "--content-only",
+                "--deploy",
+                "--report-format",
+                report_format,
+            ])
+        except SystemExit as exc:
+            assert exc.code == 2
+        else:  # pragma: no cover - defensive assertion
+            raise AssertionError(f"{report_format} deploy report should fail on stale output")
+        report_text = capsys.readouterr().out
+        assert marker in report_text
+        assert "public output is stale" in report_text
+
+    main(["--app-root", str(app_root), "check", "--content-only", "--agent", "--json"])
+    agent_payload = json.loads(capsys.readouterr().out)
+    assert agent_payload["data"]["agent_warning_count"] >= 1
+    assert any(
+        diagnostic["rule_id"] == "fura.agent_safety.stale_context"
+        for diagnostic in agent_payload["diagnostics"]
+    )
+
 
 def test_check_json_validates_bundled_dcp_fixtures(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
@@ -640,6 +680,27 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
     assert "error" in mcp_public_retrieve
     assert mcp_private_retrieve["result"]["structuredContent"]["node_id"] == node.node_id
     assert "Secret" not in docs._develop_export_sample(develop_export("llms"))
+
+    from furatena.catalog.agent_lint import check_agent_safety
+
+    safety_errors, safety_warnings = check_agent_safety(public_mcp)
+    assert safety_errors == []
+    assert safety_warnings == []
+
+    class LeakyServer(FuraMCPServer):
+        def list_resources(self):
+            return [
+                *super().list_resources(),
+                {
+                    "uri": "fura://leak",
+                    "name": "Secret",
+                    "description": "Leaked private resource.",
+                    "mimeType": "application/json",
+                },
+            ]
+
+    leaky_errors, _leaky_warnings = check_agent_safety(LeakyServer(docs))
+    assert any(error.rule_id == "fura.agent_safety.private_leak" for error in leaky_errors)
 
 
 def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
