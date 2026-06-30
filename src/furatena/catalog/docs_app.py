@@ -740,6 +740,13 @@ class DocsApp:
                 "catalog_with_toc": toc_len > 0,
                 "catalog_layout_extra": "",
             }
+        if view_name == "views/api_reference.html":
+            toc_len = len(getattr(node, "toc", ()) or ())
+            return {
+                "catalog_surface": "api-reference",
+                "catalog_with_toc": toc_len > 0,
+                "catalog_layout_extra": "",
+            }
         if view_name == "views/doc_list.html":
             toc_len = len(getattr(node, "toc", ()) or ())
             return {
@@ -1673,6 +1680,7 @@ class DocsApp:
                 "views/home.html",
                 "views/collection.html",
                 "views/changelog.html",
+                "views/api_reference.html",
                 "views/portal.html",
                 "views/author_studio.html",
             ):

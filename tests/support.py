@@ -29,6 +29,7 @@ shell: shell.html
 views:
   doc: views/doc.html
   doc_list: views/doc_list.html
+  api_reference: views/api_reference.html
   home: views/home.html
   default: views/doc.html
 theme:

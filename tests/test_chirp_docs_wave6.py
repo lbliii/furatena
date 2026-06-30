@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from chirp.testing import TestClient
 
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
@@ -17,6 +19,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog import DocCatalog
 from furatena.catalog.autodoc import generate_autodoc_nodes
+from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.export import catalog_graph, search_json, tools_manifest
 from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
@@ -26,6 +29,7 @@ from furatena.catalog.search import search_nodes
 from furatena.catalog.semantic import retrieve_node
 from furatena.catalog.seo import canonical_url, json_ld_article
 from furatena.catalog.versions import infer_release_channels, node_matches_channel
+from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml
 
 
 @pytest.fixture(scope="module")
@@ -194,7 +198,10 @@ autodoc:
 
         nodes = generate_autodoc_nodes(config, repo_root=tmp_path)
         operation = next(node for node in nodes if node.meta.get("operation_id") == "createUser")
+        index = next(node for node in nodes if node.meta.get("element_type") == "api_index")
         api_operation = operation.meta["api_operation"]
+        assert index.layout == "api_reference"
+        assert operation.layout == "api_reference"
         assert operation.content_format == "openapi-operation"
         assert operation.meta["source_provider"] == "openapi"
         assert api_operation["method"] == "POST"
@@ -286,6 +293,118 @@ autodoc:
         assert observed["external_docs"] == [
             {"description": "Authentication guide", "url": "/docs/auth/"}
         ]
+
+    def test_openapi_operation_renders_api_reference_view(self, tmp_path: Path) -> None:
+        app_root = tmp_path / "app"
+        content = tmp_path / "content"
+        specs = tmp_path / "specs"
+        app_root.mkdir()
+        content.mkdir()
+        specs.mkdir()
+        copy_app_theme(app_root, APP_ROOT)
+        write_minimal_docs_yaml(app_root / "docs.yaml")
+        write_mounts_yaml(app_root / "mounts.yaml", content)
+        (content / "_index.md").write_text(
+            "---\ntitle: Home\n---\n# Home\n",
+            encoding="utf-8",
+        )
+        (content / "docs").mkdir()
+        (content / "docs" / "auth.md").write_text(
+            "---\ntitle: Authentication\n---\n# Authentication\n",
+            encoding="utf-8",
+        )
+        (specs / "openapi.yaml").write_text(
+            """
+openapi: 3.1.0
+info:
+  title: Acme API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: prod
+security:
+  - apiKey: []
+paths:
+  /users:
+    post:
+      operationId: createUser
+      summary: Create a user
+      externalDocs:
+        description: Authentication guide
+        url: /docs/auth/
+      tags: [Users]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+            examples:
+              sample:
+                value:
+                  name: Ada
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+components:
+  schemas:
+    CreateUser:
+      type: object
+    User:
+      type: object
+""".lstrip(),
+            encoding="utf-8",
+        )
+        autodoc_config = tmp_path / "autodoc.yaml"
+        autodoc_config.write_text(
+            """
+autodoc:
+  python:
+    enabled: false
+  openapi:
+    enabled: true
+    output_prefix: api/rest
+    display_name: REST API
+    specs:
+      - specs/openapi.yaml
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        docs_app = DocsApp.from_paths(
+            app_root / "docs.yaml",
+            repo_root=tmp_path,
+            autodoc_config=autodoc_config,
+            autodoc=True,
+        )
+        operation = docs_app.catalog.get_by_slug("api/rest/acme-api/createuser")
+        assert operation is not None
+        assert operation.layout == "api_reference"
+
+        client = TestClient(docs_app.create_app())
+
+        async def _fetch(path: str):
+            return await client.get(path)
+
+        operation_response = asyncio.run(_fetch(operation.url))
+        assert operation_response.status == 200
+        assert 'data-chirp-theme-surface="api-reference"' in operation_response.text
+        assert "Operation ID" in operation_response.text
+        assert "<code>createUser</code>" in operation_response.text
+        assert "Request bodies" in operation_response.text
+        assert "<code>CreateUser</code>" in operation_response.text
+        assert "Responses" in operation_response.text
+        assert "<code>201</code>" in operation_response.text
+        assert "Related docs" in operation_response.text
+        assert "Authentication guide" in operation_response.text
+
+        index_response = asyncio.run(_fetch("/api/rest/"))
+        assert index_response.status == 200
+        assert 'data-chirp-theme-surface="api-reference"' in index_response.text
+        assert "Catalog-native API operation reference" in index_response.text
 
 
 class TestVersionChannels:

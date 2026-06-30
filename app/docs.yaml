@@ -18,6 +18,7 @@ views:
   home: views/home.html
   changelog: views/changelog.html
   collection: views/collection.html
+  api_reference: views/api_reference.html
   portal: views/portal.html
   default: views/doc.html
 

@@ -1479,6 +1479,7 @@ def _run_init(args: argparse.Namespace) -> None:
               page: views/page.html
               home: views/home.html
               collection: views/collection.html
+              api_reference: views/api_reference.html
               default: views/doc.html
 
             site:
@@ -1606,6 +1607,11 @@ def _run_init(args: argparse.Namespace) -> None:
             """
         ),
         "theme/views/collection.html": dedent(
+            """\
+            {% extends "views/doc.html" %}
+            """
+        ),
+        "theme/views/api_reference.html": dedent(
             """\
             {% extends "views/doc.html" %}
             """
