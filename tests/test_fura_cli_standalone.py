@@ -504,7 +504,14 @@ def test_export_excludes_unlinked_draft_pages(tmp_path: Path, capsys) -> None:
     catalog_payload = json.loads((app_root / "public" / "catalog.json").read_text(encoding="utf-8"))
     search_payload = json.loads((app_root / "public" / "search.json").read_text(encoding="utf-8"))
     assert all(entry["title"] != "Secret" for entry in search_payload["entries"])
-    for sidecar in ("catalog.json", "llms.txt", "llms-full.txt", "meta.json", "sitemap.xml"):
+    for sidecar in (
+        "catalog.json",
+        "catalog/api-operations.json",
+        "llms.txt",
+        "llms-full.txt",
+        "meta.json",
+        "sitemap.xml",
+    ):
         assert "Secret" not in (app_root / "public" / sidecar).read_text(encoding="utf-8")
     tools_payload = json.loads((app_root / "public" / "tools.json").read_text(encoding="utf-8"))
     assert tools_payload["page_count"] == catalog_payload["page_count"]

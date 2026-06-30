@@ -196,6 +196,7 @@ mounts:
 | `GET /graph/query.json` | Alias for filtered graph consumers |
 | `GET /meta.json` | Compact page index with static impact-report provenance |
 | `GET /search.json` | Search index with `sections` |
+| `GET /catalog/api-operations.json` | Agent/SDK-friendly API operation inventory grouped by API tag |
 | `GET /catalog/retrieve?id=` | Node + chunks + backlinks |
 
 `/catalog/query.json` and `/graph/query.json` accept these filters:
@@ -225,6 +226,11 @@ provenance needed by static/offline consumers: `source_path`, `source_provider`,
 `provenance` object. API operation pages also include compact `api_operation` and
 `api_try_it` projections so headless agents can inspect method/path/schema/example
 metadata and playground safety boundaries without scraping rendered HTML.
+
+`/catalog/api-operations.json`, `search.json`, `tools.json`, and `llms.txt` expose
+API operation summaries as first-class agent metadata. Operation records include
+method/path, `operation_id`, examples, schemas, auth, environments, source-spec
+provenance, and try-it safety boundaries for SDK generation or MCP tool planning.
 
 JSON Schema for v3 exports ships with the runtime at
 ``catalog/schemas/catalog-v3.schema.json`` (validated by ``fura check`` and freeze).

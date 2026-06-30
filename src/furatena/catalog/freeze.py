@@ -17,7 +17,7 @@ from furatena.catalog.assets import (
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.embeddings import EmbeddingIndex
-from furatena.catalog.export import catalog_graph, search_json, tools_manifest
+from furatena.catalog.export import api_operations_json, catalog_graph, search_json, tools_manifest
 from furatena.catalog.freeze_incremental import (
     dirty_mount_ids,
     mount_content_fingerprint,
@@ -303,6 +303,12 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         )
         (out_dir / "tools.json").write_text(
             json.dumps(tools_manifest(registry, base_url=base), indent=2) + "\n",
+            encoding="utf-8",
+        )
+        api_operations_path = out_dir / "catalog" / "api-operations.json"
+        api_operations_path.parent.mkdir(parents=True, exist_ok=True)
+        api_operations_path.write_text(
+            json.dumps(api_operations_json(registry, base_url=base), indent=2) + "\n",
             encoding="utf-8",
         )
         (out_dir / "structure.json").write_text(

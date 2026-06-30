@@ -44,12 +44,16 @@ from furatena.catalog.develop_exports import DEVELOP_EXPORTS, DevelopExport, dev
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.error_experience import build_error_context, recovery_hits_for_query
 from furatena.catalog.export import (
+    api_operations_json,
     catalog_graph,
     llms_full_txt,
     meta_json,
     search_json,
     surface_json,
     tools_manifest,
+)
+from furatena.catalog.export import (
+    llms_txt as llms_index_txt,
 )
 from furatena.catalog.i18n import (
     LocalizedNodeMatch,
@@ -1016,16 +1020,7 @@ class DocsApp:
         if export.id == "catalog":
             body = json.dumps(catalog_graph(self.catalog), indent=2)
         elif export.id == "llms":
-            lines = [f"# {self.config.site.name} Documentation", ""]
-            from furatena.catalog.lifecycle import public_nodes
-
-            for node in public_nodes(self.catalog.doc_nodes()):
-                desc = node.description.strip() if node.description else ""
-                if desc:
-                    lines.append(f"- [{node.title}]({node.url}): {desc}")
-                else:
-                    lines.append(f"- [{node.title}]({node.url})")
-            body = "\n".join(lines) + "\n"
+            body = llms_index_txt(self.catalog, site_name=self.config.site.name)
         elif export.id == "llms-full":
             body = llms_full_txt(self.catalog, site_name=self.config.site.name)
         elif export.id == "search":
@@ -1035,6 +1030,8 @@ class DocsApp:
                 tools_manifest(self.catalog, site_name=self.config.site.name),
                 indent=2,
             )
+        elif export.id == "api-operations":
+            body = json.dumps(api_operations_json(self.catalog), indent=2)
         elif export.id == "meta":
             body = json.dumps(meta_json(self.catalog), indent=2)
         elif export.id == "surface":
@@ -1388,6 +1385,18 @@ class DocsApp:
                 "Content-Type", "application/json; charset=utf-8"
             )
 
+        @app.route("/catalog/api-operations.json", referenced=True)
+        def catalog_api_operations_json(request: Request):
+            self._ensure_catalog()
+            body = api_operations_json(
+                self.catalog,
+                base_url=self._site_base(request),
+                include_private=self._include_private_output(request),
+            )
+            return Response(json.dumps(body, indent=2)).with_header(
+                "Content-Type", "application/json; charset=utf-8"
+            )
+
         @app.route("/sitemap.xml", referenced=True)
         def sitemap(request: Request):
             self._ensure_catalog()
@@ -1531,21 +1540,11 @@ class DocsApp:
         @app.route("/llms.txt", referenced=True)
         def llms_txt(request: Request):
             self._ensure_catalog()
-            lines = [f"# {self.config.site.name} Documentation", ""]
-            from furatena.catalog.lifecycle import public_nodes
-
-            nodes = (
-                self.catalog.doc_nodes()
-                if self._include_private_output(request)
-                else public_nodes(self.catalog.doc_nodes())
+            body = llms_index_txt(
+                self.catalog,
+                site_name=self.config.site.name,
+                include_private=self._include_private_output(request),
             )
-            for node in nodes:
-                desc = node.description.strip() if node.description else ""
-                if desc:
-                    lines.append(f"- [{node.title}]({node.url}): {desc}")
-                else:
-                    lines.append(f"- [{node.title}]({node.url})")
-            body = "\n".join(lines) + "\n"
             return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
 
         @app.route("/llms-full.txt", referenced=True)
