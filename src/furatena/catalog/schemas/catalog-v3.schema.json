@@ -108,6 +108,76 @@
             "source_spec": { "type": "string" }
           }
         },
+        "api_try_it": {
+          "type": ["object", "null"],
+          "properties": {
+            "schema_version": { "type": "integer" },
+            "operation_id": { "type": "string" },
+            "modes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "enum": ["static", "mock", "live"] },
+                  "available": { "type": "boolean" },
+                  "request_behavior": { "type": "string" },
+                  "requires": { "type": "array", "items": { "type": "string" } },
+                  "proxy_path": { "type": ["string", "null"] },
+                  "disabled_reason": { "type": "string" }
+                },
+                "required": ["id", "available", "request_behavior", "requires"]
+              }
+            },
+            "boundaries": {
+              "type": "object",
+              "properties": {
+                "tenant": { "type": "string" },
+                "site": { "type": "string" },
+                "mount": { "type": "string" },
+                "source_spec": { "type": "string" }
+              },
+              "required": ["tenant", "site", "mount", "source_spec"]
+            },
+            "base_urls": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "label": { "type": "string" },
+                  "url": { "type": "string" },
+                  "scope": { "type": "string" },
+                  "base_url_env": { "type": ["string", "null"] }
+                },
+                "required": ["id", "label", "scope"]
+              }
+            },
+            "auth": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "scheme": { "type": "string" },
+                  "token_ref": { "type": ["string", "null"] },
+                  "storage": { "type": "string" },
+                  "exposed_to_static": { "type": "boolean" },
+                  "configured": { "type": "boolean" }
+                },
+                "required": ["scheme", "storage", "exposed_to_static", "configured"]
+              }
+            },
+            "static_export": {
+              "type": "object",
+              "properties": {
+                "live_requests": { "type": "string" },
+                "fallback_mode": { "type": "string" },
+                "reason": { "type": "string" }
+              },
+              "required": ["live_requests", "fallback_mode", "reason"]
+            }
+          },
+          "required": ["schema_version", "operation_id", "modes", "boundaries", "base_urls", "auth", "static_export"]
+        },
         "content_format": { "type": "string" },
         "doc_version": { "type": ["string", "null"] },
         "mount": { "type": "string" },

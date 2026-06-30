@@ -22,6 +22,7 @@
 
 {% block catalog_article %}
 {% let operation = node.meta.api_operation ?? none %}
+{% let try_it = node.meta.api_try_it ?? none %}
 <article class="prose chirp-theme-docs-layout__article fura-api-reference">
   {% if operation %}
   <div class="docs-content chirp-theme-docs-layout__content fura-api-reference__operation">
@@ -99,6 +100,67 @@
           {% end %}
         </tbody>
       </table>
+    </section>
+    {% end %}
+
+    {% if try_it %}
+    <section class="fura-api-reference__try-it" aria-labelledby="api-try-it">
+      <h2 id="api-try-it">Try it</h2>
+      <dl>
+        <div>
+          <dt>Tenant</dt>
+          <dd><code>{{ try_it.boundaries.tenant }}</code></dd>
+        </div>
+        <div>
+          <dt>Site</dt>
+          <dd><code>{{ try_it.boundaries.site }}</code></dd>
+        </div>
+        <div>
+          <dt>Mount</dt>
+          <dd><code>{{ try_it.boundaries.mount }}</code></dd>
+        </div>
+        <div>
+          <dt>Static export</dt>
+          <dd><code>{{ try_it.static_export.fallback_mode }}</code> {{ try_it.static_export.reason }}</dd>
+        </div>
+      </dl>
+
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Mode</th>
+            <th scope="col">State</th>
+            <th scope="col">Behavior</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mode in try_it.modes %}
+          <tr>
+            <th scope="row">{{ mode.id }}</th>
+            <td>{{ 'available' if mode.available else 'unavailable' }}</td>
+            <td>{{ mode.request_behavior }}{% if mode.disabled_reason | default('') %}: {{ mode.disabled_reason }}{% end %}</td>
+          </tr>
+          {% end %}
+        </tbody>
+      </table>
+
+      {% if try_it.base_urls %}
+      <h3>Base URLs</h3>
+      <ul>
+        {% for base in try_it.base_urls %}
+        <li><strong>{{ base.label }}</strong>{% if base.url %}: <code>{{ base.url }}</code>{% end %}{% if base.base_url_env %} via <code>{{ base.base_url_env }}</code>{% end %}</li>
+        {% end %}
+      </ul>
+      {% end %}
+
+      {% if try_it.auth %}
+      <h3>Auth boundaries</h3>
+      <ul>
+        {% for auth in try_it.auth %}
+        <li><code>{{ auth.scheme }}</code> uses {{ auth.storage }} token storage{% if not auth.configured %}; token reference not configured{% end %}</li>
+        {% end %}
+      </ul>
+      {% end %}
     </section>
     {% end %}
 

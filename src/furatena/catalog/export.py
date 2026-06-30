@@ -122,6 +122,7 @@ def _page_record(
         "last_indexed_at": provenance.get("last_indexed_at"),
         "provenance": provenance,
         "api_operation": node.meta.get("api_operation"),
+        "api_try_it": node.meta.get("api_try_it"),
         "toc": [
             {"anchor": entry.anchor, "text": entry.text, "depth": entry.depth}
             for entry in node.toc
@@ -277,6 +278,7 @@ def meta_json(
                 "last_indexed_at": provenance.get("last_indexed_at"),
                 "provenance": provenance,
                 "api_operation": node.meta.get("api_operation"),
+                "api_try_it": node.meta.get("api_try_it"),
                 "layout": node.layout,
                 "section_root": node.section_root,
             }

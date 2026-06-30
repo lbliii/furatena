@@ -128,6 +128,13 @@ nodes additionally read `node.meta.api_operation` and present method, path,
 operation id, request bodies, responses, schemas, examples, auth, environments,
 and `externalDocs` links before the generated markdown body.
 
+Operation detail nodes also expose `node.meta.api_try_it`, a static-safe
+playground contract. The built-in view presents static, mock, and live mode
+availability, tenant/site/mount boundaries, base URL environment references, and
+server-only auth token references without exposing token values. Static exports
+always degrade to mock examples when available, otherwise render-only static
+mode; authenticated live requests require a configured server-side proxy.
+
 ## Folder layout
 
 Template loader stack (**first match wins**):

@@ -63,6 +63,7 @@ fixtures additionally cover typed non-page `graph_nodes` such as API schemas.
 | `provenance` | Normalized provenance object with provider, repo, ref, path, owner/team, mount, edition, channel, and timestamp |
 | `content_format` | Open string, e.g. `patitas-markdown`, `docutils-rst` |
 | `api_operation` | Operation projection with id, method, path, summary, tags, schemas, examples, auth, environments, and source spec |
+| `api_try_it` | Static-safe API playground contract with static/mock/live modes, tenant/site/mount boundaries, base URL env references, server-only auth token refs, and static-export fallback |
 | `mount`, `edition`, `section_root` | Federation |
 | `lang`, `translation_key` | i18n (v3.1+) |
 | `edges[]` | Typed semantic relationships (see taxonomy below) |
@@ -221,9 +222,9 @@ full catalog.
 provenance needed by static/offline consumers: `source_path`, `source_provider`,
 `source_repo`, `source_ref`, `generated_from`, `owner`, `team`, `tenant`, `site`,
 `mount`, `edition`, `output_channel`, `last_indexed_at`, and the normalized
-`provenance` object. API operation pages also include the compact `api_operation`
-projection so headless agents can inspect method/path/schema/example/auth metadata
-without scraping rendered HTML.
+`provenance` object. API operation pages also include compact `api_operation` and
+`api_try_it` projections so headless agents can inspect method/path/schema/example
+metadata and playground safety boundaries without scraping rendered HTML.
 
 JSON Schema for v3 exports ships with the runtime at
 ``catalog/schemas/catalog-v3.schema.json`` (validated by ``fura check`` and freeze).

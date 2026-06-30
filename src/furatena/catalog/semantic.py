@@ -201,6 +201,9 @@ def retrieve_node(
     api_operation = node.meta.get("api_operation")
     if isinstance(api_operation, dict):
         payload["api_operation"] = api_operation
+    api_try_it = node.meta.get("api_try_it")
+    if isinstance(api_try_it, dict):
+        payload["api_try_it"] = api_try_it
     return payload
 
 

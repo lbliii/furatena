@@ -200,6 +200,7 @@ autodoc:
         operation = next(node for node in nodes if node.meta.get("operation_id") == "createUser")
         index = next(node for node in nodes if node.meta.get("element_type") == "api_index")
         api_operation = operation.meta["api_operation"]
+        api_try_it = operation.meta["api_try_it"]
         assert index.layout == "api_reference"
         assert operation.layout == "api_reference"
         assert operation.content_format == "openapi-operation"
@@ -217,6 +218,41 @@ autodoc:
             {"description": "Authentication guide", "url": "/docs/auth/"}
         ]
         assert "[Authentication guide](/docs/auth/)" in operation.body_md
+        assert api_try_it["operation_id"] == "createUser"
+        modes = {mode["id"]: mode for mode in api_try_it["modes"]}
+        assert modes["static"]["available"] is True
+        assert modes["static"]["request_behavior"] == "render_only"
+        assert modes["mock"]["available"] is True
+        assert modes["mock"]["request_behavior"] == "local_sample"
+        assert modes["live"]["available"] is False
+        assert modes["live"]["request_behavior"] == "authenticated_proxy"
+        assert "server-side try-it proxy" in modes["live"]["disabled_reason"]
+        assert api_try_it["boundaries"]["tenant"] == "default"
+        assert api_try_it["boundaries"]["site"] == "docs"
+        assert api_try_it["boundaries"]["mount"] == "catalog-mount"
+        assert api_try_it["base_urls"] == [
+            {
+                "base_url_env": None,
+                "id": "prod",
+                "label": "prod",
+                "scope": "tenant/site/mount",
+                "url": "https://api.example.com",
+            }
+        ]
+        assert api_try_it["auth"] == [
+            {
+                "configured": False,
+                "exposed_to_static": False,
+                "scheme": "apiKey",
+                "storage": "server_only",
+                "token_ref": None,
+            }
+        ]
+        assert api_try_it["static_export"] == {
+            "fallback_mode": "mock",
+            "live_requests": "disabled",
+            "reason": "Static exports never expose tokens or direct authenticated live requests.",
+        }
 
         auth_guide = DocNode(
             url="/docs/auth/",
@@ -265,6 +301,8 @@ autodoc:
         payload = catalog_graph(_Catalog())
         page = next(page for page in payload["pages"] if page["slug"] == operation.slug)
         assert page["api_operation"]["operation_id"] == "createUser"
+        assert page["api_try_it"]["modes"][0]["id"] == "static"
+        assert page["api_try_it"]["static_export"]["fallback_mode"] == "mock"
         assert page["source_provider"] == "openapi"
         edges = {(edge["kind"], edge["target"]) for edge in payload["edges"]}
         assert (EdgeKind.API_SCHEMA.value, "schema:User") in edges
@@ -284,6 +322,8 @@ autodoc:
         assert retrieved is not None
         assert retrieved["api_operation"]["operation_id"] == "createUser"
         assert retrieved["api_operation"]["schemas"] == ["CreateUser", "Error", "User"]
+        assert retrieved["api_try_it"]["modes"][2]["id"] == "live"
+        assert retrieved["api_try_it"]["modes"][2]["available"] is False
 
         server = FuraMCPServer(SimpleNamespace(catalog=_Catalog(), embedding_index=None))
         resource = server._api_operations()
@@ -293,6 +333,97 @@ autodoc:
         assert observed["external_docs"] == [
             {"description": "Authentication guide", "url": "/docs/auth/"}
         ]
+        assert observed["try_it"]["static_export"]["live_requests"] == "disabled"
+        assert observed["try_it"]["auth"][0]["storage"] == "server_only"
+
+    def test_openapi_try_it_contract_supports_configured_live_proxy(self, tmp_path: Path) -> None:
+        spec = tmp_path / "specs" / "openapi.yaml"
+        spec.parent.mkdir()
+        spec.write_text(
+            """
+openapi: 3.1.0
+info:
+  title: Acme API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: prod
+security:
+  - apiKey: []
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users
+      responses:
+        '200':
+          description: OK
+""".lstrip(),
+            encoding="utf-8",
+        )
+        config = tmp_path / "config" / "autodoc.yaml"
+        config.parent.mkdir()
+        config.write_text(
+            """
+autodoc:
+  github_repo: lbliii/furatena
+  github_branch: main
+  python:
+    enabled: false
+  openapi:
+    enabled: true
+    output_prefix: api/rest
+    display_name: REST API
+    try_it:
+      tenant: acme
+      site: developer-docs
+      mount: public-api
+      base_url_env: ACME_API_BASE_URL
+      tokens:
+        apiKey: ACME_API_KEY
+      live:
+        enabled: true
+        proxy_path: /_api/try-it
+    specs:
+      - specs/openapi.yaml
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        nodes = generate_autodoc_nodes(config, repo_root=tmp_path)
+        operation = next(node for node in nodes if node.meta.get("operation_id") == "listUsers")
+        contract = operation.meta["api_try_it"]
+        modes = {mode["id"]: mode for mode in contract["modes"]}
+        assert modes["static"]["available"] is True
+        assert modes["mock"]["available"] is False
+        assert modes["live"]["available"] is True
+        assert modes["live"]["proxy_path"] == "/_api/try-it"
+        assert contract["boundaries"] == {
+            "mount": "public-api",
+            "site": "developer-docs",
+            "source_spec": str(spec),
+            "tenant": "acme",
+        }
+        assert contract["base_urls"] == [
+            {
+                "base_url_env": "ACME_API_BASE_URL",
+                "id": "prod",
+                "label": "prod",
+                "scope": "tenant/site/mount",
+                "url": "https://api.example.com",
+            }
+        ]
+        assert contract["auth"] == [
+            {
+                "configured": True,
+                "exposed_to_static": False,
+                "scheme": "apiKey",
+                "storage": "server_only",
+                "token_ref": "ACME_API_KEY",
+            }
+        ]
+        assert contract["static_export"]["fallback_mode"] == "static"
+        assert contract["static_export"]["live_requests"] == "disabled"
 
     def test_openapi_operation_renders_api_reference_view(self, tmp_path: Path) -> None:
         app_root = tmp_path / "app"
@@ -400,6 +531,11 @@ autodoc:
         assert "<code>201</code>" in operation_response.text
         assert "Related docs" in operation_response.text
         assert "Authentication guide" in operation_response.text
+        assert "Try it" in operation_response.text
+        assert "<code>default</code>" in operation_response.text
+        assert "authenticated_proxy" in operation_response.text
+        assert "Static exports never expose tokens" in operation_response.text
+        assert "https://api.example.com" in operation_response.text
 
         index_response = asyncio.run(_fetch("/api/rest/"))
         assert index_response.status == 200
