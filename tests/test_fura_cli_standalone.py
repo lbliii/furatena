@@ -6,6 +6,7 @@ import os
 import time
 from pathlib import Path
 
+import pytest
 from chirp.testing import TestClient
 
 from furatena.catalog.develop_exports import develop_export
@@ -110,6 +111,134 @@ def test_check_json_emits_standard_result(tmp_path: Path, capsys) -> None:
     assert payload["exit_code"] == 0
     assert payload["diagnostics"] == []
     assert payload["data"]["content_only"] is True
+
+
+def test_check_reports_openapi_governance_findings(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    config_dir = app_root / "config"
+    specs_dir = app_root / "specs"
+    config_dir.mkdir()
+    specs_dir.mkdir()
+    (config_dir / "autodoc.yaml").write_text(
+        """
+autodoc:
+  python:
+    enabled: false
+  openapi:
+    enabled: true
+    specs:
+      - specs/openapi.yaml
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (specs_dir / "openapi.yaml").write_text(
+        """
+openapi: 3.1.0
+info:
+  title: Acme API
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Missing'
+            examples:
+              broken:
+                summary: no value
+      responses:
+        '200':
+          description: OK
+""".lstrip(),
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--app-root", str(app_root), "check", "--content-only", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert int(exc.value.code) == 2
+    assert payload["ok"] is False
+    messages = [item["message"] for item in payload["diagnostics"]]
+    assert any("missing operationId" in message for message in messages)
+    assert any("broken example" in message for message in messages)
+    assert any("unresolved schema reference" in message for message in messages)
+    api_diagnostics = [
+        item
+        for item in payload["diagnostics"]
+        if "OpenAPI" in item["message"]
+        or "operationId" in item["message"]
+        or "schema reference" in item["message"]
+        or "broken example" in item["message"]
+    ]
+    assert {item["rule_id"] for item in api_diagnostics} == {"fura.api"}
+
+
+def test_api_diff_json_reports_operation_changes(tmp_path: Path, capsys) -> None:
+    old = tmp_path / "old.yaml"
+    new = tmp_path / "new.yaml"
+    old.write_text(
+        """
+openapi: 3.1.0
+info:
+  title: Acme API
+  version: 1.0.0
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Missing
+    post:
+      operationId: createUser
+      responses:
+        '201':
+          description: Created
+""".lstrip(),
+        encoding="utf-8",
+    )
+    new.write_text(
+        """
+openapi: 3.1.0
+info:
+  title: Acme API
+  version: 1.1.0
+paths:
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users v2
+      responses:
+        '200':
+          description: OK
+    delete:
+      operationId: deleteUsers
+      responses:
+        '204':
+          description: Deleted
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    main(["api-diff", str(old), str(new), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["ok"] is True
+    data = payload["data"]
+    assert data["summary"] == {"added": 1, "removed": 1, "changed": 1, "breaking": 2}
+    assert data["added"][0]["operation_id"] == "deleteUsers"
+    assert data["removed"][0]["operation_id"] == "createUser"
+    assert data["changed"][0]["changes"] == ["summary changed", "response codes changed"]
+    assert any("response codes removed: 404" in item["changes"] for item in data["breaking"])
 
 
 def test_check_reports_stale_public_output_and_deploy_fails(tmp_path: Path, capsys) -> None:

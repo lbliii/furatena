@@ -98,7 +98,7 @@ repo venv from `make install` does.
 - **SEO** — per-page title, meta description, Open Graph (with OOB updates on boosted nav)
 - **Glossary, youtube, gist, figure** directives; data in `data/glossary.yaml`
 - **Production fast start:** `FURA_FROZEN=1 ./app/run` after `./app/freeze`
-- **Wave 6:** `/search.json`, `/tools.json`, `/catalog/api-operations.json`, Python/OpenAPI autodoc (`/api/…`), `fura serve|freeze|check|export`
+- **Wave 6:** `/search.json`, `/tools.json`, `/catalog/api-operations.json`, Python/OpenAPI autodoc (`/api/…`), OpenAPI governance checks/diffs, `fura serve|freeze|check|export`
 - **Wave 7:** incremental reindex, directive template registry for `chirp check`, JSON-LD + OG images + `FURA_BASE_URL`
 - **Wave 8:** federated `mounts.yaml`, `/portal/`, `/catalog.json` v2 edges + namespaces, lazy frozen HTML
 - **Wave 9:** `/search/semantic`, `/catalog/retrieve`, `semantic.json` chunk index at freeze

@@ -231,6 +231,8 @@ metadata and playground safety boundaries without scraping rendered HTML.
 API operation summaries as first-class agent metadata. Operation records include
 method/path, `operation_id`, examples, schemas, auth, environments, source-spec
 provenance, and try-it safety boundaries for SDK generation or MCP tool planning.
+`fura api-diff` uses the same operation identity model to produce API changelog
+inputs: added, removed, changed, and breaking operation summaries.
 
 JSON Schema for v3 exports ships with the runtime at
 ``catalog/schemas/catalog-v3.schema.json`` (validated by ``fura check`` and freeze).

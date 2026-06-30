@@ -464,6 +464,14 @@ def _run_docs_content_check(
         strict_edition_links=strict_edition_links,
         inventory_store=registry.inventory_store,
     )
+    from furatena.catalog.api_governance import lint_openapi_autodoc_config
+
+    api_errors, api_warnings = lint_openapi_autodoc_config(
+        autodoc_config,
+        repo_root=repo,
+    )
+    errors.extend(api_errors)
+    warnings.extend(api_warnings)
     stale_public_outputs = check_stale_public_outputs(registry, app_root / "frozen")
     if stale_public_outputs and getattr(args, "deploy", False):
         errors.extend(stale_public_outputs)
@@ -475,6 +483,13 @@ def _run_docs_content_check(
 def _content_rule_id(message: str, *, dcp_errors: list[str]) -> str:
     if message in dcp_errors:
         return "fura.dcp"
+    if (
+        "OpenAPI" in message
+        or "operationId" in message
+        or "schema reference" in message
+        or "broken example" in message
+    ):
+        return "fura.api"
     lifecycle_markers = (
         "visibility must be one of",
         "draft pages cannot",
@@ -489,6 +504,61 @@ def _content_rule_id(message: str, *, dcp_errors: list[str]) -> str:
     if any(marker in message for marker in lifecycle_markers):
         return "fura.lifecycle"
     return "fura.content"
+
+
+def _run_api_diff(args: argparse.Namespace) -> None:
+    from furatena.catalog.api_governance import diff_openapi_specs
+
+    old_path = Path(args.old).expanduser().resolve()
+    new_path = Path(args.new).expanduser().resolve()
+    try:
+        payload = diff_openapi_specs(old_path, new_path)
+    except Exception as exc:
+        result = CommandResult(
+            command=command_name(args),
+            ok=False,
+            exit_code=ExitCode.VALIDATION_ERROR,
+            summary="api diff failed",
+            diagnostics=(
+                Diagnostic(
+                    severity="error",
+                    message=f"Failed to diff OpenAPI specs: {exc}",
+                    rule_id="fura.api",
+                    next_action="Fix the OpenAPI spec paths or YAML syntax and rerun fura api-diff.",
+                ),
+            ),
+            data={"old_spec": str(old_path), "new_spec": str(new_path)},
+        )
+        _finish_result(result, json_output=_json_output(args))
+        return
+    result = CommandResult(
+        command=command_name(args),
+        ok=True,
+        summary=(
+            "api diff completed: "
+            f"{payload['summary']['added']} added, "
+            f"{payload['summary']['removed']} removed, "
+            f"{payload['summary']['changed']} changed, "
+            f"{payload['summary']['breaking']} breaking"
+        ),
+        data=payload,
+    )
+    if _json_output(args):
+        _finish_result(result, json_output=True)
+        return
+    print(result.summary)
+    for label in ("added", "removed", "changed", "breaking"):
+        items = payload[label]
+        if not items:
+            continue
+        print(f"\n{label.title()}:")
+        for item in items:
+            op = f"{item['method']} {item['path']}"
+            if item.get("operation_id"):
+                op = f"{op} ({item['operation_id']})"
+            changes = item.get("changes")
+            suffix = f" - {', '.join(changes)}" if changes else ""
+            print(f"- {op}{suffix}")
 
 
 def _run_chirp_app_check(args: argparse.Namespace) -> None:
@@ -1973,6 +2043,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     check.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     check.set_defaults(handler=_run_check)
+
+    api_diff = sub.add_parser("api-diff", help="Compare two OpenAPI specs for operation changes")
+    api_diff.add_argument("old", help="Old OpenAPI YAML/JSON spec")
+    api_diff.add_argument("new", help="New OpenAPI YAML/JSON spec")
+    api_diff.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
+    api_diff.set_defaults(handler=_run_api_diff)
 
     impact = sub.add_parser("impact", help="Report stale content impact for agents and CI")
     impact.add_argument("--slug", default=None, help="Optional slug used to scope stale-impact entries")
