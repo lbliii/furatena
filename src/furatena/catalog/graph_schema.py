@@ -49,15 +49,17 @@ class GraphEdge:
     edition: str = "latest"
 
 
-_API_GRAPH_NODE_PREFIXES: dict[str, str] = {
+_GRAPH_NODE_PREFIXES: dict[str, str] = {
     "api": "api_operation",
     "api-tag": "api_tag",
     "auth": "api_auth",
     "environment": "api_environment",
     "example": "api_example",
     "request-body": "api_request_body",
+    "release": "release",
     "response": "api_response",
     "schema": "api_schema",
+    "source": "source_file",
 }
 
 
@@ -326,6 +328,20 @@ def build_graph_edges(
                 ),
             )
 
+        source_path = str(getattr(node, "source_path", "") or "").strip()
+        if source_path:
+            _append_edge(
+                edges,
+                seen,
+                GraphEdge(
+                    kind=EdgeKind.GENERATED_FROM,
+                    source=node.node_id,
+                    target=_external_target(source_path, default_prefix="source"),
+                    mount=node.mount,
+                    edition=node.edition,
+                ),
+            )
+
         for meta_key, kind in _META_EDGE_KEYS.items():
             for value in _iter_values(node.meta.get(meta_key)):
                 target = (
@@ -390,14 +406,14 @@ def edge_record(edge: GraphEdge) -> dict[str, Any]:
 
 
 def graph_node_records(edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Project external API edge endpoints into typed graph node records."""
+    """Project external edge endpoints into typed graph node records."""
     records: dict[tuple[str, str, str], dict[str, Any]] = {}
     for edge in edges:
         target = str(edge.get("target") or "")
         prefix, separator, label = target.partition(":")
         if not separator:
             continue
-        kind = _API_GRAPH_NODE_PREFIXES.get(prefix)
+        kind = _GRAPH_NODE_PREFIXES.get(prefix)
         if kind is None:
             continue
         mount = str(edge.get("mount") or "")

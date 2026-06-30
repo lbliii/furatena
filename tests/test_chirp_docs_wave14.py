@@ -118,6 +118,7 @@ class TestAstLinkExtraction:
         records = [edge_record(edge) for edge in build_graph_edges(_Catalog())]
         by_kind = {(edge["kind"], edge["target"]) for edge in records}
         assert (EdgeKind.OWNED_BY.value, "owner:docs-platform") in by_kind
+        assert (EdgeKind.GENERATED_FROM.value, "source:docs/page.md") in by_kind
         assert (EdgeKind.IMPLEMENTS.value, "api:get-user") in by_kind
         assert (EdgeKind.GENERATED_FROM.value, "source:specs/openapi.yaml") in by_kind
         assert (EdgeKind.REQUIRES.value, target.node_id) in by_kind
@@ -170,15 +171,49 @@ class TestAstLinkExtraction:
 
         payload = catalog_graph(_Catalog())
         by_kind = {(edge["kind"], edge["target"]) for edge in payload["edges"]}
+        assert (EdgeKind.GENERATED_FROM.value, "source:docs/api.md") in by_kind
         assert (EdgeKind.API_SCHEMA.value, "schema:User") in by_kind
         assert (EdgeKind.API_EXAMPLE.value, "example:create-user") in by_kind
         assert (EdgeKind.API_AUTH.value, "auth:oauth2") in by_kind
         assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in by_kind
         graph_nodes = {(node["kind"], node["id"], node["label"]) for node in payload["graph_nodes"]}
+        assert ("source_file", "source:docs/api.md", "docs/api.md") in graph_nodes
         assert ("api_schema", "schema:User", "User") in graph_nodes
         assert ("api_example", "example:create-user", "create-user") in graph_nodes
         assert ("api_auth", "auth:oauth2", "oauth2") in graph_nodes
         assert ("api_environment", "environment:prod", "prod") in graph_nodes
+
+    def test_graph_nodes_include_release_targets(self) -> None:
+        node = replace(
+            _node(slug="docs/release-note", url="/docs/release-note/"),
+            meta={"available_in": "2026.06"},
+        )
+
+        class _Catalog:
+            active_channel = "latest"
+            nodes = (node,)
+
+            def doc_nodes(self):
+                return [node]
+
+            def backlinks_for(self, _node):
+                return []
+
+            def get_by_slug(self, slug: str):
+                return {"docs/release-note": node}.get(slug)
+
+            def prev_next(self, _node):
+                return (None, None)
+
+            def graph_edges(self):
+                return [edge_record(edge) for edge in build_graph_edges(self)]
+
+            def namespaces(self):
+                return []
+
+        payload = catalog_graph(_Catalog())
+        graph_nodes = {(node["kind"], node["id"], node["label"]) for node in payload["graph_nodes"]}
+        assert ("release", "release:2026.06", "2026.06") in graph_nodes
 
 
 class TestStructureIndex:

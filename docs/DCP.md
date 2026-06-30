@@ -66,7 +66,7 @@ fixtures additionally cover typed non-page `graph_nodes` such as API schemas.
 | `mount`, `edition`, `section_root` | Federation |
 | `lang`, `translation_key` | i18n (v3.1+) |
 | `edges[]` | Typed semantic relationships (see taxonomy below) |
-| `graph_nodes[]` | Typed non-page graph targets such as API schemas, examples, auth schemes, environments, tags, responses, and operation ids |
+| `graph_nodes[]` | Typed non-page graph targets such as API schemas, examples, auth schemes, environments, releases, source files, tags, responses, and operation ids |
 | `namespaces[]` | Mount metadata |
 
 ### Edge taxonomy
@@ -101,6 +101,10 @@ Front matter can add semantic edges with keys matching the edge names, for examp
 or `owner: docs-platform`. Existing links, tags, nav order, parents, and translations
 continue to map into the same graph automatically.
 
+Every source-backed catalog page also emits a `generated_from` edge to
+`source:<source_path>`. Explicit `generated_from` front matter can add additional
+provenance, such as an OpenAPI file, generated SDK source, or migration input.
+
 ### Graph node records
 
 `graph_nodes[]` is an additive inventory for typed graph targets that are not
@@ -117,9 +121,9 @@ without parsing edge target prefixes.
 }
 ```
 
-Supported API graph node kinds are `api_operation`, `api_tag`, `api_schema`,
-`api_request_body`, `api_response`, `api_example`, `api_auth`, and
-`api_environment`.
+Supported graph node kinds are `api_operation`, `api_tag`, `api_schema`,
+`api_request_body`, `api_response`, `api_example`, `api_auth`, `api_environment`,
+`release`, and `source_file`.
 
 ### Tier 2 — Content IR (recommended)
 

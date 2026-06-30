@@ -250,7 +250,9 @@
             "api_request_body",
             "api_response",
             "api_schema",
-            "api_tag"
+            "api_tag",
+            "release",
+            "source_file"
           ]
         },
         "label": { "type": "string" },
