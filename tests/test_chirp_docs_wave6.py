@@ -21,6 +21,7 @@ from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.export import catalog_graph, search_json, tools_manifest
 from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
 from furatena.catalog.mcp import FuraMCPServer
+from furatena.catalog.models import DocNode
 from furatena.catalog.search import search_nodes
 from furatena.catalog.semantic import retrieve_node
 from furatena.catalog.seo import canonical_url, json_ld_article
@@ -47,6 +48,50 @@ class TestSearchJson:
         assert "title" in entry
         assert "snippet" in entry
         assert "section" in entry
+
+
+class TestSearchRanking:
+    def test_search_scores_url_tags_and_keywords_for_agent_retrieval(self) -> None:
+        install = DocNode(
+            url="/docs/get-started/installation/",
+            slug="docs/get-started/installation",
+            title="Installation",
+            description="Install Furatena and development dependencies.",
+            layout="doc",
+            weight=10,
+            section="docs",
+            tags=frozenset({"installation", "setup"}),
+            body_md="Run uv sync before serving the docs.",
+            body_html="",
+            toc=(),
+            source_path="content/furatena/docs/get-started/installation.md",
+            meta={"keywords": ["install", "uv", "pip", "fura"]},
+            mount="furatena",
+        )
+        api = DocNode(
+            url="/api/furatena/catalog/config/",
+            slug="api/furatena/catalog/config",
+            title="Catalog Config",
+            description="Furatena catalog configuration API.",
+            layout="doc",
+            weight=1,
+            section="api",
+            tags=frozenset({"api"}),
+            body_md="Configure dependencies and Furatena internals.",
+            body_html="",
+            toc=(),
+            source_path="src/furatena/catalog/config.py",
+            meta={"source": "autodoc"},
+            mount="furatena",
+        )
+
+        hits = search_nodes(
+            [api, install],
+            "Installation Install Furatena and development dependencies /docs/get-started/installation/",
+        )
+
+        assert hits
+        assert hits[0].node.node_id == install.node_id
 
 
 class TestToolsManifest:
