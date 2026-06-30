@@ -161,6 +161,23 @@ def test_check_reports_stale_public_output_and_deploy_fails(tmp_path: Path, caps
     assert deploy_stale[0]["severity"] == "error"
     assert "fura freeze" in deploy_stale[0]["next_action"]
 
+    main(["--app-root", str(app_root), "impact", "--slug", "docs/get-started", "--json"])
+    impact_payload = json.loads(capsys.readouterr().out)
+    impact = impact_payload["data"]["impact"][0]
+    repair_task = impact_payload["data"]["repair_tasks"][0]
+
+    assert impact_payload["ok"] is True
+    assert impact_payload["command"] == "impact"
+    assert impact_payload["data"]["stale_count"] == 1
+    assert impact["mode"] == "frozen-output"
+    assert impact["slug"] == "docs/get-started"
+    assert "export" in impact["refresh_targets"]
+    assert impact["affected_chunks"]
+    assert impact["graph_context"]["node_id"] == impact["provenance"]["node_id"]
+    assert repair_task["source_paths"] == ["docs/get-started.md"]
+    assert repair_task["dcp_node_id"] == impact["provenance"]["node_id"]
+    assert "Refresh stale docs output" in impact_payload["data"]["task_markdown"]
+
 
 def test_check_json_validates_bundled_dcp_fixtures(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
@@ -2072,6 +2089,14 @@ def test_mcp_stale_impact_groups_by_provenance(tmp_path: Path) -> None:
     assert payload["groups"]["by_site"][0]["key"] == "docs"
     assert payload["groups"]["by_channel"][0]["key"] == "latest"
     assert payload["groups"]["by_output_channel"] == payload["groups"]["by_channel"]
+    assert impact["affected_chunks"]
+    assert impact["graph_context"]["node_id"] == impact["provenance"]["node_id"]
+    assert "changed_graph_edges" in impact
+    assert impact["recommended_remediation"]
+    assert payload["repair_tasks"][0]["owner"] == "docs-platform"
+    assert payload["repair_tasks"][0]["source_paths"] == ["docs/get-started.md"]
+    assert payload["repair_tasks"][0]["dcp_node_id"] == impact["provenance"]["node_id"]
+    assert "Refresh stale docs output" in payload["task_markdown"]
 
 
 def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_path: Path) -> None:

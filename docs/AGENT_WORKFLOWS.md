@@ -73,7 +73,7 @@ MCP tools return both text content and `structuredContent` payloads:
 - `traverse_graph` — backlinks, child pages, outbound links, and neighboring pages.
 - `inspect_source_health` — mount roots, tracked extensions, page counts, and channels.
 - `run_checks` — structured validation errors and warnings.
-- `explain_stale_impact` — stale entries, refresh targets, and owner/source/mount/tenant/site/output-channel groupings for author workflows.
+- `explain_stale_impact` — stale entries, affected chunks, graph context, refresh targets, repair tasks, and owner/source/mount/tenant/site/output-channel groupings for author workflows.
 - `author_create_draft` — create a draft source file; dry-run by default.
 - `author_read_source` — read source only from an include-private author MCP session.
 - `author_propose_edit` — preview an exact-text source edit without writing files.
@@ -81,6 +81,8 @@ MCP tools return both text content and `structuredContent` payloads:
 - `author_validate` — run validation, optionally scoped to one author target.
 - `author_publish` / `author_unpublish` / `author_archive` — change lifecycle state; dry-run by default.
 - `author_inspect_publication_impact` — return lifecycle status, validation, and stale impact before a publication change.
+
+CI and local automation can use `fura impact --json` for the same stale-impact contract without opening MCP. The report includes affected chunks, graph context, changed graph edges touching each DCP node, provenance, output channels, recommended remediation, and GitHub-issue-ready repair task markdown.
 
 Authoring MCP tools require `fura mcp --author --include-private`. Mutating tools default to dry-run behavior and return `isError: true` if a write is requested without `confirmed: true`.
 
