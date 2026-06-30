@@ -3497,7 +3497,7 @@
 
   .fura-author-chrome__heading {
     display: grid;
-    gap: 0.1rem;
+    gap: 0.14rem;
     min-width: 0;
   }
 
@@ -3516,6 +3516,19 @@
     color: var(--color-text-primary);
     font-size: 0.94rem;
     line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fura-author-chrome__pathline {
+    overflow: hidden;
+    max-inline-size: min(100%, 38rem);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
   }

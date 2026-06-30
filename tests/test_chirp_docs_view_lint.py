@@ -255,6 +255,59 @@ class TestAuthorStaleRoute:
             "docs-sidebar",
         ]
 
+    def test_author_sse_stream_emits_after_source_edit_and_htmx_reload_clears_hints(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        import asyncio
+        import os
+        import time
+
+        docs, page = self._write_author_app(tmp_path)
+        docs.catalog._watcher = None
+        docs.catalog._shards["chirp"]._watcher = None
+        client = TestClient(docs.create_app())
+
+        async def _exercise() -> tuple[dict[str, object], str]:
+            warm_response = await client.get("/docs/page/")
+            assert warm_response.status == 200
+            stream = asyncio.create_task(
+                client.sse("/docs/_author/events?slug=docs/page", max_events=1, timeout=5.0)
+            )
+            await asyncio.sleep(0.35)
+            page.write_text(
+                "---\ntitle: Page\n---\n# Page\n\nUpdated through SSE.\n",
+                encoding="utf-8",
+            )
+            future = time.time() + 5
+            os.utime(page, (future, future))
+
+            result = await stream
+            assert result.status == 200
+            assert result.events
+            event = result.events[0]
+            assert event.event == "author-invalidate"
+            payload = json.loads(event.data)
+
+            reload_response = await client.get(
+                "/docs/page/",
+                headers={"HX-Request": "true", "HX-Docs-Author-Reload": "1"},
+            )
+            return payload, reload_response.text
+
+        payload, reload_html = asyncio.run(_exercise())
+
+        assert payload["current"]["slug"] == "docs/page"
+        assert payload["current"]["dirty"] is True
+        assert payload["current"]["reload"] is (
+            not is_partial_reload(tuple(payload["current"]["target_hints"]))
+        )
+        assert "page-root" in payload["current"]["target_hints"]
+        assert payload["current"]["dirty_paths"] == ["docs/page.md"]
+        assert "Updated through SSE." in reload_html
+        assert docs.catalog.invalidation_hints("docs/page") == ()
+        assert docs.catalog.author_stale_entries("docs/page") == []
+
     def test_author_page_wires_htmx_sse_before_polling_fallback(self, tmp_path: Path) -> None:
         import asyncio
 
@@ -319,6 +372,7 @@ class TestAuthorStaleRoute:
         assert "Author controls" in response.text
         assert "Local only" in response.text
         assert "fura-author-chrome__meta-icon" in response.text
+        assert "fura-author-chrome__pathline" in response.text
         assert 'data-fura-author-output="included"' in response.text
         assert 'data-author-validation="clean"' in response.text
         assert 'data-author-output="included"' in response.text
@@ -339,6 +393,7 @@ class TestAuthorStaleRoute:
         assert ".fura-author-chrome__metadata" in css
         assert ".fura-author-chrome__action-group--primary" in css
         assert ".fura-author-chrome__meta-icon" in css
+        assert ".fura-author-chrome__pathline" in css
         assert '.fura-author-chrome[data-fura-author-output="excluded"]::before' in css
         assert '.fura-author-chrome__meta-value[data-author-validation="clean"]' in css
         assert '.fura-author-chrome__meta-value[data-author-output="excluded"]' in css
