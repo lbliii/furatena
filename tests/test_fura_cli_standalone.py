@@ -1730,6 +1730,94 @@ def test_mcp_json_rpc_tools_return_structured_content(tmp_path: Path) -> None:
     ]
 
 
+def test_mcp_agent_contract_covers_required_resources_tools_and_schemas(tmp_path: Path) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    docs_dir = app_root / "content" / "docs"
+    (docs_dir / "contract-source.md").write_text(
+        "---\n"
+        "title: Contract Source\n"
+        "tags: [contract]\n"
+        "owner: docs-platform\n"
+        "api_schemas: [Invoice]\n"
+        "---\n"
+        "# Contract Source\n\n"
+        "[Get started](/docs/get-started/)\n",
+        encoding="utf-8",
+    )
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+    )
+    server = FuraMCPServer(docs)
+    required_resources = {
+        "fura://catalog/nodes": ("count", "nodes"),
+        "fura://catalog/graph": ("pages", "edges"),
+        "fura://catalog/api-operations": ("count", "operations"),
+        "fura://catalog/sources": ("mount_count", "mounts"),
+        "fura://catalog/channels": ("active_channel", "mounts"),
+        "fura://reports/validation": ("ok", "errors", "warnings"),
+        "fura://reports/stale-impact": ("stale_count", "entries"),
+    }
+    resource_uris = {resource["uri"] for resource in server.list_resources()}
+
+    assert set(required_resources) <= resource_uris
+    for uri, keys in required_resources.items():
+        payload = json.loads(server.read_resource(uri)["text"])
+        assert isinstance(payload["schema_version"], int)
+        assert payload["schema_version"] >= 1
+        for key in keys:
+            assert key in payload
+
+    tools = {tool["name"]: tool for tool in server.list_tools()}
+    contract_node = docs.catalog.get_by_slug("docs/contract-source")
+    assert contract_node is not None
+    required_tools = {
+        "semantic_search": {"query": "contract", "limit": 5},
+        "retrieve_node": {"node_id": contract_node.node_id},
+        "query_graph": {"owner": "docs-platform", "edge_kind": "api_schema", "target": "schema:Invoice"},
+        "traverse_graph": {"url": "/docs/contract-source/"},
+        "inspect_source_health": {},
+        "run_checks": {},
+        "explain_stale_impact": {},
+    }
+    structured_by_tool = {}
+
+    assert set(required_tools) <= set(tools)
+    for name, arguments in required_tools.items():
+        tool = tools[name]
+        assert tool["inputSchema"]["type"] == "object"
+        assert tool["outputSchema"]["type"] == "object"
+        assert tool["outputSchema"]["required"]
+
+        response = server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": name,
+                "method": "tools/call",
+                "params": {"name": name, "arguments": arguments},
+            }
+        )
+        result = response["result"]
+        assert result["isError"] is False
+        assert isinstance(result["structuredContent"], dict)
+        assert json.loads(result["content"][0]["text"]) == result["structuredContent"]
+        structured_by_tool[name] = result["structuredContent"]
+
+    assert structured_by_tool["query_graph"]["graph_nodes"] == [
+        {
+            "id": "schema:Invoice",
+            "kind": "api_schema",
+            "label": "Invoice",
+            "mount": "docs",
+            "edition": "latest",
+        }
+    ]
+
+
 def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path) -> None:
     from milo.testing import MCPClient
 
