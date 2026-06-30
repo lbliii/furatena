@@ -12,6 +12,7 @@ from urllib.parse import quote, unquote
 
 from furatena.catalog.check import check_catalog
 from furatena.catalog.export import catalog_graph
+from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
 from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.query import query_catalog_graph
@@ -327,14 +328,14 @@ class FuraMCPServer:
             },
             {
                 "name": "explain_stale_impact",
-                "description": "Explain author-mode stale entries and impacted refresh targets.",
+                "description": "Explain stale entries, impacted graph/search/export surfaces, and repair tasks.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "slug": _string_schema("Optional slug used to scope stale-impact entries."),
                     },
                 },
-                "outputSchema": _object_schema("stale_count", "entries"),
+                "outputSchema": _object_schema("stale_count", "entries", "impact", "repair_tasks", "task_markdown"),
             },
             {
                 "name": "author_create_draft",
@@ -562,62 +563,11 @@ class FuraMCPServer:
         }
 
     def stale_impact_report(self, *, slug: Any | None = None) -> dict[str, Any]:
-        normalized = str(slug).strip("/") if slug else None
-        entries = self.catalog.author_stale_entries(normalized)
-        impact = [self._stale_impact_entry(entry) for entry in entries]
-        output_channel_groups = _group_impact(impact, "output_channel")
-        return {
-            "schema_version": 1,
-            "stale_count": len(entries),
-            "entries": entries,
-            "impact": impact,
-            "groups": {
-                "by_owner": _group_impact(impact, "owner"),
-                "by_source": _group_impact(impact, "source_key"),
-                "by_mount": _group_impact(impact, "mount"),
-                "by_tenant": _group_impact(impact, "tenant"),
-                "by_site": _group_impact(impact, "site"),
-                "by_channel": output_channel_groups,
-                "by_output_channel": output_channel_groups,
-            },
-        }
-
-    def _stale_impact_entry(self, entry: dict[str, object]) -> dict[str, Any]:
-        slug = str(entry.get("slug") or "")
-        mount = str(entry.get("mount") or "")
-        node = self.catalog.get_by_slug(slug, mount=mount) if slug and mount else None
-        meta = getattr(node, "meta", {}) if node is not None else {}
-        owner = _first_meta_value(meta, "owner", "team") or "unassigned"
-        provider = _first_meta_value(meta, "source_provider", "provider") or "filesystem"
-        repo = _first_meta_value(meta, "source_repo", "repo", "repository")
-        ref = _first_meta_value(meta, "source_ref", "ref", "commit", "branch")
-        path = getattr(node, "source_path", None) if node is not None else None
-        source_key = _source_group_key(provider=provider, repo=repo, ref=ref, path=path)
-        output_channel = str(getattr(self.catalog, "active_channel", "") or getattr(node, "edition", "") or "default")
-        tenant = _first_meta_value(meta, "tenant") or "default"
-        site = _first_meta_value(meta, "site") or "default"
-        return {
-            "slug": slug,
-            "mount": mount,
-            "refresh_targets": list(entry.get("hints") or ()),
-            "owner": owner,
-            "source_key": source_key,
-            "tenant": tenant,
-            "site": site,
-            "output_channel": output_channel,
-            "provenance": {
-                "provider": provider,
-                "repo": repo,
-                "ref": ref,
-                "path": path,
-                "mount": mount,
-                "edition": getattr(node, "edition", None) if node is not None else None,
-                "owner": owner,
-                "tenant": tenant,
-                "site": site,
-                "output_channel": output_channel,
-            },
-        }
+        return stale_impact_report(
+            self.catalog,
+            slug=slug,
+            include_private=self.include_private,
+        )
 
     def audit_report(self) -> dict[str, Any]:
         return {
