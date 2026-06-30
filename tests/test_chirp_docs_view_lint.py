@@ -403,9 +403,11 @@ class TestAuthorStaleRoute:
         assert '.fura-author-chrome[data-fura-author-output="excluded"]::before' in css
         assert '.fura-author-chrome__meta-value[data-author-validation="clean"]' in css
         assert '.fura-author-chrome__meta-value[data-author-output="excluded"]' in css
-        assert "grid-template-columns: minmax(15rem, 0.88fr) minmax(20rem, 1.12fr);" in css
+        assert "grid-template-columns: minmax(15rem, 0.95fr) minmax(20rem, 1.05fr);" in css
         assert "grid-template-columns: minmax(0, 1fr);" in css
         assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in css
+        assert ".fura-author-chrome__meta--details .fura-author-chrome__meta-item" in css
+        assert "grid-template-columns: auto minmax(0, 1fr);" in css
         assert "@media (max-width: 760px)" in css
         assert ".fura-author-chrome__body {\n      grid-template-columns: 1fr;" in css
         assert "@media (max-width: 480px)" in css

@@ -17,16 +17,16 @@
       <strong>{{ author_chrome.title }}</strong>
       <code class="fura-author-chrome__pathline" title="{{ author_chrome.source_path }}">{{ author_chrome.source_path }}</code>
     </div>
+    <div class="fura-author-chrome__surface" data-author-surface="local">
+      <span class="fura-author-chrome__status-label">Local only</span>
+      <span class="fura-author-chrome__surface-label">Not exported</span>
+    </div>
     <div class="fura-author-chrome__status">
       <div class="fura-author-chrome__states" aria-label="Author status indicators">
         {% for state in author_chrome.states %}
         <span class="fura-author-chrome__state" data-author-state="{{ state }}">{{ state }}</span>
         {% end %}
       </div>
-    </div>
-    <div class="fura-author-chrome__surface" data-author-surface="local">
-      <span class="fura-author-chrome__status-label">Local only</span>
-      <span class="fura-author-chrome__surface-label">Not exported</span>
     </div>
   </div>
 

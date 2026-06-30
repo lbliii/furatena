@@ -2039,6 +2039,7 @@ def test_mcp_stale_impact_groups_by_provenance(tmp_path: Path) -> None:
     assert payload["groups"]["by_tenant"][0]["key"] == "default"
     assert payload["groups"]["by_site"][0]["key"] == "docs"
     assert payload["groups"]["by_channel"][0]["key"] == "latest"
+    assert payload["groups"]["by_output_channel"] == payload["groups"]["by_channel"]
 
 
 def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_path: Path) -> None:

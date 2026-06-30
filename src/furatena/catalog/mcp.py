@@ -565,6 +565,7 @@ class FuraMCPServer:
         normalized = str(slug).strip("/") if slug else None
         entries = self.catalog.author_stale_entries(normalized)
         impact = [self._stale_impact_entry(entry) for entry in entries]
+        output_channel_groups = _group_impact(impact, "output_channel")
         return {
             "schema_version": 1,
             "stale_count": len(entries),
@@ -576,7 +577,8 @@ class FuraMCPServer:
                 "by_mount": _group_impact(impact, "mount"),
                 "by_tenant": _group_impact(impact, "tenant"),
                 "by_site": _group_impact(impact, "site"),
-                "by_channel": _group_impact(impact, "output_channel"),
+                "by_channel": output_channel_groups,
+                "by_output_channel": output_channel_groups,
             },
         }
 
