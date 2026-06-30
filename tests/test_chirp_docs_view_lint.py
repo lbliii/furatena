@@ -108,7 +108,7 @@ class TestAuthorInvalidationRegistry:
         assert registry.invalidation_hints("docs/page") == ()
         assert registry.author_stale_entries("docs/page") == []
 
-    def test_single_page_full_reload_preserves_author_hint(self, tmp_path: Path) -> None:
+    def test_single_page_source_edit_uses_selective_author_hints(self, tmp_path: Path) -> None:
         import os
         import time
 
@@ -140,12 +140,7 @@ class TestAuthorInvalidationRegistry:
         os.utime(page, (now, now))
 
         assert registry.refresh_if_stale() is True
-        assert registry.invalidation_hints("docs/page") == (
-            "page-root",
-            "toc-panel",
-            "head-meta",
-            "docs-sidebar",
-        )
+        assert registry.invalidation_hints("docs/page") == ("head-meta", "toc-panel", "page-root")
 
 
 class TestAuthorStaleRoute:
@@ -326,8 +321,9 @@ class TestAuthorStaleRoute:
         assert "if (!startSseReload())" in response.text
         assert "window.__furaDocsAuthorReloadState" in response.text
         assert "if (window.__furaDocsAuthorReload) return;" not in response.text
-        assert 'marker.dataset.furaAuthorSseBound !== "1"' in response.text
-        assert 'marker.addEventListener("htmx:sseMessage"' in response.text
+        assert 'target.dataset.furaAuthorSseBound === "1"' in response.text
+        assert 'target.addEventListener("htmx:sseMessage"' in response.text
+        assert 'marker.querySelectorAll("[sse-swap], [data-sse-swap]")' in response.text
         assert "state.eventSourceSlug === slug" in response.text
         assert 'new EventSource("/docs/_author/events?slug="' in response.text
         assert 'source.addEventListener("author-invalidate"' in response.text
@@ -341,13 +337,16 @@ class TestAuthorStaleRoute:
         assert "target.setSelectionRange(snapshot.focus.start, snapshot.focus.end);" in response.text
         assert "window.scrollTo(snapshot.scrollX, snapshot.scrollY);" in response.text
         assert "function requestHardReload" in response.text
+        assert "function applyAuthorReloadHtml" in response.text
+        assert "root.innerHTML = html;" in response.text
+        assert 'replaceFragmentById(template.content, "page-root")' in response.text
         assert "window.__furaAuthorLastReloadKind" in response.text
         assert "window.__furaAuthorLastReloadHints" in response.text
         assert "var forceFullReload = Boolean(payload.current.reload);" in response.text
         assert "reloadCurrentPage(forceFullReload);" in response.text
         assert "if (forceFullReload) requestHardReload();" in response.text
         assert '"HX-Docs-Author-Reload": "1"' in response.text
-        assert 'swap: "none"' in response.text
+        assert '"Accept": "text/html"' in response.text
         assert "window.__furaAuthorReloadMode = \"poll\"" in response.text
         assert "function setupPageActionCopies" in response.text
         assert 'target.closest("[data-action]")' in response.text

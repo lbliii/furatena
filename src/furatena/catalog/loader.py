@@ -207,7 +207,8 @@ class DocCatalog:
         source_files = self._iter_source_files()
         if not self._raw_pages:
             self._scan_sources()
-        if len(dirty_paths) > len(source_files) // 2:
+        full_reload_threshold = max(1, len(source_files) // 2)
+        if len(dirty_paths) > full_reload_threshold:
             dirty_slugs = self._slugs_for_paths(dirty_paths)
             self._load()
             for slug in dirty_slugs:

@@ -335,9 +335,35 @@
       }
     }
 
+    function replaceFragmentById(fragment, id) {
+      var next = fragment.querySelector("#" + id);
+      var current = document.getElementById(id);
+      if (!next || !current) return null;
+      current.replaceWith(next);
+      return next;
+    }
+
+    function applyAuthorReloadHtml(html, forceFullReload) {
+      if (forceFullReload || !html) return;
+      var template = document.createElement("template");
+      template.innerHTML = html;
+      var root = replaceFragmentById(template.content, "page-root");
+      if (!root) {
+        root = document.getElementById("page-root");
+        if (root) {
+          root.innerHTML = html;
+        }
+      }
+      replaceFragmentById(template.content, "toc-panel");
+      replaceFragmentById(template.content, "docs-sidebar");
+      if (root && window.htmx && typeof htmx.process === "function") {
+        htmx.process(root);
+      }
+    }
+
     function reloadCurrentPage(forceFullReload) {
       if (state.reloading) return;
-      if (!window.htmx || typeof htmx.ajax !== "function") {
+      if (!window.fetch) {
         if (forceFullReload) requestHardReload();
         return;
       }
@@ -347,19 +373,38 @@
         scrollX: window.scrollX,
         scrollY: window.scrollY,
       };
-      htmx.ajax("GET", window.location.pathname + window.location.search, {
-        source: document.body,
-        target: document.body,
-        swap: "none",
+      var finished = false;
+      function finishReload() {
+        if (finished) return;
+        finished = true;
+        state.reloading = false;
+        window.setTimeout(function () {
+          restoreViewport(snapshot);
+          if (forceFullReload) requestHardReload();
+        }, 0);
+      }
+      fetch(window.location.pathname + window.location.search, {
         headers: {
+          "Accept": "text/html",
           "HX-Request": "true",
           "HX-Docs-Author-Reload": "1",
         },
-      }).finally(function () {
-        state.reloading = false;
-        restoreViewport(snapshot);
-        if (forceFullReload) requestHardReload();
-      });
+      })
+        .then(function (response) {
+          window.__furaAuthorLastReloadStatus = response.status;
+          return response.text();
+        })
+        .then(function (html) {
+          window.__furaAuthorLastReloadHtmlLength = html.length;
+          window.__furaAuthorLastReloadHadPageRoot = html.indexOf("id=\"page-root\"") >= 0;
+          window.__furaAuthorLastReloadHtmlSample = html.slice(0, 300);
+          return html;
+        })
+        .then(function (html) { applyAuthorReloadHtml(html, forceFullReload); })
+        .catch(function () {
+          if (forceFullReload) requestHardReload();
+        })
+        .finally(finishReload);
     }
 
     function applyAuthorInvalidation(payload) {
@@ -398,19 +443,28 @@
 
     function startSseReload() {
       var marker = authorMarker();
+      var htmxSseReady = false;
       if (marker && window.htmx) {
-        if (marker.dataset.furaAuthorSseBound !== "1") {
-          marker.dataset.furaAuthorSseBound = "1";
-          marker.addEventListener("htmx:sseMessage", function (event) {
+        function bindHtmxSseMessage(target) {
+          if (!target || target.dataset.furaAuthorSseBound === "1") return;
+          target.dataset.furaAuthorSseBound = "1";
+          target.addEventListener("htmx:sseMessage", function (event) {
             applyAuthorInvalidation(payloadFromSseEvent(event));
           });
         }
-        stopPollingFallback();
-        window.__furaAuthorReloadMode = "sse";
-        return true;
+        bindHtmxSseMessage(marker);
+        marker.querySelectorAll("[sse-swap], [data-sse-swap]").forEach(bindHtmxSseMessage);
+        htmxSseReady = true;
       }
       var slug = currentSlug();
-      if (!slug || !window.EventSource) return false;
+      if (!slug || !window.EventSource) {
+        if (htmxSseReady) {
+          stopPollingFallback();
+          window.__furaAuthorReloadMode = "sse";
+          return true;
+        }
+        return false;
+      }
       if (
         state.eventSource &&
         state.eventSourceSlug === slug &&
