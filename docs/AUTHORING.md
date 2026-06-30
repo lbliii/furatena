@@ -39,8 +39,11 @@ Pages with no lifecycle fields remain public by legacy default. To opt into life
 
 - Lifecycle-managed public pages omit `published_at`.
 - `owner` is present but empty.
+- A public source page has no frozen HTML page or changed after its frozen page was written.
 
 These checks run before static export and before agent workflows rely on catalog sidecars, so draft/private content remains blocked from public publishing by default.
+
+`fura check --deploy` treats stale public output as an error. Refresh the public output with `fura freeze` or `fura export --fresh` before deploying.
 
 `fura export` fails when lifecycle errors are present. Use `--allow-lifecycle-errors` only for local debugging or intentionally unsafe previews; publishing workflows should not set it.
 

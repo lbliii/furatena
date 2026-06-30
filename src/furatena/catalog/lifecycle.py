@@ -44,6 +44,59 @@ def check_lifecycle_sources(catalog: Any) -> tuple[list[str], list[str]]:
     return sorted(errors), sorted(warnings)
 
 
+def check_stale_public_outputs(catalog: Any, frozen_dir: Path) -> list[str]:
+    """Report public source pages whose frozen output is missing or older."""
+    if not (frozen_dir / "catalog.json").is_file():
+        return []
+    mounts = getattr(catalog, "mounts", None)
+    if not mounts:
+        return []
+
+    from furatena.catalog.sources.parse import parse_source_text
+    from furatena.catalog.sources.scanner import file_to_url
+
+    warnings: list[str] = []
+    for mount in mounts:
+        content_root = mount.content_root
+        if not content_root.is_dir():
+            continue
+        files: set[Path] = set()
+        for ext in mount.source.tracked_extensions():
+            files.update(path.resolve() for path in content_root.rglob(f"*{ext}"))
+        for path in sorted(files, key=lambda item: str(item)):
+            source_path = path.relative_to(content_root).as_posix()
+            try:
+                source = path.read_text(encoding="utf-8")
+                meta, _body = parse_source_text(
+                    source,
+                    content_format=mount.source.content_format_for(path),
+                )
+            except Exception:
+                continue
+            if not is_public_meta(meta):
+                continue
+            _url, slug = file_to_url(
+                content_root,
+                path,
+                url_prefix=mount.url_prefix,
+                index_files=mount.source.index_files,
+            )
+            frozen_page = frozen_dir / "mounts" / mount.id / "pages" / f"{slug or 'index'}.html"
+            if not frozen_page.is_file():
+                warnings.append(f"{source_path}: public output is stale; frozen page is missing")
+                continue
+            try:
+                source_mtime = path.stat().st_mtime
+                frozen_mtime = frozen_page.stat().st_mtime
+            except OSError:
+                continue
+            if source_mtime > frozen_mtime + 1.0:
+                warnings.append(
+                    f"{source_path}: public output is stale; source changed after frozen page"
+                )
+    return sorted(warnings)
+
+
 def visibility_state(meta: dict[str, Any]) -> str:
     """Return normalized lifecycle visibility for front matter."""
     return _visibility(meta)

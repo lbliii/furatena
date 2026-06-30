@@ -434,6 +434,7 @@ def _run_docs_content_check(
 ) -> tuple[list[str], list[str]]:
     from furatena.catalog.check import check_catalog
     from furatena.catalog.config import load_docs_config
+    from furatena.catalog.lifecycle import check_stale_public_outputs
     from furatena.catalog.registry import CatalogRegistry
     from furatena.catalog.theme import DocsTheme
     from furatena.catalog.views import ViewRegistry
@@ -463,7 +464,31 @@ def _run_docs_content_check(
         strict_edition_links=strict_edition_links,
         inventory_store=registry.inventory_store,
     )
+    stale_public_outputs = check_stale_public_outputs(registry, app_root / "frozen")
+    if stale_public_outputs and getattr(args, "deploy", False):
+        errors.extend(stale_public_outputs)
+    else:
+        warnings.extend(stale_public_outputs)
     return errors, warnings
+
+
+def _content_rule_id(message: str, *, dcp_errors: list[str]) -> str:
+    if message in dcp_errors:
+        return "fura.dcp"
+    lifecycle_markers = (
+        "visibility must be one of",
+        "draft pages cannot",
+        "pages cannot set published_at",
+        "archived pages cannot",
+        "public page links to draft/private target",
+        "public lifecycle pages should set published_at",
+        "public output is stale",
+        "owner must not be empty",
+        "reviewers must be",
+    )
+    if any(marker in message for marker in lifecycle_markers):
+        return "fura.lifecycle"
+    return "fura.content"
 
 
 def _run_chirp_app_check(args: argparse.Namespace) -> None:
@@ -593,10 +618,12 @@ def _run_check(args: argparse.Namespace) -> None:
             diagnostic_from_message(
                 message,
                 severity="error",
-                rule_id="fura.dcp" if message in dcp_errors else "fura.content",
+                rule_id=_content_rule_id(message, dcp_errors=dcp_errors),
                 next_action=(
                     "Update the sample export or schema version and rerun fura check."
                     if message in dcp_errors
+                    else "Refresh frozen public output with fura freeze or fura export --fresh."
+                    if "public output is stale" in message
                     else "Fix the content validation error and rerun fura check."
                 ),
             )
@@ -606,8 +633,12 @@ def _run_check(args: argparse.Namespace) -> None:
             diagnostic_from_message(
                 message,
                 severity="warning",
-                rule_id="fura.content",
-                next_action="Review the warning or run without --warnings-as-errors.",
+                rule_id=_content_rule_id(message, dcp_errors=dcp_errors),
+                next_action=(
+                    "Refresh frozen public output with fura freeze or fura export --fresh."
+                    if "public output is stale" in message
+                    else "Review the warning or run without --warnings-as-errors."
+                ),
             )
             for message in warnings
         )

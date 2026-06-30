@@ -112,6 +112,56 @@ def test_check_json_emits_standard_result(tmp_path: Path, capsys) -> None:
     assert payload["data"]["content_only"] is True
 
 
+def test_check_reports_stale_public_output_and_deploy_fails(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+    target = app_root / "content" / "docs" / "get-started.md"
+    target.write_text(
+        target.read_text(encoding="utf-8") + "\n\nFresh public edit.\n",
+        encoding="utf-8",
+    )
+    future = time.time() + 5
+    os.utime(target, (future, future))
+
+    main(["--app-root", str(app_root), "check", "--content-only", "--json"])
+    local_payload = json.loads(capsys.readouterr().out)
+    stale_diagnostics = [
+        diagnostic
+        for diagnostic in local_payload["diagnostics"]
+        if diagnostic["rule_id"] == "fura.lifecycle"
+        and "public output is stale" in diagnostic["message"]
+    ]
+
+    assert local_payload["ok"] is True
+    assert stale_diagnostics
+    assert stale_diagnostics[0]["severity"] == "warning"
+    assert stale_diagnostics[0]["source_path"] == "docs/get-started.md"
+
+    try:
+        main(["--app-root", str(app_root), "check", "--content-only", "--deploy", "--json"])
+    except SystemExit as exc:
+        assert exc.code == 2
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("deploy check should fail on stale public output")
+    deploy_payload = json.loads(capsys.readouterr().out)
+    deploy_stale = [
+        diagnostic
+        for diagnostic in deploy_payload["diagnostics"]
+        if diagnostic["rule_id"] == "fura.lifecycle"
+        and "public output is stale" in diagnostic["message"]
+    ]
+
+    assert deploy_payload["ok"] is False
+    assert deploy_stale
+    assert deploy_stale[0]["severity"] == "error"
+    assert "fura freeze" in deploy_stale[0]["next_action"]
+
+
 def test_check_json_validates_bundled_dcp_fixtures(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 
