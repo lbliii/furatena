@@ -411,3 +411,27 @@ class TestDevServerLifecycle:
             if proc.poll() is None:
                 proc.kill()
                 proc.wait(timeout=5)
+
+    def test_stop_dev_server_preserves_recorded_pid_for_other_port(self, tmp_path: Path) -> None:
+        import subprocess
+
+        proc = subprocess.Popen(["sleep", "30"])
+        try:
+            pid_path = dev_server_pid_path(tmp_path)
+            write_dev_server_record(
+                pid_path,
+                pid=proc.pid,
+                host="127.0.0.1",
+                port=59998,
+            )
+            assert stop_dev_server(tmp_path, host="127.0.0.1", port=59999) is False
+            assert proc.poll() is None
+            assert read_dev_server_record(pid_path) == DevServerRecord(
+                pid=proc.pid,
+                host="127.0.0.1",
+                port=59998,
+            )
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait(timeout=5)
