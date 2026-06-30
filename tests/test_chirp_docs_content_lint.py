@@ -139,3 +139,51 @@ class TestCheckIntegration:
         errors, warnings = check_catalog(catalog, views=views)
         assert any("broken internal link" in error for error in errors)
         assert isinstance(warnings, list)
+
+    def test_lifecycle_checks_include_skipped_draft_sources(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        docs = content / "docs"
+        docs.mkdir(parents=True)
+        public = docs / "public.md"
+        public.write_text(
+            "---\ntitle: Public\n---\n# Public\n\nSee [Secret](/docs/secret/).\n",
+            encoding="utf-8",
+        )
+        draft = docs / "secret.md"
+        draft.write_text(
+            "---\ntitle: Secret\ndraft: true\npublished_at: 2026-06-26\n---\n# Secret\n",
+            encoding="utf-8",
+        )
+
+        catalog = DocCatalog(content, autodoc=False, autodoc_config=None)
+        errors, _warnings = check_catalog(catalog)
+
+        assert any("draft pages cannot set published_at" in error for error in errors)
+        assert any("public page links to draft/private target" in error for error in errors)
+
+    def test_lifecycle_reports_malformed_frontmatter(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        docs = content / "docs"
+        docs.mkdir(parents=True)
+        broken = docs / "broken.md"
+        broken.write_text("---\ntitle: [broken\n---\n# Broken\n", encoding="utf-8")
+
+        catalog = DocCatalog(content, autodoc=False, autodoc_config=None)
+        errors, _warnings = check_catalog(catalog)
+
+        assert any("broken.md: source frontmatter could not be parsed" in error for error in errors)
+
+    def test_lifecycle_public_state_warns_without_publish_metadata(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        docs = content / "docs"
+        docs.mkdir(parents=True)
+        page = docs / "public.md"
+        page.write_text(
+            "---\ntitle: Public\nvisibility: public\n---\n# Public\n",
+            encoding="utf-8",
+        )
+
+        catalog = DocCatalog(content, autodoc=False, autodoc_config=None)
+        _errors, warnings = check_catalog(catalog)
+
+        assert any("public lifecycle pages should set published_at" in warning for warning in warnings)

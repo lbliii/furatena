@@ -56,7 +56,7 @@ def read_autodoc_fingerprint(frozen_dir: Path) -> str | None:
     return path.read_text(encoding="utf-8").strip() or None
 
 
-def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str = "chirp") -> list[DocNode]:
+def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str) -> list[DocNode]:
     """Load autodoc nodes from a frozen mount shard."""
     mount_dir = frozen_dir / "mounts" / mount
     graph_path = mount_dir / "catalog.json"
@@ -71,6 +71,33 @@ def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str = "chirp") -> list
         if page.get("source") != "autodoc":
             continue
         slug = str(page.get("slug") or "")
+        meta = {
+            "source": "autodoc",
+            "element_type": page.get("element_type"),
+            "qualified_name": page.get("qualified_name"),
+            "api_operation": page.get("api_operation"),
+            "source_provider": page.get("source_provider"),
+            "source_repo": page.get("source_repo"),
+            "source_ref": page.get("source_ref"),
+            "generated_from": page.get("generated_from"),
+        }
+        api_operation = page.get("api_operation")
+        if isinstance(api_operation, dict):
+            operation_id = api_operation.get("operation_id")
+            meta.update(
+                {
+                    "operation_id": operation_id,
+                    "api_tags": api_operation.get("tags") or [],
+                    "api_schemas": api_operation.get("schemas") or [],
+                    "api_request_bodies": api_operation.get("request_bodies") or [],
+                    "api_responses": api_operation.get("responses") or [],
+                    "api_examples": api_operation.get("examples") or [],
+                    "api_auth": api_operation.get("auth") or [],
+                    "api_environments": api_operation.get("environments") or [],
+                }
+            )
+            if operation_id:
+                meta["implements"] = f"api:{operation_id}"
         slug_path = slug or "index"
         html_rel = f"{slug_path}.html"
         html_path_ref = html_rel if (pages_dir / html_rel).is_file() else None
@@ -95,12 +122,14 @@ def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str = "chirp") -> list
                 body_html="",
                 toc=toc,
                 source_path=str(page.get("source_path") or ""),
-                meta={"source": "autodoc"},
-                mount=str(page.get("mount") or mount),
+                meta=meta,
+                mount=mount,
                 edition=str(page.get("edition") or "latest"),
                 section_root=bool(page.get("section_root")),
                 html_path=html_path_ref,
                 content_ir=content_ir,
+                content_format=str(page.get("content_format") or "patitas-markdown"),
+                body_text=str(page.get("body_text") or ""),
             )
         )
     return nodes

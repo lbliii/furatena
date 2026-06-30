@@ -257,15 +257,96 @@
     syncSearchControls();
   }
 
+  {% if fura_author_mode() %}
   function setupAuthorReload() {
-    if (!{{ 'true' if fura_author | default(false) else 'false' }}) return;
-    if (window.__furaDocsAuthorPoll) return;
-    window.__furaDocsAuthorPoll = true;
-    var reloading = false;
+    var state = window.__furaDocsAuthorReloadState || {
+      reloading: false,
+      pollTimer: null,
+      eventSource: null,
+      eventSourceSlug: "",
+    };
+    window.__furaDocsAuthorReloadState = state;
 
-    function reloadCurrentPage() {
-      if (reloading || !window.htmx || typeof htmx.ajax !== "function") return;
-      reloading = true;
+    function authorMarker() {
+      return document.getElementById("fura-author-sse");
+    }
+
+    function currentSlug() {
+      var marker = authorMarker();
+      var connect = marker && marker.getAttribute("sse-connect");
+      if (connect) {
+        try {
+          var url = new URL(connect, window.location.origin);
+          var markerSlug = url.searchParams.get("slug");
+          if (markerSlug) return markerSlug;
+        } catch (error) {}
+      }
+      return document.body.getAttribute("data-fura-slug") || "";
+    }
+
+    function focusSnapshot() {
+      var active = document.activeElement;
+      if (!active || active === document.body || !active.matches) return null;
+      var selector = active.id && window.CSS && CSS.escape ? "#" + CSS.escape(active.id) : null;
+      if (!selector && active.name && window.CSS && CSS.escape) {
+        selector = active.tagName.toLowerCase() + "[name=\"" + CSS.escape(active.name) + "\"]";
+      }
+      return {
+        selector: selector,
+        start: typeof active.selectionStart === "number" ? active.selectionStart : null,
+        end: typeof active.selectionEnd === "number" ? active.selectionEnd : null,
+      };
+    }
+
+    function restoreViewport(snapshot) {
+      if (!snapshot) return;
+      if (snapshot.focus && snapshot.focus.selector) {
+        var target = document.querySelector(snapshot.focus.selector);
+        if (target && typeof target.focus === "function") {
+          target.focus({ preventScroll: true });
+          if (snapshot.focus.start !== null && typeof target.setSelectionRange === "function") {
+            target.setSelectionRange(snapshot.focus.start, snapshot.focus.end);
+          }
+        }
+      }
+      window.scrollTo(snapshot.scrollX, snapshot.scrollY);
+    }
+
+    function payloadFromSseEvent(event) {
+      var detail = event && event.detail ? event.detail : event;
+      var raw = detail && typeof detail.data === "string" ? detail.data : "";
+      if (!raw && detail && detail.event && typeof detail.event.data === "string") {
+        raw = detail.event.data;
+      }
+      if (!raw && event && typeof event.data === "string") {
+        raw = event.data;
+      }
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function requestHardReload() {
+      if (window.location && typeof window.location.reload === "function") {
+        window.location.reload();
+      }
+    }
+
+    function reloadCurrentPage(forceFullReload) {
+      if (state.reloading) return;
+      if (!window.htmx || typeof htmx.ajax !== "function") {
+        if (forceFullReload) requestHardReload();
+        return;
+      }
+      state.reloading = true;
+      var snapshot = {
+        focus: focusSnapshot(),
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+      };
       htmx.ajax("GET", window.location.pathname + window.location.search, {
         source: document.body,
         target: document.body,
@@ -275,27 +356,112 @@
           "HX-Docs-Author-Reload": "1",
         },
       }).finally(function () {
-        reloading = false;
+        state.reloading = false;
+        restoreViewport(snapshot);
+        if (forceFullReload) requestHardReload();
       });
     }
 
+    function applyAuthorInvalidation(payload) {
+      window.__furaAuthorLastInvalidation = payload || null;
+      if (payload && payload.current && payload.current.dirty) {
+        window.__furaAuthorReloadCount = (window.__furaAuthorReloadCount || 0) + 1;
+        window.__furaAuthorLastReloadHints = payload.current.target_hints || payload.current.hints || [];
+        var forceFullReload = Boolean(payload.current.reload);
+        window.__furaAuthorLastReloadKind = forceFullReload ? "full" : "partial";
+        reloadCurrentPage(forceFullReload);
+      }
+    }
+
     function pollAuthorStale() {
-      var slug = document.body.getAttribute("data-fura-slug");
+      var slug = currentSlug();
       if (!slug) return;
       fetch("/docs/_author/stale?slug=" + encodeURIComponent(slug), {
         headers: { "Accept": "application/json" },
       })
         .then(function (response) { return response.json(); })
-        .then(function (payload) {
-          if (payload && payload.current && payload.current.dirty) {
-            reloadCurrentPage();
-          }
-        })
+        .then(applyAuthorInvalidation)
         .catch(function () {});
     }
 
-    window.setInterval(pollAuthorStale, 2000);
+    function startPollingFallback() {
+      if (state.pollTimer) return;
+      window.__furaAuthorReloadMode = "poll";
+      state.pollTimer = window.setInterval(pollAuthorStale, 2000);
+    }
+
+    function stopPollingFallback() {
+      if (!state.pollTimer) return;
+      window.clearInterval(state.pollTimer);
+      state.pollTimer = null;
+    }
+
+    function startSseReload() {
+      var marker = authorMarker();
+      if (marker && window.htmx) {
+        if (marker.dataset.furaAuthorSseBound !== "1") {
+          marker.dataset.furaAuthorSseBound = "1";
+          marker.addEventListener("htmx:sseMessage", function (event) {
+            applyAuthorInvalidation(payloadFromSseEvent(event));
+          });
+        }
+        stopPollingFallback();
+        window.__furaAuthorReloadMode = "sse";
+        return true;
+      }
+      var slug = currentSlug();
+      if (!slug || !window.EventSource) return false;
+      if (
+        state.eventSource &&
+        state.eventSourceSlug === slug &&
+        state.eventSource.readyState !== EventSource.CLOSED
+      ) {
+        stopPollingFallback();
+        window.__furaAuthorReloadMode = "sse";
+        return true;
+      }
+      if (state.eventSource) {
+        state.eventSource.close();
+        state.eventSource = null;
+        state.eventSourceSlug = "";
+      }
+      try {
+        var source = new EventSource("/docs/_author/events?slug=" + encodeURIComponent(slug));
+        state.eventSource = source;
+        state.eventSourceSlug = slug;
+        stopPollingFallback();
+        window.__furaAuthorReloadMode = "sse";
+        source.addEventListener("author-invalidate", function (event) {
+          applyAuthorInvalidation(payloadFromSseEvent(event));
+        });
+        source.onerror = function () {
+          source.close();
+          if (state.eventSource === source) {
+            state.eventSource = null;
+            state.eventSourceSlug = "";
+          }
+          window.setTimeout(startPollingFallback, 500);
+        };
+        document.body.addEventListener("htmx:beforeCleanupElement", function () {
+          source.close();
+          if (state.eventSource === source) {
+            state.eventSource = null;
+            state.eventSourceSlug = "";
+          }
+        }, { once: true });
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    if (!startSseReload()) {
+      startPollingFallback();
+    }
   }
+  {% else %}
+  function setupAuthorReload() {}
+  {% end %}
 
   function setupShellMobileNav() {
     var drawer = document.getElementById("fura-shell-mobile-nav");
@@ -398,6 +564,69 @@
     }
   }
 
+  function copyTextToClipboard(text) {
+    if (!text) return Promise.reject(new Error("Nothing to copy."));
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+      return navigator.clipboard.writeText(text);
+    }
+    var textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.insetInlineStart = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    } finally {
+      textarea.remove();
+    }
+  }
+
+  function copyPayloadForAction(button, action) {
+    if (action === "copy-source-path") {
+      return Promise.resolve(button.getAttribute("data-source-path") || "");
+    }
+    if (action === "copy-url") {
+      return Promise.resolve(button.getAttribute("data-url") || window.location.href);
+    }
+    if (action === "copy-llm-txt") {
+      var url = button.getAttribute("data-url");
+      if (!url) return Promise.reject(new Error("Missing LLM text URL."));
+      return fetch(url, { headers: { "Accept": "text/plain" } }).then(function (response) {
+        if (!response.ok) throw new Error("Unable to fetch LLM text.");
+        return response.text();
+      });
+    }
+    return Promise.reject(new Error("Unsupported copy action."));
+  }
+
+  function setupPageActionCopies() {
+    if (document.body.dataset.furaPageActionCopyBound) return;
+    document.body.dataset.furaPageActionCopyBound = "1";
+    document.addEventListener("click", function (event) {
+      var target = event.target;
+      if (!target || typeof target.closest !== "function") return;
+      var button = target.closest("[data-action]");
+      if (!button) return;
+      var action = button.getAttribute("data-action");
+      if (action !== "copy-url" && action !== "copy-llm-txt" && action !== "copy-source-path") return;
+      event.preventDefault();
+      button.setAttribute("data-copy-state", "pending");
+      copyPayloadForAction(button, action)
+        .then(copyTextToClipboard)
+        .then(function () {
+          button.setAttribute("data-copy-state", "copied");
+        })
+        .catch(function () {
+          button.setAttribute("data-copy-state", "failed");
+        });
+    });
+  }
+
   function syncDocsChrome() {
     setupDocsMobileSidebar();
     setupShellMobileNav();
@@ -406,6 +635,7 @@
     setupVersionSelector();
     setupAuthorReload();
     setupShellMegaMenus();
+    setupPageActionCopies();
     if (window.FuraDocs && window.FuraDocs.enhance) {
       window.FuraDocs.enhance.refresh(document.getElementById("page-root") || document);
     }

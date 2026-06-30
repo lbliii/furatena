@@ -11,6 +11,7 @@
 {% call page_header(node.title, subtitle=node.description) %}{% end %}
 
 <span class="fura-badge">Hypermedia docs · no build step</span>
+{% include "partials/author_chrome.html" %}
 
 <div class="fura-layout{{ ' fura-layout--with-toc' if node.toc | length > 0 else '' }}">
   <article class="fura-body">
@@ -61,4 +62,8 @@
 {% end %}
 {% end %}
 </div>
+{% end %}
+
+{% block sse_scope %}
+{% include "partials/author_sse.html" %}
 {% end %}

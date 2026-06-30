@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chirp.dev/schemas/catalog-v2.schema.json",
+  "title": "Document Catalog Protocol catalog.json v2",
+  "description": "Compatibility schema for DCP v2 catalog exports.",
+  "type": "object",
+  "required": ["schema_version", "channel", "page_count", "pages", "edges", "namespaces"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 2 },
+    "version": { "type": "integer" },
+    "channel": { "type": "string" },
+    "edition": { "type": "string" },
+    "page_count": { "type": "integer", "minimum": 0 },
+    "pages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/page" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "namespaces": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/namespace" }
+    },
+    "inventories": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/inventory" }
+    }
+  },
+  "$defs": {
+    "page": {
+      "type": "object",
+      "required": ["node_id", "url", "slug", "title", "mount", "edition"],
+      "additionalProperties": true,
+      "properties": {
+        "node_id": { "type": "string" },
+        "url": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "section": { "type": "string" },
+        "weight": { "type": "integer" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "source_path": { "type": "string" },
+        "source": { "type": "string" },
+        "doc_version": { "type": ["string", "null"] },
+        "mount": { "type": "string" },
+        "edition": { "type": "string" },
+        "section_root": { "type": "boolean" },
+        "toc": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["anchor", "text", "depth"],
+            "properties": {
+              "anchor": { "type": "string" },
+              "text": { "type": "string" },
+              "depth": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "backlinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "href"],
+            "properties": {
+              "title": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
+        },
+        "content": { "$ref": "#/$defs/content_ir" },
+        "body_md": { "type": "string" },
+        "ast_path": { "type": "string" }
+      }
+    },
+    "content_ir": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "headings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["level", "text", "anchor", "line"],
+            "properties": {
+              "level": { "type": "integer", "minimum": 1 },
+              "text": { "type": "string" },
+              "anchor": { "type": "string" },
+              "line": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["href", "text", "line"],
+            "properties": {
+              "href": { "type": "string" },
+              "text": { "type": "string" },
+              "line": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "directives": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/extension" }
+        }
+      }
+    },
+    "extension": {
+      "type": "object",
+      "required": ["name", "line"],
+      "properties": {
+        "name": { "type": "string" },
+        "options": { "type": "object" },
+        "line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["source", "target", "kind"],
+      "additionalProperties": true,
+      "properties": {
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "kind": {
+          "enum": ["parent", "link", "nav_next", "nav_prev", "tag", "translation"]
+        },
+        "mount": { "type": "string" },
+        "edition": { "type": "string" }
+      }
+    },
+    "namespace": {
+      "type": "object",
+      "required": ["mount", "label", "edition", "page_count"],
+      "additionalProperties": true,
+      "properties": {
+        "mount": { "type": "string" },
+        "label": { "type": "string" },
+        "edition": { "type": "string" },
+        "page_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string" },
+        "url": { "type": "string" },
+        "format": { "type": "string" }
+      }
+    }
+  }
+}

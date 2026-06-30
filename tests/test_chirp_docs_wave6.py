@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,7 +17,12 @@ sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog import DocCatalog
 from furatena.catalog.autodoc import generate_autodoc_nodes
+from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.export import catalog_graph, search_json, tools_manifest
+from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
+from furatena.catalog.mcp import FuraMCPServer
+from furatena.catalog.search import search_nodes
+from furatena.catalog.semantic import retrieve_node
 from furatena.catalog.seo import canonical_url, json_ld_article
 from furatena.catalog.versions import infer_release_channels, node_matches_channel
 
@@ -63,6 +69,153 @@ class TestAutodoc:
         node = next(n for n in nodes if n.slug == "api/furatena/catalog/code_blocks")
         assert "&lt;pre&gt;" not in node.body_html
         assert "<pre>" in node.body_html
+
+    def test_openapi_autodoc_generates_operation_projection(self, tmp_path: Path) -> None:
+        spec = tmp_path / "specs" / "openapi.yaml"
+        spec.parent.mkdir()
+        spec.write_text(
+            """
+openapi: 3.1.0
+info:
+  title: Acme API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+    description: prod
+security:
+  - oauth2: []
+paths:
+  /users:
+    post:
+      operationId: createUser
+      summary: Create a user
+      tags: [Users]
+      security:
+        - apiKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUser'
+            examples:
+              sample:
+                value:
+                  name: Ada
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    CreateUser:
+      type: object
+    User:
+      type: object
+    Error:
+      type: object
+""".lstrip(),
+            encoding="utf-8",
+        )
+        config = tmp_path / "config" / "autodoc.yaml"
+        config.parent.mkdir()
+        config.write_text(
+            """
+autodoc:
+  github_repo: lbliii/furatena
+  github_branch: main
+  python:
+    enabled: false
+  openapi:
+    enabled: true
+    output_prefix: api/rest
+    display_name: REST API
+    specs:
+      - specs/openapi.yaml
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        nodes = generate_autodoc_nodes(config, repo_root=tmp_path)
+        operation = next(node for node in nodes if node.meta.get("operation_id") == "createUser")
+        api_operation = operation.meta["api_operation"]
+        assert operation.content_format == "openapi-operation"
+        assert operation.meta["source_provider"] == "openapi"
+        assert api_operation["method"] == "POST"
+        assert api_operation["path"] == "/users"
+        assert api_operation["tags"] == ["Users"]
+        assert api_operation["schemas"] == ["CreateUser", "Error", "User"]
+        assert api_operation["request_bodies"] == ["CreateUser"]
+        assert api_operation["responses"] == ["201", "default"]
+        assert api_operation["examples"] == ["sample"]
+        assert api_operation["auth"] == ["apiKey"]
+        assert api_operation["environments"] == ["prod"]
+
+        nodes_tuple = tuple(nodes)
+
+        class _Catalog:
+            active_channel = "latest"
+            nodes = nodes_tuple
+
+            def doc_nodes(self):
+                return list(nodes)
+
+            def backlinks_for(self, _node):
+                return []
+
+            def get_by_slug(self, slug: str):
+                return {node.slug: node for node in nodes}.get(slug)
+
+            def get_by_node_id(self, node_id: str):
+                return {node.node_id: node for node in nodes}.get(node_id)
+
+            def prev_next(self, _node):
+                return (None, None)
+
+            def ast_documents(self):
+                return {}
+
+            def graph_edges(self):
+                return [edge_record(edge) for edge in build_graph_edges(self)]
+
+            def namespaces(self):
+                return []
+
+        payload = catalog_graph(_Catalog())
+        page = next(page for page in payload["pages"] if page["slug"] == operation.slug)
+        assert page["api_operation"]["operation_id"] == "createUser"
+        assert page["source_provider"] == "openapi"
+        edges = {(edge["kind"], edge["target"]) for edge in payload["edges"]}
+        assert (EdgeKind.API_SCHEMA.value, "schema:User") in edges
+        assert (EdgeKind.API_EXAMPLE.value, "example:sample") in edges
+        assert (EdgeKind.API_AUTH.value, "auth:apiKey") in edges
+        assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in edges
+        graph_nodes = {(item["kind"], item["id"], item["label"]) for item in payload["graph_nodes"]}
+        assert ("api_schema", "schema:User", "User") in graph_nodes
+        assert ("api_example", "example:sample", "sample") in graph_nodes
+        assert ("api_auth", "auth:apiKey", "apiKey") in graph_nodes
+        assert ("api_environment", "environment:prod", "prod") in graph_nodes
+
+        hits = search_nodes(list(nodes), "create user")
+        assert hits and hits[0].node.node_id == operation.node_id
+        retrieved = retrieve_node(_Catalog(), EmbeddingIndex.from_nodes(list(nodes)), operation.node_id)
+        assert retrieved is not None
+        assert retrieved["api_operation"]["operation_id"] == "createUser"
+        assert retrieved["api_operation"]["schemas"] == ["CreateUser", "Error", "User"]
+
+        server = FuraMCPServer(SimpleNamespace(catalog=_Catalog(), embedding_index=None))
+        resource = server._api_operations()
+        observed = next(item for item in resource["operations"] if item.get("operation_id") == "createUser")
+        assert observed["method"] == "POST"
+        assert observed["schemas"] == ["CreateUser", "Error", "User"]
 
 
 class TestVersionChannels:

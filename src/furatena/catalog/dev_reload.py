@@ -148,14 +148,26 @@ def stop_dev_server(
     resolved_host = host or (record.host if record else "127.0.0.1")
     resolved_port = port or (record.port if record else int(os.environ.get("FURA_PORT", "8001")))
 
+    explicit_endpoint = host is not None or port is not None
+    record_matches_request = (
+        record is not None
+        and record.host == resolved_host
+        and record.port == resolved_port
+    )
+
     stopped = False
-    if record is not None and _pid_is_alive(record.pid):
+    if (
+        record is not None
+        and _pid_is_alive(record.pid)
+        and (not explicit_endpoint or record_matches_request)
+    ):
         stopped = _terminate_pid(record.pid) or stopped
     for pid in _listener_pids(resolved_host, resolved_port):
         if record is not None and pid == record.pid:
             continue
         stopped = _terminate_pid(pid) or stopped
-    clear_dev_server_record(pid_path)
+    if not explicit_endpoint or record_matches_request:
+        clear_dev_server_record(pid_path)
     return stopped
 
 

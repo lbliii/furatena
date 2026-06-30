@@ -21,6 +21,10 @@
       "type": "array",
       "items": { "$ref": "#/$defs/edge" }
     },
+    "graph_nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/graph_node" }
+    },
     "namespaces": {
       "type": "array",
       "items": { "$ref": "#/$defs/namespace" }
@@ -48,6 +52,51 @@
         "source_path": { "type": "string" },
         "source": { "type": "string" },
         "source_kind": { "enum": ["filesystem", "generated"] },
+        "source_provider": { "type": ["string", "null"] },
+        "source_repo": { "type": ["string", "null"] },
+        "source_ref": { "type": ["string", "null"] },
+        "generated_from": { "type": ["string", "null"] },
+        "owner": { "type": ["string", "null"] },
+        "team": { "type": ["string", "null"] },
+        "tenant": { "type": ["string", "null"] },
+        "site": { "type": ["string", "null"] },
+        "output_channel": { "type": ["string", "null"] },
+        "last_indexed_at": { "type": ["string", "null"] },
+        "provenance": {
+          "type": "object",
+          "properties": {
+            "provider": { "type": ["string", "null"] },
+            "repo": { "type": ["string", "null"] },
+            "ref": { "type": ["string", "null"] },
+            "path": { "type": "string" },
+            "generated_from": { "type": ["string", "null"] },
+            "owner": { "type": ["string", "null"] },
+            "team": { "type": ["string", "null"] },
+            "mount": { "type": "string" },
+            "edition": { "type": "string" },
+            "tenant": { "type": ["string", "null"] },
+            "site": { "type": ["string", "null"] },
+            "output_channel": { "type": ["string", "null"] },
+            "last_indexed_at": { "type": ["string", "null"] }
+          }
+        },
+        "api_operation": {
+          "type": ["object", "null"],
+          "properties": {
+            "operation_id": { "type": "string" },
+            "method": { "type": "string" },
+            "path": { "type": "string" },
+            "summary": { "type": "string" },
+            "tags": { "type": "array", "items": { "type": "string" } },
+            "schemas": { "type": "array", "items": { "type": "string" } },
+            "request_bodies": { "type": "array", "items": { "type": "string" } },
+            "responses": { "type": "array", "items": { "type": "string" } },
+            "examples": { "type": "array", "items": { "type": "string" } },
+            "auth": { "type": "array", "items": { "type": "string" } },
+            "environments": { "type": "array", "items": { "type": "string" } },
+            "source_spec": { "type": "string" }
+          }
+        },
         "content_format": { "type": "string" },
         "doc_version": { "type": ["string", "null"] },
         "mount": { "type": "string" },
@@ -158,8 +207,55 @@
         "source": { "type": "string" },
         "target": { "type": "string" },
         "kind": {
-          "enum": ["parent", "link", "nav_next", "nav_prev", "tag", "translation"]
+          "enum": [
+            "api_auth",
+            "api_environment",
+            "api_example",
+            "api_request_body",
+            "api_response",
+            "api_schema",
+            "api_tag",
+            "available_in",
+            "breaks",
+            "explains",
+            "generated_from",
+            "implements",
+            "link",
+            "nav_next",
+            "nav_prev",
+            "owned_by",
+            "parent",
+            "requires",
+            "supersedes",
+            "tag",
+            "translation",
+            "validates"
+          ]
         },
+        "mount": { "type": "string" },
+        "edition": { "type": "string" }
+      }
+    },
+    "graph_node": {
+      "type": "object",
+      "required": ["id", "kind", "label"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "enum": [
+            "api_auth",
+            "api_environment",
+            "api_example",
+            "api_operation",
+            "api_request_body",
+            "api_response",
+            "api_schema",
+            "api_tag",
+            "release",
+            "source_file"
+          ]
+        },
+        "label": { "type": "string" },
         "mount": { "type": "string" },
         "edition": { "type": "string" }
       }

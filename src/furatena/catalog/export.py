@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from furatena.catalog.content_ir import content_ir_record
+from furatena.catalog.graph_schema import graph_node_records
+from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.patitas_bridge import excerpt_text, llm_text, plain_text, section_texts
 from furatena.catalog.search import search_nodes
 from furatena.catalog.text import sections_record
@@ -28,11 +32,29 @@ def catalog_graph(
     catalog: CatalogExport | DocCatalog,
     *,
     schema_version: int = 3,
+    include_private: bool = False,
 ) -> dict[str, Any]:
     """JSON-serializable view of the documentation graph."""
     pages: list[dict[str, Any]] = []
-    for node in catalog.nodes:
-        pages.append(_page_record(catalog, node, schema_version=schema_version))
+    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    node_ids = {node.node_id for node in nodes}
+    public_urls = {node.url for node in nodes}
+    for node in nodes:
+        pages.append(
+            _page_record(
+                catalog,
+                node,
+                schema_version=schema_version,
+                public_urls=public_urls if not include_private else None,
+            )
+        )
+    edges = [
+        edge
+        for edge in catalog.graph_edges()
+        if edge.get("source") in node_ids
+        and (edge.get("target") in node_ids or _is_external_graph_target(str(edge.get("target") or "")))
+    ]
+    graph_nodes = graph_node_records(edges)
     payload: dict[str, Any] = {
         "schema_version": schema_version,
         "version": schema_version,
@@ -40,7 +62,8 @@ def catalog_graph(
         "edition": catalog.active_channel,
         "page_count": len(pages),
         "pages": pages,
-        "edges": catalog.graph_edges(),
+        "edges": edges,
+        "graph_nodes": graph_nodes,
         "namespaces": catalog.namespaces(),
     }
     inventories = catalog.inventories_metadata() if hasattr(catalog, "inventories_metadata") else []
@@ -48,7 +71,7 @@ def catalog_graph(
         payload["inventories"] = inventories
     from furatena.catalog.structure_index import build_structure_index
 
-    structure = build_structure_index(catalog)
+    structure = build_structure_index(catalog, include_private=include_private)
     payload["structure_index"] = {
         "schema_version": structure["schema_version"],
         "directive_count": structure["directive_count"],
@@ -63,8 +86,13 @@ def _page_record(
     node,
     *,
     schema_version: int = 3,
+    public_urls: set[str] | None = None,
 ) -> dict[str, Any]:
     source_kind = node.meta.get("source", "markdown")
+    backlinks = catalog.backlinks_for(node)
+    if public_urls is not None:
+        backlinks = [item for item in backlinks if item.get("href") in public_urls]
+    provenance = _provenance_record(catalog, node, source_kind=source_kind)
     record: dict[str, Any] = {
         "node_id": node.node_id,
         "url": node.url,
@@ -82,11 +110,23 @@ def _page_record(
         "lang": node.lang,
         "translation_key": node.translation_key,
         "section_root": node.section_root,
+        "source_provider": provenance["provider"],
+        "source_repo": provenance.get("repo"),
+        "source_ref": provenance.get("ref"),
+        "generated_from": provenance.get("generated_from"),
+        "owner": provenance.get("owner"),
+        "team": provenance.get("team"),
+        "tenant": provenance.get("tenant"),
+        "site": provenance.get("site"),
+        "output_channel": provenance.get("output_channel"),
+        "last_indexed_at": provenance.get("last_indexed_at"),
+        "provenance": provenance,
+        "api_operation": node.meta.get("api_operation"),
         "toc": [
             {"anchor": entry.anchor, "text": entry.text, "depth": entry.depth}
             for entry in node.toc
         ],
-        "backlinks": catalog.backlinks_for(node),
+        "backlinks": backlinks,
     }
     if schema_version >= 3:
         record["content_format"] = node.content_format
@@ -116,10 +156,100 @@ def _page_record(
     return record
 
 
-def meta_json(catalog: CatalogExport | DocCatalog) -> dict[str, Any]:
+def _is_external_graph_target(target: str) -> bool:
+    return target.startswith(
+        (
+            "api:",
+            "api-tag:",
+            "auth:",
+            "cli:",
+            "environment:",
+            "example:",
+            "inventory:",
+            "owner:",
+            "ref:",
+            "release:",
+            "request-body:",
+            "response:",
+            "schema:",
+            "sdk:",
+            "source:",
+            "tag:",
+        )
+    )
+
+
+def _meta_value(meta: dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = meta.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _string_or_none(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    return str(value)
+
+
+def _last_indexed_at(catalog: CatalogExport | DocCatalog, node) -> str | None:
+    existing = _meta_value(node.meta, "last_indexed_at", "indexed_at")
+    if existing:
+        return str(existing)
+    source_mtimes = getattr(catalog, "_source_mtimes", None)
+    content_root = getattr(catalog, "content_root", None)
+    if not isinstance(source_mtimes, dict) or content_root is None:
+        return None
+    path = Path(content_root) / node.source_path
+    mtime = source_mtimes.get(path)
+    if mtime is None:
+        return None
+    return datetime.fromtimestamp(float(mtime), UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _provenance_record(
+    catalog: CatalogExport | DocCatalog,
+    node,
+    *,
+    source_kind: Any,
+) -> dict[str, Any]:
+    meta = node.meta
+    provider = _string_or_none(_meta_value(meta, "source_provider", "provider")) or (
+        "generated" if source_kind != "markdown" else "filesystem"
+    )
+    owner = _string_or_none(_meta_value(meta, "owner"))
+    team = _string_or_none(_meta_value(meta, "team")) or owner
+    return {
+        "provider": provider,
+        "repo": _string_or_none(_meta_value(meta, "source_repo", "repo", "repository")),
+        "ref": _string_or_none(_meta_value(meta, "source_ref", "ref", "commit", "branch")),
+        "path": node.source_path,
+        "generated_from": _string_or_none(
+            _meta_value(meta, "generated_from", "generated-from", "source_generated_from")
+        ),
+        "owner": owner,
+        "team": team,
+        "mount": node.mount,
+        "edition": node.edition,
+        "tenant": _string_or_none(_meta_value(meta, "tenant")),
+        "site": _string_or_none(_meta_value(meta, "site")),
+        "output_channel": getattr(catalog, "active_channel", node.edition),
+        "last_indexed_at": _last_indexed_at(catalog, node),
+    }
+
+
+def meta_json(
+    catalog: CatalogExport | DocCatalog,
+    *,
+    include_private: bool = False,
+) -> dict[str, Any]:
     """Compact per-page metadata index for agents and static export."""
     pages: list[dict[str, Any]] = []
-    for node in catalog.nodes:
+    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    for node in nodes:
+        source_kind = node.meta.get("source", "markdown")
+        provenance = _provenance_record(catalog, node, source_kind=source_kind)
         pages.append(
             {
                 "node_id": node.node_id,
@@ -130,8 +260,23 @@ def meta_json(catalog: CatalogExport | DocCatalog) -> dict[str, Any]:
                 "section": node.section,
                 "weight": node.weight,
                 "tags": sorted(node.tags),
+                "source_path": node.source_path,
+                "source": source_kind,
+                "source_kind": "generated" if source_kind != "markdown" else "filesystem",
+                "source_provider": provenance["provider"],
+                "source_repo": provenance.get("repo"),
+                "source_ref": provenance.get("ref"),
+                "generated_from": provenance.get("generated_from"),
+                "owner": provenance.get("owner"),
+                "team": provenance.get("team"),
+                "tenant": provenance.get("tenant"),
+                "site": provenance.get("site"),
                 "mount": node.mount,
                 "edition": node.edition,
+                "output_channel": provenance.get("output_channel"),
+                "last_indexed_at": provenance.get("last_indexed_at"),
+                "provenance": provenance,
+                "api_operation": node.meta.get("api_operation"),
                 "layout": node.layout,
                 "section_root": node.section_root,
             }
@@ -166,11 +311,17 @@ def surface_json() -> dict[str, Any]:
     }
 
 
-def llms_full_txt(catalog: DocCatalog, *, site_name: str = "Furatena") -> str:
+def llms_full_txt(
+    catalog: DocCatalog,
+    *,
+    site_name: str = "Furatena",
+    include_private: bool = False,
+) -> str:
     """Full LLM-safe corpus for agents (Patitas ``render_llm`` when AST is available)."""
     lines = [f"# {site_name} Documentation (full corpus)", ""]
     documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None)
-    for node in catalog.doc_nodes():
+    nodes = catalog.doc_nodes() if include_private else public_nodes(catalog.doc_nodes())
+    for node in nodes:
         lines.extend((f"## {node.title}", ""))
         if node.description.strip():
             lines.extend((node.description.strip(), ""))
@@ -184,7 +335,12 @@ def llms_full_txt(catalog: DocCatalog, *, site_name: str = "Furatena") -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
-def search_json(catalog: DocCatalog, *, base_url: str = "") -> dict[str, Any]:
+def search_json(
+    catalog: DocCatalog,
+    *,
+    base_url: str = "",
+    include_private: bool = False,
+) -> dict[str, Any]:
     """Machine-readable search index for tools and agents."""
     entries: list[dict[str, Any]] = []
     sections: set[str] = set()
@@ -192,6 +348,8 @@ def search_json(catalog: DocCatalog, *, base_url: str = "") -> dict[str, Any]:
     languages: set[str] = set()
 
     nodes = catalog.all_doc_nodes() if hasattr(catalog, "all_doc_nodes") else catalog.doc_nodes()
+    if not include_private:
+        nodes = public_nodes(nodes)
     documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None)
     for node in nodes:
         sections.add(node.section)
@@ -275,10 +433,11 @@ def search_json_for_query(
     *,
     base_url: str = "",
     limit: int = 12,
+    include_private: bool = False,
 ) -> dict[str, Any]:
     """Ranked search results in the same schema as ``search_json`` entries."""
     hits = search_nodes(
-        catalog.doc_nodes(),
+        catalog.doc_nodes() if include_private else public_nodes(catalog.doc_nodes()),
         query,
         limit=limit,
         documents=catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None),
@@ -301,7 +460,13 @@ def search_json_for_query(
     }
 
 
-def tools_manifest(catalog: DocCatalog, *, base_url: str = "", site_name: str = "Furatena") -> dict[str, Any]:
+def tools_manifest(
+    catalog: DocCatalog,
+    *,
+    base_url: str = "",
+    site_name: str = "Furatena",
+    include_private: bool = False,
+) -> dict[str, Any]:
     """Stable MCP-style tool schema over the documentation catalog."""
     origin = base_url.rstrip("/")
     tool_slug = "-".join(part for part in site_name.lower().split() if part) or "furatena"
@@ -319,7 +484,7 @@ def tools_manifest(catalog: DocCatalog, *, base_url: str = "", site_name: str = 
         "structure_url": f"{origin}/structure.json" if origin else "/structure.json",
         "inventories_url": f"{origin}/inventories.json" if origin else "/inventories.json",
         "objects_inv_url": f"{origin}/objects.inv" if origin else "/objects.inv",
-        "page_count": len(catalog.nodes),
+        "page_count": len(catalog.nodes) if include_private else len(public_nodes(catalog.nodes)),
         "tools": [
             {
                 "name": "search_docs",

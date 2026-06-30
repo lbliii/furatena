@@ -96,6 +96,7 @@ dependencies = [
     { name = "bengal-chirp", extra = ["forms", "sessions"] },
     { name = "chirp-ui" },
     { name = "jsonschema" },
+    { name = "milo-cli" },
     { name = "patitas", extra = ["syntax"] },
     { name = "pyyaml" },
 ]
@@ -124,6 +125,7 @@ requires-dist = [
     { name = "chirp-ui", specifier = ">=0.11.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "jsonschema", specifier = ">=4.0.0" },
+    { name = "milo-cli", specifier = ">=0.2.2" },
     { name = "patitas", extras = ["syntax"], specifier = ">=0.4.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },

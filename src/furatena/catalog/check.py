@@ -14,6 +14,7 @@ from furatena.catalog.directives.manifest import (
 from furatena.catalog.directives.registry import create_directive_registry
 from furatena.catalog.frontmatter_lint import lint_front_matter
 from furatena.catalog.graph import normalize_internal_url
+from furatena.catalog.lifecycle import check_lifecycle_sources
 from furatena.catalog.render import DocsRenderer
 from furatena.catalog.view_lint import check_view_templates
 
@@ -259,6 +260,9 @@ def check_catalog(
     fm_errors, fm_warnings = check_front_matter(catalog, views=views)
     errors.extend(fm_errors)
     warnings = lint_warnings + fm_warnings + manifest_warnings
+    lifecycle_errors, lifecycle_warnings = check_lifecycle_sources(catalog)
+    errors.extend(lifecycle_errors)
+    warnings.extend(lifecycle_warnings)
     cross_errors, cross_warnings = check_cross_edition_links(
         catalog,
         strict=edition_strict,

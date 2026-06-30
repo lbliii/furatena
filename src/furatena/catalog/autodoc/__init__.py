@@ -87,6 +87,10 @@ def _parse_autodoc_markdown(body_md: str) -> ContentIR:
     return content_ir
 
 
+def _plain_text_from_markdown(body_md: str) -> str:
+    return re.sub(r"[#`*_>\[\]()]|https?://\S+", " ", body_md).strip()
+
+
 def _module_doc_node(
     element: Any,
     *,
@@ -266,6 +270,278 @@ def _openapi_nodes(
     repo_root: Path,
     config: dict[str, Any],
 ) -> list[DocNode]:
-    """OpenAPI autodoc is not implemented in Furatena yet."""
-    _ = (openapi_cfg, repo_root, config)
-    return []
+    """Generate catalog-native API operation nodes from OpenAPI specs."""
+    output_prefix = str(openapi_cfg.get("output_prefix") or "api/openapi").strip("/")
+    display_name = str(openapi_cfg.get("display_name") or "OpenAPI Reference")
+    specs = openapi_cfg.get("specs") or openapi_cfg.get("sources") or ()
+    nodes: list[DocNode] = []
+    operation_nodes: list[DocNode] = []
+
+    for raw in specs:
+        spec_path = _resolve_openapi_spec_path(raw, repo_root=repo_root)
+        if spec_path is None:
+            continue
+        spec = _load_openapi_spec(spec_path)
+        if not spec:
+            continue
+        info = spec.get("info") if isinstance(spec.get("info"), dict) else {}
+        spec_title = str(
+            info.get("title")
+            or (raw.get("title") if isinstance(raw, dict) else "")
+            or spec_path.stem.replace("-", " ").title()
+        )
+        spec_slug = _slugify(spec_title) or spec_path.stem
+        spec_prefix = f"{output_prefix}/{spec_slug}".strip("/")
+        operation_nodes.extend(
+            _openapi_operation_nodes(
+                spec,
+                spec_path=spec_path,
+                spec_prefix=spec_prefix,
+                display_name=display_name,
+                config=config,
+            )
+        )
+
+    if not operation_nodes:
+        return []
+
+    index_md = "\n".join(
+        [
+            f"# {display_name}",
+            "",
+            f"Catalog-native API operation reference ({len(operation_nodes)} operations).",
+            "",
+            "## Operations",
+            "",
+            *[
+                f"- [{node.title}]({node.url})"
+                for node in sorted(operation_nodes, key=lambda item: (item.source_path, item.title))
+            ],
+        ]
+    )
+    nodes.append(
+        DocNode(
+            url=f"/{output_prefix}/",
+            slug=output_prefix,
+            title=display_name,
+            description=f"OpenAPI operation reference ({len(operation_nodes)} operations)",
+            layout="doc",
+            weight=60,
+            section=output_prefix.split("/", 1)[0],
+            tags=frozenset({"autodoc", "api", "openapi"}),
+            body_md=index_md,
+            body_html=_render_markdown(index_md),
+            toc=_extract_toc(index_md),
+            source_path="autodoc:openapi:index",
+            meta={"source": "autodoc", "element_type": "api_index", "source_provider": "openapi"},
+            content_ir=_parse_autodoc_markdown(index_md),
+            body_text=_plain_text_from_markdown(index_md),
+        )
+    )
+    nodes.extend(operation_nodes)
+    return nodes
+
+
+def _resolve_openapi_spec_path(raw: Any, *, repo_root: Path) -> Path | None:
+    value = raw.get("path") if isinstance(raw, dict) else raw
+    if not value:
+        return None
+    path = Path(str(value))
+    if not path.is_absolute():
+        path = (repo_root / path).resolve()
+    return path if path.is_file() else None
+
+
+def _load_openapi_spec(path: Path) -> dict[str, Any]:
+    raw = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".json":
+        import json
+
+        data = json.loads(raw)
+    else:
+        data = yaml.safe_load(raw)
+    return data if isinstance(data, dict) else {}
+
+
+def _openapi_operation_nodes(
+    spec: dict[str, Any],
+    *,
+    spec_path: Path,
+    spec_prefix: str,
+    display_name: str,
+    config: dict[str, Any],
+) -> list[DocNode]:
+    nodes: list[DocNode] = []
+    paths = spec.get("paths") if isinstance(spec.get("paths"), dict) else {}
+    servers = _openapi_environments(spec)
+    global_security = _openapi_auth(spec.get("security"))
+    for path, item in sorted(paths.items()):
+        if not isinstance(item, dict):
+            continue
+        for method, operation in sorted(item.items()):
+            method_l = str(method).lower()
+            if method_l not in {"get", "put", "post", "delete", "patch", "options", "head", "trace"}:
+                continue
+            if not isinstance(operation, dict):
+                continue
+            operation_id = str(operation.get("operationId") or _operation_id_from_path(method_l, str(path)))
+            tags = [str(tag) for tag in operation.get("tags") or [] if str(tag).strip()]
+            schemas = sorted(_collect_schema_refs(operation))
+            examples = sorted(_collect_example_names(operation))
+            request_bodies = sorted(_collect_request_body_names(operation))
+            responses = sorted(str(key) for key in operation.get("responses") or {})
+            auth = _openapi_auth(operation.get("security")) or global_security
+            summary = str(operation.get("summary") or operation.get("description") or operation_id).strip()
+            description = summary.split("\n", 1)[0][:240]
+            api_operation = {
+                "operation_id": operation_id,
+                "method": method_l.upper(),
+                "path": str(path),
+                "summary": summary,
+                "tags": tags,
+                "schemas": schemas,
+                "request_bodies": request_bodies,
+                "responses": responses,
+                "examples": examples,
+                "auth": auth,
+                "environments": servers,
+                "source_spec": str(spec_path),
+            }
+            body_md = _openapi_operation_markdown(api_operation, operation)
+            slug = f"{spec_prefix}/{_slugify(operation_id) or operation_id.lower()}".strip("/")
+            meta = {
+                "source": "autodoc",
+                "source_provider": "openapi",
+                "source_repo": config.get("github_repo"),
+                "source_ref": config.get("github_branch"),
+                "generated_from": str(spec_path),
+                "element_type": "api_operation",
+                "operation_id": operation_id,
+                "api_operation": api_operation,
+                "api_tags": tags,
+                "api_schemas": schemas,
+                "api_request_bodies": request_bodies,
+                "api_responses": responses,
+                "api_examples": examples,
+                "api_auth": auth,
+                "api_environments": servers,
+                "implements": f"api:{operation_id}",
+            }
+            nodes.append(
+                DocNode(
+                    url=f"/{slug}/",
+                    slug=slug,
+                    title=f"{method_l.upper()} {path}",
+                    description=description,
+                    layout="doc",
+                    weight=120 + len(nodes),
+                    section=spec_prefix.split("/", 1)[0],
+                    tags=frozenset({"autodoc", "api", "openapi", *[tag.lower() for tag in tags]}),
+                    body_md=body_md,
+                    body_html=_render_markdown(body_md),
+                    toc=_extract_toc(body_md),
+                    source_path=str(spec_path),
+                    meta=meta,
+                    content_ir=_parse_autodoc_markdown(body_md),
+                    content_format="openapi-operation",
+                    body_text=_plain_text_from_markdown(body_md),
+                )
+            )
+    return nodes
+
+
+def _operation_id_from_path(method: str, path: str) -> str:
+    parts = [method, *re.findall(r"[A-Za-z0-9]+", path)]
+    return "-".join(parts)
+
+
+def _collect_schema_refs(value: Any) -> set[str]:
+    refs: set[str] = set()
+    if isinstance(value, dict):
+        ref = value.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/components/schemas/"):
+            refs.add(ref.rsplit("/", 1)[-1])
+        for item in value.values():
+            refs.update(_collect_schema_refs(item))
+    elif isinstance(value, list):
+        for item in value:
+            refs.update(_collect_schema_refs(item))
+    return refs
+
+
+def _collect_example_names(operation: dict[str, Any]) -> set[str]:
+    names: set[str] = set()
+
+    def visit(value: Any) -> None:
+        if isinstance(value, dict):
+            examples = value.get("examples")
+            if isinstance(examples, dict):
+                names.update(str(key) for key in examples)
+            if "example" in value:
+                names.add("inline")
+            for item in value.values():
+                visit(item)
+        elif isinstance(value, list):
+            for item in value:
+                visit(item)
+
+    visit(operation)
+    return names
+
+
+def _collect_request_body_names(operation: dict[str, Any]) -> set[str]:
+    request_body = operation.get("requestBody")
+    if not isinstance(request_body, dict):
+        return set()
+    refs = _collect_schema_refs(request_body)
+    if refs:
+        return refs
+    return {"requestBody"}
+
+
+def _openapi_auth(security: Any) -> list[str]:
+    schemes: list[str] = []
+    if isinstance(security, list):
+        for item in security:
+            if isinstance(item, dict):
+                schemes.extend(str(key) for key in item)
+    return sorted(dict.fromkeys(schemes))
+
+
+def _openapi_environments(spec: dict[str, Any]) -> list[str]:
+    servers = spec.get("servers")
+    names: list[str] = []
+    if isinstance(servers, list):
+        for index, server in enumerate(servers, start=1):
+            if not isinstance(server, dict):
+                continue
+            name = str(server.get("description") or server.get("url") or f"server-{index}").strip()
+            if name:
+                names.append(name)
+    return sorted(dict.fromkeys(names))
+
+
+def _openapi_operation_markdown(api_operation: dict[str, Any], operation: dict[str, Any]) -> str:
+    lines = [
+        f"# {api_operation['method']} {api_operation['path']}",
+        "",
+        _markdown_safe_text(str(api_operation["summary"])),
+        "",
+        f"- Operation ID: `{api_operation['operation_id']}`",
+    ]
+    for label, key in (
+        ("Tags", "tags"),
+        ("Schemas", "schemas"),
+        ("Request bodies", "request_bodies"),
+        ("Responses", "responses"),
+        ("Examples", "examples"),
+        ("Auth", "auth"),
+        ("Environments", "environments"),
+    ):
+        values = api_operation.get(key) or []
+        if values:
+            lines.append(f"- {label}: " + ", ".join(f"`{value}`" for value in values))
+    description = str(operation.get("description") or "").strip()
+    if description and description != api_operation["summary"]:
+        lines.extend(("", "## Description", "", _markdown_safe_text(description)))
+    return "\n".join(lines) + "\n"

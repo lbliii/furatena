@@ -429,7 +429,7 @@ class TestThemeHtmlContract:
         html = asyncio.run(_fetch())
         assert "chirp-theme-home" in html
         assert "chirp-theme-home__hero" in html
-        assert "chirpui-feature-section" in html
-        assert "Write markdown. Get living documentation." in html
+        assert "chirp-theme-home__metric-cards" in html
+        assert "Write docs. Preview instantly. Publish anywhere." in html
         assert "chirp-theme-home__explore" in html
         assert "/docs-assets/theme." in html

@@ -70,7 +70,8 @@ fura check                  # hypermedia + content lint
 - **`catalog/view_lint.py`** — Kida block/context checks on registered view templates
 - **`view_kinds.py`** — required context + blocks per view kind
 - **Author selective reload** — hints drive OOB swaps (`toc-panel`, `docs-sidebar`, `head-meta`, `page-root`)
-- **`GET /docs/_author/stale`** — poll dirty slugs during auto-reload; runtime JS triggers htmx refresh
+- **`GET /docs/_author/events`** — SSE dirty-slug invalidation for author auto-reload; runtime JS triggers htmx refresh
+- **`GET /docs/_author/stale`** — polling fallback for clients without SSE
 - **`fura check --content-only`** — includes view template lint alongside content validation
 
 ## Try it

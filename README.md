@@ -36,6 +36,9 @@ uv run fura export             # static HTML → app/public/
 uv run fura check              # Chirp contracts + corpus lint
 uv run fura query --directive tabs
 uv run fura migrate --dry-run  # preview MDX → Patitas markdown lowering
+uv run fura recipes --json     # stable agent workflow recipes
+uv run fura mcp --describe --json
+uv run fura author status docs/get-started --json
 ```
 
 ## Layout
@@ -66,4 +69,7 @@ runtime line is pinned in `pyproject.toml` (`>=0.8.2,<0.9.0`) so a fresh
 
 - [Dual IR](docs/DUAL_IR.md)
 - [Views](docs/VIEWS.md)
+- [Authoring lifecycle](docs/AUTHORING.md)
+- [Agent workflows](docs/AGENT_WORKFLOWS.md)
+- [CLI contract](docs/CLI_CONTRACT.md)
 - [Roadmap](docs/ROADMAP.md)

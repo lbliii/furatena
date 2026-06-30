@@ -99,6 +99,7 @@ class CatalogRegistry:
         frozen_dir: Path | None = None,
         lazy_html: bool = False,
         serve_mode: ServeMode = ServeMode.AUTHOR,
+        include_private: bool = False,
         workers: int | None = None,
         i18n_config: DocsI18nConfig | None = None,
         catalog_nav: CatalogNavConfig | None = None,
@@ -118,6 +119,7 @@ class CatalogRegistry:
         self.frozen_dir = frozen_dir
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
+        self.include_private = include_private
         self.mounts = mounts
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
@@ -160,6 +162,7 @@ class CatalogRegistry:
             workers=self._workers,
             i18n_config=self.i18n_config,
             catalog_nav=self.catalog_nav if mount.default else None,
+            include_private=self.include_private,
         )
         if cached_autodoc is not None and mount.default and self.frozen_dir is not None:
             shard._frozen_shard_dir = self.frozen_dir / "mounts" / mount.id
@@ -174,11 +177,12 @@ class CatalogRegistry:
         use_frozen = self.serve_mode in {ServeMode.HYBRID, ServeMode.PREVIEW} and self.frozen_dir is not None
         cached_autodoc = None
         if use_frozen and self.autodoc_enabled:
+            default_mount_id = next((mount.id for mount in self.mounts if mount.default), self.mounts[0].id)
             cached_autodoc = load_cached_autodoc_nodes(
                 config_path=self.autodoc_config,
                 repo_root=self.repo_root,
                 frozen_dir=self.frozen_dir,
-                mount=self.default_mount.id,
+                mount=default_mount_id,
             )
 
         live_mount_jobs: list[tuple[MountConfig, Path | None]] = []
@@ -252,7 +256,11 @@ class CatalogRegistry:
             if not mount.content_root.is_dir():
                 continue
             scanner = FilesystemScanner(mount.source)
-            for page in scanner.scan(mount.content_root, url_prefix=mount.url_prefix):
+            for page in scanner.scan(
+                mount.content_root,
+                url_prefix=mount.url_prefix,
+                include_private=self.include_private,
+            ):
                 urls[f"{mount.id}:{page.slug}"] = page.url
                 if mount.default:
                     urls.setdefault(page.slug, page.url)
@@ -482,7 +490,10 @@ class CatalogRegistry:
 
     def get_by_slug(self, slug: str, *, mount: str | None = None) -> DocNode | None:
         if mount is not None:
-            return self._shards[mount].get_by_slug(slug)
+            shard = self._shards.get(mount)
+            if shard is None:
+                return None
+            return shard.get_by_slug(slug)
         if len(self.mounts) == 1:
             return self._shards[self.mounts[0].id].get_by_slug(slug)
         return self._shards[self.default_mount.id].get_by_slug(slug)
@@ -696,14 +707,17 @@ class CatalogRegistry:
         nodes_by_id = {node.node_id: node for node in self.nodes}
         edges: list[dict[str, Any]] = []
         for shard in self._shards.values():
-            edges.extend(
-                edge_record(edge)
-                for edge in build_graph_edges(
-                    shard,
-                    url_index=url_index,
-                    nodes_by_id=nodes_by_id,
+            if not shard.auto_reload and getattr(shard, "_frozen_edges", None) is not None:
+                edges.extend(shard.graph_edges())
+            else:
+                edges.extend(
+                    edge_record(edge)
+                    for edge in build_graph_edges(
+                        shard,
+                        url_index=url_index,
+                        nodes_by_id=nodes_by_id,
+                    )
                 )
-            )
         if self.i18n_config.enabled:
             edges.extend(edge_record(edge) for edge in build_translation_edges(self.nodes))
         self._edges = edges

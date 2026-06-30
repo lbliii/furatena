@@ -45,10 +45,10 @@ class TestLandingSurface:
         assert "chirp-theme-home__hero-link" in html
         assert "chirp-theme-home__explore" in html
         assert "chirp-theme-home__pipeline-inline" in html
-        assert "fura export" in html
-        assert "One corpus, three guarantees" in html
+        assert "uv run fura serve" in html
+        assert "Ready for search and AI tools" in html
         assert "chirp-theme-page__content" not in html
-        assert "chirpui-feature-section" in html
+        assert "chirp-theme-home__metric-cards" in html
         assert "chirpui-cta-band" in html
         assert "chirpui-stepper" not in html
 

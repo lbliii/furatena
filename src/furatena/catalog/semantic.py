@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from furatena.catalog.chunks import chunk_node
 from furatena.catalog.embeddings import EmbeddingIndex, SemanticHit
+from furatena.catalog.lifecycle import is_public_node
 from furatena.catalog.search import search_nodes
 
 if TYPE_CHECKING:
@@ -72,12 +73,15 @@ def hybrid_search(
     semantic_limit: int | None = None,
     documents: dict[str, object] | None = None,
     lang: str | None = None,
+    include_private: bool = True,
 ) -> HybridSearchResult:
     """Rank pages with keyword + TF-IDF chunk retrieval (one semantic scan)."""
     if documents is None and hasattr(catalog, "ast_documents"):
         documents = catalog.ast_documents()
 
     nodes = catalog.doc_nodes(lang=lang)
+    if not include_private:
+        nodes = [node for node in nodes if is_public_node(node)]
     if mount is not None or section is not None or tag is not None or edition is not None or lang is not None:
         nodes = [
             node
@@ -115,6 +119,8 @@ def hybrid_search(
         node = catalog.get_by_node_id(sem_hit.chunk.node_id)
         if node is None:
             continue
+        if not include_private and not is_public_node(node):
+            continue
         if not _node_matches_filters(node, mount=mount, section=section, tag=tag, edition=edition, lang=lang):
             continue
         sem_score = round(sem_hit.score * 100, 2)
@@ -149,9 +155,11 @@ def retrieve_node(
     catalog: CatalogLike,
     index: EmbeddingIndex,
     node_id: str,
+    *,
+    include_private: bool = True,
 ) -> dict[str, Any] | None:
     node = catalog.get_by_node_id(node_id)
-    if node is None:
+    if node is None or (not include_private and not is_public_node(node)):
         return None
     documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else None
     chunks = [
@@ -173,7 +181,11 @@ def retrieve_node(
         }
         for hit in index.similar(chunks[0]["chunk_id"], limit=5)
     ] if chunks else []
-    return {
+    backlinks = catalog.backlinks_for(node)
+    if not include_private:
+        public_urls = {item.url for item in catalog.doc_nodes() if is_public_node(item)}
+        backlinks = [item for item in backlinks if item.get("href") in public_urls]
+    payload: dict[str, Any] = {
         "node_id": node.node_id,
         "url": node.url,
         "title": node.title,
@@ -182,10 +194,14 @@ def retrieve_node(
         "edition": node.edition,
         "section": node.section,
         "tags": sorted(node.tags),
-        "backlinks": catalog.backlinks_for(node),
+        "backlinks": backlinks,
         "chunks": chunks,
         "similar": similar,
     }
+    api_operation = node.meta.get("api_operation")
+    if isinstance(api_operation, dict):
+        payload["api_operation"] = api_operation
+    return payload
 
 
 def semantic_search_json(
@@ -197,6 +213,7 @@ def semantic_search_json(
     limit: int = 12,
     mount: str | None = None,
     edition: str | None = None,
+    include_private: bool = False,
 ) -> dict[str, Any]:
     result = hybrid_search(
         catalog,
@@ -205,6 +222,7 @@ def semantic_search_json(
         limit=limit,
         mount=mount,
         edition=edition,
+        include_private=include_private,
     )
     hits = result.hits
     return {

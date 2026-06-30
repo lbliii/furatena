@@ -1,0 +1,184 @@
+{% block author_chrome %}
+{% if author_chrome is defined and author_chrome %}
+{% from "partials/docs_nav_icons.html" import docs_icon %}
+<section
+  id="fura-author-chrome"
+  class="fura-author-chrome"
+  data-fura-author-chrome
+  data-fura-author-slug="{{ author_chrome.slug }}"
+  data-fura-author-states="{{ author_chrome.states | join(' ') }}"
+  data-fura-author-output="{% if author_chrome.export_impact.included %}included{% else %}excluded{% end %}"
+  aria-label="Local author controls"
+>
+  <div class="fura-author-chrome__summary">
+    <span class="fura-author-chrome__mark" aria-hidden="true">{{ docs_icon('hammer', 17) }}</span>
+    <div class="fura-author-chrome__heading">
+      <span>Author controls</span>
+      <strong>{{ author_chrome.title }}</strong>
+      <code class="fura-author-chrome__pathline" title="{{ author_chrome.source_path }}">{{ author_chrome.source_path }}</code>
+    </div>
+    <div class="fura-author-chrome__surface" data-author-surface="local">
+      <span class="fura-author-chrome__status-label">Local only</span>
+      <span class="fura-author-chrome__surface-label">Not exported</span>
+    </div>
+    <div class="fura-author-chrome__status">
+      <div class="fura-author-chrome__states" aria-label="Author status indicators">
+        {% for state in author_chrome.states %}
+        <span class="fura-author-chrome__state" data-author-state="{{ state }}">{{ state }}</span>
+        {% end %}
+      </div>
+    </div>
+  </div>
+
+  <div class="fura-author-chrome__body">
+    <div class="fura-author-chrome__primary">
+      <div class="fura-author-chrome__actions" aria-label="Author page actions">
+        <div class="fura-author-chrome__action-group fura-author-chrome__action-group--primary" aria-label="Lifecycle actions">
+          <a class="fura-author-chrome__action fura-author-chrome__action--primary" href="{{ author_chrome.actions.studio }}">
+            {{ docs_icon('external', 14) }}
+            <span>Studio</span>
+          </a>
+          <a
+            class="fura-author-chrome__action"
+            href="{{ author_chrome.actions.publish }}"
+            hx-get="{{ author_chrome.actions.publish_confirm }}"
+            hx-target="#fura-author-chrome"
+            hx-swap="outerHTML"
+            hx-confirm="Publish this page?"
+          >
+            {{ docs_icon('rocket', 14) }}
+            <span>Publish</span>
+          </a>
+          <a
+            class="fura-author-chrome__action"
+            href="{{ author_chrome.actions.mark_draft }}"
+            hx-get="{{ author_chrome.actions.mark_draft_confirm }}"
+            hx-target="#fura-author-chrome"
+            hx-swap="outerHTML"
+            hx-confirm="Mark this page as draft?"
+          >
+            {{ docs_icon('article', 14) }}
+            <span>Mark draft</span>
+          </a>
+        </div>
+        <div class="fura-author-chrome__action-group" aria-label="Source and output actions">
+          <a class="fura-author-chrome__action" href="{{ author_chrome.actions.open_source }}">
+            {{ docs_icon('file-code', 14) }}
+            <span>Open source</span>
+          </a>
+          <button
+            class="fura-author-chrome__action"
+            type="button"
+            data-action="copy-source-path"
+            data-source-path="{{ author_chrome.source_path }}"
+          >
+            {{ docs_icon('copy', 14) }}
+            <span>Copy source path</span>
+          </button>
+          <a
+            class="fura-author-chrome__action"
+            href="{{ author_chrome.actions.validate }}"
+            hx-get="{{ author_chrome.actions.validate }}"
+            hx-target="#fura-author-chrome"
+            hx-swap="outerHTML"
+          >
+            {{ docs_icon('check-circle', 14) }}
+            <span>Validate page</span>
+          </a>
+          <a class="fura-author-chrome__action" href="{{ author_chrome.actions.inspect_public }}">
+            {{ docs_icon('external', 14) }}
+            <span>Inspect public output</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="fura-author-chrome__source" aria-label="Author source file">
+        <span class="fura-author-chrome__source-icon" aria-hidden="true">{{ docs_icon('file-code', 14) }}</span>
+        <span class="fura-author-chrome__source-label">Source</span>
+        <code title="{{ author_chrome.source_path }}">{{ author_chrome.source_path }}</code>
+      </div>
+    </div>
+
+    <div class="fura-author-chrome__metadata" aria-labelledby="fura-author-metadata-heading">
+      <h2 id="fura-author-metadata-heading">
+        {{ docs_icon('check-circle', 14) }}
+        <span>Lifecycle</span>
+      </h2>
+      <dl class="fura-author-chrome__meta fura-author-chrome__meta--signals" aria-label="Author metadata">
+        <div class="fura-author-chrome__meta-item fura-author-chrome__meta-item--signal" data-author-meta="visibility">
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('article', 13) }}</span>
+            <span>Visibility</span>
+          </dt>
+          <dd title="{{ author_chrome.visibility }}">
+            <span
+              class="fura-author-chrome__meta-value"
+              data-author-visibility="{{ author_chrome.visibility }}"
+            >{{ author_chrome.visibility }}</span>
+          </dd>
+        </div>
+        <div class="fura-author-chrome__meta-item fura-author-chrome__meta-item--signal" data-author-meta="validation">
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('check-circle', 13) }}</span>
+            <span>Validation</span>
+          </dt>
+          <dd title="{% if author_chrome.validation.ok %}clean{% else %}invalid ({{ author_chrome.validation.error_count }}){% end %}">
+            <span
+              class="fura-author-chrome__meta-value"
+              data-author-validation="{% if author_chrome.validation.ok %}clean{% else %}invalid{% end %}"
+            >
+            {% if author_chrome.validation.ok %}
+            clean
+            {% else %}
+            invalid ({{ author_chrome.validation.error_count }})
+            {% end %}
+            </span>
+          </dd>
+        </div>
+        <div class="fura-author-chrome__meta-item fura-author-chrome__meta-item--signal" data-author-meta="public-output">
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('external', 13) }}</span>
+            <span>Public output</span>
+          </dt>
+          <dd title="{{ author_chrome.export_impact.label }}">
+            <span
+              class="fura-author-chrome__meta-value"
+              data-author-output="{% if author_chrome.export_impact.included %}included{% else %}excluded{% end %}"
+            >{{ author_chrome.export_impact.label }}</span>
+          </dd>
+        </div>
+      </dl>
+      <dl class="fura-author-chrome__meta fura-author-chrome__meta--details" aria-label="Author source metadata">
+        <div class="fura-author-chrome__meta-item" data-author-meta="format">
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('file-code', 13) }}</span>
+            <span>Format</span>
+          </dt>
+          <dd title="{{ author_chrome.content_format }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.content_format }}</span>
+          </dd>
+        </div>
+        <div class="fura-author-chrome__meta-item" data-author-meta="indexed">
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('check-circle', 13) }}</span>
+            <span>Indexed</span>
+          </dt>
+          <dd title="{{ author_chrome.last_indexed_at ?? 'not indexed' }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.last_indexed_at ?? 'not indexed' }}</span>
+          </dd>
+        </div>
+        <div class="fura-author-chrome__meta-item" data-author-meta="modified">
+          <dt>
+            <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('hammer', 13) }}</span>
+            <span>Modified</span>
+          </dt>
+          <dd title="{{ author_chrome.source_modified_at ?? 'unknown' }}">
+            <span class="fura-author-chrome__meta-value">{{ author_chrome.source_modified_at ?? 'unknown' }}</span>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>
+{% end %}
+{% end %}

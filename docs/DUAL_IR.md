@@ -95,9 +95,10 @@ See also [ROADMAP.md](ROADMAP.md) for delivery waves, [VIEWS.md](VIEWS.md) for t
 - `check_catalog()` + `fura check --content-only` run view template lint
 - `CatalogRegistry.invalidation_hints()` / `clear_invalidation_hints()` / `author_stale_entries()`
 - Selective author reload — `_render_author_reload()` uses Wave 12 hints (`page-root`, `toc-panel`, `docs-sidebar`, `head-meta`)
-- `GET /docs/_author/stale` — JSON poll for dirty slugs in author/hybrid auto-reload mode
+- `GET /docs/_author/events` — SSE invalidation stream for dirty slugs in author/hybrid auto-reload mode
+- `GET /docs/_author/stale` — JSON fallback for dirty slugs when SSE is unavailable
 - OOB partials — `toc_panel_oob.html`, `docs_sidebar_oob.html`; `#toc-panel` on catalog TOC asides
-- Author poll in `docs_runtime_scripts.html` when `fura_author` is enabled
+- Author reload script in `docs_runtime_scripts.html` prefers htmx SSE and falls back to polling when needed
 
 **Not in scope yet:** `extract_literal_attributes()` boosted-link audit (Wave 14); full K-CTX-001 strictness on inherited layouts.
 

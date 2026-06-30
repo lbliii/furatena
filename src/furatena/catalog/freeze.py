@@ -25,6 +25,7 @@ from furatena.catalog.freeze_incremental import (
     write_mount_fingerprint,
 )
 from furatena.catalog.inventories.sphinx import write_objects_inv_bytes
+from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.renderer_fingerprint import (
     read_renderer_fingerprint,
@@ -83,6 +84,14 @@ def _write_frozen_page(
         ast_target.write_text(ast_json + "\n", encoding="utf-8")
 
 
+def _prune_stale_frozen_files(root: Path, keep_paths: set[Path], *, suffix: str) -> None:
+    if not root.is_dir():
+        return
+    for path in root.rglob(f"*{suffix}"):
+        if path not in keep_paths:
+            path.unlink()
+
+
 def _freeze_shard(registry: CatalogRegistry, mount_id: str, out_dir: Path, *, workers: int) -> int:
     shard = registry._shards[mount_id]
     mount_dir = out_dir / "mounts" / mount_id
@@ -94,9 +103,14 @@ def _freeze_shard(registry: CatalogRegistry, mount_id: str, out_dir: Path, *, wo
     (mount_dir / "catalog.json").write_text(json.dumps(graph, indent=2) + "\n", encoding="utf-8")
 
     jobs: list[tuple[Path, Path, str, str, str | None]] = []
-    for node in shard.nodes:
+    keep_pages: set[Path] = set()
+    keep_ast: set[Path] = set()
+    for node in public_nodes(shard.nodes):
         slug_path = node.slug or "index"
         html = registry.body_html(node) if hasattr(registry, "body_html") else node.body_html
+        keep_pages.add(pages_dir / f"{slug_path}.html")
+        if node.ast_json:
+            keep_ast.add(mount_dir / "ast" / f"{slug_path}.json")
         jobs.append((pages_dir, mount_dir, slug_path, html, node.ast_json))
 
     if workers > 1 and len(jobs) > 1:
@@ -123,7 +137,10 @@ def _freeze_shard(registry: CatalogRegistry, mount_id: str, out_dir: Path, *, wo
                 ast_json=ast_json,
             )
 
-    return len(shard.nodes)
+    _prune_stale_frozen_files(pages_dir, keep_pages, suffix=".html")
+    _prune_stale_frozen_files(mount_dir / "ast", keep_ast, suffix=".json")
+
+    return len(jobs)
 
 
 def _freeze_inventories(registry: CatalogRegistry, out_dir: Path) -> None:
@@ -294,7 +311,7 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         )
         _freeze_inventories(registry, out_dir)
         semantic = EmbeddingIndex.from_nodes(
-            list(registry.nodes),
+            public_nodes(registry.nodes),
             documents=registry.ast_documents(),
         )
         semantic.write(out_dir / "semantic.json")
