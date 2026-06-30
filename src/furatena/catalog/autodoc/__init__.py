@@ -391,6 +391,7 @@ def _openapi_operation_nodes(
             request_bodies = sorted(_collect_request_body_names(operation))
             responses = sorted(str(key) for key in operation.get("responses") or {})
             auth = _openapi_auth(operation.get("security")) or global_security
+            external_docs = _openapi_external_docs(operation.get("externalDocs"))
             summary = str(operation.get("summary") or operation.get("description") or operation_id).strip()
             description = summary.split("\n", 1)[0][:240]
             api_operation = {
@@ -405,6 +406,7 @@ def _openapi_operation_nodes(
                 "examples": examples,
                 "auth": auth,
                 "environments": servers,
+                "external_docs": external_docs,
                 "source_spec": str(spec_path),
             }
             body_md = _openapi_operation_markdown(api_operation, operation)
@@ -521,6 +523,16 @@ def _openapi_environments(spec: dict[str, Any]) -> list[str]:
     return sorted(dict.fromkeys(names))
 
 
+def _openapi_external_docs(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, dict):
+        return []
+    url = str(value.get("url") or "").strip()
+    if not url:
+        return []
+    description = str(value.get("description") or "External docs").strip() or "External docs"
+    return [{"url": url, "description": description}]
+
+
 def _openapi_operation_markdown(api_operation: dict[str, Any], operation: dict[str, Any]) -> str:
     lines = [
         f"# {api_operation['method']} {api_operation['path']}",
@@ -544,4 +556,14 @@ def _openapi_operation_markdown(api_operation: dict[str, Any], operation: dict[s
     description = str(operation.get("description") or "").strip()
     if description and description != api_operation["summary"]:
         lines.extend(("", "## Description", "", _markdown_safe_text(description)))
+    external_docs = api_operation.get("external_docs") or []
+    if external_docs:
+        lines.extend(("", "## External docs", ""))
+        for item in external_docs:
+            if not isinstance(item, dict):
+                continue
+            url = str(item.get("url") or "").strip()
+            label = str(item.get("description") or "External docs").strip() or "External docs"
+            if url:
+                lines.append(f"- [{_markdown_safe_text(label)}]({url})")
     return "\n".join(lines) + "\n"
