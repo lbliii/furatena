@@ -134,6 +134,9 @@ paths:
     post:
       operationId: createUser
       summary: Create a user
+      externalDocs:
+        description: Authentication guide
+        url: /docs/auth/
       tags: [Users]
       security:
         - apiKey: []
@@ -203,24 +206,42 @@ autodoc:
         assert api_operation["examples"] == ["sample"]
         assert api_operation["auth"] == ["apiKey"]
         assert api_operation["environments"] == ["prod"]
+        assert api_operation["external_docs"] == [
+            {"description": "Authentication guide", "url": "/docs/auth/"}
+        ]
+        assert "[Authentication guide](/docs/auth/)" in operation.body_md
 
-        nodes_tuple = tuple(nodes)
+        auth_guide = DocNode(
+            url="/docs/auth/",
+            slug="docs/auth",
+            title="Authentication",
+            description="Authentication guide.",
+            layout="doc",
+            weight=10,
+            section="docs",
+            tags=frozenset({"guide"}),
+            body_md="# Authentication\n",
+            body_html="",
+            toc=(),
+            source_path="docs/auth.md",
+        )
+        nodes_tuple = (*nodes, auth_guide)
 
         class _Catalog:
             active_channel = "latest"
             nodes = nodes_tuple
 
             def doc_nodes(self):
-                return list(nodes)
+                return list(nodes_tuple)
 
             def backlinks_for(self, _node):
                 return []
 
             def get_by_slug(self, slug: str):
-                return {node.slug: node for node in nodes}.get(slug)
+                return {node.slug: node for node in nodes_tuple}.get(slug)
 
             def get_by_node_id(self, node_id: str):
-                return {node.node_id: node for node in nodes}.get(node_id)
+                return {node.node_id: node for node in nodes_tuple}.get(node_id)
 
             def prev_next(self, _node):
                 return (None, None)
@@ -243,6 +264,7 @@ autodoc:
         assert (EdgeKind.API_EXAMPLE.value, "example:sample") in edges
         assert (EdgeKind.API_AUTH.value, "auth:apiKey") in edges
         assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in edges
+        assert (EdgeKind.LINK.value, auth_guide.node_id) in edges
         graph_nodes = {(item["kind"], item["id"], item["label"]) for item in payload["graph_nodes"]}
         assert ("api_schema", "schema:User", "User") in graph_nodes
         assert ("api_example", "example:sample", "sample") in graph_nodes
@@ -261,6 +283,9 @@ autodoc:
         observed = next(item for item in resource["operations"] if item.get("operation_id") == "createUser")
         assert observed["method"] == "POST"
         assert observed["schemas"] == ["CreateUser", "Error", "User"]
+        assert observed["external_docs"] == [
+            {"description": "Authentication guide", "url": "/docs/auth/"}
+        ]
 
 
 class TestVersionChannels:

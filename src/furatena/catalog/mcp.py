@@ -1177,6 +1177,7 @@ class FuraMCPServer:
                         "examples": api_operation.get("examples") or [],
                         "auth": api_operation.get("auth") or [],
                         "environments": api_operation.get("environments") or [],
+                        "external_docs": api_operation.get("external_docs") or [],
                     }
                 )
             operations.append(record)

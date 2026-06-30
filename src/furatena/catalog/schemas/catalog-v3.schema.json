@@ -94,6 +94,17 @@
             "examples": { "type": "array", "items": { "type": "string" } },
             "auth": { "type": "array", "items": { "type": "string" } },
             "environments": { "type": "array", "items": { "type": "string" } },
+            "external_docs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "url": { "type": "string" },
+                  "description": { "type": "string" }
+                },
+                "required": ["url"]
+              }
+            },
             "source_spec": { "type": "string" }
           }
         },
