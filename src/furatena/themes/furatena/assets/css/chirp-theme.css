@@ -3438,19 +3438,19 @@
   .fura-author-chrome {
     display: grid;
     position: relative;
-    gap: 0.56rem;
+    gap: 0.68rem;
     overflow: hidden;
-    margin-block: 0.82rem 1.25rem;
-    padding: 0.72rem;
-    border: 1px solid color-mix(in srgb, var(--chirpui-accent) 22%, var(--color-border));
+    margin-block: 0.92rem 1.35rem;
+    padding: 0.82rem;
+    border: 1px solid color-mix(in srgb, var(--chirpui-accent) 18%, var(--color-border));
     border-radius: var(--radius-sm);
     background:
-      linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 9%, transparent), transparent 38%),
-      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-elevated) 82%, transparent), color-mix(in srgb, var(--chirpui-bg) 24%, transparent)),
-      color-mix(in srgb, var(--color-bg-elevated) 92%, var(--chirpui-bg));
+      linear-gradient(135deg, color-mix(in srgb, var(--chirpui-accent) 7%, transparent), transparent 34%),
+      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-elevated) 88%, transparent), color-mix(in srgb, var(--chirpui-bg) 18%, transparent)),
+      color-mix(in srgb, var(--color-bg-elevated) 94%, var(--chirpui-bg));
     box-shadow:
       0 1px 0 color-mix(in srgb, var(--color-bg-elevated) 76%, transparent) inset,
-      0 20px 54px color-mix(in srgb, var(--chirpui-bg) 34%, transparent);
+      0 18px 48px color-mix(in srgb, var(--chirpui-bg) 30%, transparent);
   }
 
   .fura-author-chrome::before {
@@ -3476,23 +3476,25 @@
 
   .fura-author-chrome__summary {
     display: grid;
-    grid-template-columns: 2rem minmax(0, 1fr) auto;
-    gap: 0.28rem 0.62rem;
+    grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+    gap: 0.32rem 0.68rem;
     align-items: center;
     min-width: 0;
-    padding: 0.06rem 0.08rem 0.46rem;
+    padding: 0.04rem 0.1rem 0.62rem;
     border-bottom: 1px solid color-mix(in srgb, var(--color-border) 62%, transparent);
   }
 
   .fura-author-chrome__mark {
     display: inline-grid;
     place-items: center;
-    inline-size: 2rem;
-    block-size: 2rem;
+    inline-size: 2.2rem;
+    block-size: 2.2rem;
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--chirpui-accent) 16%, transparent);
+    background: color-mix(in srgb, var(--chirpui-accent) 13%, transparent);
     color: var(--chirpui-accent);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 18%, transparent);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--chirpui-accent) 20%, transparent),
+      0 0.55rem 1.25rem color-mix(in srgb, var(--chirpui-accent) 8%, transparent);
   }
 
   .fura-author-chrome__heading {
@@ -3536,15 +3538,15 @@
   .fura-author-chrome__surface {
     display: inline-flex;
     align-items: center;
-    gap: 0.34rem;
+    gap: 0.28rem;
     grid-column: 3;
     grid-row: 1 / span 2;
     justify-self: end;
     min-width: max-content;
-    padding: 0.22rem 0.38rem;
+    padding: 0.18rem 0.26rem 0.18rem 0.18rem;
     border: 1px solid color-mix(in srgb, var(--color-border) 58%, transparent);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--chirpui-bg) 42%, transparent);
+    background: color-mix(in srgb, var(--chirpui-bg) 34%, transparent);
   }
 
   .fura-author-chrome__status {
@@ -3557,8 +3559,8 @@
   .fura-author-chrome__status-label {
     display: inline-flex;
     align-items: center;
-    min-block-size: 1.15rem;
-    padding: 0.12rem 0.42rem;
+    min-block-size: 1.24rem;
+    padding: 0.12rem 0.44rem;
     border: 1px solid color-mix(in srgb, var(--color-success, #22c55e) 42%, transparent);
     border-radius: 999px;
     background: color-mix(in srgb, var(--color-success, #22c55e) 9%, transparent);
@@ -3574,7 +3576,7 @@
   .fura-author-chrome__surface-label {
     color: var(--color-text-muted);
     font-family: var(--font-family-mono);
-    font-size: 0.62rem;
+    font-size: 0.61rem;
     font-weight: 700;
     line-height: 1;
     text-transform: uppercase;
@@ -3638,8 +3640,8 @@
 
   .fura-author-chrome__body {
     display: grid;
-    grid-template-columns: minmax(14rem, 0.9fr) minmax(18rem, 1.15fr);
-    gap: 0.5rem;
+    grid-template-columns: minmax(15rem, 0.88fr) minmax(20rem, 1.12fr);
+    gap: 0.62rem;
     min-width: 0;
   }
 
@@ -3693,15 +3695,15 @@
   .fura-author-chrome__metadata {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.38rem;
+    gap: 0.48rem;
     align-items: start;
     min-width: 0;
-    padding: 0.52rem;
-    border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+    padding: 0.56rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 46%, transparent);
     border-radius: var(--radius-sm);
     background:
-      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 28%, transparent), transparent),
-      color-mix(in srgb, var(--chirpui-bg) 18%, transparent);
+      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 24%, transparent), transparent),
+      color-mix(in srgb, var(--chirpui-bg) 14%, transparent);
   }
 
   .fura-author-chrome__metadata h2 {
@@ -3725,21 +3727,30 @@
 
   .fura-author-chrome__meta {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.32rem;
+    gap: 0.34rem;
     margin: 0;
+  }
+
+  .fura-author-chrome__meta--signals {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .fura-author-chrome__meta--details {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-block-start: 0.12rem;
+    border-top: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
   }
 
   .fura-author-chrome__meta-item {
     display: grid;
     align-content: start;
-    gap: 0.18rem;
+    gap: 0.2rem;
     min-width: 0;
-    min-block-size: 2.76rem;
-    padding: 0.42rem 0.48rem;
-    border: 1px solid color-mix(in srgb, var(--color-border) 44%, transparent);
+    min-block-size: 2.9rem;
+    padding: 0.46rem 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--color-border) 38%, transparent);
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--color-bg-elevated) 44%, transparent);
+    background: color-mix(in srgb, var(--color-bg-elevated) 34%, transparent);
   }
 
   .fura-author-chrome__meta-item:first-child {
@@ -3784,7 +3795,7 @@
   .fura-author-chrome__meta dd {
     margin: 0;
     color: var(--color-text-secondary);
-    font-size: 0.76rem;
+    font-size: 0.75rem;
     line-height: 1.3;
     overflow-wrap: anywhere;
   }
@@ -3798,6 +3809,13 @@
     border-radius: 999px;
     background: color-mix(in srgb, var(--chirpui-bg) 26%, transparent);
     color: var(--color-text-secondary);
+  }
+
+  .fura-author-chrome__meta-item--signal .fura-author-chrome__meta-value {
+    min-block-size: 1.36rem;
+    padding-inline: 0.42rem;
+    font-size: 0.72rem;
+    font-weight: 700;
   }
 
   .fura-author-chrome__meta-value[data-author-validation="clean"],
@@ -3914,7 +3932,9 @@
       grid-column: 1 / -1;
     }
 
-    .fura-author-chrome__meta {
+    .fura-author-chrome__meta,
+    .fura-author-chrome__meta--signals,
+    .fura-author-chrome__meta--details {
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.44rem;
     }
@@ -3941,7 +3961,9 @@
       display: none;
     }
 
-    .fura-author-chrome__meta {
+    .fura-author-chrome__meta,
+    .fura-author-chrome__meta--signals,
+    .fura-author-chrome__meta--details {
       grid-template-columns: 1fr;
     }
 

@@ -8,7 +8,7 @@
   data-fura-author-slug="{{ author_chrome.slug }}"
   data-fura-author-states="{{ author_chrome.states | join(' ') }}"
   data-fura-author-output="{% if author_chrome.export_impact.included %}included{% else %}excluded{% end %}"
-  aria-label="Author page status"
+  aria-label="Local author controls"
 >
   <div class="fura-author-chrome__summary">
     <span class="fura-author-chrome__mark" aria-hidden="true">{{ docs_icon('hammer', 17) }}</span>
@@ -26,7 +26,7 @@
     </div>
     <div class="fura-author-chrome__surface" data-author-surface="local">
       <span class="fura-author-chrome__status-label">Local only</span>
-      <span class="fura-author-chrome__surface-label">Author mode</span>
+      <span class="fura-author-chrome__surface-label">Not exported</span>
     </div>
   </div>
 
@@ -104,8 +104,8 @@
         {{ docs_icon('check-circle', 14) }}
         <span>Lifecycle</span>
       </h2>
-      <dl class="fura-author-chrome__meta" aria-label="Author metadata">
-        <div class="fura-author-chrome__meta-item" data-author-meta="visibility">
+      <dl class="fura-author-chrome__meta fura-author-chrome__meta--signals" aria-label="Author metadata">
+        <div class="fura-author-chrome__meta-item fura-author-chrome__meta-item--signal" data-author-meta="visibility">
           <dt>
             <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('article', 13) }}</span>
             <span>Visibility</span>
@@ -117,7 +117,7 @@
             >{{ author_chrome.visibility }}</span>
           </dd>
         </div>
-        <div class="fura-author-chrome__meta-item" data-author-meta="validation">
+        <div class="fura-author-chrome__meta-item fura-author-chrome__meta-item--signal" data-author-meta="validation">
           <dt>
             <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('check-circle', 13) }}</span>
             <span>Validation</span>
@@ -135,7 +135,7 @@
             </span>
           </dd>
         </div>
-        <div class="fura-author-chrome__meta-item" data-author-meta="public-output">
+        <div class="fura-author-chrome__meta-item fura-author-chrome__meta-item--signal" data-author-meta="public-output">
           <dt>
             <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('external', 13) }}</span>
             <span>Public output</span>
@@ -147,6 +147,8 @@
             >{{ author_chrome.export_impact.label }}</span>
           </dd>
         </div>
+      </dl>
+      <dl class="fura-author-chrome__meta fura-author-chrome__meta--details" aria-label="Author source metadata">
         <div class="fura-author-chrome__meta-item" data-author-meta="format">
           <dt>
             <span class="fura-author-chrome__meta-icon" aria-hidden="true">{{ docs_icon('file-code', 13) }}</span>

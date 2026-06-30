@@ -371,8 +371,11 @@ class TestAuthorStaleRoute:
         assert 'data-source-path="' in response.text
         assert "Author controls" in response.text
         assert "Local only" in response.text
+        assert "Not exported" in response.text
         assert "fura-author-chrome__meta-icon" in response.text
         assert "fura-author-chrome__pathline" in response.text
+        assert "fura-author-chrome__meta--signals" in response.text
+        assert "fura-author-chrome__meta--details" in response.text
         assert 'data-fura-author-output="included"' in response.text
         assert 'data-author-validation="clean"' in response.text
         assert 'data-author-output="included"' in response.text
@@ -394,12 +397,15 @@ class TestAuthorStaleRoute:
         assert ".fura-author-chrome__action-group--primary" in css
         assert ".fura-author-chrome__meta-icon" in css
         assert ".fura-author-chrome__pathline" in css
+        assert ".fura-author-chrome__meta--signals" in css
+        assert ".fura-author-chrome__meta--details" in css
+        assert ".fura-author-chrome__meta-item--signal .fura-author-chrome__meta-value" in css
         assert '.fura-author-chrome[data-fura-author-output="excluded"]::before' in css
         assert '.fura-author-chrome__meta-value[data-author-validation="clean"]' in css
         assert '.fura-author-chrome__meta-value[data-author-output="excluded"]' in css
-        assert "grid-template-columns: minmax(14rem, 0.9fr) minmax(18rem, 1.15fr);" in css
+        assert "grid-template-columns: minmax(15rem, 0.88fr) minmax(20rem, 1.12fr);" in css
         assert "grid-template-columns: minmax(0, 1fr);" in css
-        assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in css
+        assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in css
         assert "@media (max-width: 760px)" in css
         assert ".fura-author-chrome__body {\n      grid-template-columns: 1fr;" in css
         assert "@media (max-width: 480px)" in css
