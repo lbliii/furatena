@@ -76,6 +76,7 @@ def autodoc_nodes_from_frozen(frozen_dir: Path, *, mount: str) -> list[DocNode]:
             "element_type": page.get("element_type"),
             "qualified_name": page.get("qualified_name"),
             "api_operation": page.get("api_operation"),
+            "api_try_it": page.get("api_try_it"),
             "source_provider": page.get("source_provider"),
             "source_repo": page.get("source_repo"),
             "source_ref": page.get("source_ref"),

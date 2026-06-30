@@ -1128,6 +1128,7 @@ class FuraMCPServer:
                         "auth": api_operation.get("auth") or [],
                         "environments": api_operation.get("environments") or [],
                         "external_docs": api_operation.get("external_docs") or [],
+                        "try_it": node.meta.get("api_try_it") or {},
                     }
                 )
             operations.append(record)

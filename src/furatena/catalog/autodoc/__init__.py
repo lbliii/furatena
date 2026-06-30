@@ -299,6 +299,7 @@ def _openapi_nodes(
                 spec_prefix=spec_prefix,
                 display_name=display_name,
                 config=config,
+                try_it_config=openapi_cfg.get("try_it") if isinstance(openapi_cfg.get("try_it"), dict) else {},
             )
         )
 
@@ -370,10 +371,12 @@ def _openapi_operation_nodes(
     spec_prefix: str,
     display_name: str,
     config: dict[str, Any],
+    try_it_config: dict[str, Any],
 ) -> list[DocNode]:
     nodes: list[DocNode] = []
     paths = spec.get("paths") if isinstance(spec.get("paths"), dict) else {}
-    servers = _openapi_environments(spec)
+    server_records = _openapi_server_records(spec)
+    servers = [record["label"] for record in server_records]
     global_security = _openapi_auth(spec.get("security"))
     for path, item in sorted(paths.items()):
         if not isinstance(item, dict):
@@ -409,6 +412,15 @@ def _openapi_operation_nodes(
                 "external_docs": external_docs,
                 "source_spec": str(spec_path),
             }
+            api_try_it = _openapi_try_it_contract(
+                api_operation,
+                try_it_config=try_it_config,
+                auth=auth,
+                examples=examples,
+                servers=server_records,
+                spec_path=spec_path,
+                config=config,
+            )
             body_md = _openapi_operation_markdown(api_operation, operation)
             slug = f"{spec_prefix}/{_slugify(operation_id) or operation_id.lower()}".strip("/")
             meta = {
@@ -420,6 +432,7 @@ def _openapi_operation_nodes(
                 "element_type": "api_operation",
                 "operation_id": operation_id,
                 "api_operation": api_operation,
+                "api_try_it": api_try_it,
                 "api_tags": tags,
                 "api_schemas": schemas,
                 "api_request_bodies": request_bodies,
@@ -511,16 +524,128 @@ def _openapi_auth(security: Any) -> list[str]:
 
 
 def _openapi_environments(spec: dict[str, Any]) -> list[str]:
+    return [record["label"] for record in _openapi_server_records(spec)]
+
+
+def _openapi_server_records(spec: dict[str, Any]) -> list[dict[str, str]]:
     servers = spec.get("servers")
-    names: list[str] = []
+    records: list[dict[str, str]] = []
     if isinstance(servers, list):
         for index, server in enumerate(servers, start=1):
             if not isinstance(server, dict):
                 continue
-            name = str(server.get("description") or server.get("url") or f"server-{index}").strip()
-            if name:
-                names.append(name)
-    return sorted(dict.fromkeys(names))
+            url = str(server.get("url") or "").strip()
+            label = str(server.get("description") or url or f"server-{index}").strip()
+            if not label:
+                continue
+            record = {
+                "id": _slugify(label) or f"server-{index}",
+                "label": label,
+                "url": url,
+            }
+            if record not in records:
+                records.append(record)
+    return sorted(records, key=lambda item: item["label"])
+
+
+def _try_it_boundary_value(config: dict[str, Any], try_it_config: dict[str, Any], key: str, default: str) -> str:
+    value = try_it_config.get(key) or config.get(key)
+    return str(value).strip() if value not in (None, "") else default
+
+
+def _try_it_token_refs(try_it_config: dict[str, Any]) -> dict[str, str]:
+    raw = try_it_config.get("tokens") or try_it_config.get("auth_tokens") or {}
+    if isinstance(raw, dict):
+        return {str(key): str(value) for key, value in raw.items() if value}
+    refs: dict[str, str] = {}
+    if isinstance(raw, list):
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            scheme = item.get("scheme") or item.get("name")
+            token_ref = item.get("env") or item.get("token_env") or item.get("token_ref")
+            if scheme and token_ref:
+                refs[str(scheme)] = str(token_ref)
+    return refs
+
+
+def _openapi_try_it_contract(
+    api_operation: dict[str, Any],
+    *,
+    try_it_config: dict[str, Any],
+    auth: list[str],
+    examples: list[str],
+    servers: list[dict[str, str]],
+    spec_path: Path,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    """Secure, renderer-agnostic API playground contract.
+
+    The contract intentionally describes live request requirements without
+    exposing token values or enabling direct browser calls by default.
+    """
+    token_refs = _try_it_token_refs(try_it_config)
+    live_cfg = try_it_config.get("live") if isinstance(try_it_config.get("live"), dict) else {}
+    proxy_path = str(live_cfg.get("proxy_path") or try_it_config.get("proxy_path") or "").strip()
+    live_enabled = bool(live_cfg.get("enabled") or try_it_config.get("live_enabled")) and bool(proxy_path)
+    fallback_mode = "mock" if examples else "static"
+    auth_records = [
+        {
+            "scheme": scheme,
+            "token_ref": token_refs.get(scheme),
+            "storage": "server_only",
+            "exposed_to_static": False,
+            "configured": scheme in token_refs,
+        }
+        for scheme in auth
+    ]
+    return {
+        "schema_version": 1,
+        "operation_id": api_operation["operation_id"],
+        "modes": [
+            {
+                "id": "static",
+                "available": True,
+                "request_behavior": "render_only",
+                "requires": [],
+            },
+            {
+                "id": "mock",
+                "available": bool(examples),
+                "request_behavior": "local_sample",
+                "requires": ["openapi_examples"] if examples else [],
+                "disabled_reason": "" if examples else "OpenAPI examples are not defined for this operation.",
+            },
+            {
+                "id": "live",
+                "available": live_enabled,
+                "request_behavior": "authenticated_proxy",
+                "requires": ["server_proxy", *[f"auth:{scheme}" for scheme in auth]],
+                "proxy_path": proxy_path or None,
+                "disabled_reason": "" if live_enabled else "Authenticated live requests require a configured server-side try-it proxy.",
+            },
+        ],
+        "boundaries": {
+            "tenant": _try_it_boundary_value(config, try_it_config, "tenant", "default"),
+            "site": _try_it_boundary_value(config, try_it_config, "site", "docs"),
+            "mount": _try_it_boundary_value(config, try_it_config, "mount", "catalog-mount"),
+            "source_spec": str(spec_path),
+        },
+        "base_urls": [
+            {
+                **record,
+                "scope": "tenant/site/mount",
+                "base_url_env": str(try_it_config.get("base_url_env") or "").strip() or None,
+            }
+            for record in servers
+        ],
+        "auth": auth_records,
+        "static_export": {
+            "live_requests": "disabled",
+            "fallback_mode": fallback_mode,
+            "reason": "Static exports never expose tokens or direct authenticated live requests.",
+        },
+    }
 
 
 def _openapi_external_docs(value: Any) -> list[dict[str, str]]:
