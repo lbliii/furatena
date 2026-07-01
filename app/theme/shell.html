@@ -31,6 +31,15 @@
 {% block shell %}
 <script nonce="{{ csp_nonce() }}">
 document.body.classList.add("chirp-theme-shell", "fura-root", "fura-surface--{{ chirp_docs_surface | default('app') }}");
+{% if rendering_head | default(false) %}
+document.body.setAttribute("data-fura-rendering-head", "{{ rendering_head.id }}");
+{% endif %}
+{% if resolved_theme | default(false) %}
+document.body.setAttribute("data-fura-theme-id", "{{ resolved_theme.theme_id }}");
+{% if resolved_theme.theme_use %}
+document.body.setAttribute("data-fura-theme-use", "{{ resolved_theme.theme_use }}");
+{% endif %}
+{% endif %}
 {% if node is defined and node %}
 document.body.setAttribute("data-fura-slug", "{{ node.slug }}");
 {% endif %}

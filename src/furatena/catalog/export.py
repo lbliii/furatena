@@ -428,12 +428,12 @@ def llms_txt(
     return "\n".join(lines) + "\n"
 
 
-def surface_json() -> dict[str, Any]:
+def surface_json(config: Any | None = None, catalog: Any | None = None) -> dict[str, Any]:
     """Machine-readable view-kind / surface registry."""
     from furatena.catalog.rendering_heads import rendering_heads_json
     from furatena.catalog.view_kinds import VIEW_KINDS
 
-    return {
+    payload: dict[str, Any] = {
         "schema_version": 1,
         "rendering_heads": rendering_heads_json(),
         "views": [
@@ -450,6 +450,11 @@ def surface_json() -> dict[str, Any]:
             for spec in VIEW_KINDS
         ],
     }
+    if config is not None and catalog is not None:
+        from furatena.catalog.delivery import delivery_surface_json
+
+        payload["delivery"] = delivery_surface_json(config, catalog)
+    return payload
 
 
 def llms_full_txt(

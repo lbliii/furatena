@@ -32,6 +32,7 @@ from chirp.middleware.static import StaticFiles
 from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
+from furatena.catalog.delivery import resolve_delivery_for_node
 from furatena.catalog.dev_reload import (
     browser_reload_dirs,
     clear_dev_server_record,
@@ -703,8 +704,12 @@ class DocsApp:
             if surface == "catalog"
             else self.catalog.nav_tree(active_url=active_url, lang=page_lang)
         )
+        delivery = resolve_delivery_for_node(self.config, node)
         ctx: dict[str, Any] = {
             "node": node,
+            "delivery": delivery,
+            "rendering_head": delivery.head,
+            "resolved_theme": delivery,
             "active_view": view_name,
             "chirp_docs_surface": surface,
             "nav_items": nav_items,
@@ -1035,7 +1040,7 @@ class DocsApp:
         elif export.id == "meta":
             body = json.dumps(meta_json(self.catalog), indent=2)
         elif export.id == "surface":
-            body = json.dumps(surface_json(), indent=2)
+            body = json.dumps(surface_json(self.config, self.catalog), indent=2)
         else:
             body = ""
         if len(body) > limit:
@@ -1568,7 +1573,8 @@ class DocsApp:
 
         @app.route("/surface.json", referenced=True)
         def surface_json_route():
-            body = json.dumps(surface_json(), indent=2)
+            self._ensure_catalog()
+            body = json.dumps(surface_json(self.config, self.catalog), indent=2)
             return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
 
         @app.route("/og/{name}", referenced=True)

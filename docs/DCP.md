@@ -239,6 +239,9 @@ JSON Schema for v3 exports ships with the runtime at
 `surface.json` also exports rendering-head contracts for live shell, static
 document, embedded fragment, and paged output consumers so heads can validate
 required catalog fields and unsupported directives before rendering.
+When the app config includes `delivery` settings, `surface.json` includes the
+resolved global and per-mount head/theme selections used by live routing and
+static export.
 
 ## Adapter contract
 
