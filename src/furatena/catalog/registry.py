@@ -42,6 +42,24 @@ def _normalize_prefix(prefix: str) -> str:
     return prefix if prefix.endswith("/") else f"{prefix}/"
 
 
+def _exception_record(exc: Exception) -> dict[str, str]:
+    return {
+        "type": exc.__class__.__name__,
+        "message": str(exc),
+    }
+
+
+def _count_source_files(root: Path, extensions: tuple[str, ...]) -> int:
+    if not root.is_dir():
+        return 0
+    normalized = tuple(ext if ext.startswith(".") else f".{ext}" for ext in extensions)
+    return sum(
+        1
+        for path in root.rglob("*")
+        if path.is_file() and (not normalized or path.suffix in normalized)
+    )
+
+
 def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...]:
     """Load mount definitions from ``mounts.yaml``."""
     if not config_path.is_file():
@@ -129,6 +147,8 @@ class CatalogRegistry:
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
         self.include_private = include_private
+        self._source_sync_status: dict[str, dict[str, Any]] = {}
+        self._shard_status: dict[str, dict[str, Any]] = {}
         self.mounts = mounts if serve_mode == ServeMode.PREVIEW else self._sync_mount_sources(mounts)
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
@@ -153,12 +173,32 @@ class CatalogRegistry:
         resolved: list[MountConfig] = []
         for mount in mounts:
             if mount.source.git is None:
+                self._record_source_sync(mount, "ok", stage="source", provider=mount.source.provider)
                 resolved.append(mount)
                 continue
-            sync = sync_git_source(
-                mount.source.git,
-                mount_id=mount.id,
-                app_root=self.app_root,
+            try:
+                sync = sync_git_source(
+                    mount.source.git,
+                    mount_id=mount.id,
+                    app_root=self.app_root,
+                )
+            except Exception as exc:
+                self._record_source_sync(
+                    mount,
+                    "failed",
+                    stage="sync",
+                    provider="git",
+                    error=exc,
+                )
+                resolved.append(mount)
+                continue
+            self._record_source_sync(
+                mount,
+                "ok",
+                stage="sync",
+                provider="git",
+                resolved_ref=sync.resolved_ref,
+                source_url=sync.source_url,
             )
             resolved.append(
                 replace(
@@ -171,6 +211,49 @@ class CatalogRegistry:
                 )
             )
         return tuple(resolved)
+
+    def _record_source_sync(
+        self,
+        mount: MountConfig,
+        status: str,
+        *,
+        stage: str,
+        provider: str,
+        resolved_ref: str | None = None,
+        source_url: str | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        git = mount.source.git
+        payload: dict[str, Any] = {
+            "status": status,
+            "stage": stage,
+            "provider": provider,
+            "source_repo": git.repo if git is not None else None,
+            "source_ref": resolved_ref or (git.ref if git is not None else None),
+            "source_url": source_url or (git.source_url if git is not None else None),
+        }
+        if error is not None:
+            payload["error"] = _exception_record(error)
+        self._source_sync_status[mount.id] = payload
+
+    def _record_shard_status(
+        self,
+        mount: MountConfig,
+        status: str,
+        *,
+        stage: str,
+        loaded_from: str | None = None,
+        error: Exception | None = None,
+    ) -> None:
+        payload: dict[str, Any] = {
+            "status": status,
+            "stage": stage,
+            "loaded": status == "ok",
+            "loaded_from": loaded_from,
+        }
+        if error is not None:
+            payload["error"] = _exception_record(error)
+        self._shard_status[mount.id] = payload
 
     def _build_live_shard(
         self,
@@ -225,30 +308,56 @@ class CatalogRegistry:
                 if (candidate / "catalog.json").is_file():
                     shard_frozen = candidate
             if shard_frozen is not None and self.serve_mode == ServeMode.HYBRID:
-                shard = DocCatalog.from_frozen(
-                    shard_frozen,
-                    content_root=mount.content_root,
-                    mount=mount.id,
-                    lazy_html=self.lazy_html,
-                    catalog_nav=self.catalog_nav if mount.default else None,
-                )
-                shard.enable_author_overlay(
-                    autodoc_config=self.autodoc_config if mount.default else None,
-                    repo_root=self.repo_root,
-                    cached_autodoc_nodes=cached_autodoc if mount.default else None,
-                )
+                try:
+                    shard = DocCatalog.from_frozen(
+                        shard_frozen,
+                        content_root=mount.content_root,
+                        mount=mount.id,
+                        lazy_html=self.lazy_html,
+                        catalog_nav=self.catalog_nav if mount.default else None,
+                    )
+                except Exception as exc:
+                    self._record_shard_status(mount, "failed", stage="frozen_load", error=exc)
+                    live_mount_jobs.append((mount, shard_frozen))
+                    continue
+                try:
+                    shard.enable_author_overlay(
+                        autodoc_config=self.autodoc_config if mount.default else None,
+                        repo_root=self.repo_root,
+                        cached_autodoc_nodes=cached_autodoc if mount.default else None,
+                    )
+                except Exception as exc:
+                    self._record_shard_status(
+                        mount,
+                        "ok",
+                        stage="hybrid_overlay",
+                        loaded_from="frozen",
+                        error=exc,
+                    )
+                else:
+                    self._record_shard_status(
+                        mount,
+                        "ok",
+                        stage="hybrid_overlay",
+                        loaded_from="frozen+overlay",
+                    )
                 shard._federated_slug_urls = self._federated_slug_urls
                 self._shards[mount.id] = shard
             elif shard_frozen is not None:
-                shard = DocCatalog.from_frozen(
-                    shard_frozen,
-                    content_root=mount.content_root,
-                    mount=mount.id,
-                    lazy_html=self.lazy_html,
-                    catalog_nav=self.catalog_nav if mount.default else None,
-                )
+                try:
+                    shard = DocCatalog.from_frozen(
+                        shard_frozen,
+                        content_root=mount.content_root,
+                        mount=mount.id,
+                        lazy_html=self.lazy_html,
+                        catalog_nav=self.catalog_nav if mount.default else None,
+                    )
+                except Exception as exc:
+                    self._record_shard_status(mount, "failed", stage="frozen_load", error=exc)
+                    continue
                 shard._federated_slug_urls = self._federated_slug_urls
                 self._shards[mount.id] = shard
+                self._record_shard_status(mount, "ok", stage="frozen_load", loaded_from="frozen")
             else:
                 live_mount_jobs.append((mount, shard_frozen))
 
@@ -265,13 +374,23 @@ class CatalogRegistry:
                     }
                     for future in as_completed(futures):
                         mount = futures[future]
-                        self._shards[mount.id] = future.result()
+                        try:
+                            self._shards[mount.id] = future.result()
+                        except Exception as exc:
+                            self._record_shard_status(mount, "failed", stage="live_index", error=exc)
+                        else:
+                            self._record_shard_status(mount, "ok", stage="live_index", loaded_from="live")
             else:
                 for mount, _shard_frozen in live_mount_jobs:
-                    self._shards[mount.id] = self._build_live_shard(
-                        mount,
-                        cached_autodoc=cached_autodoc,
-                    )
+                    try:
+                        self._shards[mount.id] = self._build_live_shard(
+                            mount,
+                            cached_autodoc=cached_autodoc,
+                        )
+                    except Exception as exc:
+                        self._record_shard_status(mount, "failed", stage="live_index", error=exc)
+                    else:
+                        self._record_shard_status(mount, "ok", stage="live_index", loaded_from="live")
 
         for mount in self.mounts:
             prefix = mount.url_prefix or "/"
@@ -297,6 +416,88 @@ class CatalogRegistry:
                 if mount.default:
                     urls.setdefault(page.slug, page.url)
         return urls
+
+    def source_health(self, *, mount: str | None = None) -> dict[str, Any]:
+        """Per-mount source/index health for admin UI, CI, and MCP callers."""
+        mount_filter = mount.strip() if mount else None
+        mounts: list[dict[str, Any]] = []
+        for item in self.mounts:
+            if mount_filter and item.id != mount_filter:
+                continue
+            extensions = tuple(sorted(item.source.tracked_extensions()))
+            shard = self._shards.get(item.id)
+            sync = self._source_sync_status.get(
+                item.id,
+                {
+                    "status": "ok",
+                    "stage": "source",
+                    "provider": item.source.provider,
+                    "source_repo": None,
+                    "source_ref": None,
+                    "source_url": None,
+                },
+            )
+            index = self._shard_status.get(
+                item.id,
+                {
+                    "status": "ok" if shard is not None else "failed",
+                    "stage": "index",
+                    "loaded": shard is not None,
+                    "loaded_from": "live" if shard is not None else None,
+                },
+            )
+            loaded = shard is not None
+            has_error = "error" in sync or "error" in index
+            if not loaded:
+                status = "unavailable"
+            elif has_error or sync.get("status") == "failed" or index.get("status") == "failed":
+                status = "degraded"
+            else:
+                status = "healthy"
+            mounts.append(
+                {
+                    "id": item.id,
+                    "label": item.label,
+                    "status": status,
+                    "default": item.default,
+                    "url_prefix": item.url_prefix,
+                    "provider": sync.get("provider") or item.source.provider,
+                    "content_root": str(item.content_root),
+                    "exists": item.content_root.is_dir(),
+                    "loaded": loaded,
+                    "loaded_from": index.get("loaded_from"),
+                    "tracked_extensions": list(extensions),
+                    "file_count": _count_source_files(item.content_root, extensions),
+                    "page_count": len(shard.nodes) if shard is not None else 0,
+                    "channels": [
+                        {"id": ch.id, "label": ch.label, "default": ch.default}
+                        for ch in self.channels_for(item.id)
+                    ],
+                    "source": {
+                        "status": sync.get("status"),
+                        "stage": sync.get("stage"),
+                        "repo": sync.get("source_repo"),
+                        "ref": sync.get("source_ref"),
+                        "url": sync.get("source_url"),
+                        **({"error": sync["error"]} if "error" in sync else {}),
+                    },
+                    "index": {
+                        "status": index.get("status"),
+                        "stage": index.get("stage"),
+                        "loaded": loaded,
+                        "loaded_from": index.get("loaded_from"),
+                        **({"error": index["error"]} if "error" in index else {}),
+                    },
+                }
+            )
+        return {
+            "schema_version": 1,
+            "ok": all(item["status"] == "healthy" for item in mounts),
+            "mount_count": len(mounts),
+            "active_channel": self.active_channel,
+            "serve_mode": self.serve_mode.value,
+            "mounts": mounts,
+        }
 
     @staticmethod
     def _edition_matches(node: DocNode | None, edition: str | None) -> bool:
@@ -464,7 +665,9 @@ class CatalogRegistry:
         normalized = slug.strip("/") if slug else None
         entries: list[dict[str, object]] = []
         for mount in self.mounts:
-            shard = self._shards[mount.id]
+            shard = self._shards.get(mount.id)
+            if shard is None:
+                continue
             for entry_slug, hints in shard.stale_invalidation_entries():
                 if normalized is not None and entry_slug != normalized:
                     continue
@@ -505,9 +708,9 @@ class CatalogRegistry:
         if mount_id and mount_id in self._shards:
             return self._shards[mount_id].channels
         default = self._shards.get(self.default_mount.id)
-        if default is None:
+        if default is None and self._shards:
             default = next(iter(self._shards.values()))
-        return default.channels
+        return default.channels if default is not None else ()
 
     @property
     def nodes(self) -> tuple[DocNode, ...]:
@@ -518,7 +721,8 @@ class CatalogRegistry:
 
     def get(self, url: str) -> DocNode | None:
         mount = self._resolve_mount(url)
-        return self._shards[mount.id].get(url)
+        shard = self._shards.get(mount.id)
+        return shard.get(url) if shard is not None else None
 
     def get_by_slug(self, slug: str, *, mount: str | None = None) -> DocNode | None:
         if mount is not None:
@@ -527,8 +731,10 @@ class CatalogRegistry:
                 return None
             return shard.get_by_slug(slug)
         if len(self.mounts) == 1:
-            return self._shards[self.mounts[0].id].get_by_slug(slug)
-        return self._shards[self.default_mount.id].get_by_slug(slug)
+            shard = self._shards.get(self.mounts[0].id)
+            return shard.get_by_slug(slug) if shard is not None else None
+        default = self._shards.get(self.default_mount.id)
+        return default.get_by_slug(slug) if default is not None else None
 
     def get_by_node_id(self, node_id: str) -> DocNode | None:
         mount, _edition, slug = node_id.split(":", 2)
@@ -560,7 +766,9 @@ class CatalogRegistry:
         """Mount cards for the federated portal page."""
         cards: list[dict[str, Any]] = []
         for mount in self.mounts:
-            shard = self._shards[mount.id]
+            shard = self._shards.get(mount.id)
+            if shard is None:
+                continue
             home = shard.get(mount.url_prefix or "/")
             cards.append(
                 {
@@ -617,8 +825,8 @@ class CatalogRegistry:
         lang: str | None = None,
         mount: str | None = None,
     ) -> int:
-        shard = self._shards[mount] if mount is not None else self._shard_for_slug(slug)
-        return shard.direct_child_count(slug, lang=lang)
+        shard = self._shards.get(mount) if mount is not None else self._shard_for_slug(slug)
+        return shard.direct_child_count(slug, lang=lang) if shard is not None else 0
 
     def _catalog_rail_for_mount(self, active_url: str | None) -> list[dict[str, Any]] | None:
         """Section icon rail for a mount catalog page; None for app/portal surfaces."""
@@ -639,7 +847,10 @@ class CatalogRegistry:
         lang: str | None = None,
     ) -> list[dict[str, Any]]:
         if len(self.mounts) == 1:
-            return self._shards[self.mounts[0].id].catalog_rail_items(
+            shard = self._shards.get(self.mounts[0].id)
+            if shard is None:
+                return []
+            return shard.catalog_rail_items(
                 active_url,
                 lang=lang,
                 home_mark=self.site_mark,
@@ -671,11 +882,13 @@ class CatalogRegistry:
         )
         return items
 
-    def _shard_for_slug(self, slug: str) -> DocCatalog:
+    def _shard_for_slug(self, slug: str) -> DocCatalog | None:
         node = self.get_by_slug(slug)
         if node is not None:
             return self._shard_for_node(node)
-        return self._shards[self.mounts[0].id]
+        if not self._shards:
+            return None
+        return self._shards.get(self.mounts[0].id) or next(iter(self._shards.values()))
 
     def docs_section_nav(
         self,
@@ -684,7 +897,8 @@ class CatalogRegistry:
         lang: str | None = None,
     ) -> list[dict[str, Any]]:
         if len(self.mounts) == 1:
-            return self._shards[self.mounts[0].id].docs_section_nav(active_url, lang=lang)
+            shard = self._shards.get(self.mounts[0].id)
+            return shard.docs_section_nav(active_url, lang=lang) if shard is not None else []
         if active_url:
             mount = self._resolve_mount(active_url)
             shard = self._shards.get(mount.id)
@@ -703,7 +917,9 @@ class CatalogRegistry:
                 }
             )
         for mount in self.mounts:
-            shard = self._shards[mount.id]
+            shard = self._shards.get(mount.id)
+            if shard is None:
+                continue
             section_items = shard.nav_tree(active_url=active_url)
             if len(self.mounts) == 1:
                 return section_items
@@ -762,7 +978,9 @@ class CatalogRegistry:
 
         records: list[dict[str, Any]] = []
         for mount in self.mounts:
-            shard = self._shards[mount.id]
+            shard = self._shards.get(mount.id)
+            if shard is None:
+                continue
             records.append(
                 namespace_record(
                     mount.id,

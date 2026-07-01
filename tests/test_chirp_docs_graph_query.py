@@ -82,6 +82,26 @@ def test_graph_query_endpoint_filters_live_catalog(tmp_path: Path) -> None:
     assert payload["graph_nodes"] == []
 
 
+def test_source_health_endpoint_reports_mounts(tmp_path: Path) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    async def _fetch() -> dict[str, object]:
+        resp = await client.get("/catalog/source-health.json?mount=chirp")
+        assert resp.status == 200
+        return json.loads(resp.text)
+
+    payload = asyncio.run(_fetch())
+    assert payload["schema_version"] == 1
+    assert payload["ok"] is True
+    assert payload["mount_count"] == 1
+    mount = payload["mounts"][0]
+    assert mount["id"] == "chirp"
+    assert mount["status"] == "healthy"
+    assert mount["loaded"] is True
+    assert mount["page_count"] >= 1
+
+
 def test_graph_query_endpoint_returns_typed_graph_nodes(tmp_path: Path) -> None:
     app_root, _content = _write_query_fixture(tmp_path)
     client = _client_for_app(app_root, repo_root=tmp_path)

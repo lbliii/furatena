@@ -519,31 +519,7 @@ class FuraMCPServer:
 
     def source_health(self, *, mount: Any | None = None) -> dict[str, Any]:
         mount_filter = str(mount).strip() if mount else None
-        mounts: list[dict[str, Any]] = []
-        for item in self.catalog.mounts:
-            if mount_filter and item.id != mount_filter:
-                continue
-            extensions = sorted(item.source.tracked_extensions())
-            mounts.append(
-                {
-                    "id": item.id,
-                    "label": item.label,
-                    "content_root": str(item.content_root),
-                    "exists": item.content_root.is_dir(),
-                    "default": item.default,
-                    "url_prefix": item.url_prefix,
-                    "tracked_extensions": extensions,
-                    "file_count": _count_source_files(item.content_root, extensions),
-                    "page_count": len([node for node in self._nodes() if node.mount == item.id]),
-                    "channels": [_channel_record(ch) for ch in self.catalog.channels_for(item.id)],
-                }
-            )
-        return {
-            "schema_version": 1,
-            "mount_count": len(mounts),
-            "active_channel": self.catalog.active_channel,
-            "mounts": mounts,
-        }
+        return self.catalog.source_health(mount=mount_filter)
 
     def validation_report(self) -> dict[str, Any]:
         errors, warnings = check_catalog(
@@ -1797,17 +1773,6 @@ def _bool_arg(value: Any, *, default: bool) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes", "on"}
     return bool(value)
-
-
-def _count_source_files(root: Path, extensions: list[str]) -> int:
-    if not root.is_dir():
-        return 0
-    normalized = tuple(ext if ext.startswith(".") else f".{ext}" for ext in extensions)
-    return sum(
-        1
-        for path in root.rglob("*")
-        if path.is_file() and (not normalized or path.suffix in normalized)
-    )
 
 
 def _bounded_int(value: Any, *, default: int, low: int, high: int) -> int:

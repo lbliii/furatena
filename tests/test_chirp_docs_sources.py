@@ -18,6 +18,7 @@ from furatena.catalog.freeze_incremental import mount_source_statuses
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
 from furatena.catalog.registry import CatalogRegistry
+from furatena.catalog.runtime import ServeMode
 from furatena.catalog.sources import (
     FilesystemScanner,
     FilesystemSourceProvider,
@@ -155,6 +156,36 @@ def _make_git_docs_repo(tmp_path: Path) -> tuple[Path, str]:
     return repo, commit
 
 
+def _write_frozen_mount(root: Path, *, mount: str, slug: str, title: str, url: str) -> None:
+    mount_dir = root / "mounts" / mount
+    pages_dir = mount_dir / "pages"
+    pages_dir.mkdir(parents=True)
+    (mount_dir / "catalog.json").write_text(
+        (
+            "{\n"
+            '  "schema_version": 3,\n'
+            '  "channel": "latest",\n'
+            f'  "mount": "{mount}",\n'
+            "  \"pages\": [\n"
+            "    {\n"
+            f'      "url": "{url}",\n'
+            f'      "slug": "{slug}",\n'
+            f'      "title": "{title}",\n'
+            '      "source_path": "guide.md",\n'
+            '      "content_format": "patitas-markdown",\n'
+            '      "body_source": "# Frozen Guide",\n'
+            '      "body_text": "Frozen Guide",\n'
+            '      "toc": []\n'
+            "    }\n"
+            "  ],\n"
+            "  \"edges\": []\n"
+            "}\n"
+        ),
+        encoding="utf-8",
+    )
+    (pages_dir / f"{slug}.html").write_text("<h1>Frozen Guide</h1>\n", encoding="utf-8")
+
+
 class TestGitSourceProvider:
     def test_registry_syncs_git_mount_and_exports_commit_provenance(self, tmp_path: Path) -> None:
         repo, commit = _make_git_docs_repo(tmp_path)
@@ -206,6 +237,71 @@ mounts:
         assert status["source_repo"] == repo.as_posix()
         assert status["source_ref"] == commit
         assert status["source_url"] == repo.resolve().as_uri()
+
+        health = registry.source_health()["mounts"][0]
+        assert health["status"] == "healthy"
+        assert health["provider"] == "git"
+        assert health["source"]["repo"] == repo.as_posix()
+        assert health["source"]["ref"] == commit
+        assert health["loaded"] is True
+
+    def test_hybrid_registry_serves_frozen_shard_when_git_sync_fails(self, tmp_path: Path) -> None:
+        app_root = tmp_path / "app"
+        app_root.mkdir()
+        frozen = app_root / "frozen"
+        _write_frozen_mount(
+            frozen,
+            mount="remote",
+            slug="guide",
+            title="Frozen Guide",
+            url="/remote/guide/",
+        )
+        mounts_yaml = app_root / "mounts.yaml"
+        mounts_yaml.write_text(
+            f"""
+mounts:
+  - id: remote
+    label: Remote Docs
+    url_prefix: /remote
+    source:
+      provider: git
+      repo: {(tmp_path / "missing-repo").as_posix()}
+      ref: main
+      path: docs
+    extensions: [".md"]
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        registry = CatalogRegistry.from_config(
+            mounts_yaml,
+            repo_root=tmp_path,
+            app_root=app_root,
+            autodoc=False,
+            frozen_dir=frozen,
+            lazy_html=True,
+            serve_mode=ServeMode.HYBRID,
+        )
+
+        node = registry.get("/remote/guide/")
+        assert node is not None
+        assert node.title == "Frozen Guide"
+        assert registry.body_html(node) == "<h1>Frozen Guide</h1>"
+        health = registry.source_health()["mounts"][0]
+        assert health["status"] == "degraded"
+        assert health["loaded"] is True
+        assert health["loaded_from"].startswith("frozen")
+        assert health["source"]["status"] == "failed"
+        assert health["source"]["error"]["type"] == "RuntimeError"
+        freeze_status = mount_source_statuses(
+            registry,
+            frozen,
+            renderer_fingerprint="renderer",
+            renderer_changed=False,
+        )["remote"]
+        assert freeze_status["health_status"] == "degraded"
+        assert freeze_status["dirty"] is True
+        assert "missing_source_fingerprint" in freeze_status["drift_reasons"]
 
     def test_git_provider_reports_blob_url_for_synced_source(self, tmp_path: Path) -> None:
         repo, commit = _make_git_docs_repo(tmp_path)

@@ -48,17 +48,25 @@ def mount_source_statuses(
 ) -> dict[str, dict[str, Any]]:
     """Return per-mount source sync state for the next freeze."""
     statuses: dict[str, dict[str, Any]] = {}
+    health_by_mount = {
+        item["id"]: item
+        for item in getattr(registry, "source_health", lambda: {"mounts": []})().get("mounts", [])
+        if isinstance(item, dict) and item.get("id")
+    }
     for mount in registry.mounts:
         mount_dir = out_dir / "mounts" / mount.id
-        shard = registry._shards[mount.id]
-        current = mount_content_fingerprint(shard, mount.content_root)
+        shard = registry._shards.get(mount.id)
+        health = health_by_mount.get(mount.id, {})
+        current = mount_content_fingerprint(shard, mount.content_root) if shard is not None else None
         previous = read_mount_fingerprint(mount_dir)
         drift_reasons: list[str] = []
         if full_rebuild:
             drift_reasons.append("full_rebuild")
         if renderer_changed:
             drift_reasons.append("renderer")
-        if previous is None:
+        if shard is None:
+            drift_reasons.append("source_unavailable")
+        elif previous is None:
             drift_reasons.append("missing_source_fingerprint")
         elif previous != current:
             drift_reasons.append("content")
@@ -70,16 +78,19 @@ def mount_source_statuses(
             "source_repo": git.repo if git is not None else None,
             "source_ref": (git.resolved_ref or git.ref) if git is not None else None,
             "source_url": git.source_url if git is not None else None,
-            "status": "pending" if drift_reasons else "skipped",
-            "dirty": bool(drift_reasons),
+            "status": "failed" if shard is None else "pending" if drift_reasons else "skipped",
+            "dirty": bool(drift_reasons) and shard is not None,
             "drift_reasons": drift_reasons,
             "content_fingerprint": current,
             "previous_content_fingerprint": previous,
             "renderer_fingerprint": renderer_fingerprint,
             "renderer_changed": renderer_changed,
-            "page_count": len(shard.nodes),
+            "page_count": len(shard.nodes) if shard is not None else 0,
             "source_root": mount.content_root.as_posix(),
             "url_prefix": mount.url_prefix,
+            "health_status": health.get("status"),
+            "source_error": (health.get("source") or {}).get("error") if health else None,
+            "index_error": (health.get("index") or {}).get("error") if health else None,
         }
     return statuses
 
@@ -119,7 +130,9 @@ def dirty_mount_ids(
     dirty: list[str] = []
     for mount in registry.mounts:
         mount_dir = out_dir / "mounts" / mount.id
-        shard = registry._shards[mount.id]
+        shard = registry._shards.get(mount.id)
+        if shard is None:
+            continue
         fingerprint = mount_content_fingerprint(shard, mount.content_root)
         if read_mount_fingerprint(mount_dir) != fingerprint:
             dirty.append(mount.id)
