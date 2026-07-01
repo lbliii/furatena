@@ -198,6 +198,7 @@ mounts:
 | `GET /search.json` | Search index with `sections` |
 | `GET /catalog/api-operations.json` | Agent/SDK-friendly API operation inventory grouped by API tag |
 | `GET /catalog/retrieve?id=` | Node + chunks + backlinks |
+| `GET /catalog/source-health.json` | Mount/source sync and index health for CI and admin UI |
 
 `/catalog/query.json` and `/graph/query.json` accept these filters:
 
@@ -253,13 +254,17 @@ and last-sync/index timestamp. The bundled filesystem provider is the default
 implementation and projects its metadata into `source_provider` and
 `provenance` fields during live scans.
 
-Frozen builds persist the same source boundary in `registry.json` and
-`freeze.manifest.json`. Each mount records a `source_status`/`mount_status`
-entry with provider, content fingerprint, previous fingerprint, page count,
-renderer fingerprint, final freeze status (`frozen`, `skipped`, or `failed`),
-and explicit drift reasons such as `content`, `renderer`,
-`missing_source_fingerprint`, or `full_rebuild`. Public manifests intentionally
-omit local source-root paths.
+Live and frozen builds persist the same source boundary. `GET
+/catalog/source-health.json` reports each configured mount as `healthy`,
+`degraded`, or `unavailable`, including provider, source repo/ref/url, source
+root existence, tracked extensions, file count, page count, loaded shard
+origin, channel coverage, and structured sync/index errors. Frozen builds also
+record `source_status`/`mount_status` entries in `registry.json` and
+`freeze.manifest.json` with provider, content fingerprint, previous
+fingerprint, page count, renderer fingerprint, final freeze status (`frozen`,
+`skipped`, or `failed`), and explicit drift reasons such as `content`,
+`renderer`, `missing_source_fingerprint`, `source_unavailable`, or
+`full_rebuild`. Public manifests intentionally omit local source-root paths.
 
 Git-backed mounts use the same contract with a `source` block in `mounts.yaml`:
 

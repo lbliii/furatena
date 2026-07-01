@@ -1506,6 +1506,15 @@ class DocsApp:
                 "Content-Type", "application/json; charset=utf-8"
             )
 
+        @app.route("/catalog/source-health.json", referenced=True)
+        def catalog_source_health_json(request: Request):
+            self._ensure_catalog()
+            mount = (request.query.get("mount") or "").strip() or None
+            body = self.catalog.source_health(mount=mount)
+            return Response(json.dumps(body, indent=2)).with_header(
+                "Content-Type", "application/json; charset=utf-8"
+            )
+
         @app.route("/inventories.json", referenced=True)
         def inventories_json_route(request: Request):
             self._ensure_catalog()
