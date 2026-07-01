@@ -9,6 +9,14 @@ from typing import Any
 
 import yaml
 
+from furatena.catalog.access import (
+    AccessDecision,
+    AccessPermission,
+    AccessPolicy,
+    AccessRole,
+    AccessSubject,
+    evaluate_access,
+)
 from furatena.catalog.catalog_nav import CatalogNavConfig
 from furatena.catalog.graph import build_federated_backlinks, normalize_internal_url
 from furatena.catalog.graph_schema import build_graph_edges
@@ -42,6 +50,7 @@ class MountConfig:
     url_prefix: str = ""
     default: bool = False
     source: MountSourceConfig = field(default_factory=MountSourceConfig)
+    access: AccessPolicy = field(default_factory=AccessPolicy)
 
 
 def _normalize_prefix(prefix: str) -> str:
@@ -109,6 +118,7 @@ def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...
                 url_prefix=_normalize_prefix(str(item.get("url_prefix") or "")),
                 default=bool(item.get("default")),
                 source=source_config,
+                access=AccessPolicy.from_mount_dict(item),
             )
         )
     if not mounts:
@@ -513,6 +523,64 @@ class CatalogRegistry:
             "serve_mode": self.serve_mode.value,
             "mounts": mounts,
         }
+
+    def mount_access_policy(self, mount_id: str) -> AccessPolicy | None:
+        """Return the access policy declared for a mount."""
+        mount = next((item for item in self.mounts if item.id == mount_id), None)
+        return mount.access if mount is not None else None
+
+    def node_access_policy(self, node: DocNode) -> AccessPolicy:
+        """Return the page-level access policy for a catalog node."""
+        return AccessPolicy.from_page_meta(getattr(node, "meta", {}) or {})
+
+    def can_access_mount(
+        self,
+        mount: MountConfig | str,
+        subject: AccessSubject | None = None,
+        *,
+        permission: AccessPermission | str = AccessPermission.READ,
+    ) -> bool:
+        """Return whether a subject can use a mount-level surface."""
+        policy = mount.access if isinstance(mount, MountConfig) else self.mount_access_policy(mount)
+        if policy is None:
+            return False
+        return evaluate_access(policy, subject, permission=permission).allowed
+
+    def access_decision_for_node(
+        self,
+        node: DocNode,
+        subject: AccessSubject | None = None,
+        *,
+        permission: AccessPermission | str = AccessPermission.READ,
+    ) -> AccessDecision:
+        """Evaluate mount and page policy for a catalog node."""
+        mount_policy = self.mount_access_policy(node.mount)
+        if mount_policy is None:
+            normalized_permission = (
+                permission
+                if isinstance(permission, AccessPermission)
+                else AccessPermission(str(permission).strip().lower())
+            )
+            return AccessDecision(
+                False,
+                normalized_permission,
+                AccessRole.ADMIN,
+                "mount not found",
+            )
+        mount_decision = evaluate_access(mount_policy, subject, permission=permission)
+        if not mount_decision.allowed:
+            return mount_decision
+        return evaluate_access(self.node_access_policy(node), subject, permission=permission)
+
+    def can_access_node(
+        self,
+        node: DocNode,
+        subject: AccessSubject | None = None,
+        *,
+        permission: AccessPermission | str = AccessPermission.READ,
+    ) -> bool:
+        """Return whether a subject can use a page-level surface."""
+        return self.access_decision_for_node(node, subject, permission=permission).allowed
 
     @property
     def frozen_root(self) -> Path | None:

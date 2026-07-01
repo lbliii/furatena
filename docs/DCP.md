@@ -252,6 +252,11 @@ provenance needed by static/offline consumers: `source_path`, `source_provider`,
 `api_try_it` projections so headless agents can inspect method/path/schema/example
 metadata and playground safety boundaries without scraping rendered HTML.
 
+Access policy is evaluated with the shared RBAC model in [RBAC.md](RBAC.md).
+Mounts can declare `access` in `mounts.yaml`; pages can declare `access` in
+front matter. Public output surfaces treat pages with role, team, or admin-only
+policy as non-public unless a trusted author/private viewer is explicitly used.
+
 `/catalog/api-operations.json`, `search.json`, `tools.json`, and `llms.txt` expose
 API operation summaries as first-class agent metadata. Operation records include
 method/path, `operation_id`, examples, schemas, auth, environments, source-spec
