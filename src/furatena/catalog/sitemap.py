@@ -5,7 +5,7 @@ from __future__ import annotations
 from html import escape
 from typing import TYPE_CHECKING
 
-from furatena.catalog.lifecycle import public_nodes
+from furatena.catalog.access import AccessPermission, accessible_nodes
 
 if TYPE_CHECKING:
     from furatena.catalog.loader import DocCatalog
@@ -38,7 +38,15 @@ def sitemap_xml(
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>', f"<urlset {xmlns}>"]
     raw_nodes = list(getattr(catalog, "nodes", ()))
-    nodes = sorted(raw_nodes if include_private else public_nodes(raw_nodes), key=lambda item: item.url)
+    nodes = sorted(
+        accessible_nodes(
+            catalog,
+            raw_nodes,
+            permission=AccessPermission.EXPORT,
+            include_private=include_private,
+        ),
+        key=lambda item: item.url,
+    )
 
     for node in nodes:
         key = getattr(node, "translation_key", None)

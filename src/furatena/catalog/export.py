@@ -6,9 +6,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
+from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.content_ir import content_ir_record
 from furatena.catalog.graph_schema import graph_node_records
-from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.patitas_bridge import excerpt_text, llm_text, plain_text, section_texts
 from furatena.catalog.search import search_nodes
 from furatena.catalog.text import sections_record
@@ -36,7 +36,12 @@ def catalog_graph(
 ) -> dict[str, Any]:
     """JSON-serializable view of the documentation graph."""
     pages: list[dict[str, Any]] = []
-    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    nodes = accessible_nodes(
+        catalog,
+        catalog.nodes,
+        permission=AccessPermission.EXPORT,
+        include_private=include_private,
+    )
     node_ids = {node.node_id for node in nodes}
     public_urls = {node.url for node in nodes}
     for node in nodes:
@@ -251,7 +256,12 @@ def meta_json(
 ) -> dict[str, Any]:
     """Compact per-page metadata index for agents and static export."""
     pages: list[dict[str, Any]] = []
-    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    nodes = accessible_nodes(
+        catalog,
+        catalog.nodes,
+        permission=AccessPermission.EXPORT,
+        include_private=include_private,
+    )
     for node in nodes:
         source_kind = node.meta.get("source", "markdown")
         provenance = _provenance_record(catalog, node, source_kind=source_kind)
@@ -396,7 +406,12 @@ def api_operations_json(
     include_private: bool = False,
 ) -> dict[str, Any]:
     """Agent/SDK-friendly API operation inventory."""
-    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    nodes = accessible_nodes(
+        catalog,
+        catalog.nodes,
+        permission=AccessPermission.EXPORT,
+        include_private=include_private,
+    )
     operations = [
         operation
         for node in nodes
@@ -419,7 +434,12 @@ def llms_txt(
 ) -> str:
     """Compact LLM-safe page index with API operation hints."""
     lines = [f"# {site_name} Documentation", ""]
-    nodes = catalog.doc_nodes() if include_private else public_nodes(catalog.doc_nodes())
+    nodes = accessible_nodes(
+        catalog,
+        catalog.doc_nodes(),
+        permission=AccessPermission.EXPORT,
+        include_private=include_private,
+    )
     for node in nodes:
         desc = node.description.strip() if node.description else ""
         api_line = _api_operation_line(node)
@@ -472,7 +492,12 @@ def llms_full_txt(
     """Full LLM-safe corpus for agents (Patitas ``render_llm`` when AST is available)."""
     lines = [f"# {site_name} Documentation (full corpus)", ""]
     documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None)
-    nodes = catalog.doc_nodes() if include_private else public_nodes(catalog.doc_nodes())
+    nodes = accessible_nodes(
+        catalog,
+        catalog.doc_nodes(),
+        permission=AccessPermission.EXPORT,
+        include_private=include_private,
+    )
     for node in nodes:
         lines.extend((f"## {node.title}", ""))
         if node.description.strip():
@@ -503,8 +528,12 @@ def search_json(
     languages: set[str] = set()
 
     nodes = catalog.all_doc_nodes() if hasattr(catalog, "all_doc_nodes") else catalog.doc_nodes()
-    if not include_private:
-        nodes = public_nodes(nodes)
+    nodes = accessible_nodes(
+        catalog,
+        nodes,
+        permission=AccessPermission.SEARCH,
+        include_private=include_private,
+    )
     documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None)
     for node in nodes:
         sections.add(node.section)
@@ -596,7 +625,12 @@ def search_json_for_query(
 ) -> dict[str, Any]:
     """Ranked search results in the same schema as ``search_json`` entries."""
     hits = search_nodes(
-        catalog.doc_nodes() if include_private else public_nodes(catalog.doc_nodes()),
+        accessible_nodes(
+            catalog,
+            catalog.doc_nodes(),
+            permission=AccessPermission.SEARCH,
+            include_private=include_private,
+        ),
         query,
         limit=limit,
         documents=catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None),
@@ -642,7 +676,12 @@ def tools_manifest(
     """Stable MCP-style tool schema over the documentation catalog."""
     origin = base_url.rstrip("/")
     tool_slug = "-".join(part for part in site_name.lower().split() if part) or "furatena"
-    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    nodes = accessible_nodes(
+        catalog,
+        catalog.nodes,
+        permission=AccessPermission.EXPORT,
+        include_private=include_private,
+    )
     api_operations = [
         operation
         for node in nodes

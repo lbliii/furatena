@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
+from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.assets import (
     bundle_css,
     copy_fonts,
@@ -27,7 +28,6 @@ from furatena.catalog.freeze_incremental import (
 )
 from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.inventories.sphinx import write_objects_inv_bytes
-from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.renderer_fingerprint import (
     read_renderer_fingerprint,
@@ -107,7 +107,11 @@ def _freeze_shard(registry: CatalogRegistry, mount_id: str, out_dir: Path, *, wo
     jobs: list[tuple[Path, Path, str, str, str | None]] = []
     keep_pages: set[Path] = set()
     keep_ast: set[Path] = set()
-    for node in public_nodes(shard.nodes):
+    for node in accessible_nodes(
+        registry,
+        shard.nodes,
+        permission=AccessPermission.EXPORT,
+    ):
         slug_path = node.slug or "index"
         html = registry.body_html(node) if hasattr(registry, "body_html") else node.body_html
         keep_pages.add(pages_dir / f"{slug_path}.html")
@@ -357,7 +361,11 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         )
         _freeze_inventories(registry, out_dir)
         semantic = EmbeddingIndex.from_nodes(
-            public_nodes(registry.nodes),
+            accessible_nodes(
+                registry,
+                registry.nodes,
+                permission=AccessPermission.EXPORT,
+            ),
             documents=registry.ast_documents(),
         )
         semantic.write(out_dir / "semantic.json")

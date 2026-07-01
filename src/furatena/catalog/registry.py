@@ -1053,7 +1053,15 @@ class CatalogRegistry:
         return [hit.node for hit in self.search_hits(query, limit=limit)]
 
     def search_hits(self, query: str, *, limit: int = 12) -> list[SearchHit]:
-        return search_nodes(self.doc_nodes(), query, limit=limit, documents=self.ast_documents())
+        from furatena.catalog.access import AccessPermission, accessible_nodes
+
+        nodes = accessible_nodes(
+            self,
+            self.doc_nodes(),
+            permission=AccessPermission.SEARCH,
+            include_private=self.include_private,
+        )
+        return search_nodes(nodes, query, limit=limit, documents=self.ast_documents())
 
     def graph_edges(self) -> list[dict[str, Any]]:
         if self._edges is not None:

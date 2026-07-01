@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.semantic import HybridHit, HybridSearchResult, hybrid_search
 
 if TYPE_CHECKING:
@@ -111,7 +112,14 @@ class SearchCatalogSnapshot:
 
 def build_search_catalog_snapshot(catalog: CatalogRegistry) -> SearchCatalogSnapshot:
     """Merge catalog doc nodes once per search request."""
-    nodes = tuple(catalog.doc_nodes())
+    nodes = tuple(
+        accessible_nodes(
+            catalog,
+            catalog.doc_nodes(),
+            permission=AccessPermission.SEARCH,
+            include_private=catalog.include_private,
+        )
+    )
     mount_labels = {mount.id: mount.label for mount in catalog.mounts}
     return SearchCatalogSnapshot(
         nodes=nodes,

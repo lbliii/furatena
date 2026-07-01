@@ -107,3 +107,24 @@ Access is allowed only when all of these are true:
 The runtime model exposes mount and page checks through the catalog registry so
 output filters can evaluate the same policy for routes, search, catalog JSON,
 MCP resources, `llms.txt`, and static exports.
+
+## Public Output Filtering
+
+Public output surfaces evaluate anonymous permissions by default. A page is
+omitted when its page policy, lifecycle visibility, or mount policy denies the
+required permission.
+
+Filtered public surfaces include:
+
+- browser search snapshots and `search.json`
+- `catalog.json`, API operation manifests, `tools.json`, `meta.json`, and
+  structure indexes
+- `llms.txt` and `llms-full.txt`
+- sitemap and static export routes, including `index.txt`
+- MCP node resources, node retrieval, graph traversal children, and semantic
+  search results
+
+Author/private mode can still build indexes with `include_private=true` so
+authors can inspect and validate protected pages locally. Public static output,
+GitHub Pages builds, and unauthenticated MCP/browser surfaces do not use that
+escape hatch.

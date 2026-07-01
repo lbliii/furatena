@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
+from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.chunks import chunk_node
 from furatena.catalog.embeddings import EmbeddingIndex, SemanticHit
-from furatena.catalog.lifecycle import is_public_node
 from furatena.catalog.search import search_nodes
 
 if TYPE_CHECKING:
@@ -79,9 +79,12 @@ def hybrid_search(
     if documents is None and hasattr(catalog, "ast_documents"):
         documents = catalog.ast_documents()
 
-    nodes = catalog.doc_nodes(lang=lang)
-    if not include_private:
-        nodes = [node for node in nodes if is_public_node(node)]
+    nodes = accessible_nodes(
+        catalog,
+        catalog.doc_nodes(lang=lang),
+        permission=AccessPermission.SEARCH,
+        include_private=include_private,
+    )
     if mount is not None or section is not None or tag is not None or edition is not None or lang is not None:
         nodes = [
             node
@@ -104,6 +107,7 @@ def hybrid_search(
     )
     chunk_limit = semantic_limit if semantic_limit is not None else max(limit * 3, 64)
     semantic_hits = index.search(query, limit=chunk_limit, mount=mount, edition=edition)
+    accessible_node_ids = {node.node_id for node in nodes}
 
     combined: dict[str, HybridHit] = {}
     for hit in keyword_hits:
@@ -119,7 +123,7 @@ def hybrid_search(
         node = catalog.get_by_node_id(sem_hit.chunk.node_id)
         if node is None:
             continue
-        if not include_private and not is_public_node(node):
+        if not include_private and node.node_id not in accessible_node_ids:
             continue
         if not _node_matches_filters(node, mount=mount, section=section, tag=tag, edition=edition, lang=lang):
             continue
@@ -159,7 +163,14 @@ def retrieve_node(
     include_private: bool = True,
 ) -> dict[str, Any] | None:
     node = catalog.get_by_node_id(node_id)
-    if node is None or (not include_private and not is_public_node(node)):
+    if node is None or (
+        not include_private
+        and node not in accessible_nodes(
+            catalog,
+            [node],
+            permission=AccessPermission.RETRIEVE,
+        )
+    ):
         return None
     documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else None
     chunks = [
@@ -183,7 +194,14 @@ def retrieve_node(
     ] if chunks else []
     backlinks = catalog.backlinks_for(node)
     if not include_private:
-        public_urls = {item.url for item in catalog.doc_nodes() if is_public_node(item)}
+        public_urls = {
+            item.url
+            for item in accessible_nodes(
+                catalog,
+                catalog.doc_nodes(),
+                permission=AccessPermission.RETRIEVE,
+            )
+        }
         backlinks = [item for item in backlinks if item.get("href") in public_urls]
     payload: dict[str, Any] = {
         "node_id": node.node_id,
