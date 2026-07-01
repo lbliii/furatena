@@ -253,6 +253,14 @@ and last-sync/index timestamp. The bundled filesystem provider is the default
 implementation and projects its metadata into `source_provider` and
 `provenance` fields during live scans.
 
+Frozen builds persist the same source boundary in `registry.json` and
+`freeze.manifest.json`. Each mount records a `source_status`/`mount_status`
+entry with provider, content fingerprint, previous fingerprint, page count,
+renderer fingerprint, final freeze status (`frozen`, `skipped`, or `failed`),
+and explicit drift reasons such as `content`, `renderer`,
+`missing_source_fingerprint`, or `full_rebuild`. Public manifests intentionally
+omit local source-root paths.
+
 Ingestion follows: **scan → adapt → graph**.
 
 ```

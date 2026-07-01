@@ -19,8 +19,9 @@ from furatena.catalog.config import load_docs_config
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.export import api_operations_json, catalog_graph, search_json, tools_manifest
 from furatena.catalog.freeze_incremental import (
-    dirty_mount_ids,
     mount_content_fingerprint,
+    mount_source_statuses,
+    set_mount_freeze_status,
     write_freeze_manifest,
     write_mount_fingerprint,
 )
@@ -214,6 +215,46 @@ def _freeze_assets(out_dir: Path, *, app_root: Path, theme_id: str, skin_pack: s
     )
 
 
+def _registry_manifest(registry: CatalogRegistry, mount_status: dict[str, dict] | None = None) -> dict:
+    payload: dict = {
+        "schema_version": 2,
+        "mounts": [
+            {
+                "id": mount.id,
+                "label": mount.label,
+                "url_prefix": mount.url_prefix,
+                "default": mount.default,
+                **(
+                    {"source_status": _public_mount_status(mount_status[mount.id])}
+                    if mount_status is not None and mount.id in mount_status
+                    else {}
+                ),
+            }
+            for mount in registry.mounts
+        ],
+    }
+    inventories = registry.inventories_metadata()
+    if inventories:
+        payload["inventories"] = inventories
+    return payload
+
+
+def _public_mount_status(status: dict) -> dict:
+    return {key: value for key, value in status.items() if key not in {"dirty", "source_root"}}
+
+
+def _write_registry_manifest(
+    out_dir: Path,
+    registry: CatalogRegistry,
+    *,
+    mount_status: dict[str, dict] | None = None,
+) -> None:
+    (out_dir / "registry.json").write_text(
+        json.dumps(_registry_manifest(registry, mount_status), indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     """Write frozen catalog files for a docs app."""
     out_dir = options.output_dir.resolve()
@@ -236,26 +277,6 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     index_seconds = time.perf_counter() - index_start
     base = docs_base_url()
 
-    registry_manifest: dict = {
-        "schema_version": 2,
-        "mounts": [
-            {
-                "id": mount.id,
-                "label": mount.label,
-                "url_prefix": mount.url_prefix,
-                "default": mount.default,
-            }
-            for mount in registry.mounts
-        ],
-    }
-    inventories = registry.inventories_metadata()
-    if inventories:
-        registry_manifest["inventories"] = inventories
-    (out_dir / "registry.json").write_text(
-        json.dumps(registry_manifest, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
     skin_pack_root = load_theme_pack(docs_config.theme.use).root if docs_config.theme.use else None
     renderer_fp = renderer_fingerprint(
         options.app_root,
@@ -264,30 +285,45 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     )
     stored_renderer = read_renderer_fingerprint(out_dir)
     renderer_changed = options.full_rebuild or stored_renderer != renderer_fp
-    mounts_to_freeze = (
-        [mount.id for mount in registry.mounts]
-        if options.full_rebuild
-        else dirty_mount_ids(registry, out_dir, renderer_changed=renderer_changed)
+    mount_status = mount_source_statuses(
+        registry,
+        out_dir,
+        renderer_fingerprint=renderer_fp,
+        renderer_changed=renderer_changed,
+        full_rebuild=options.full_rebuild,
     )
+    mounts_to_freeze = [mount.id for mount in registry.mounts if mount_status[mount.id]["dirty"]]
 
     total = 0
+    failed_mounts: dict[str, str] = {}
     export_start = time.perf_counter()
     if mounts_to_freeze:
         for mount in registry.mounts:
+            status = mount_status[mount.id]
             if mount.id not in mounts_to_freeze:
+                set_mount_freeze_status(status, "skipped")
                 total += len(registry._shards[mount.id].nodes)
                 continue
-            total += _freeze_shard(registry, mount.id, out_dir, workers=worker_count)
-            mount_dir = out_dir / "mounts" / mount.id
-            shard = registry._shards[mount.id]
-            write_mount_fingerprint(
-                mount_dir,
-                mount_content_fingerprint(shard, mount.content_root),
-            )
+            try:
+                total += _freeze_shard(registry, mount.id, out_dir, workers=worker_count)
+                mount_dir = out_dir / "mounts" / mount.id
+                shard = registry._shards[mount.id]
+                fingerprint = mount_content_fingerprint(shard, mount.content_root)
+                write_mount_fingerprint(mount_dir, fingerprint)
+                status["content_fingerprint"] = fingerprint
+                set_mount_freeze_status(status, "frozen")
+            except Exception as exc:
+                message = str(exc) or exc.__class__.__name__
+                failed_mounts[mount.id] = message
+                set_mount_freeze_status(status, "failed", error=message)
     else:
+        for status in mount_status.values():
+            set_mount_freeze_status(status, "skipped")
         total = len(registry.nodes)
 
-    if mounts_to_freeze:
+    _write_registry_manifest(out_dir, registry, mount_status=mount_status)
+
+    if mounts_to_freeze and not failed_mounts:
         merged_graph = catalog_graph(registry)
         from furatena.catalog.dcp_validate import validate_catalog_payload
 
@@ -322,6 +358,18 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         )
         semantic.write(out_dir / "semantic.json")
 
+    if failed_mounts:
+        write_freeze_manifest(
+            out_dir,
+            dirty_mounts=mounts_to_freeze,
+            total_pages=total,
+            mount_statuses=mount_status,
+            renderer_fingerprint=renderer_fp,
+            renderer_changed=renderer_changed,
+        )
+        formatted = ", ".join(f"{mount}: {error}" for mount, error in sorted(failed_mounts.items()))
+        raise RuntimeError(f"freeze failed for mount(s): {formatted}")
+
     if options.autodoc_config is not None:
         write_autodoc_fingerprint(
             out_dir,
@@ -335,7 +383,14 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             theme_id=docs_config.theme.id,
             skin_pack=docs_config.theme.use,
         )
-    write_freeze_manifest(out_dir, dirty_mounts=mounts_to_freeze, total_pages=total)
+    write_freeze_manifest(
+        out_dir,
+        dirty_mounts=mounts_to_freeze,
+        total_pages=total,
+        mount_statuses=mount_status,
+        renderer_fingerprint=renderer_fp,
+        renderer_changed=renderer_changed,
+    )
     export_seconds = time.perf_counter() - export_start
 
     return FreezeCatalogResult(

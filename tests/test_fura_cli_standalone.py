@@ -559,6 +559,92 @@ def test_freeze_and_export_json_report_outputs(tmp_path: Path, capsys) -> None:
     assert (app_root / "public" / "docs" / "get-started" / "index.html").is_file()
 
 
+def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    initial_payload = json.loads(capsys.readouterr().out)
+    assert initial_payload["ok"] is True
+
+    registry = json.loads((app_root / "frozen" / "registry.json").read_text(encoding="utf-8"))
+    manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    mount = registry["mounts"][0]
+    status = mount["source_status"]
+    manifest_status = manifest["mount_status"][0]
+    assert status["provider"] == "filesystem"
+    assert status["status"] == "frozen"
+    assert "missing_source_fingerprint" in status["drift_reasons"]
+    assert "source_root" not in status
+    assert manifest["schema_version"] == 2
+    assert manifest_status["content_fingerprint"] == status["content_fingerprint"]
+    assert "source_root" not in manifest_status
+    assert manifest["renderer"]["fingerprint"] == status["renderer_fingerprint"]
+
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    skipped_payload = json.loads(capsys.readouterr().out)
+    skipped_manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    skipped_status = skipped_manifest["mount_status"][0]
+    assert skipped_payload["data"]["status"] == "up_to_date"
+    assert skipped_manifest["dirty_mounts"] == []
+    assert skipped_status["status"] == "skipped"
+    assert skipped_status["drift_reasons"] == []
+
+    source = app_root / "content" / "docs" / "get-started.md"
+    source.write_text(
+        source.read_text(encoding="utf-8") + "\n\nNew source-sync state.\n",
+        encoding="utf-8",
+    )
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    content_payload = json.loads(capsys.readouterr().out)
+    content_manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    content_status = content_manifest["mount_status"][0]
+    assert content_payload["data"]["status"] == "updated"
+    assert content_status["status"] == "frozen"
+    assert content_status["drift_reasons"] == ["content"]
+
+    (app_root / "frozen" / "renderer.fingerprint").write_text("stale-renderer\n", encoding="utf-8")
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    renderer_payload = json.loads(capsys.readouterr().out)
+    renderer_manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    renderer_status = renderer_manifest["mount_status"][0]
+    assert renderer_payload["data"]["status"] == "updated"
+    assert renderer_status["status"] == "frozen"
+    assert renderer_status["drift_reasons"] == ["renderer"]
+
+
+def test_freeze_records_failed_mount_status_without_refreshing_renderer(
+    tmp_path: Path,
+    capsys,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+
+    from furatena.catalog import freeze as freeze_module
+
+    def fail_shard(*_args, **_kwargs) -> int:
+        raise RuntimeError("synthetic shard failure")
+
+    monkeypatch.setattr(freeze_module, "_freeze_shard", fail_shard)
+
+    with pytest.raises(RuntimeError, match="synthetic shard failure"):
+        main(["--app-root", str(app_root), "freeze", "--json"])
+
+    registry = json.loads((app_root / "frozen" / "registry.json").read_text(encoding="utf-8"))
+    manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    registry_status = registry["mounts"][0]["source_status"]
+    manifest_status = manifest["mount_status"][0]
+    assert registry_status["status"] == "failed"
+    assert registry_status["error"] == "synthetic shard failure"
+    assert manifest_status["status"] == "failed"
+    assert "missing_source_fingerprint" in manifest_status["drift_reasons"]
+    assert not (app_root / "frozen" / "renderer.fingerprint").exists()
+
+
 def test_export_json_blocks_lifecycle_errors_without_override(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 

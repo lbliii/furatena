@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from furatena.catalog.registry import CatalogRegistry
@@ -38,6 +38,70 @@ def write_mount_fingerprint(mount_dir: Path, fingerprint: str) -> None:
     (mount_dir / "freeze.fingerprint").write_text(fingerprint + "\n", encoding="utf-8")
 
 
+def mount_source_statuses(
+    registry: CatalogRegistry,
+    out_dir: Path,
+    *,
+    renderer_fingerprint: str,
+    renderer_changed: bool,
+    full_rebuild: bool = False,
+) -> dict[str, dict[str, Any]]:
+    """Return per-mount source sync state for the next freeze."""
+    statuses: dict[str, dict[str, Any]] = {}
+    for mount in registry.mounts:
+        mount_dir = out_dir / "mounts" / mount.id
+        shard = registry._shards[mount.id]
+        current = mount_content_fingerprint(shard, mount.content_root)
+        previous = read_mount_fingerprint(mount_dir)
+        drift_reasons: list[str] = []
+        if full_rebuild:
+            drift_reasons.append("full_rebuild")
+        if renderer_changed:
+            drift_reasons.append("renderer")
+        if previous is None:
+            drift_reasons.append("missing_source_fingerprint")
+        elif previous != current:
+            drift_reasons.append("content")
+
+        statuses[mount.id] = {
+            "mount": mount.id,
+            "provider": _mount_provider(shard),
+            "status": "pending" if drift_reasons else "skipped",
+            "dirty": bool(drift_reasons),
+            "drift_reasons": drift_reasons,
+            "content_fingerprint": current,
+            "previous_content_fingerprint": previous,
+            "renderer_fingerprint": renderer_fingerprint,
+            "renderer_changed": renderer_changed,
+            "page_count": len(shard.nodes),
+            "source_root": mount.content_root.as_posix(),
+            "url_prefix": mount.url_prefix,
+        }
+    return statuses
+
+
+def _mount_provider(shard) -> str:
+    for node in getattr(shard, "nodes", ()):
+        provider = (getattr(node, "meta", {}) or {}).get("source_provider")
+        if provider not in (None, ""):
+            return str(provider)
+    return "filesystem"
+
+
+def set_mount_freeze_status(
+    status: dict[str, Any],
+    freeze_status: str,
+    *,
+    error: str | None = None,
+) -> None:
+    """Record the outcome for one mount without dropping pre-freeze drift context."""
+    status["status"] = freeze_status
+    if freeze_status in {"frozen", "skipped"}:
+        status["dirty"] = False
+    if error:
+        status["error"] = error
+
+
 def dirty_mount_ids(
     registry: CatalogRegistry,
     out_dir: Path,
@@ -58,11 +122,33 @@ def dirty_mount_ids(
     return dirty
 
 
-def write_freeze_manifest(out_dir: Path, *, dirty_mounts: list[str], total_pages: int) -> None:
+def write_freeze_manifest(
+    out_dir: Path,
+    *,
+    dirty_mounts: list[str],
+    total_pages: int,
+    mount_statuses: dict[str, dict[str, Any]] | None = None,
+    renderer_fingerprint: str | None = None,
+    renderer_changed: bool = False,
+) -> None:
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "dirty_mounts": dirty_mounts,
         "page_count": total_pages,
         "mounts": [mount_dir.name for mount_dir in sorted((out_dir / "mounts").glob("*")) if mount_dir.is_dir()],
     }
+    if renderer_fingerprint is not None:
+        payload["renderer"] = {
+            "fingerprint": renderer_fingerprint,
+            "changed": renderer_changed,
+        }
+    if mount_statuses is not None:
+        payload["mount_status"] = [
+            _public_status(status)
+            for _mount_id, status in sorted(mount_statuses.items())
+        ]
     (out_dir / "freeze.manifest.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _public_status(status: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in status.items() if key not in {"dirty", "source_root"}}
