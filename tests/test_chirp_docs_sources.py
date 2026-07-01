@@ -13,7 +13,12 @@ sys.path.insert(0, str(REPO / "src"))
 from furatena.catalog.export import catalog_graph, meta_json
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
-from furatena.catalog.sources import FilesystemScanner, MountSourceConfig, get_content_adapter
+from furatena.catalog.sources import (
+    FilesystemScanner,
+    FilesystemSourceProvider,
+    MountSourceConfig,
+    get_content_adapter,
+)
 from furatena.catalog.sources.registry import registered_formats
 from furatena.catalog.sources.scanner import file_to_url
 
@@ -66,6 +71,31 @@ class TestFilesystemScanner:
         url, slug = file_to_url(tmp_path, section / "_index.md")
         assert slug == "docs/guide"
         assert url == "/docs/guide/"
+
+
+class TestFilesystemSourceProvider:
+    def test_provider_enumerates_reads_fingerprints_and_reports_provenance(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        page = tmp_path / "docs" / "hello.md"
+        page.parent.mkdir()
+        page.write_text("---\ntitle: Hello\n---\n\n# Hello\n", encoding="utf-8")
+        provider = FilesystemSourceProvider(MountSourceConfig())
+
+        sources = provider.enumerate(tmp_path)
+        assert len(sources) == 1
+        source = sources[0]
+        assert provider.read(source).startswith("---")
+        fingerprint = provider.fingerprint(source)
+        assert fingerprint.algorithm == "sha256"
+        assert len(fingerprint.value) == 64
+        assert fingerprint.size == page.stat().st_size
+        provenance = provider.provenance(source, mount="docs")
+        assert provenance.provider == "filesystem"
+        assert provenance.path == "docs/hello.md"
+        assert provenance.mount == "docs"
+        assert provenance.to_meta()["source_provider"] == "filesystem"
 
 
 class TestPatitasMarkdownAdapter:
@@ -157,6 +187,20 @@ class TestCatalogGraphV3:
         assert page["body_source"] == "# Test"
         assert page["body_text"] == "Test body"
         assert page["body_md"] == "# Test"
+
+    def test_live_scan_exports_filesystem_provider_provenance(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        page_path = content / "docs" / "hello.md"
+        page_path.parent.mkdir(parents=True)
+        page_path.write_text("---\ntitle: Hello\n---\n\n# Hello\n", encoding="utf-8")
+        catalog = DocCatalog(content, autodoc=False, mount="docs")
+
+        payload = catalog_graph(catalog, schema_version=3)
+        page = payload["pages"][0]
+        assert page["source_provider"] == "filesystem"
+        assert page["provenance"]["provider"] == "filesystem"
+        assert page["provenance"]["path"] == "docs/hello.md"
+        assert page["provenance"]["mount"] == "docs"
 
     def test_v3_export_includes_provenance_and_owner_fields(self) -> None:
         node = DocNode(

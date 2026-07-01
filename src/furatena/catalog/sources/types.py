@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -85,6 +86,77 @@ class PageSource:
     source_path: str
     url: str
     slug: str
+
+
+@dataclass(frozen=True, slots=True)
+class SourceFingerprint:
+    """Stable-ish content fingerprint for one provider source."""
+
+    value: str
+    algorithm: str = "sha256"
+    size: int | None = None
+    modified_ns: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SourceProvenance:
+    """Provider provenance projected into DCP/export metadata."""
+
+    provider: str
+    path: str
+    mount: str
+    repo: str | None = None
+    ref: str | None = None
+    last_sync_at: str | None = None
+
+    @classmethod
+    def filesystem(cls, source: PageSource, *, mount: str) -> SourceProvenance:
+        modified = None
+        if source.path.is_file():
+            modified = datetime.fromtimestamp(source.path.stat().st_mtime, UTC).isoformat()
+        return cls(
+            provider="filesystem",
+            path=source.source_path,
+            mount=mount,
+            last_sync_at=modified,
+        )
+
+    def to_meta(self) -> dict[str, Any]:
+        provenance = {
+            "provider": self.provider,
+            "repo": self.repo,
+            "ref": self.ref,
+            "path": self.path,
+            "mount": self.mount,
+            "last_indexed_at": self.last_sync_at,
+        }
+        return {
+            "source_provider": self.provider,
+            "source_repo": self.repo,
+            "source_ref": self.ref,
+            "last_indexed_at": self.last_sync_at,
+            "provenance": provenance,
+        }
+
+
+class SourceProvider(Protocol):
+    """Source backend contract for filesystem, git, archive, and future SaaS mounts."""
+
+    id: str
+
+    def enumerate(
+        self,
+        content_root: Path,
+        *,
+        url_prefix: str = "",
+        include_private: bool = False,
+    ) -> list[PageSource]: ...
+
+    def read(self, source: PageSource) -> str: ...
+
+    def fingerprint(self, source: PageSource) -> SourceFingerprint: ...
+
+    def provenance(self, source: PageSource, *, mount: str) -> SourceProvenance: ...
 
 
 @dataclass(frozen=True, slots=True)
