@@ -245,6 +245,14 @@ static export.
 
 ## Adapter contract
 
+Source ingestion is represented by a `SourceProvider` contract so filesystem,
+git, archive, and future SaaS mounts can feed the same graph model. A provider
+must enumerate source pages, read a source body, fingerprint a source, and
+return provenance with provider, repo/ref when available, source path, mount,
+and last-sync/index timestamp. The bundled filesystem provider is the default
+implementation and projects its metadata into `source_provider` and
+`provenance` fields during live scans.
+
 Ingestion follows: **scan → adapt → graph**.
 
 ```

@@ -30,7 +30,7 @@ from furatena.catalog.models import DocNode, SectionChunk, TocEntry
 from furatena.catalog.render import DocsRenderer
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.sources import (
-    FilesystemScanner,
+    FilesystemSourceProvider,
     MountSourceConfig,
     PageSource,
     get_content_adapter,
@@ -160,7 +160,8 @@ class DocCatalog:
             catalog=reference_catalog,
             inventory_store=inventory_store,
         )
-        self._scanner = FilesystemScanner(self.source_config)
+        self._source_provider = FilesystemSourceProvider(self.source_config)
+        self._scanner = self._source_provider.scanner
         self._federated_slug_urls = federated_slug_urls or {}
         self._watcher = None
         self._cached_autodoc_nodes = cached_autodoc_nodes
@@ -315,7 +316,7 @@ class DocCatalog:
         return overlay_pages
 
     def _scan_sources(self) -> list[dict[str, Any]]:
-        scanned = self._scanner.scan(
+        scanned = self._source_provider.enumerate(
             self.content_root,
             url_prefix=self.url_prefix,
             include_private=self.include_private,
@@ -334,11 +335,22 @@ class DocCatalog:
             federated_slug_urls=self._federated_slug_urls,
         )
         raw_pages = self._scanner.page_dicts(scanned)
+        scanned_by_slug = {source.slug: source for source in scanned}
 
         stubs: dict[str, NodeStub] = {}
         for page in raw_pages:
             meta = page["meta"]
             slug = page["slug"]
+            source = scanned_by_slug.get(slug)
+            if source is not None:
+                provenance_meta = self._source_provider.provenance(source, mount=self.mount).to_meta()
+                for key, value in provenance_meta.items():
+                    if key == "provenance":
+                        existing = meta.get("provenance") if isinstance(meta.get("provenance"), dict) else {}
+                        meta["provenance"] = {**value, **existing}
+                    elif value not in (None, ""):
+                        meta.setdefault(key, value)
+                meta.setdefault("source_fingerprint", self._source_provider.fingerprint(source).value)
             stubs[slug] = NodeStub(
                 slug=slug,
                 url=page["url"],
@@ -1074,7 +1086,8 @@ class DocCatalog:
         catalog._doc_nodes_lang = None
         catalog._workers = 1
         catalog.source_config = MountSourceConfig()
-        catalog._scanner = FilesystemScanner(catalog.source_config)
+        catalog._source_provider = FilesystemSourceProvider(catalog.source_config)
+        catalog._scanner = catalog._source_provider.scanner
         catalog._federated_slug_urls = {}
         catalog._watcher = None
 
