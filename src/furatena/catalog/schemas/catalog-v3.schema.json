@@ -60,6 +60,7 @@
         "owner": { "type": ["string", "null"] },
         "team": { "type": ["string", "null"] },
         "tenant": { "type": ["string", "null"] },
+        "workspace": { "type": ["string", "null"] },
         "site": { "type": ["string", "null"] },
         "output_channel": { "type": ["string", "null"] },
         "last_indexed_at": { "type": ["string", "null"] },
@@ -77,6 +78,7 @@
             "mount": { "type": "string" },
             "edition": { "type": "string" },
             "tenant": { "type": ["string", "null"] },
+            "workspace": { "type": ["string", "null"] },
             "site": { "type": ["string", "null"] },
             "output_channel": { "type": ["string", "null"] },
             "last_indexed_at": { "type": ["string", "null"] }
@@ -350,7 +352,10 @@
         "mount": { "type": "string" },
         "label": { "type": "string" },
         "edition": { "type": "string" },
-        "page_count": { "type": "integer", "minimum": 0 }
+        "page_count": { "type": "integer", "minimum": 0 },
+        "tenant": { "type": ["string", "null"] },
+        "workspace": { "type": ["string", "null"] },
+        "site": { "type": ["string", "null"] }
       }
     },
     "inventory": {

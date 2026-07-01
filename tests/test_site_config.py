@@ -49,3 +49,51 @@ class TestSiteConfig:
 
     def test_theme_id_furatena(self, docs_config) -> None:
         assert docs_config.theme.id == "furatena"
+
+    def test_identity_defaults(self, docs_config) -> None:
+        assert docs_config.identity.tenant == "default"
+        assert docs_config.identity.workspace == "default"
+        assert docs_config.identity.site == "default"
+
+    def test_identity_from_docs_yaml(self, tmp_path: Path) -> None:
+        from furatena.catalog.config import load_docs_config
+
+        config_path = tmp_path / "docs.yaml"
+        config_path.write_text(
+            """
+site:
+  name: Enterprise Docs
+identity:
+  tenant: acme
+  workspace: platform
+  site: developer-docs
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        config = load_docs_config(config_path)
+
+        assert config.identity.tenant == "acme"
+        assert config.identity.workspace == "platform"
+        assert config.identity.site == "developer-docs"
+
+    def test_identity_site_id_alias(self, tmp_path: Path) -> None:
+        from furatena.catalog.config import load_docs_config
+
+        config_path = tmp_path / "docs.yaml"
+        config_path.write_text(
+            """
+tenant: acme
+workspace: docs
+site:
+  id: support-kb
+  name: Support Knowledge Base
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        config = load_docs_config(config_path)
+
+        assert config.identity.tenant == "acme"
+        assert config.identity.workspace == "docs"
+        assert config.identity.site == "support-kb"

@@ -432,10 +432,26 @@ def graph_node_records(edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(records.values(), key=lambda item: (item["kind"], item["id"], item["mount"], item["edition"]))
 
 
-def namespace_record(mount_id: str, label: str, *, edition: str, page_count: int) -> dict[str, Any]:
-    return {
+def namespace_record(
+    mount_id: str,
+    label: str,
+    *,
+    edition: str,
+    page_count: int,
+    tenant: str | None = None,
+    workspace: str | None = None,
+    site: str | None = None,
+) -> dict[str, Any]:
+    record = {
         "mount": mount_id,
         "edition": edition,
         "label": label,
         "page_count": page_count,
     }
+    if tenant:
+        record["tenant"] = tenant
+    if workspace:
+        record["workspace"] = workspace
+    if site:
+        record["site"] = site
+    return record

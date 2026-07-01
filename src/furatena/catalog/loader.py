@@ -129,6 +129,7 @@ class DocCatalog:
         i18n_config: DocsI18nConfig | None = None,
         catalog_nav: CatalogNavConfig | None = None,
         include_private: bool = False,
+        identity_meta: dict[str, str] | None = None,
     ) -> None:
         self.content_root = content_root
         self.auto_reload = auto_reload
@@ -172,6 +173,11 @@ class DocCatalog:
         self.i18n_config = i18n_config or DocsI18nConfig()
         self.catalog_nav = catalog_nav
         self.include_private = include_private
+        self.identity_meta = {
+            key: str(value)
+            for key, value in (identity_meta or {}).items()
+            if key in {"tenant", "workspace", "site"} and value not in (None, "")
+        }
         self._doc_nodes_lang: str | None = None
         self._load()
 
@@ -340,6 +346,7 @@ class DocCatalog:
         stubs: dict[str, NodeStub] = {}
         for page in raw_pages:
             meta = page["meta"]
+            self._apply_identity_defaults(meta)
             slug = page["slug"]
             source = scanned_by_slug.get(slug)
             if source is not None:
@@ -533,7 +540,9 @@ class DocCatalog:
             )
         if cached is not None:
             for node in cached:
-                self._register_node(replace(node, mount=self.mount))
+                meta = dict(node.meta)
+                self._apply_identity_defaults(meta)
+                self._register_node(replace(node, mount=self.mount, meta=meta))
             if self._frozen_pages_dir is None and self._frozen_shard_dir is not None:
                 pages_dir = self._frozen_shard_dir / "pages"
                 if pages_dir.is_dir():
@@ -544,7 +553,13 @@ class DocCatalog:
             repo_root=self.repo_root,
             workers=self._workers,
         ):
-            self._register_node(replace(node, mount=self.mount))
+            meta = dict(node.meta)
+            self._apply_identity_defaults(meta)
+            self._register_node(replace(node, mount=self.mount, meta=meta))
+
+    def _apply_identity_defaults(self, meta: dict[str, Any]) -> None:
+        for key, value in self.identity_meta.items():
+            meta.setdefault(key, value)
 
     def _finalize_graph(self) -> None:
         self._doc_nodes = None
@@ -1026,6 +1041,9 @@ class DocCatalog:
                 self.mount.replace("-", " ").title(),
                 edition=self.active_channel,
                 page_count=len(self.nodes),
+                tenant=self.identity_meta.get("tenant"),
+                workspace=self.identity_meta.get("workspace"),
+                site=self.identity_meta.get("site"),
             )
         ]
 
@@ -1083,6 +1101,7 @@ class DocCatalog:
         catalog.i18n_config = DocsI18nConfig()
         catalog.catalog_nav = catalog_nav
         catalog.include_private = False
+        catalog.identity_meta = {}
         catalog._doc_nodes_lang = None
         catalog._workers = 1
         catalog.source_config = MountSourceConfig()
@@ -1155,6 +1174,7 @@ class DocCatalog:
                 "team",
                 "tenant",
                 "validates",
+                "workspace",
             ):
                 value = page.get(key)
                 if value not in (None, ""):
@@ -1170,6 +1190,7 @@ class DocCatalog:
                     ("owner", "owner"),
                     ("team", "team"),
                     ("tenant", "tenant"),
+                    ("workspace", "workspace"),
                     ("site", "site"),
                     ("last_indexed_at", "last_indexed_at"),
                 ):

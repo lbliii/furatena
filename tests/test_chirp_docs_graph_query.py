@@ -102,6 +102,32 @@ def test_source_health_endpoint_reports_mounts(tmp_path: Path) -> None:
     assert mount["page_count"] >= 1
 
 
+def test_docs_app_identity_flows_to_catalog_graph(tmp_path: Path) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    docs_yaml = app_root / "docs.yaml"
+    docs_yaml.write_text(
+        docs_yaml.read_text(encoding="utf-8")
+        + "\nidentity:\n  tenant: acme\n  workspace: platform\n  site: developer-docs\n",
+        encoding="utf-8",
+    )
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    async def _fetch() -> dict[str, object]:
+        resp = await client.get("/catalog.json")
+        assert resp.status == 200
+        return json.loads(resp.text)
+
+    payload = asyncio.run(_fetch())
+    page = next(item for item in payload["pages"] if item["slug"] == "docs/source")
+    assert page["tenant"] == "acme"
+    assert page["workspace"] == "platform"
+    assert page["site"] == "developer-docs"
+    namespace = payload["namespaces"][0]
+    assert namespace["tenant"] == "acme"
+    assert namespace["workspace"] == "platform"
+    assert namespace["site"] == "developer-docs"
+
+
 def test_graph_query_endpoint_returns_typed_graph_nodes(tmp_path: Path) -> None:
     app_root, _content = _write_query_fixture(tmp_path)
     client = _client_for_app(app_root, repo_root=tmp_path)

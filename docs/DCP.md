@@ -58,9 +58,9 @@ fixtures additionally cover typed non-page `graph_nodes` such as API schemas.
 | `source_kind` | `filesystem` \| `generated` |
 | `source_provider`, `source_repo`, `source_ref` | Source provenance for impact reports |
 | `generated_from` | Source/API/spec identifier that produced the node, when generated |
-| `owner`, `team`, `tenant`, `site` | Ownership and tenancy grouping keys |
+| `owner`, `team`, `tenant`, `workspace`, `site` | Ownership and tenancy grouping keys |
 | `output_channel`, `last_indexed_at` | Export channel and index timestamp for stale analysis |
-| `provenance` | Normalized provenance object with provider, repo, ref, path, owner/team, mount, edition, channel, and timestamp |
+| `provenance` | Normalized provenance object with provider, repo, ref, path, owner/team, tenant/workspace/site, mount, edition, channel, and timestamp |
 | `content_format` | Open string, e.g. `patitas-markdown`, `docutils-rst` |
 | `api_operation` | Operation projection with id, method, path, summary, tags, schemas, examples, auth, environments, and source spec |
 | `api_try_it` | Static-safe API playground contract with static/mock/live modes, tenant/site/mount boundaries, base URL env references, server-only auth token refs, and static-export fallback |
@@ -69,6 +69,30 @@ fixtures additionally cover typed non-page `graph_nodes` such as API schemas.
 | `edges[]` | Typed semantic relationships (see taxonomy below) |
 | `graph_nodes[]` | Typed non-page graph targets such as API schemas, examples, auth schemes, environments, releases, source files, tags, responses, and operation ids |
 | `namespaces[]` | Mount metadata |
+
+## Tenant, Workspace, and Site Identity
+
+Every app maps to one tenant/workspace/site by default so solo projects keep a
+simple configuration while enterprise deployments can add stable boundaries.
+`docs.yaml` may set the identity explicitly:
+
+```yaml
+identity:
+  tenant: acme
+  workspace: platform
+  site: developer-docs
+```
+
+The loader resolves identity in this order:
+
+1. Page front matter (`tenant`, `workspace`, `site`) wins for a specific page.
+2. `docs.yaml` `identity.*` or `enterprise.*` defines site-wide defaults.
+3. Top-level `tenant`, `workspace`, `site_id`, or `site.id` are compatibility aliases.
+4. Missing values default to `default`.
+
+DCP pages, provenance records, stale-impact reports, and `namespaces[]` include
+the resolved identity. Node ids remain `mount:edition:slug` in DCP v3 for
+compatibility; tenant-aware URL/cache namespaces are a separate routing layer.
 
 ### Edge taxonomy
 
@@ -222,8 +246,8 @@ full catalog.
 
 `/meta.json` keeps the page index compact but preserves the same impact-routing
 provenance needed by static/offline consumers: `source_path`, `source_provider`,
-`source_repo`, `source_ref`, `generated_from`, `owner`, `team`, `tenant`, `site`,
-`mount`, `edition`, `output_channel`, `last_indexed_at`, and the normalized
+`source_repo`, `source_ref`, `generated_from`, `owner`, `team`, `tenant`,
+`workspace`, `site`, `mount`, `edition`, `output_channel`, `last_indexed_at`, and the normalized
 `provenance` object. API operation pages also include compact `api_operation` and
 `api_try_it` projections so headless agents can inspect method/path/schema/example
 metadata and playground safety boundaries without scraping rendered HTML.
