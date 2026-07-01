@@ -65,6 +65,7 @@ from furatena.catalog.i18n import (
     resolve_localized_node,
     supported_app_locales,
 )
+from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.incremental import is_partial_reload
 from furatena.catalog.lifecycle import is_public_node, visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
@@ -161,7 +162,8 @@ class DocsApp:
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
         )
-        semantic_path = (frozen or config.root / "frozen") / "semantic.json"
+        semantic_root = scoped_frozen_dir(frozen or config.root / "frozen", config.identity.to_meta())
+        semantic_path = semantic_root / "semantic.json"
         self.embedding_index = EmbeddingIndex.load(semantic_path) or EmbeddingIndex.from_nodes(
             list(self.catalog.nodes),
             documents=self.catalog.ast_documents(),
@@ -365,6 +367,20 @@ class DocsApp:
 
     def _register_mount_routes(self, app: App) -> None:
         """Register URL handlers from mount configuration."""
+        tenant_prefix = self.catalog.route_prefix.rstrip("/")
+        if tenant_prefix:
+
+            @app.route(f"{tenant_prefix}/", referenced=True)
+            def tenant_home(request: Request):
+                self._ensure_catalog()
+                node = self.catalog.get("/")
+                if node is None:
+                    raise NotFound("Home page not found.")
+                return self._render_node(node, request)
+
+            @app.route(f"{tenant_prefix}/{{slug:path}}", referenced=True)
+            def tenant_catalog_page(request: Request, slug: str = ""):
+                return self._render_catalog_page(request)
 
         @app.route("/")
         def home(request: Request):

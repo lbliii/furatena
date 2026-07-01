@@ -16,6 +16,8 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     from furatena.catalog.docs_app import DocsApp
 
+from furatena.catalog.identity import scoped_frozen_dir
+
 _ROOT_PATH_ATTRS = (
     "href",
     "src",
@@ -354,11 +356,18 @@ def _collect_routes(docs_app: DocsApp, options: StaticExportOptions) -> list[str
     from furatena.catalog.lifecycle import public_nodes
 
     public_urls = {node.url for node in public_nodes(docs_app.catalog.nodes)}
-    routes = {_canonical_export_path(url) for url in public_urls}
+    routes = {
+        docs_app.catalog.scoped_url(_canonical_export_path(url))
+        for url in public_urls
+    }
     i18n = docs_app.config.i18n
     if i18n.enabled:
         routes.update(collect_i18n_home_routes(i18n))
-        routes.update(url for url in collect_i18n_export_routes(docs_app.catalog, i18n) if url in public_urls)
+        routes.update(
+            docs_app.catalog.scoped_url(url)
+            for url in collect_i18n_export_routes(docs_app.catalog, i18n)
+            if url in public_urls
+        )
     if options.include_portal and "/portal/" not in routes:
         routes.add("/portal/")
     if options.include_search:
@@ -420,7 +429,7 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
         url = node.url.rstrip("/")
         if not url.startswith("/docs/") and url != "/docs":
             continue
-        routes.append(f"{url}/index.txt")
+        routes.append(docs_app.catalog.scoped_url(f"{url}/index.txt"))
     i18n = docs_app.config.i18n
     if i18n.enabled and i18n.fallback_to_default:
         from furatena.catalog.i18n import collect_i18n_export_routes
@@ -428,8 +437,17 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
         for url in collect_i18n_export_routes(docs_app.catalog, i18n):
             if url not in public_urls:
                 continue
-            routes.append(f"{url.rstrip('/')}/index.txt")
+            routes.append(docs_app.catalog.scoped_url(f"{url.rstrip('/')}/index.txt"))
     return routes
+
+
+def _effective_frozen_dir(docs_app: DocsApp, frozen_dir: Path | None) -> Path | None:
+    if frozen_dir is None:
+        return None
+    return docs_app.catalog.frozen_root or scoped_frozen_dir(
+        frozen_dir,
+        docs_app.config.identity.to_meta(),
+    )
 
 
 def _prune_stale_outputs(output_dir: Path, *, keep_paths: set[Path]) -> int:
@@ -456,6 +474,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     frozen_dir = options.frozen_dir
     if frozen_dir is None and docs_app.serve.frozen_dir is not None:
         frozen_dir = docs_app.serve.frozen_dir
+    frozen_dir = _effective_frozen_dir(docs_app, frozen_dir)
     if not options.allow_lifecycle_errors:
         lifecycle_errors, lifecycle_warnings = check_lifecycle_sources(docs_app.catalog)
         if lifecycle_errors:
