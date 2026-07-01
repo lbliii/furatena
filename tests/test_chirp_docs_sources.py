@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
@@ -11,11 +14,14 @@ APP_ROOT = REPO / "app"
 sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.export import catalog_graph, meta_json
+from furatena.catalog.freeze_incremental import mount_source_statuses
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
+from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.sources import (
     FilesystemScanner,
     FilesystemSourceProvider,
+    GitSourceProvider,
     MountSourceConfig,
     get_content_adapter,
 )
@@ -46,6 +52,25 @@ class TestMountSourceConfig:
         assert config.content_format_for(Path("page.mdx")) == "mdx"
         assert "index.html" in config.index_files
         assert "index.rst" in config.index_files
+
+    def test_from_mount_dict_parses_git_source(self) -> None:
+        config = MountSourceConfig.from_mount_dict(
+            {
+                "source": {
+                    "provider": "git",
+                    "repo": "https://github.com/example/docs.git",
+                    "ref": "main",
+                    "path": "docs",
+                },
+                "extensions": [".md", ".mdx"],
+            }
+        )
+        assert config.provider == "git"
+        assert config.git is not None
+        assert config.git.repo == "https://github.com/example/docs.git"
+        assert config.git.ref == "main"
+        assert config.git.path == "docs"
+        assert ".mdx" in config.tracked_extensions()
 
 
 class TestFilesystemScanner:
@@ -96,6 +121,116 @@ class TestFilesystemSourceProvider:
         assert provenance.path == "docs/hello.md"
         assert provenance.mount == "docs"
         assert provenance.to_meta()["source_provider"] == "filesystem"
+
+
+def _git(*args: str, cwd: Path) -> str:
+    try:
+        result = subprocess.run(
+            ("git", *args),
+            cwd=cwd,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        pytest.skip("git executable is required")
+    return result.stdout.strip()
+
+
+def _make_git_docs_repo(tmp_path: Path) -> tuple[Path, str]:
+    repo = tmp_path / "remote-docs"
+    repo.mkdir()
+    _git("init", cwd=repo)
+    _git("config", "user.email", "tests@example.com", cwd=repo)
+    _git("config", "user.name", "Tests", cwd=repo)
+    docs = repo / "docs"
+    docs.mkdir()
+    (docs / "guide.md").write_text(
+        "---\ntitle: Git Guide\n---\n\n# Git Guide\n\nSynced body.\n",
+        encoding="utf-8",
+    )
+    _git("add", "docs/guide.md", cwd=repo)
+    _git("commit", "-m", "Add docs", cwd=repo)
+    commit = _git("rev-parse", "HEAD", cwd=repo)
+    return repo, commit
+
+
+class TestGitSourceProvider:
+    def test_registry_syncs_git_mount_and_exports_commit_provenance(self, tmp_path: Path) -> None:
+        repo, commit = _make_git_docs_repo(tmp_path)
+        app_root = tmp_path / "app"
+        app_root.mkdir()
+        mounts_yaml = app_root / "mounts.yaml"
+        mounts_yaml.write_text(
+            f"""
+mounts:
+  - id: remote
+    label: Remote Docs
+    url_prefix: /remote
+    source:
+      provider: git
+      repo: {repo.as_posix()}
+      ref: HEAD
+      path: docs
+    extensions: [".md"]
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        registry = CatalogRegistry.from_config(mounts_yaml, repo_root=tmp_path, app_root=app_root, autodoc=False)
+
+        node = registry.get_by_slug("guide", mount="remote")
+        assert node is not None
+        assert node.title == "Git Guide"
+        assert node.meta["source_provider"] == "git"
+        assert node.meta["source_repo"] == repo.as_posix()
+        assert node.meta["source_ref"] == commit
+        assert node.meta["source_url"].startswith(repo.resolve().as_uri())
+        assert registry.mounts[0].content_root == app_root / ".docs-cache" / "sources" / "remote" / "repo" / "docs"
+
+        payload = catalog_graph(registry, schema_version=3)
+        page = payload["pages"][0]
+        assert page["source_provider"] == "git"
+        assert page["source_repo"] == repo.as_posix()
+        assert page["source_ref"] == commit
+        assert page["source_url"].endswith("/docs/guide.md")
+        assert page["provenance"]["source_url"] == page["source_url"]
+
+        status = mount_source_statuses(
+            registry,
+            tmp_path / "frozen",
+            renderer_fingerprint="renderer",
+            renderer_changed=False,
+        )["remote"]
+        assert status["provider"] == "git"
+        assert status["source_repo"] == repo.as_posix()
+        assert status["source_ref"] == commit
+        assert status["source_url"] == repo.resolve().as_uri()
+
+    def test_git_provider_reports_blob_url_for_synced_source(self, tmp_path: Path) -> None:
+        repo, commit = _make_git_docs_repo(tmp_path)
+        config = MountSourceConfig.from_mount_dict(
+            {
+                "source": {
+                    "provider": "git",
+                    "repo": repo.as_posix(),
+                    "ref": "HEAD",
+                    "path": "docs",
+                }
+            }
+        ).with_git_sync_state(
+            resolved_ref=commit,
+            source_url=repo.resolve().as_uri(),
+        )
+        provider = GitSourceProvider(config)
+        source = provider.enumerate(repo / "docs")[0]
+
+        provenance = provider.provenance(source, mount="remote")
+
+        assert provenance.provider == "git"
+        assert provenance.repo == repo.as_posix()
+        assert provenance.ref == commit
+        assert provenance.source_url == f"{repo.resolve().as_uri()}/docs/guide.md"
 
 
 class TestPatitasMarkdownAdapter:
@@ -307,6 +442,7 @@ class TestCatalogGraphV3:
             "provider": "git",
             "repo": "lbliii/furatena",
             "ref": "main",
+            "source_url": None,
             "path": "docs/test.md",
             "generated_from": "specs/openapi.yaml",
             "owner": "docs-platform",

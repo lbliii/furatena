@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from furatena.catalog.sources.git import repo_web_url
 from furatena.catalog.sources.scanner import FilesystemScanner
 from furatena.catalog.sources.types import (
+    GitSourceConfig,
     MountSourceConfig,
     PageSource,
     SourceFingerprint,
@@ -53,3 +55,51 @@ class FilesystemSourceProvider:
 
     def provenance(self, source: PageSource, *, mount: str) -> SourceProvenance:
         return SourceProvenance.filesystem(source, mount=mount)
+
+
+class GitSourceProvider(FilesystemSourceProvider):
+    """SourceProvider implementation backed by a synced git snapshot."""
+
+    id = "git"
+
+    def __init__(self, config: MountSourceConfig) -> None:
+        super().__init__(config)
+        if config.git is None:
+            raise ValueError("GitSourceProvider requires MountSourceConfig.git")
+        self._git = config.git
+
+    def provenance(self, source: PageSource, *, mount: str) -> SourceProvenance:
+        return SourceProvenance(
+            provider="git",
+            repo=self._git.repo,
+            ref=self._git.resolved_ref or self._git.ref,
+            source_url=_source_blob_url(self._git, source.source_path),
+            path=source.source_path,
+            mount=mount,
+            last_sync_at=SourceProvenance.filesystem(source, mount=mount).last_sync_at,
+        )
+
+
+def source_provider_for_config(config: MountSourceConfig) -> FilesystemSourceProvider:
+    """Return the source provider for a mount configuration."""
+    if config.provider == "git" or config.git is not None:
+        return GitSourceProvider(config)
+    return FilesystemSourceProvider(config)
+
+
+def _source_blob_url(config: GitSourceConfig, source_path: str) -> str | None:
+    base = config.source_url or _repo_web_url(config.repo)
+    if not base:
+        return None
+    ref = config.resolved_ref or config.ref
+    parts = [part for part in (config.path, source_path) if part]
+    full_path = "/".join(part.strip("/") for part in parts)
+    if base.startswith("file://"):
+        return f"{base.rstrip('/')}/{full_path}" if full_path else base
+    if full_path:
+        return f"{base.rstrip('/')}/blob/{ref}/{full_path}"
+    return f"{base.rstrip('/')}/tree/{ref}"
+
+
+def _repo_web_url(repo: str) -> str | None:
+    return repo_web_url(repo)

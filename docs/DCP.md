@@ -261,6 +261,26 @@ and explicit drift reasons such as `content`, `renderer`,
 `missing_source_fingerprint`, or `full_rebuild`. Public manifests intentionally
 omit local source-root paths.
 
+Git-backed mounts use the same contract with a `source` block in `mounts.yaml`:
+
+```yaml
+mounts:
+  - id: product
+    label: Product Docs
+    url_prefix: /product
+    source:
+      provider: git
+      repo: https://github.com/example/product-docs.git
+      ref: main
+      path: docs
+    extensions: [".md", ".mdx"]
+```
+
+Furatena syncs the repository into `.docs-cache/sources/<mount>/repo`, indexes
+the configured `path`, and records the resolved commit SHA plus browser/source
+URL in page provenance and frozen mount status. Filesystem mounts without a
+`source.provider: git` block keep their existing local `content_root` behavior.
+
 Ingestion follows: **scan → adapt → graph**.
 
 ```

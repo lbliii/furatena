@@ -30,10 +30,10 @@ from furatena.catalog.models import DocNode, SectionChunk, TocEntry
 from furatena.catalog.render import DocsRenderer
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.sources import (
-    FilesystemSourceProvider,
     MountSourceConfig,
     PageSource,
     get_content_adapter,
+    source_provider_for_config,
 )
 from furatena.catalog.versions import (
     DocChannel,
@@ -160,7 +160,7 @@ class DocCatalog:
             catalog=reference_catalog,
             inventory_store=inventory_store,
         )
-        self._source_provider = FilesystemSourceProvider(self.source_config)
+        self._source_provider = source_provider_for_config(self.source_config)
         self._scanner = self._source_provider.scanner
         self._federated_slug_urls = federated_slug_urls or {}
         self._watcher = None
@@ -1086,7 +1086,7 @@ class DocCatalog:
         catalog._doc_nodes_lang = None
         catalog._workers = 1
         catalog.source_config = MountSourceConfig()
-        catalog._source_provider = FilesystemSourceProvider(catalog.source_config)
+        catalog._source_provider = source_provider_for_config(catalog.source_config)
         catalog._scanner = catalog._source_provider.scanner
         catalog._federated_slug_urls = {}
         catalog._watcher = None
@@ -1148,6 +1148,7 @@ class DocCatalog:
                 "requires",
                 "site",
                 "source_provider",
+                "source_url",
                 "source_ref",
                 "source_repo",
                 "supersedes",
@@ -1164,6 +1165,7 @@ class DocCatalog:
                     ("provider", "source_provider"),
                     ("repo", "source_repo"),
                     ("ref", "source_ref"),
+                    ("source_url", "source_url"),
                     ("generated_from", "generated_from"),
                     ("owner", "owner"),
                     ("team", "team"),

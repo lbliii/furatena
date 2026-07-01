@@ -113,6 +113,7 @@ def _page_record(
         "source_provider": provenance["provider"],
         "source_repo": provenance.get("repo"),
         "source_ref": provenance.get("ref"),
+        "source_url": provenance.get("source_url"),
         "generated_from": provenance.get("generated_from"),
         "owner": provenance.get("owner"),
         "team": provenance.get("team"),
@@ -225,6 +226,7 @@ def _provenance_record(
         "provider": provider,
         "repo": _string_or_none(_meta_value(meta, "source_repo", "repo", "repository")),
         "ref": _string_or_none(_meta_value(meta, "source_ref", "ref", "commit", "branch")),
+        "source_url": _string_or_none(_meta_value(meta, "source_url")),
         "path": node.source_path,
         "generated_from": _string_or_none(
             _meta_value(meta, "generated_from", "generated-from", "source_generated_from")
@@ -267,6 +269,7 @@ def meta_json(
                 "source_provider": provenance["provider"],
                 "source_repo": provenance.get("repo"),
                 "source_ref": provenance.get("ref"),
+                "source_url": provenance.get("source_url"),
                 "generated_from": provenance.get("generated_from"),
                 "owner": provenance.get("owner"),
                 "team": provenance.get("team"),
