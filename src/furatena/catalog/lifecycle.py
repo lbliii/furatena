@@ -104,7 +104,22 @@ def visibility_state(meta: dict[str, Any]) -> str:
 
 def is_public_meta(meta: dict[str, Any]) -> bool:
     """Return whether front matter is safe for public output surfaces."""
-    return not _is_private(meta)
+    if _is_private(meta):
+        return False
+    from furatena.catalog.access import (
+        AccessPermission,
+        AccessPolicy,
+        AccessRole,
+        required_role_for,
+    )
+
+    policy = AccessPolicy.from_page_meta(meta)
+    return (
+        not policy.admin_only
+        and not policy.roles
+        and not policy.teams
+        and required_role_for(policy, AccessPermission.READ) == AccessRole.ANONYMOUS
+    )
 
 
 def is_public_node(node: Any) -> bool:

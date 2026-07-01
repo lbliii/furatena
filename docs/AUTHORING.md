@@ -12,6 +12,8 @@ Furatena treats source front matter as the contract for local drafting, private 
 - `reviewers`: string or list of reviewers for publication.
 - `expires_at`: optional ISO date or datetime for time-bound content.
 - `archived_at`: optional ISO date or datetime for archived content.
+- `access`: optional RBAC policy for roles, teams, or admin-only pages. See
+  [RBAC.md](RBAC.md).
 
 ## States
 
@@ -42,6 +44,12 @@ Pages with no lifecycle fields remain public by legacy default. To opt into life
 - A public source page has no frozen HTML page or changed after its frozen page was written.
 
 These checks run before static export and before agent workflows rely on catalog sidecars, so draft/private content remains blocked from public publishing by default.
+
+Pages with `access.roles`, `access.teams`, or `access.admin_only` are treated as
+non-public for default public outputs even when their lifecycle visibility is
+`public`. This prevents team and admin-only pages from leaking into search,
+frozen exports, or agent retrieval while the broader permission-aware output
+filters are applied.
 
 `fura check --deploy` treats stale public output as an error. Refresh the public output with `fura freeze` or `fura export --fresh` before deploying.
 
