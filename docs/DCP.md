@@ -236,6 +236,9 @@ inputs: added, removed, changed, and breaking operation summaries.
 
 JSON Schema for v3 exports ships with the runtime at
 ``catalog/schemas/catalog-v3.schema.json`` (validated by ``fura check`` and freeze).
+`surface.json` also exports rendering-head contracts for live shell, static
+document, embedded fragment, and paged output consumers so heads can validate
+required catalog fields and unsupported directives before rendering.
 
 ## Adapter contract
 
