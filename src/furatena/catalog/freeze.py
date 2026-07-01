@@ -25,6 +25,7 @@ from furatena.catalog.freeze_incremental import (
     write_freeze_manifest,
     write_mount_fingerprint,
 )
+from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.inventories.sphinx import write_objects_inv_bytes
 from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.registry import CatalogRegistry
@@ -257,11 +258,13 @@ def _write_registry_manifest(
 
 def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     """Write frozen catalog files for a docs app."""
-    out_dir = options.output_dir.resolve()
-    out_dir.mkdir(parents=True, exist_ok=True)
+    base_out_dir = options.output_dir.resolve()
+    base_out_dir.mkdir(parents=True, exist_ok=True)
     worker_count = resolve_workers(options.workers)
 
     docs_config = load_docs_config(options.docs_config)
+    out_dir = scoped_frozen_dir(base_out_dir, docs_config.identity.to_meta())
+    out_dir.mkdir(parents=True, exist_ok=True)
     mounts_path = docs_config.mounts_path or options.app_root / "mounts.yaml"
     index_start = time.perf_counter()
     registry = CatalogRegistry.from_config(

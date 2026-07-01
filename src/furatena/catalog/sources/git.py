@@ -24,9 +24,12 @@ def sync_git_source(
     *,
     mount_id: str,
     app_root: Path,
+    cache_namespace: str = "",
 ) -> GitSyncResult:
     """Clone/fetch a git source and return the local content root."""
     base = _sync_base(config, app_root)
+    if cache_namespace:
+        base = base / cache_namespace
     repo_root = base / mount_id / "repo"
     repo_root.parent.mkdir(parents=True, exist_ok=True)
 

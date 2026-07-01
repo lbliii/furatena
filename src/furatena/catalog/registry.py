@@ -13,6 +13,14 @@ from furatena.catalog.catalog_nav import CatalogNavConfig
 from furatena.catalog.graph import build_federated_backlinks, normalize_internal_url
 from furatena.catalog.graph_schema import build_graph_edges
 from furatena.catalog.i18n import DocsI18nConfig, build_translation_index
+from furatena.catalog.identity import (
+    identity_namespace_parts,
+    identity_route_prefix,
+    normalize_identity,
+    scope_url,
+    scoped_frozen_dir,
+    strip_identity_route,
+)
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
 from furatena.catalog.runtime import ServeMode
@@ -144,17 +152,11 @@ class CatalogRegistry:
         self.i18n_config = i18n_config or DocsI18nConfig()
         self.catalog_nav = catalog_nav
         self.site_mark = site_mark
-        self.catalog_identity = {
-            "tenant": "default",
-            "workspace": "default",
-            "site": "default",
-            **{
-                key: str(value)
-                for key, value in (catalog_identity or {}).items()
-                if key in {"tenant", "workspace", "site"} and value not in (None, "")
-            },
-        }
+        self.catalog_identity = normalize_identity(catalog_identity)
         self.frozen_dir = frozen_dir
+        self.scoped_frozen_dir = (
+            scoped_frozen_dir(frozen_dir, self.catalog_identity) if frozen_dir is not None else None
+        )
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
         self.include_private = include_private
@@ -192,6 +194,7 @@ class CatalogRegistry:
                     mount.source.git,
                     mount_id=mount.id,
                     app_root=self.app_root,
+                    cache_namespace=self.identity_cache_namespace(),
                 )
             except Exception as exc:
                 self._record_source_sync(
@@ -292,7 +295,7 @@ class CatalogRegistry:
             identity_meta=self.catalog_identity,
         )
         if cached_autodoc is not None and mount.default and self.frozen_dir is not None:
-            shard._frozen_shard_dir = self.frozen_dir / "mounts" / mount.id
+            shard._frozen_shard_dir = self.frozen_root / "mounts" / mount.id
         shard._federated_slug_urls = self._federated_slug_urls
         return shard
 
@@ -301,22 +304,22 @@ class CatalogRegistry:
 
         self._shards = {}
         self._mount_for_url = []
-        use_frozen = self.serve_mode in {ServeMode.HYBRID, ServeMode.PREVIEW} and self.frozen_dir is not None
+        use_frozen = self.serve_mode in {ServeMode.HYBRID, ServeMode.PREVIEW} and self.frozen_root is not None
         cached_autodoc = None
         if use_frozen and self.autodoc_enabled:
             default_mount_id = next((mount.id for mount in self.mounts if mount.default), self.mounts[0].id)
             cached_autodoc = load_cached_autodoc_nodes(
                 config_path=self.autodoc_config,
                 repo_root=self.repo_root,
-                frozen_dir=self.frozen_dir,
+                frozen_dir=self.frozen_root,
                 mount=default_mount_id,
             )
 
         live_mount_jobs: list[tuple[MountConfig, Path | None]] = []
         for mount in self.mounts:
             shard_frozen = None
-            if use_frozen and self.frozen_dir is not None:
-                candidate = self.frozen_dir / "mounts" / mount.id
+            if use_frozen and self.frozen_root is not None:
+                candidate = self.frozen_root / "mounts" / mount.id
                 if (candidate / "catalog.json").is_file():
                     shard_frozen = candidate
             if shard_frozen is not None and self.serve_mode == ServeMode.HYBRID:
@@ -511,6 +514,30 @@ class CatalogRegistry:
             "mounts": mounts,
         }
 
+    @property
+    def frozen_root(self) -> Path | None:
+        """Identity-scoped frozen root, or None when no frozen dir is configured."""
+        return self.scoped_frozen_dir
+
+    @property
+    def route_prefix(self) -> str:
+        """Tenant/workspace/site route prefix for this registry."""
+        return identity_route_prefix(self.catalog_identity)
+
+    def identity_cache_namespace(self) -> str:
+        """Stable cache namespace used for identity-scoped source caches."""
+        if not self.route_prefix:
+            return ""
+        return "/".join(identity_namespace_parts(self.catalog_identity))
+
+    def strip_identity_route(self, path: str) -> str:
+        """Strip this registry's tenant route prefix from a request path."""
+        return strip_identity_route(path, self.catalog_identity)
+
+    def scoped_url(self, path: str) -> str:
+        """Prefix a catalog URL with this registry's tenant route namespace."""
+        return scope_url(path, self.catalog_identity)
+
     @staticmethod
     def _edition_matches(node: DocNode | None, edition: str | None) -> bool:
         if node is None:
@@ -693,6 +720,7 @@ class CatalogRegistry:
         return entries
 
     def _resolve_mount(self, url: str) -> MountConfig:
+        url = self.strip_identity_route(url)
         normalized = url if url.endswith("/") or url == "/" else f"{url}/"
         for prefix, mount in self._mount_for_url:
             if prefix == "/":
@@ -732,6 +760,7 @@ class CatalogRegistry:
         return tuple(items)
 
     def get(self, url: str) -> DocNode | None:
+        url = self.strip_identity_route(url)
         mount = self._resolve_mount(url)
         shard = self._shards.get(mount.id)
         return shard.get(url) if shard is not None else None

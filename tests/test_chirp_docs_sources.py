@@ -245,6 +245,54 @@ mounts:
         assert health["source"]["ref"] == commit
         assert health["loaded"] is True
 
+    def test_registry_scopes_git_cache_by_catalog_identity(self, tmp_path: Path) -> None:
+        repo, _commit = _make_git_docs_repo(tmp_path)
+        app_root = tmp_path / "app"
+        app_root.mkdir()
+        mounts_yaml = app_root / "mounts.yaml"
+        mounts_yaml.write_text(
+            f"""
+mounts:
+  - id: remote
+    label: Remote Docs
+    url_prefix: /remote
+    source:
+      provider: git
+      repo: {repo.as_posix()}
+      ref: HEAD
+      path: docs
+    extensions: [".md"]
+""".lstrip(),
+            encoding="utf-8",
+        )
+
+        registry = CatalogRegistry.from_config(
+            mounts_yaml,
+            repo_root=tmp_path,
+            app_root=app_root,
+            autodoc=False,
+            catalog_identity={
+                "tenant": "Acme Inc",
+                "workspace": "Platform",
+                "site": "Developer Docs",
+            },
+        )
+
+        assert registry.mounts[0].content_root == (
+            app_root
+            / ".docs-cache"
+            / "sources"
+            / "tenants"
+            / "acme-inc"
+            / "workspaces"
+            / "platform"
+            / "sites"
+            / "developer-docs"
+            / "remote"
+            / "repo"
+            / "docs"
+        )
+
     def test_hybrid_registry_serves_frozen_shard_when_git_sync_fails(self, tmp_path: Path) -> None:
         app_root = tmp_path / "app"
         app_root.mkdir()
