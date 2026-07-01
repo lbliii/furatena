@@ -135,6 +135,27 @@ server-only auth token references without exposing token values. Static exports
 always degrade to mock examples when available, otherwise render-only static
 mode; authenticated live requests require a configured server-side proxy.
 
+## Rendering Heads
+
+Rendering heads are output contracts layered above view kinds. They define how
+the same catalog node can be consumed by a live browser shell, static HTML
+document, embedded fragment, or future paged/PDF output without forking the
+catalog graph.
+
+The built-in head registry is exported through `surface.json`:
+
+| Head | Output | Purpose |
+|------|--------|---------|
+| `live-shell` | live | Persistent browser shell with boosted navigation, OOB metadata, search, and author/live runtime affordances |
+| `static-document` | static | Standalone static HTML with sidecar JSON and static-safe enhancement scripts |
+| `embedded-fragment` | embed | Portable body fragment for host applications that cannot assume global shell chrome |
+| `paged-output` | pdf | Future paged/PDF output driven by text, sections, links, and directive fallbacks |
+
+Each head declares required catalog fields, assets, navigation assumptions, and
+unsupported directives. `fura check` reports head-contract warnings before export
+so unsupported embeds or missing catalog fields can be fixed before a head is
+used in CI or publishing.
+
 ## Folder layout
 
 Template loader stack (**first match wins**):

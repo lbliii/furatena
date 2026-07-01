@@ -283,6 +283,11 @@ def check_catalog(
     errors.extend(template_errors)
     warnings.extend(template_warnings)
     warnings.extend(check_ast_roundtrip(catalog))
+    from furatena.catalog.rendering_heads import check_rendering_head_contracts
+
+    head_errors, head_warnings = check_rendering_head_contracts(catalog)
+    errors.extend(head_errors)
+    warnings.extend(head_warnings)
     warnings.extend(check_view_config(views) if views is not None else [])
     if docs is not None and theme is not None:
         view_errors, view_warnings = check_view_templates_for_config(

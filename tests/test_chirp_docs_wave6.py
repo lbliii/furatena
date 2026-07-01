@@ -26,11 +26,13 @@ from furatena.catalog.export import (
     catalog_graph,
     llms_txt,
     search_json,
+    surface_json,
     tools_manifest,
 )
 from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
 from furatena.catalog.mcp import FuraMCPServer
-from furatena.catalog.models import DocNode
+from furatena.catalog.models import ContentDirective, ContentIR, DocNode
+from furatena.catalog.rendering_heads import check_rendering_head_contracts
 from furatena.catalog.search import search_nodes
 from furatena.catalog.semantic import retrieve_node
 from furatena.catalog.seo import canonical_url, json_ld_article
@@ -117,6 +119,51 @@ class TestToolsManifest:
             "list_api_operations",
         }
         assert manifest["catalog_url"].endswith("/catalog.json")
+
+
+class TestRenderingHeads:
+    def test_surface_json_exports_rendering_head_contracts(self) -> None:
+        payload = surface_json()
+        heads = {head["id"]: head for head in payload["rendering_heads"]}
+        assert {"live-shell", "static-document", "embedded-fragment", "paged-output"} <= set(heads)
+        assert heads["live-shell"]["navigation"] == [
+            "persistent-shell",
+            "htmx-boost",
+            "prev-next",
+            "toc",
+            "search",
+        ]
+        assert "youtube" in heads["paged-output"]["unsupported_directives"]
+
+    def test_rendering_head_check_reports_unsupported_directives(self) -> None:
+        node = DocNode(
+            url="/docs/video/",
+            slug="docs/video",
+            title="Video",
+            description="Embedded media.",
+            layout="doc",
+            weight=1,
+            section="docs",
+            tags=frozenset({"media"}),
+            body_md="",
+            body_html="<p>Video</p>",
+            toc=(),
+            source_path="docs/video.md",
+            content_ir=ContentIR(
+                directives=(
+                    ContentDirective(name="youtube", options={}, line=4),
+                )
+            ),
+            body_text="Video",
+        )
+
+        class _Catalog:
+            nodes = (node,)
+
+        errors, warnings = check_rendering_head_contracts(_Catalog())
+        assert errors == []
+        assert any("embedded-fragment does not support directive 'youtube'" in item for item in warnings)
+        assert any("paged-output does not support directive 'youtube'" in item for item in warnings)
 
 
 class TestAutodoc:

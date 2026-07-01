@@ -430,10 +430,12 @@ def llms_txt(
 
 def surface_json() -> dict[str, Any]:
     """Machine-readable view-kind / surface registry."""
+    from furatena.catalog.rendering_heads import rendering_heads_json
     from furatena.catalog.view_kinds import VIEW_KINDS
 
     return {
         "schema_version": 1,
+        "rendering_heads": rendering_heads_json(),
         "views": [
             {
                 "kind": spec.kind,
