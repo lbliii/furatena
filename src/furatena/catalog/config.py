@@ -292,6 +292,22 @@ class SiteNavigationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class CatalogIdentityConfig:
+    """Enterprise identity defaults for one configured docs site."""
+
+    tenant: str = "default"
+    workspace: str = "default"
+    site: str = "default"
+
+    def to_meta(self) -> dict[str, str]:
+        return {
+            "tenant": self.tenant,
+            "workspace": self.workspace,
+            "site": self.site,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class SiteConfig:
     """Product branding and shell copy — variabilizes home and top navigation."""
 
@@ -361,6 +377,7 @@ class DocsConfig:
     theme: ThemeConfig = field(default_factory=ThemeConfig)
     site: SiteConfig = field(default_factory=SiteConfig)
     catalog: CatalogNavConfig = field(default_factory=CatalogNavConfig)
+    identity: CatalogIdentityConfig = field(default_factory=CatalogIdentityConfig)
     delivery: DeliveryConfig = field(default_factory=DeliveryConfig)
     mounts_path: Path | None = None
     rewrites_path: Path | None = None
@@ -405,6 +422,14 @@ def _optional_str(raw: object) -> str | None:
         return None
     text = str(raw).strip()
     return text or None
+
+
+def _identity_value(*values: object, default: str) -> str:
+    for value in values:
+        text = _optional_str(value)
+        if text is not None:
+            return text
+    return default
 
 
 def _parse_cta(raw: object, *, default: SiteCtaConfig) -> SiteCtaConfig:
@@ -981,6 +1006,36 @@ def _parse_delivery_config(raw: object) -> DeliveryConfig:
     )
 
 
+def _parse_identity_config(raw: dict[str, Any], *, site_raw: object) -> CatalogIdentityConfig:
+    identity_raw = raw.get("identity")
+    if not isinstance(identity_raw, dict):
+        identity_raw = raw.get("enterprise") if isinstance(raw.get("enterprise"), dict) else {}
+    site_identity = site_raw if isinstance(site_raw, dict) else {}
+    return CatalogIdentityConfig(
+        tenant=_identity_value(
+            identity_raw.get("tenant"),
+            identity_raw.get("tenant_id"),
+            raw.get("tenant"),
+            raw.get("tenant_id"),
+            default="default",
+        ),
+        workspace=_identity_value(
+            identity_raw.get("workspace"),
+            identity_raw.get("workspace_id"),
+            raw.get("workspace"),
+            raw.get("workspace_id"),
+            default="default",
+        ),
+        site=_identity_value(
+            identity_raw.get("site"),
+            identity_raw.get("site_id"),
+            site_identity.get("id"),
+            raw.get("site_id"),
+            default="default",
+        ),
+    )
+
+
 def _parse_site_config(raw: object, *, app_root: Path) -> SiteConfig:
     site_raw = raw if isinstance(raw, dict) else {}
     name = str(site_raw.get("name") or "Furatena").strip() or "Furatena"
@@ -1101,8 +1156,10 @@ def load_docs_config(path: Path) -> DocsConfig:
         candidate = root / "locales"
         locales_dir = candidate if candidate.is_dir() else root / "locales"
 
-    site = _parse_site_config(raw.get("site"), app_root=root)
+    site_raw = raw.get("site")
+    site = _parse_site_config(site_raw, app_root=root)
     catalog = parse_catalog_nav(raw.get("catalog"))
+    identity = _parse_identity_config(raw, site_raw=site_raw)
     delivery = _parse_delivery_config(raw.get("delivery"))
 
     return DocsConfig(
@@ -1114,6 +1171,7 @@ def load_docs_config(path: Path) -> DocsConfig:
         theme=theme,
         site=site,
         catalog=catalog,
+        identity=identity,
         delivery=delivery,
         mounts_path=mounts_path,
         rewrites_path=rewrites_path,

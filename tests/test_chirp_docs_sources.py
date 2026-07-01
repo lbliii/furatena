@@ -433,6 +433,58 @@ class TestCatalogGraphV3:
         assert page["provenance"]["path"] == "docs/hello.md"
         assert page["provenance"]["mount"] == "docs"
 
+    def test_live_scan_applies_catalog_identity_defaults(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        page_path = content / "docs" / "hello.md"
+        page_path.parent.mkdir(parents=True)
+        page_path.write_text("---\ntitle: Hello\n---\n\n# Hello\n", encoding="utf-8")
+        catalog = DocCatalog(
+            content,
+            autodoc=False,
+            mount="docs",
+            identity_meta={
+                "tenant": "acme",
+                "workspace": "platform",
+                "site": "developer-docs",
+            },
+        )
+
+        payload = catalog_graph(catalog, schema_version=3)
+        page = payload["pages"][0]
+        assert page["tenant"] == "acme"
+        assert page["workspace"] == "platform"
+        assert page["site"] == "developer-docs"
+        assert page["provenance"]["tenant"] == "acme"
+        assert page["provenance"]["workspace"] == "platform"
+        namespace = payload["namespaces"][0]
+        assert namespace["tenant"] == "acme"
+        assert namespace["workspace"] == "platform"
+        assert namespace["site"] == "developer-docs"
+
+    def test_frontmatter_identity_overrides_catalog_defaults(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        page_path = content / "docs" / "hello.md"
+        page_path.parent.mkdir(parents=True)
+        page_path.write_text(
+            "---\ntitle: Hello\ntenant: beta\nworkspace: support\nsite: kb\n---\n\n# Hello\n",
+            encoding="utf-8",
+        )
+        catalog = DocCatalog(
+            content,
+            autodoc=False,
+            mount="docs",
+            identity_meta={
+                "tenant": "acme",
+                "workspace": "platform",
+                "site": "developer-docs",
+            },
+        )
+
+        page = catalog_graph(catalog, schema_version=3)["pages"][0]
+        assert page["tenant"] == "beta"
+        assert page["workspace"] == "support"
+        assert page["site"] == "kb"
+
     def test_v3_export_includes_provenance_and_owner_fields(self) -> None:
         node = DocNode(
             url="/docs/test/",
@@ -510,6 +562,7 @@ class TestCatalogGraphV3:
                 "source_ref": "main",
                 "generated_from": "specs/openapi.yaml",
                 "tenant": "default",
+                "workspace": "platform",
                 "site": "docs",
                 "last_indexed_at": "2026-06-29T18:00:00Z",
             },
@@ -531,6 +584,7 @@ class TestCatalogGraphV3:
         assert page["owner"] == "docs-platform"
         assert page["team"] == "docs-infra"
         assert page["tenant"] == "default"
+        assert page["workspace"] == "platform"
         assert page["site"] == "docs"
         assert page["output_channel"] == "stable"
         assert page["last_indexed_at"] == "2026-06-29T18:00:00Z"
@@ -546,6 +600,7 @@ class TestCatalogGraphV3:
             "mount": "docs",
             "edition": "latest",
             "tenant": "default",
+            "workspace": "platform",
             "site": "docs",
             "output_channel": "stable",
             "last_indexed_at": "2026-06-29T18:00:00Z",

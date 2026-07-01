@@ -159,6 +159,7 @@ class DocsApp:
             i18n_config=config.i18n,
             catalog_nav=config.catalog,
             site_mark=config.site.mark,
+            catalog_identity=config.identity.to_meta(),
         )
         semantic_path = (frozen or config.root / "frozen") / "semantic.json"
         self.embedding_index = EmbeddingIndex.load(semantic_path) or EmbeddingIndex.from_nodes(

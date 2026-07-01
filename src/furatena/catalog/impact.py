@@ -34,6 +34,7 @@ def stale_impact_report(
             "by_source": _group_impact(impact, "source_key"),
             "by_mount": _group_impact(impact, "mount"),
             "by_tenant": _group_impact(impact, "tenant"),
+            "by_workspace": _group_impact(impact, "workspace"),
             "by_site": _group_impact(impact, "site"),
             "by_channel": output_channel_groups,
             "by_output_channel": output_channel_groups,
@@ -91,6 +92,7 @@ def _stale_impact_entry(
     source_key = _source_group_key(provider=provider, repo=repo, ref=ref, path=path)
     output_channel = str(getattr(catalog, "active_channel", "") or getattr(node, "edition", "") or "default")
     tenant = _first_meta_value(meta, "tenant") or "default"
+    workspace = _first_meta_value(meta, "workspace") or "default"
     site = _first_meta_value(meta, "site") or "default"
     refresh_targets = list(entry.get("hints") or ())
     graph_context = _graph_context(catalog, node, include_private=include_private)
@@ -109,6 +111,7 @@ def _stale_impact_entry(
         "owner": owner,
         "source_key": source_key,
         "tenant": tenant,
+        "workspace": workspace,
         "site": site,
         "output_channel": output_channel,
         "recommended_remediation": _recommended_remediation(refresh_targets),
@@ -122,6 +125,7 @@ def _stale_impact_entry(
             "edition": getattr(node, "edition", None) if node is not None else None,
             "owner": owner,
             "tenant": tenant,
+            "workspace": workspace,
             "site": site,
             "output_channel": output_channel,
         },

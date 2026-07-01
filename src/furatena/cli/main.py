@@ -373,6 +373,7 @@ def _run_query(args: argparse.Namespace) -> None:
         app_root=app_root,
         rewrites_path=config.rewrites_path,
         inventories_path=config.inventories_path,
+        catalog_identity=config.identity.to_meta(),
         autodoc=not args.no_autodoc,
         autodoc_config=autodoc_config,
     )
@@ -451,6 +452,7 @@ def _run_docs_content_check(
         app_root=app_root,
         rewrites_path=config.rewrites_path,
         inventories_path=config.inventories_path,
+        catalog_identity=config.identity.to_meta(),
         autodoc=False,
         autodoc_config=autodoc_config,
     )
@@ -815,6 +817,7 @@ def _run_impact(args: argparse.Namespace) -> None:
         app_root=app_root,
         rewrites_path=config.rewrites_path,
         inventories_path=config.inventories_path,
+        catalog_identity=config.identity.to_meta(),
         autodoc=not args.no_autodoc,
         autodoc_config=_autodoc_config(args, repo),
     )

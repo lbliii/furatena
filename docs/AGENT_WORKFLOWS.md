@@ -74,7 +74,7 @@ MCP tools return both text content and `structuredContent` payloads:
 - `traverse_graph` — backlinks, child pages, outbound links, and neighboring pages.
 - `inspect_source_health` — mount roots, tracked extensions, page counts, and channels.
 - `run_checks` — structured validation errors and warnings.
-- `explain_stale_impact` — stale entries, affected chunks, graph context, refresh targets, repair tasks, and owner/source/mount/tenant/site/output-channel groupings for author workflows.
+- `explain_stale_impact` — stale entries, affected chunks, graph context, refresh targets, repair tasks, and owner/source/mount/tenant/workspace/site/output-channel groupings for author workflows.
 - `author_create_draft` — create a draft source file; dry-run by default.
 - `author_read_source` — read source only from an include-private author MCP session.
 - `author_propose_edit` — preview an exact-text source edit without writing files.

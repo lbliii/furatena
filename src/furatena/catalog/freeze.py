@@ -270,6 +270,7 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         app_root=options.app_root,
         rewrites_path=docs_config.rewrites_path,
         inventories_path=docs_config.inventories_path,
+        catalog_identity=docs_config.identity.to_meta(),
         autodoc_config=options.autodoc_config,
         autodoc=options.autodoc,
         workers=worker_count,

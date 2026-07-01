@@ -131,6 +131,7 @@ class CatalogRegistry:
         i18n_config: DocsI18nConfig | None = None,
         catalog_nav: CatalogNavConfig | None = None,
         site_mark: str = "𐂛",
+        catalog_identity: dict[str, str] | None = None,
     ) -> None:
         self.repo_root = repo_root
         self.app_root = app_root or repo_root
@@ -143,6 +144,16 @@ class CatalogRegistry:
         self.i18n_config = i18n_config or DocsI18nConfig()
         self.catalog_nav = catalog_nav
         self.site_mark = site_mark
+        self.catalog_identity = {
+            "tenant": "default",
+            "workspace": "default",
+            "site": "default",
+            **{
+                key: str(value)
+                for key, value in (catalog_identity or {}).items()
+                if key in {"tenant", "workspace", "site"} and value not in (None, "")
+            },
+        }
         self.frozen_dir = frozen_dir
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
@@ -278,6 +289,7 @@ class CatalogRegistry:
             i18n_config=self.i18n_config,
             catalog_nav=self.catalog_nav if mount.default else None,
             include_private=self.include_private,
+            identity_meta=self.catalog_identity,
         )
         if cached_autodoc is not None and mount.default and self.frozen_dir is not None:
             shard._frozen_shard_dir = self.frozen_dir / "mounts" / mount.id
@@ -987,6 +999,9 @@ class CatalogRegistry:
                     mount.label,
                     edition=self.active_channel,
                     page_count=len(shard.nodes),
+                    tenant=self.catalog_identity.get("tenant"),
+                    workspace=self.catalog_identity.get("workspace"),
+                    site=self.catalog_identity.get("site"),
                 )
             )
         self._namespaces = records
@@ -1008,6 +1023,7 @@ class CatalogRegistry:
         app_root: Path | None = None,
         rewrites_path: Path | None = None,
         inventories_path: Path | None = None,
+        catalog_identity: dict[str, str] | None = None,
         **kwargs: Any,
     ) -> CatalogRegistry:
         mounts = load_mounts(config_path, repo_root=repo_root)
@@ -1017,5 +1033,6 @@ class CatalogRegistry:
             app_root=app_root or config_path.parent,
             rewrites_path=rewrites_path,
             inventories_path=inventories_path,
+            catalog_identity=catalog_identity,
             **kwargs,
         )
