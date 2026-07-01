@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -33,9 +34,11 @@ from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_reco
 from furatena.catalog.mcp import FuraMCPServer
 from furatena.catalog.models import ContentDirective, ContentIR, DocNode
 from furatena.catalog.rendering_heads import check_rendering_head_contracts
+from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.search import search_nodes
 from furatena.catalog.semantic import retrieve_node
 from furatena.catalog.seo import canonical_url, json_ld_article
+from furatena.catalog.static_export import StaticExportOptions, export_static_site
 from furatena.catalog.versions import infer_release_channels, node_matches_channel
 from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml
 
@@ -164,6 +167,128 @@ class TestRenderingHeads:
         assert errors == []
         assert any("embedded-fragment does not support directive 'youtube'" in item for item in warnings)
         assert any("paged-output does not support directive 'youtube'" in item for item in warnings)
+
+    def test_delivery_config_check_reports_unknown_heads(self) -> None:
+        from furatena.catalog.config import DeliveryConfig, DeliveryMountConfig, DocsConfig
+        from furatena.catalog.delivery import check_delivery_config
+
+        class _Mount:
+            id = "furatena"
+
+        class _Catalog:
+            mounts = (_Mount(),)
+
+        docs = DocsConfig(
+            root=APP_ROOT,
+            delivery=DeliveryConfig(
+                head="missing-head",
+                mounts={"ghost": DeliveryMountConfig(head="also-missing")},
+            ),
+        )
+
+        errors, warnings = check_delivery_config(docs, _Catalog())
+        assert "delivery.head unknown rendering head: 'missing-head'" in errors
+        assert "delivery.mounts.ghost.head unknown rendering head: 'also-missing'" in errors
+        assert "delivery.mounts.ghost does not match a configured mount" in warnings
+
+    def test_mount_delivery_selection_matches_live_and_static_export(self, tmp_path: Path) -> None:
+        from furatena.catalog.config import load_docs_config
+
+        app_root = tmp_path / "app"
+        content = tmp_path / "content"
+        default_content = content / "main"
+        shared_content = content / "shared"
+        app_root.mkdir()
+        (default_content / "docs").mkdir(parents=True)
+        (shared_content / "docs").mkdir(parents=True)
+        copy_app_theme(app_root, APP_ROOT)
+        (default_content / "docs" / "home.md").write_text(
+            "---\ntitle: Home\nlayout: doc\n---\n# Home\n\nDefault mount.\n",
+            encoding="utf-8",
+        )
+        (shared_content / "docs" / "ref.md").write_text(
+            "---\ntitle: Shared Ref\nlayout: doc\n---\n# Shared Ref\n\nShared mount.\n",
+            encoding="utf-8",
+        )
+        (app_root / "docs.yaml").write_text(
+            """
+shell: shell.html
+views:
+  doc: views/doc.html
+  default: views/doc.html
+theme:
+  use: lagoon
+  id: furatena
+  templates: theme/templates
+mounts: mounts.yaml
+delivery:
+  head: live-shell
+  theme:
+    id: furatena
+    use: lagoon
+  mounts:
+    shared:
+      head: embedded-fragment
+      theme:
+        id: furatena
+        use: lagoon
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        (app_root / "mounts.yaml").write_text(
+            f"""
+mounts:
+  - id: furatena
+    label: Default
+    content_root: {default_content}
+    default: true
+  - id: shared
+    label: Shared
+    content_root: {shared_content}
+    url_prefix: /shared
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+        docs = DocsApp(
+            load_docs_config(app_root / "docs.yaml"),
+            repo_root=tmp_path,
+            autodoc=False,
+            serve=ServeConfig(ServeMode.PREVIEW, None, True, False),
+        )
+        client = TestClient(docs.create_app())
+
+        async def _fetch_live() -> tuple[str, dict[str, object]]:
+            page = await client.get("/shared/docs/ref/")
+            surface = await client.get("/surface.json")
+            assert page.status == 200
+            assert surface.status == 200
+            return page.text, json.loads(surface.text.split("<script", 1)[0])
+
+        live_html, live_surface = asyncio.run(_fetch_live())
+        assert 'data-fura-rendering-head="embedded-fragment"' in live_html
+        assert 'data-fura-theme-id="furatena"' in live_html
+        live_mounts = {item["mount"]: item for item in live_surface["delivery"]["mounts"]}
+        assert live_mounts["shared"]["head"] == "embedded-fragment"
+        assert live_mounts["shared"]["theme"] == {"id": "furatena", "use": "lagoon"}
+
+        out = tmp_path / "public"
+        export_static_site(
+            docs,
+            StaticExportOptions(
+                output_dir=out,
+                include_index_txt=False,
+                include_portal=False,
+                include_search=False,
+            ),
+        )
+        static_surface = json.loads((out / "surface.json").read_text(encoding="utf-8"))
+        static_mounts = {item["mount"]: item for item in static_surface["delivery"]["mounts"]}
+        assert static_mounts["shared"]["head"] == live_mounts["shared"]["head"]
+        assert static_mounts["shared"]["theme"] == live_mounts["shared"]["theme"]
+        static_html = (out / "shared/docs/ref/index.html").read_text(encoding="utf-8")
+        assert 'data-fura-rendering-head="embedded-fragment"' in static_html
 
 
 class TestAutodoc:

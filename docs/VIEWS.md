@@ -156,6 +156,28 @@ unsupported directives. `fura check` reports head-contract warnings before expor
 so unsupported embeds or missing catalog fields can be fixed before a head is
 used in CI or publishing.
 
+`docs.yaml` can select the default delivery head and theme globally, then override
+them per mount:
+
+```yaml
+delivery:
+  head: live-shell
+  theme:
+    id: furatena
+    use: lagoon
+  mounts:
+    shared:
+      head: embedded-fragment
+      theme:
+        id: furatena
+        use: lagoon
+```
+
+Live routes and static exports use the same resolver. Page HTML exposes the
+resolved head/theme as `data-fura-rendering-head`, `data-fura-theme-id`, and
+`data-fura-theme-use`; `surface.json` exposes the same selections for machine
+consumers.
+
 ## Folder layout
 
 Template loader stack (**first match wins**):

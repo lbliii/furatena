@@ -320,6 +320,31 @@ class ThemeConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class DeliveryThemeConfig:
+    """Theme identity selected by a delivery head."""
+
+    id: str | None = None
+    use: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryMountConfig:
+    """Per-mount delivery overrides."""
+
+    head: str | None = None
+    theme: DeliveryThemeConfig = field(default_factory=DeliveryThemeConfig)
+
+
+@dataclass(frozen=True, slots=True)
+class DeliveryConfig:
+    """Global and mount-specific rendering head / theme selection."""
+
+    head: str = "live-shell"
+    theme: DeliveryThemeConfig = field(default_factory=DeliveryThemeConfig)
+    mounts: dict[str, DeliveryMountConfig] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class ComposeConfig:
     data: Path | None = None
 
@@ -336,6 +361,7 @@ class DocsConfig:
     theme: ThemeConfig = field(default_factory=ThemeConfig)
     site: SiteConfig = field(default_factory=SiteConfig)
     catalog: CatalogNavConfig = field(default_factory=CatalogNavConfig)
+    delivery: DeliveryConfig = field(default_factory=DeliveryConfig)
     mounts_path: Path | None = None
     rewrites_path: Path | None = None
     inventories_path: Path | None = None
@@ -923,6 +949,38 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
     )
 
 
+def _parse_delivery_theme(raw: object) -> DeliveryThemeConfig:
+    if not isinstance(raw, dict):
+        return DeliveryThemeConfig()
+    return DeliveryThemeConfig(
+        id=_optional_str(raw.get("id")),
+        use=_optional_str(raw.get("use")),
+    )
+
+
+def _parse_delivery_config(raw: object) -> DeliveryConfig:
+    if not isinstance(raw, dict):
+        return DeliveryConfig()
+    mounts: dict[str, DeliveryMountConfig] = {}
+    mounts_raw = raw.get("mounts")
+    if isinstance(mounts_raw, dict):
+        for mount_id, item in mounts_raw.items():
+            if not isinstance(item, dict):
+                continue
+            mount_key = str(mount_id).strip()
+            if not mount_key:
+                continue
+            mounts[mount_key] = DeliveryMountConfig(
+                head=_optional_str(item.get("head")),
+                theme=_parse_delivery_theme(item.get("theme")),
+            )
+    return DeliveryConfig(
+        head=str(raw.get("head") or "live-shell"),
+        theme=_parse_delivery_theme(raw.get("theme")),
+        mounts=mounts,
+    )
+
+
 def _parse_site_config(raw: object, *, app_root: Path) -> SiteConfig:
     site_raw = raw if isinstance(raw, dict) else {}
     name = str(site_raw.get("name") or "Furatena").strip() or "Furatena"
@@ -1045,6 +1103,7 @@ def load_docs_config(path: Path) -> DocsConfig:
 
     site = _parse_site_config(raw.get("site"), app_root=root)
     catalog = parse_catalog_nav(raw.get("catalog"))
+    delivery = _parse_delivery_config(raw.get("delivery"))
 
     return DocsConfig(
         root=root,
@@ -1055,6 +1114,7 @@ def load_docs_config(path: Path) -> DocsConfig:
         theme=theme,
         site=site,
         catalog=catalog,
+        delivery=delivery,
         mounts_path=mounts_path,
         rewrites_path=rewrites_path,
         inventories_path=inventories_path,

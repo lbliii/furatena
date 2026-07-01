@@ -304,6 +304,11 @@ def check_catalog(
         theme_errors, theme_warnings = check_theme_assets(docs)
         errors.extend(theme_errors)
         warnings.extend(theme_warnings)
+        from furatena.catalog.delivery import check_delivery_config
+
+        delivery_errors, delivery_warnings = check_delivery_config(docs, catalog)
+        errors.extend(delivery_errors)
+        warnings.extend(delivery_warnings)
     errors.extend(check_dcp_schema(catalog))
     return sorted(errors), sorted(warnings)
 
