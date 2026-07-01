@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +17,7 @@ from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.search import SearchHit, search_nodes
+from furatena.catalog.sources.git import sync_git_source
 from furatena.catalog.sources.types import MountSourceConfig
 from furatena.catalog.versions import active_channel_id
 from furatena.catalog.watch import SourceWatcher
@@ -62,8 +63,16 @@ def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...
         mount_id = str(item.get("id") or "").strip()
         if not mount_id:
             continue
+        source_config = MountSourceConfig.from_mount_dict(item)
         content_raw = str(item.get("content_root") or "").strip()
-        content_root = Path(content_raw)
+        if content_raw:
+            content_root = Path(content_raw)
+        elif source_config.git is not None:
+            content_root = config_path.parent / ".docs-cache" / "sources" / mount_id / "repo"
+            if source_config.git.path:
+                content_root = content_root / source_config.git.path
+        else:
+            content_root = Path(content_raw)
         if not content_root.is_absolute():
             content_root = (config_path.parent / content_root).resolve()
         mounts.append(
@@ -73,7 +82,7 @@ def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...
                 content_root=content_root,
                 url_prefix=_normalize_prefix(str(item.get("url_prefix") or "")),
                 default=bool(item.get("default")),
-                source=MountSourceConfig.from_mount_dict(item),
+                source=source_config,
             )
         )
     if not mounts:
@@ -120,7 +129,7 @@ class CatalogRegistry:
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
         self.include_private = include_private
-        self.mounts = mounts
+        self.mounts = mounts if serve_mode == ServeMode.PREVIEW else self._sync_mount_sources(mounts)
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
         self._mount_for_url: list[tuple[str, MountConfig]] = []
@@ -139,6 +148,29 @@ class CatalogRegistry:
         self._finalize_federated()
         if auto_reload:
             self._start_watcher()
+
+    def _sync_mount_sources(self, mounts: tuple[MountConfig, ...]) -> tuple[MountConfig, ...]:
+        resolved: list[MountConfig] = []
+        for mount in mounts:
+            if mount.source.git is None:
+                resolved.append(mount)
+                continue
+            sync = sync_git_source(
+                mount.source.git,
+                mount_id=mount.id,
+                app_root=self.app_root,
+            )
+            resolved.append(
+                replace(
+                    mount,
+                    content_root=sync.content_root,
+                    source=mount.source.with_git_sync_state(
+                        resolved_ref=sync.resolved_ref,
+                        source_url=sync.source_url,
+                    ),
+                )
+            )
+        return tuple(resolved)
 
     def _build_live_shard(
         self,

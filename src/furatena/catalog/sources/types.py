@@ -27,6 +27,55 @@ _DEFAULT_INDEX_FILES = {
 
 
 @dataclass(frozen=True, slots=True)
+class GitSourceConfig:
+    """Git-backed mount source settings and resolved sync state."""
+
+    repo: str
+    ref: str = "HEAD"
+    path: str = ""
+    sync_root: str | None = None
+    resolved_ref: str | None = None
+    source_url: str | None = None
+
+    @classmethod
+    def from_mapping(cls, raw: dict[str, Any]) -> GitSourceConfig | None:
+        repo = str(
+            raw.get("repo")
+            or raw.get("repository")
+            or raw.get("url")
+            or raw.get("source_url")
+            or ""
+        ).strip()
+        if not repo:
+            return None
+        return cls(
+            repo=repo,
+            ref=str(raw.get("ref") or raw.get("branch") or raw.get("commit") or "HEAD").strip() or "HEAD",
+            path=_normalize_git_path(str(raw.get("path") or raw.get("sparse_path") or "").strip()),
+            sync_root=str(raw.get("sync_root") or "").strip() or None,
+        )
+
+    def with_sync_state(
+        self,
+        *,
+        resolved_ref: str,
+        source_url: str | None,
+    ) -> GitSourceConfig:
+        return GitSourceConfig(
+            repo=self.repo,
+            ref=self.ref,
+            path=self.path,
+            sync_root=self.sync_root,
+            resolved_ref=resolved_ref,
+            source_url=source_url,
+        )
+
+
+def _normalize_git_path(value: str) -> str:
+    return value.strip().strip("/")
+
+
+@dataclass(frozen=True, slots=True)
 class MountSourceConfig:
     """Filesystem scan settings for one documentation mount."""
 
@@ -36,9 +85,20 @@ class MountSourceConfig:
         default_factory=lambda: {".md": "patitas-markdown", ".markdown": "patitas-markdown"}
     )
     default_format: str = "patitas-markdown"
+    provider: str = "filesystem"
+    git: GitSourceConfig | None = None
 
     @classmethod
     def from_mount_dict(cls, item: dict[str, Any]) -> MountSourceConfig:
+        source_raw = item.get("source") if isinstance(item.get("source"), dict) else {}
+        source = dict(source_raw)
+        for key in ("provider", "repo", "repository", "url", "source_url", "ref", "branch", "commit", "path", "sparse_path", "sync_root"):
+            if key in item and key not in source:
+                source[key] = item[key]
+        provider = str(source.get("provider") or item.get("source_provider") or "filesystem").strip() or "filesystem"
+        git = GitSourceConfig.from_mapping(source) if provider == "git" or source.get("repo") else None
+        if git is not None:
+            provider = "git"
         extensions_raw = item.get("extensions") or [".md"]
         extensions = frozenset(
             ext if str(ext).startswith(".") else f".{ext}" for ext in extensions_raw
@@ -65,6 +125,28 @@ class MountSourceConfig:
             index_files=index_files,
             format_map=format_map,
             default_format=default_format,
+            provider=provider,
+            git=git,
+        )
+
+    def with_git_sync_state(
+        self,
+        *,
+        resolved_ref: str,
+        source_url: str | None,
+    ) -> MountSourceConfig:
+        if self.git is None:
+            return self
+        return MountSourceConfig(
+            extensions=self.extensions,
+            index_files=self.index_files,
+            format_map=self.format_map,
+            default_format=self.default_format,
+            provider=self.provider,
+            git=self.git.with_sync_state(
+                resolved_ref=resolved_ref,
+                source_url=source_url,
+            ),
         )
 
     def content_format_for(self, path: Path) -> str:
@@ -107,6 +189,7 @@ class SourceProvenance:
     mount: str
     repo: str | None = None
     ref: str | None = None
+    source_url: str | None = None
     last_sync_at: str | None = None
 
     @classmethod
@@ -127,6 +210,7 @@ class SourceProvenance:
             "repo": self.repo,
             "ref": self.ref,
             "path": self.path,
+            "source_url": self.source_url,
             "mount": self.mount,
             "last_indexed_at": self.last_sync_at,
         }
@@ -134,6 +218,7 @@ class SourceProvenance:
             "source_provider": self.provider,
             "source_repo": self.repo,
             "source_ref": self.ref,
+            "source_url": self.source_url,
             "last_indexed_at": self.last_sync_at,
             "provenance": provenance,
         }

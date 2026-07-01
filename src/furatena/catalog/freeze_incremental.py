@@ -63,9 +63,13 @@ def mount_source_statuses(
         elif previous != current:
             drift_reasons.append("content")
 
+        git = mount.source.git
         statuses[mount.id] = {
             "mount": mount.id,
             "provider": _mount_provider(shard),
+            "source_repo": git.repo if git is not None else None,
+            "source_ref": (git.resolved_ref or git.ref) if git is not None else None,
+            "source_url": git.source_url if git is not None else None,
             "status": "pending" if drift_reasons else "skipped",
             "dirty": bool(drift_reasons),
             "drift_reasons": drift_reasons,

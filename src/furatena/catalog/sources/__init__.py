@@ -1,6 +1,11 @@
 """Format-agnostic documentation source ingestion."""
 
-from furatena.catalog.sources.providers import FilesystemSourceProvider
+from furatena.catalog.sources.git import GitSyncResult, sync_git_source
+from furatena.catalog.sources.providers import (
+    FilesystemSourceProvider,
+    GitSourceProvider,
+    source_provider_for_config,
+)
 from furatena.catalog.sources.registry import (
     get_content_adapter,
     register_adapter,
@@ -9,6 +14,7 @@ from furatena.catalog.sources.registry import (
 from furatena.catalog.sources.scanner import FilesystemScanner, file_to_url
 from furatena.catalog.sources.types import (
     AdaptedContent,
+    GitSourceConfig,
     MountSourceConfig,
     PageSource,
     SourceFingerprint,
@@ -20,6 +26,9 @@ __all__ = [
     "AdaptedContent",
     "FilesystemScanner",
     "FilesystemSourceProvider",
+    "GitSourceConfig",
+    "GitSourceProvider",
+    "GitSyncResult",
     "MountSourceConfig",
     "PageSource",
     "SourceFingerprint",
@@ -29,4 +38,6 @@ __all__ = [
     "get_content_adapter",
     "register_adapter",
     "registered_formats",
+    "source_provider_for_config",
+    "sync_git_source",
 ]
