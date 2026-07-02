@@ -53,6 +53,13 @@ and triggers htmx refresh when invalidation hints change.
 
 Invalidation regions come from Content IR diffs — body-only edits skip full graph rebuilds.
 
+## Author dashboard
+
+Open **`/docs/_author/dashboard`** while running author or hybrid mode to inspect
+mounts, source formats, page counts, freshness, and lint blockers in the browser.
+The dashboard is local-only author chrome; preview mode and static exports return 404
+for author routes and do not include the dashboard.
+
 ## Parallel indexing
 
 Speed up large corpora:

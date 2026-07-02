@@ -482,6 +482,7 @@ class DocsApp:
             },
             "stale": stale_entries,
             "actions": {
+                "dashboard": "/docs/_author/dashboard",
                 "status": f"/docs/_author/page.json?{query}",
                 "studio": f"/docs/_author/studio?{query}",
                 "open_source": f"/docs/_author/source?{query}",
@@ -505,6 +506,137 @@ class DocsApp:
             status=status,
             author_chrome=self._author_page_chrome(node),
         )
+
+    def _author_dashboard_context(self, request: Request) -> dict[str, Any]:
+        errors, warnings = check_catalog(
+            self.catalog,
+            views=getattr(self, "views", None),
+            docs=getattr(self, "config", None),
+            theme=getattr(self, "theme", None),
+            inventory_store=self.catalog.inventory_store,
+        )
+        source_to_node = {
+            str(getattr(node, "source_path", "") or ""): node
+            for node in self.catalog.nodes
+            if getattr(node, "source_path", "")
+        }
+        source_to_mount = {
+            source: getattr(node, "mount", "")
+            for source, node in source_to_node.items()
+        }
+        diagnostics = [
+            *(
+                _author_dashboard_diagnostic(message, "error", source_to_node, source_to_mount)
+                for message in errors
+            ),
+            *(
+                _author_dashboard_diagnostic(message, "warning", source_to_node, source_to_mount)
+                for message in warnings
+            ),
+        ]
+        diagnostics_by_mount: dict[str, list[dict[str, Any]]] = {}
+        for diagnostic in diagnostics:
+            diagnostics_by_mount.setdefault(str(diagnostic["mount"]), []).append(diagnostic)
+
+        stale_entries = self.catalog.author_stale_entries()
+        stale_by_mount: dict[str, list[dict[str, Any]]] = {}
+        for entry in stale_entries:
+            stale_by_mount.setdefault(str(entry.get("mount") or "<catalog>"), []).append(dict(entry))
+
+        health_by_mount = {
+            item["id"]: item
+            for item in self.catalog.source_health().get("mounts", [])
+            if isinstance(item, dict) and item.get("id")
+        }
+        mount_cards: list[dict[str, Any]] = []
+        dirty_page_total = 0
+        doc_nodes = self.catalog.doc_nodes()
+        for mount in self.catalog.mounts:
+            nodes = [node for node in doc_nodes if node.mount == mount.id]
+            format_counts: dict[str, int] = {}
+            dirty_pages: list[dict[str, str]] = []
+            for node in nodes:
+                content_format = str(getattr(node, "content_format", "") or "unknown")
+                format_counts[content_format] = format_counts.get(content_format, 0) + 1
+                source = self._author_source_info(node)
+                if source["dirty"]:
+                    dirty_pages.append(
+                        {
+                            "title": node.title,
+                            "slug": node.slug,
+                            "url": node.url,
+                            "source_path": str(getattr(node, "source_path", "") or ""),
+                        }
+                    )
+            dirty_page_total += len(dirty_pages)
+            mount_diagnostics = diagnostics_by_mount.get(mount.id, [])
+            mount_errors = [item for item in mount_diagnostics if item["severity"] == "error"]
+            mount_warnings = [item for item in mount_diagnostics if item["severity"] == "warning"]
+            mount_stale = stale_by_mount.get(mount.id, [])
+            source_health = health_by_mount.get(mount.id, {})
+            if mount_errors:
+                status = "blocked"
+            elif source_health.get("status") not in {None, "healthy"}:
+                status = "degraded"
+            elif dirty_pages or mount_stale:
+                status = "stale"
+            elif mount_warnings:
+                status = "review"
+            else:
+                status = "clean"
+            mount_cards.append(
+                {
+                    "id": mount.id,
+                    "label": mount.label,
+                    "default": mount.default,
+                    "url_prefix": mount.url_prefix or "/",
+                    "source_root": str(mount.content_root),
+                    "provider": source_health.get("provider") or mount.source.provider,
+                    "status": status,
+                    "health": source_health,
+                    "page_count": len(nodes),
+                    "formats": [
+                        {"format": key, "count": count}
+                        for key, count in sorted(format_counts.items())
+                    ],
+                    "dirty_pages": dirty_pages,
+                    "dirty_count": len(dirty_pages),
+                    "stale_entries": mount_stale,
+                    "stale_count": len(mount_stale),
+                    "error_count": len(mount_errors),
+                    "warning_count": len(mount_warnings),
+                    "diagnostics": mount_diagnostics[:6],
+                }
+            )
+
+        blocking = [item for item in diagnostics if item["severity"] == "error"]
+        ctx = {
+            **self._shell_context(request=request),
+            "app_surface": "author-dashboard",
+            "app_page_cls": "chirp-theme-author-dashboard",
+            "chirp_docs_surface": "author-dashboard",
+            "catalog_title": "Author dashboard",
+            "catalog_subtitle": "Import, freshness, and lint status",
+            "breadcrumb_items": [{"label": "Author dashboard", "href": "/docs/_author/dashboard"}],
+            "author_dashboard": {
+                "mounts": mount_cards,
+                "diagnostics": diagnostics,
+                "blocking": blocking[:12],
+                "stale_entries": stale_entries,
+                "summary": {
+                    "mount_count": len(mount_cards),
+                    "page_count": sum(item["page_count"] for item in mount_cards),
+                    "error_count": len(blocking),
+                    "warning_count": len(
+                        [item for item in diagnostics if item["severity"] == "warning"]
+                    ),
+                    "dirty_page_count": dirty_page_total,
+                    "stale_entry_count": len(stale_entries),
+                    "freshness_count": dirty_page_total + len(stale_entries),
+                },
+            },
+        }
+        return ctx
 
     def _author_source_info(self, node) -> dict[str, Any]:
         source_path = str(getattr(node, "source_path", "") or "")
@@ -1149,6 +1281,16 @@ class DocsApp:
 
             return EventStream(stream(), heartbeat_interval=5.0)
 
+        @app.route("/docs/_author/dashboard", referenced=True)
+        def author_dashboard(request: Request):
+            if not self._is_author_mode():
+                return Response("author dashboard is available only in author mode", status=404)
+            self._ensure_catalog()
+            ctx = self._author_dashboard_context(request)
+            if _query_bool(request, "json", default=False):
+                return _json_response({"ok": True, "data": ctx["author_dashboard"]})
+            return Page.mounted("views/author_dashboard.html", **ctx)
+
         @app.route("/docs/_author/studio", referenced=True)
         def author_studio(request: Request):
             if not self._is_author_mode():
@@ -1748,6 +1890,7 @@ class DocsApp:
                 "views/changelog.html",
                 "views/api_reference.html",
                 "views/portal.html",
+                "views/author_dashboard.html",
                 "views/author_studio.html",
             ):
                 Template(view)
@@ -1885,6 +2028,43 @@ def _messages_for_source(messages: list[str], source_path: str) -> list[str]:
     if not source_path:
         return []
     return [message for message in messages if message.startswith(f"{source_path}:")]
+
+
+def _author_dashboard_diagnostic(
+    message: str,
+    severity: str,
+    source_to_node: dict[str, Any],
+    source_to_mount: dict[str, str],
+) -> dict[str, Any]:
+    source_path = "<catalog>"
+    line = None
+    detail = message
+    match = re.match(r"^(?P<source>[^:]+)(?::(?P<line>\d+))?:\s*(?P<detail>.*)$", message)
+    if match is not None:
+        source_path = match.group("source")
+        detail = match.group("detail") or message
+        if match.group("line"):
+            line = int(match.group("line"))
+    node = source_to_node.get(source_path)
+    mount = source_to_mount.get(source_path) or getattr(node, "mount", "") or "<catalog>"
+    payload: dict[str, Any] = {
+        "severity": severity,
+        "source_path": source_path,
+        "line": line,
+        "message": detail,
+        "raw_message": message,
+        "mount": mount,
+    }
+    if node is not None:
+        payload.update(
+            {
+                "title": node.title,
+                "slug": node.slug,
+                "url": node.url,
+                "studio_url": f"/docs/_author/studio?slug={node.slug}",
+            }
+        )
+    return payload
 
 
 def _iso_from_mtime(mtime: float | None) -> str | None:
