@@ -101,6 +101,15 @@ DEVELOP_EXPORTS: tuple[DevelopExport, ...] = (
         content_type="application/json",
         icon="layers",
     ),
+    DevelopExport(
+        id="deployment-profiles",
+        label="deployment-profiles.json",
+        raw_href="/deployment-profiles.json",
+        preview_href="/develop/deployment-profiles/",
+        description="Local, static, cloud, and enterprise deployment profile contracts.",
+        content_type="application/json",
+        icon="stack",
+    ),
 )
 
 _EXPORT_BY_ID = {item.id: item for item in DEVELOP_EXPORTS}

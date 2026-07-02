@@ -396,6 +396,7 @@ def _sidecar_routes() -> tuple[str, ...]:
         "/meta.json",
         "/surface.json",
         "/channels.json",
+        "/deployment-profiles.json",
     )
 
 

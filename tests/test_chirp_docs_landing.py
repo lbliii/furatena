@@ -89,6 +89,7 @@ class TestDevelopExports:
         assert 'href="/develop/catalog/"' in html
         assert 'href="/develop/llms/"' in html
         assert 'href="/develop/channels/"' in html
+        assert 'href="/develop/deployment-profiles/"' in html
 
     def test_develop_preview_links_to_raw_export(self, docs_client) -> None:
         import asyncio
@@ -118,6 +119,31 @@ class TestDevelopExports:
         assert channels["agent"]["status"] == "available"
         assert channels["pdf"]["status"] == "planned"
         assert payload["fingerprints"]["catalog"]
+
+    def test_deployment_profiles_export_describes_supported_profiles(self, docs_client) -> None:
+        import asyncio
+        import json
+
+        async def _fetch(path: str) -> str:
+            resp = await docs_client.get(path)
+            assert resp.status == 200
+            return resp.text
+
+        payload = json.loads(asyncio.run(_fetch("/deployment-profiles.json")).split("<script", 1)[0])
+        profile_ids = {item["id"] for item in payload["profiles"]}
+        assert payload["schema_version"] == 1
+        assert payload["default_profile"] == "local-author"
+        assert {"local-author", "static-pages", "cloud-live", "self-hosted-enterprise"} <= profile_ids
+        assert payload["agent_modes"]["local_mcp"]
+        local = next(item for item in payload["profiles"] if item["id"] == "local-author")
+        assert local["default"] is True
+        assert "local_mcp" in local["agent_modes"]
+        static = next(item for item in payload["profiles"] if item["id"] == "static-pages")
+        assert "deployment-profiles.json" in static["requirements"]["publishing"]
+
+        preview = asyncio.run(_fetch("/develop/deployment-profiles/"))
+        assert 'href="/deployment-profiles.json"' in preview
+        assert "self-hosted-enterprise" in preview
 
     def test_raw_llms_export_still_served(self, docs_client) -> None:
         import asyncio

@@ -62,6 +62,7 @@ Agents and tooling can consume live or frozen exports:
 | `/semantic.json` (frozen) | Embedding vectors |
 | `/tools.json` | Agent tool manifest |
 | `/channels.json` | Publication channel manifest for live, static, agent, and PDF outputs |
+| `/deployment-profiles.json` | Local, static, cloud, and self-hosted deployment profiles |
 | `/llms.txt` | Page index for LLMs |
 | `/sitemap.xml` | SEO sitemap |
 | `/objects.inv` | Sphinx-compatible inventory |

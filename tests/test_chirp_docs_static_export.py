@@ -181,9 +181,14 @@ class TestMiniStaticExport:
         assert (out / "docs/hello/index.html").is_file()
         assert (out / "catalog.json").is_file()
         assert (out / "channels.json").is_file()
+        assert (out / "deployment-profiles.json").is_file()
         assert (out / "llms.txt").is_file()
         assert (out / "robots.txt").is_file()
         assert (out / ".nojekyll").is_file()
+        profiles = json.loads((out / "deployment-profiles.json").read_text(encoding="utf-8"))
+        profile_ids = {item["id"] for item in profiles["profiles"]}
+        assert "static-pages" in profile_ids
+        assert profiles["links"]["self"] == "http://127.0.0.1:8080/deployment-profiles.json"
         channels = json.loads((out / "channels.json").read_text(encoding="utf-8"))
         channel_ids = {item["id"] for item in channels["channels"]}
         assert {"static", "agent", "pdf"} <= channel_ids
