@@ -30,6 +30,7 @@ from chirp.i18n import get_locale, set_locale
 from chirp.middleware.static import StaticFiles
 
 from furatena.catalog.access import AccessPermission
+from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
@@ -1059,6 +1060,14 @@ class DocsApp:
             body = json.dumps(meta_json(self.catalog), indent=2)
         elif export.id == "surface":
             body = json.dumps(surface_json(self.config, self.catalog), indent=2)
+        elif export.id == "channels":
+            body = json.dumps(
+                channel_manifest(
+                    self.catalog,
+                    config=self.config,
+                ),
+                indent=2,
+            )
         else:
             body = ""
         if len(body) > limit:
@@ -1602,6 +1611,20 @@ class DocsApp:
         def surface_json_route():
             self._ensure_catalog()
             body = json.dumps(surface_json(self.config, self.catalog), indent=2)
+            return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+
+        @app.route("/channels.json", referenced=True)
+        def channels_json_route(request: Request):
+            self._ensure_catalog()
+            body = json.dumps(
+                channel_manifest(
+                    self.catalog,
+                    config=self.config,
+                    base_url=self._site_base(request),
+                    mode="live",
+                ),
+                indent=2,
+            )
             return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
 
         @app.route("/og/{name}", referenced=True)

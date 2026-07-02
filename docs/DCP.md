@@ -273,6 +273,13 @@ When the app config includes `delivery` settings, `surface.json` includes the
 resolved global and per-mount head/theme selections used by live routing and
 static export.
 
+`channels.json` describes publication outputs rather than document versions. It
+lists live, static, agent, and planned PDF channels with canonical URLs,
+public/protected page counts, source/catalog/theme fingerprints, and static
+artifact paths when an export has been written. Freeze and static export both
+write this manifest so CI, deploy tooling, and develop/admin views can discover
+available outputs without scraping route lists.
+
 ## Adapter contract
 
 Source ingestion is represented by a `SourceProvider` contract so filesystem,

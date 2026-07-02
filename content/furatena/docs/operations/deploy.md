@@ -61,11 +61,16 @@ Agents and tooling can consume live or frozen exports:
 | `/search.json` | Keyword search index |
 | `/semantic.json` (frozen) | Embedding vectors |
 | `/tools.json` | Agent tool manifest |
+| `/channels.json` | Publication channel manifest for live, static, agent, and PDF outputs |
 | `/llms.txt` | Page index for LLMs |
 | `/sitemap.xml` | SEO sitemap |
 | `/objects.inv` | Sphinx-compatible inventory |
 
 Set **`FURA_BASE_URL`** so these URLs resolve correctly in exported JSON.
+
+`channels.json` records the active docs channel, site identity, public/protected page
+counts, source/catalog/theme fingerprints, canonical URLs, and output artifacts. PDF
+is advertised as `planned` until the PDF export renderer is enabled.
 
 ## Branding at deploy time
 

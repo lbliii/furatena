@@ -92,6 +92,15 @@ DEVELOP_EXPORTS: tuple[DevelopExport, ...] = (
         content_type="application/json",
         icon="layers",
     ),
+    DevelopExport(
+        id="channels",
+        label="channels.json",
+        raw_href="/channels.json",
+        preview_href="/develop/channels/",
+        description="Publication channels for live, static, agent, and planned PDF outputs.",
+        content_type="application/json",
+        icon="layers",
+    ),
 )
 
 _EXPORT_BY_ID = {item.id: item for item in DEVELOP_EXPORTS}

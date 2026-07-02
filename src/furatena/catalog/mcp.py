@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import quote, unquote
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.impact import stale_impact_report
@@ -834,6 +835,12 @@ class FuraMCPServer:
         return {
             "schema_version": 1,
             "active_channel": self.catalog.active_channel,
+            "publication": channel_manifest(
+                self.catalog,
+                config=getattr(self.docs_app, "config", None),
+                base_url=self.base_url,
+                mode="live",
+            ),
             "mounts": [
                 {
                     "id": mount.id,

@@ -16,6 +16,7 @@ from furatena.catalog.assets import (
     write_assets_manifest,
 )
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
+from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.export import api_operations_json, catalog_graph, search_json, tools_manifest
@@ -357,6 +358,26 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         )
         (out_dir / "structure.json").write_text(
             json.dumps(build_structure_index(registry), indent=2) + "\n",
+            encoding="utf-8",
+        )
+        channel_payload = channel_manifest(
+            registry,
+            config=docs_config,
+            base_url=base,
+            mode="freeze",
+            paths=[
+                "catalog.json",
+                "search.json",
+                "tools.json",
+                "catalog/api-operations.json",
+                "structure.json",
+                "semantic.json",
+            ],
+            mount_status=mount_status,
+            renderer_fingerprint=renderer_fp,
+        )
+        (out_dir / "channels.json").write_text(
+            json.dumps(channel_payload, indent=2) + "\n",
             encoding="utf-8",
         )
         _freeze_inventories(registry, out_dir)
