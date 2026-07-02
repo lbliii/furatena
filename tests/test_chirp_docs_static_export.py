@@ -180,9 +180,16 @@ class TestMiniStaticExport:
         assert (out / "index.html").is_file()
         assert (out / "docs/hello/index.html").is_file()
         assert (out / "catalog.json").is_file()
+        assert (out / "channels.json").is_file()
         assert (out / "llms.txt").is_file()
         assert (out / "robots.txt").is_file()
         assert (out / ".nojekyll").is_file()
+        channels = json.loads((out / "channels.json").read_text(encoding="utf-8"))
+        channel_ids = {item["id"] for item in channels["channels"]}
+        assert {"static", "agent", "pdf"} <= channel_ids
+        assert channels["mode"] == "static"
+        assert channels["base_url"] == "http://127.0.0.1:8080"
+        assert "catalog.json" in channels["channels"][1]["artifacts"]
         home = (out / "index.html").read_text(encoding="utf-8")
         assert "Home" in home
         assert 'id="page-root"' in home

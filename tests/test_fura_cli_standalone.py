@@ -557,6 +557,12 @@ def test_freeze_and_export_json_report_outputs(tmp_path: Path, capsys) -> None:
     assert export_payload["command"] == "export"
     assert export_payload["data"]["base_path"] == "/"
     assert (app_root / "public" / "docs" / "get-started" / "index.html").is_file()
+    frozen_channels = json.loads((app_root / "frozen" / "channels.json").read_text(encoding="utf-8"))
+    public_channels = json.loads((app_root / "public" / "channels.json").read_text(encoding="utf-8"))
+    assert frozen_channels["mode"] == "freeze"
+    assert public_channels["mode"] == "static"
+    assert {item["id"] for item in public_channels["channels"]} >= {"static", "agent", "pdf"}
+    assert public_channels["channels"][3]["status"] == "planned"
 
 
 def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, capsys) -> None:

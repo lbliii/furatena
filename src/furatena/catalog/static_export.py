@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     from furatena.catalog.docs_app import DocsApp
 
+from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.identity import scoped_frozen_dir
 
 _ROOT_PATH_ATTRS = (
@@ -394,6 +395,7 @@ def _sidecar_routes() -> tuple[str, ...]:
         "/llms-full.txt",
         "/meta.json",
         "/surface.json",
+        "/channels.json",
     )
 
 
@@ -652,6 +654,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
         if options.incremental:
             _prune_stale_outputs(output_dir, keep_paths=written_paths)
 
+        written_paths.add(Path("channels.json"))
         manifest = {
             "schema_version": 2,
             "page_count": page_count,
@@ -665,6 +668,19 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
         }
         (output_dir / "export.manifest.json").write_text(
             json.dumps(manifest, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        channel_payload = channel_manifest(
+            docs_app.catalog,
+            config=docs_app.config,
+            base_url=options.site_url or "",
+            base_path=base_path,
+            mode="static",
+            paths=sorted(str(path) for path in written_paths),
+            fingerprints=route_fps,
+        )
+        (output_dir / "channels.json").write_text(
+            json.dumps(channel_payload, indent=2) + "\n",
             encoding="utf-8",
         )
     finally:

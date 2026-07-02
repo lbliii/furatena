@@ -88,6 +88,7 @@ class TestDevelopExports:
         assert "chirp-theme-develop" in html
         assert 'href="/develop/catalog/"' in html
         assert 'href="/develop/llms/"' in html
+        assert 'href="/develop/channels/"' in html
 
     def test_develop_preview_links_to_raw_export(self, docs_client) -> None:
         import asyncio
@@ -100,6 +101,23 @@ class TestDevelopExports:
         html = asyncio.run(_fetch())
         assert 'href="/llms.txt"' in html
         assert "chirp-theme-develop__sample" in html
+
+    def test_channels_export_describes_publication_channels(self, docs_client) -> None:
+        import asyncio
+        import json
+
+        async def _fetch() -> dict[str, object]:
+            resp = await docs_client.get("/channels.json")
+            assert resp.status == 200
+            return json.loads(resp.text.split("<script", 1)[0])
+
+        payload = asyncio.run(_fetch())
+        channels = {item["id"]: item for item in payload["channels"]}
+        assert payload["schema_version"] == 1
+        assert {"live", "static", "agent", "pdf"} <= set(channels)
+        assert channels["agent"]["status"] == "available"
+        assert channels["pdf"]["status"] == "planned"
+        assert payload["fingerprints"]["catalog"]
 
     def test_raw_llms_export_still_served(self, docs_client) -> None:
         import asyncio
