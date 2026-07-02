@@ -57,6 +57,9 @@ directive handler, rewrite the content, or keep the page as HTML.
 | RST admonition directive | Recorded as mapped Content IR directive metadata |
 | RST directive without a Furatena directive contract | Warning with source line and adapter behavior |
 | RST role such as `:py:class:` | Warning that the target is not resolved through Furatena inventories |
+| MyST directive fence such as ```` ```{note}```` | Lowered to a Patitas directive when registered |
+| MyST ref/doc roles | Lowered to markdown links and included in Content IR links |
+| Unsupported MyST roles or directives | Warning with source line and adapter behavior |
 
 Use these warnings as the first triage list for custom directive mappings or manual
 cleanup. They are intentionally conservative: rendered HTML can still work while the

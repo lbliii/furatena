@@ -192,6 +192,7 @@ Index-time derived fields (v3):
 | `html` | `HtmlAdapter` | Shipped |
 | `docutils-rst` | `RstAdapter` | Shipped (requires `docutils`) |
 | `mdx` | `MdxAdapter` | Shipped (JSX lowered to extension blocks) |
+| `myst-markdown` | `MystMarkdownAdapter` | Shipped (MyST directives/roles lowered to Patitas markdown) |
 | `autodoc-python` | Autodoc provider | Shipped (synthetic) |
 
 `fura check` includes compatibility diagnostics for non-canonical formats. MDX
@@ -199,7 +200,22 @@ JSX components are classified as mapped when their lowercase name matches a
 registered directive, otherwise they warn with source line and migration action.
 RST admonitions are mapped to Content IR directive metadata; unsupported RST
 directives and inventory-like roles warn with their source line and adapter
-behavior.
+behavior. MyST directive fences are lowered to registered Patitas directives
+when possible; unsupported MyST directives and roles warn with source line and
+adapter behavior.
+
+### MyST mapping contract
+
+| MyST construct | Furatena behavior |
+|----------------|-------------------|
+| `.myst` files | Indexed as `myst-markdown` by default |
+| `.md` files with `format_map: {".md": myst-markdown}` | Indexed as MyST-flavored markdown |
+| MyST backtick directive fence, for example ```` ```{note}```` | Lowered to `:::{note}` Patitas directive fences |
+| `:::{note}` MyST colon directive fences | Parsed directly by Patitas and reported as mapped |
+| MyST ref role, for example ``{ref}`Section <section-target>` `` | Lowered to `[Section](#section-target)` and included in Content IR links |
+| MyST doc role, for example ``{doc}`Other <docs/other>` `` | Lowered to `[Other](/docs/other/)` and included in Content IR links |
+| Unsupported roles such as ``{term}`Content IR` `` | Rendered by Patitas role handling but reported as compatibility warnings |
+| Ordinary fenced code blocks | Preserved as markdown code blocks |
 
 ## Mount configuration
 
@@ -208,13 +224,14 @@ behavior.
 mounts:
   - id: chirp
     content_root: ../../content/chirp
-    extensions: [".md", ".rst", ".html", ".mdx"]
-    index_files: ["_index.md", "index.rst", "index.html"]
+    extensions: [".md", ".rst", ".html", ".mdx", ".myst"]
+    index_files: ["_index.md", "index.rst", "index.html", "index.myst"]
     format_map:
       ".md": patitas-markdown
       ".rst": docutils-rst
       ".html": html
       ".mdx": mdx
+      ".myst": myst-markdown
     default_format: patitas-markdown
 ```
 

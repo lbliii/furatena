@@ -6,6 +6,7 @@ from furatena.catalog.render import DocsRenderer
 from furatena.catalog.sources.adapters.html import HtmlAdapter
 from furatena.catalog.sources.adapters.markdown import PatitasMarkdownAdapter
 from furatena.catalog.sources.adapters.mdx import MdxAdapter
+from furatena.catalog.sources.adapters.myst import MystMarkdownAdapter
 from furatena.catalog.sources.adapters.rst import RstAdapter
 from furatena.catalog.sources.types import ContentAdapter
 
@@ -14,6 +15,7 @@ _BUILTIN_FORMATS: dict[str, type] = {
     "html": HtmlAdapter,
     "docutils-rst": RstAdapter,
     "mdx": MdxAdapter,
+    "myst-markdown": MystMarkdownAdapter,
 }
 
 _ADAPTERS: dict[str, ContentAdapter] = {}
@@ -32,7 +34,7 @@ def get_content_adapter(content_format: str, *, renderer: DocsRenderer | None = 
     if adapter_cls is None:
         raise KeyError(f"No content adapter registered for format: {content_format}")
 
-    if adapter_cls in {PatitasMarkdownAdapter, MdxAdapter}:
+    if adapter_cls in {PatitasMarkdownAdapter, MdxAdapter, MystMarkdownAdapter}:
         adapter = adapter_cls(renderer=renderer)
     else:
         adapter = adapter_cls()

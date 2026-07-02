@@ -25,10 +25,11 @@ mounts:
     label: Shared Reference
     content_root: content/shared
     url_prefix: /shared
-    extensions: [".md", ".html"]
+    extensions: [".md", ".html", ".myst"]
     format_map:
       ".md": patitas-markdown
       ".html": html
+      ".myst": myst-markdown
 ```
 
 ## Fields
@@ -42,6 +43,16 @@ mounts:
 | `url_prefix` | no | URL prefix for non-default mounts (e.g. `/shared`) |
 | `extensions` | no | File extensions to index (default `.md`) |
 | `format_map` | no | Map extension → content adapter id |
+
+Built-in format ids include `patitas-markdown`, `myst-markdown`, `mdx`,
+`docutils-rst`, and `html`. Use `.myst` for MyST files, or map `.md` to
+`myst-markdown` when importing an existing MyST markdown corpus:
+
+```yaml
+extensions: [".md"]
+format_map:
+  ".md": myst-markdown
+```
 
 ## URL routing
 
