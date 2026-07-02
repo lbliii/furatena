@@ -113,6 +113,57 @@ def test_check_json_emits_standard_result(tmp_path: Path, capsys) -> None:
     assert payload["data"]["content_only"] is True
 
 
+def test_migrate_report_json_groups_risks(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    page = app_root / "content" / "docs" / "legacy.mdx"
+    page.write_text(
+        "---\ntitle: Legacy\n---\n\n"
+        "# Legacy\n\n"
+        "<ApiTable endpoint=\"/v1\" />\n\n"
+        "[Missing](/docs/missing/)\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    with pytest.raises(SystemExit) as excinfo:
+        main(["--app-root", str(app_root), "migrate", "--report", "--json"])
+    assert excinfo.value.code == 2
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["ok"] is False
+    assert payload["command"] == "migrate"
+    report = payload["data"]["migration_report"]
+    assert report["summary"]["error_count"] >= 1
+    assert report["summary"]["warning_count"] >= 1
+    assert "error" in report["groups"]["by_severity"]
+    assert "docs/legacy.mdx" in report["groups"]["by_source_path"]
+    assert "internal link" in report["groups"]["by_construct"]
+    assert any(
+        finding["construct"] == "MDX JSX component <ApiTable>"
+        and finding["severity"] == "warning"
+        for finding in report["findings"]
+    )
+
+
+def test_migrate_report_text_is_readable(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    page = app_root / "content" / "docs" / "legacy.mdx"
+    page.write_text(
+        "---\ntitle: Legacy\n---\n\n<ApiTable endpoint=\"/v1\" />\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "migrate", "--report"])
+    output = capsys.readouterr().out
+
+    assert "Migration readiness report" in output
+    assert "WARNING" in output
+    assert "MDX JSX component <ApiTable>" in output
+
+
 def test_check_reports_openapi_governance_findings(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 

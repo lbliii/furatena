@@ -1141,6 +1141,18 @@ def _run_migrate(args: argparse.Namespace) -> None:
     from furatena.catalog.migrate import migrate_mdx_paths, migrate_mounts
     from furatena.catalog.registry import load_mounts
 
+    if args.report:
+        result = _run_migration_report(args)
+        if _json_output(args):
+            _finish_result(result, json_output=True)
+            return
+        from furatena.catalog.migrate import render_migration_report
+
+        print(render_migration_report(result.data["migration_report"]))
+        if result.exit_code:
+            raise SystemExit(int(result.exit_code))
+        return
+
     app_root = _app_root(args)
     repo = _repo_for_app(app_root)
     config = load_docs_config(_docs_yaml(args))
@@ -1263,6 +1275,93 @@ def _run_migrate(args: argparse.Namespace) -> None:
         return
     if errors:
         raise SystemExit(1)
+
+
+def _run_migration_report(args: argparse.Namespace) -> CommandResult:
+    from furatena.catalog.check import check_catalog
+    from furatena.catalog.config import load_docs_config
+    from furatena.catalog.migrate import build_migration_report
+    from furatena.catalog.registry import CatalogRegistry
+    from furatena.catalog.theme import DocsTheme
+    from furatena.catalog.views import ViewRegistry
+
+    app_root = _app_root(args)
+    repo = _repo_for_app(app_root)
+    config = load_docs_config(_docs_yaml(args))
+    theme = DocsTheme.from_docs_config(config)
+    mounts_path = config.mounts_path or app_root / "mounts.yaml"
+    registry = CatalogRegistry.from_config(
+        mounts_path,
+        repo_root=repo,
+        app_root=app_root,
+        rewrites_path=config.rewrites_path,
+        inventories_path=config.inventories_path,
+        catalog_identity=config.identity.to_meta(),
+        autodoc=False,
+        autodoc_config=_autodoc_config(args, repo),
+        include_private=True,
+    )
+    views = ViewRegistry(config)
+    errors, warnings = check_catalog(
+        registry,
+        views=views,
+        docs=config,
+        theme=theme,
+        strict_views=False,
+        strict_edition_links=False,
+        inventory_store=registry.inventory_store,
+    )
+    diagnostics = [
+        diagnostic_from_message(
+            message,
+            severity="error",
+            rule_id=_content_rule_id(message, dcp_errors=[]),
+            next_action="Fix this migration blocker before switching platforms.",
+        )
+        for message in errors
+    ]
+    diagnostics.extend(
+        diagnostic_from_message(
+            message,
+            severity="warning",
+            rule_id=_content_rule_id(message, dcp_errors=[]),
+            next_action="Review this migration risk before switching platforms.",
+        )
+        for message in warnings
+    )
+    report = build_migration_report(registry, diagnostics=tuple(diagnostics))
+    finding_diagnostics = tuple(
+        Diagnostic(
+            severity=str(finding["severity"]),
+            source_path=str(finding["source_path"]),
+            line=finding.get("line"),
+            message=str(finding["message"]),
+            rule_id=str(finding.get("rule_id") or "fura.migration.report"),
+            next_action=str(finding["next_action"]),
+        )
+        for finding in report["findings"]
+        if finding["severity"] in {"error", "warning"}
+    )
+    summary = report["summary"]
+    exit_code = ExitCode.VALIDATION_ERROR if summary["error_count"] else ExitCode.SUCCESS
+    return CommandResult(
+        command=command_name(args),
+        ok=exit_code == ExitCode.SUCCESS,
+        exit_code=exit_code,
+        summary=(
+            "migration report completed with "
+            f"{summary['error_count']} error(s), "
+            f"{summary['warning_count']} warning(s), "
+            f"{summary['info_count']} info"
+        ),
+        diagnostics=finding_diagnostics,
+        data={
+            "migration_report": report,
+            "report": True,
+            "dry_run": True,
+            "include_private": True,
+        },
+    )
 
 
 def _run_theme_list(args: argparse.Namespace) -> None:
@@ -2305,6 +2404,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     migrate = sub.add_parser("migrate", help="Lower MDX JSX to Patitas directives")
     migrate.add_argument("paths", nargs="*", help="Optional .mdx files")
+    migrate.add_argument(
+        "--report",
+        action="store_true",
+        help="Report migration readiness risks without writing files",
+    )
     migrate.add_argument("--dry-run", action="store_true")
     migrate.add_argument("--keep-mdx", action="store_true")
     migrate.add_argument("--json", action="store_true", help="Emit the standard command result JSON")

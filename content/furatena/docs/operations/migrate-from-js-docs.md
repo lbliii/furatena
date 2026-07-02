@@ -27,6 +27,18 @@ Then migrate once the report looks right:
 fura migrate
 ```
 
+For a read-only migration readiness report across mounted sources:
+
+```bash
+fura migrate --report
+fura migrate --report --json
+```
+
+The report groups check and compatibility findings by severity, source path,
+construct, and suggested action. It includes broken internal or cross-mount links,
+unresolved reference roles, directive compatibility gaps, and embedded MDX/RST/MyST
+constructs that need mapping or manual cleanup.
+
 By default, `.mdx` files become `.md` siblings and the source `.mdx` file is removed.
 Use `--keep-mdx` while evaluating:
 
