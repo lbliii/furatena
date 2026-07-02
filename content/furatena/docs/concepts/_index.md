@@ -23,5 +23,6 @@ how the htmx shell persists across navigation.
 - [[docs/concepts/hypermedia-model|Hypermedia model]] — boost, fragments, author reload
 - [[docs/concepts/federation|Federation]] — multiple mounts and cross-links
 - [[docs/concepts/platform-proof|Platform proof]] — one corpus, live docs, static output, search, and agent exports
+- [[docs/concepts/adoption-research|Adoption research]] — personas, competitors, and success metrics
 
 Design deep-dives also live in the repository under `docs/` (DUAL_IR.md, VIEWS.md, DCP.md).
