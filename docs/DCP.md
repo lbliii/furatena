@@ -194,6 +194,13 @@ Index-time derived fields (v3):
 | `mdx` | `MdxAdapter` | Shipped (JSX lowered to extension blocks) |
 | `autodoc-python` | Autodoc provider | Shipped (synthetic) |
 
+`fura check` includes compatibility diagnostics for non-canonical formats. MDX
+JSX components are classified as mapped when their lowercase name matches a
+registered directive, otherwise they warn with source line and migration action.
+RST admonitions are mapped to Content IR directive metadata; unsupported RST
+directives and inventory-like roles warn with their source line and adapter
+behavior.
+
 ## Mount configuration
 
 ```yaml

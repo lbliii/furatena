@@ -29,6 +29,10 @@ def _jsx_attrs(raw: str) -> dict[str, str]:
     return options
 
 
+def _line_for_match(source: str, match: re.Match[str]) -> int:
+    return source.count("\n", 0, match.start()) + 1
+
+
 def mdx_to_markdown(source: str) -> str:
     """Lower JSX components into MyST-style extension blocks for Patitas."""
     lines: list[str] = []
@@ -143,7 +147,7 @@ class MdxAdapter:
                     ContentDirective(
                         name=match.group(1),
                         options=_jsx_attrs(match.group(2) or ""),
-                        line=None,
+                        line=_line_for_match(raw, match),
                     )
                 )
         if not jsx_extensions:
