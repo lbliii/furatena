@@ -35,6 +35,7 @@ from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
 from furatena.catalog.delivery import resolve_delivery_for_node
+from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.dev_reload import (
     browser_reload_dirs,
     clear_dev_server_record,
@@ -1068,6 +1069,8 @@ class DocsApp:
                 ),
                 indent=2,
             )
+        elif export.id == "deployment-profiles":
+            body = json.dumps(deployment_profiles_manifest(), indent=2)
         else:
             body = ""
         if len(body) > limit:
@@ -1623,6 +1626,14 @@ class DocsApp:
                     base_url=self._site_base(request),
                     mode="live",
                 ),
+                indent=2,
+            )
+            return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+
+        @app.route("/deployment-profiles.json", referenced=True)
+        def deployment_profiles_json_route(request: Request):
+            body = json.dumps(
+                deployment_profiles_manifest(base_url=self._site_base(request)),
                 indent=2,
             )
             return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
