@@ -46,6 +46,22 @@ fura migrate --keep-mdx
 Unmapped JSX components are reported as warnings so you can choose whether to add a
 directive handler, rewrite the content, or keep the page as HTML.
 
+## Compatibility diagnostics
+
+`fura check` reports format compatibility gaps before migration:
+
+| Source construct | Behavior |
+|------------------|----------|
+| MDX JSX component matching a Furatena directive | Recorded as mapped compatibility metadata |
+| MDX JSX component without a directive mapping | Warning with source line and migration action |
+| RST admonition directive | Recorded as mapped Content IR directive metadata |
+| RST directive without a Furatena directive contract | Warning with source line and adapter behavior |
+| RST role such as `:py:class:` | Warning that the target is not resolved through Furatena inventories |
+
+Use these warnings as the first triage list for custom directive mappings or manual
+cleanup. They are intentionally conservative: rendered HTML can still work while the
+diagnostic tells you which constructs are not yet native Furatena contracts.
+
 ## Platform notes
 
 | Source | Migration path |

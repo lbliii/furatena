@@ -12,6 +12,11 @@ from furatena.catalog.directives.manifest import (
     validate_directive_manifest,
 )
 from furatena.catalog.directives.registry import create_directive_registry
+from furatena.catalog.format_compat import (
+    mdx_compatibility_findings,
+    rst_compatibility_findings,
+    warning_messages,
+)
 from furatena.catalog.frontmatter_lint import lint_front_matter
 from furatena.catalog.graph import normalize_internal_url
 from furatena.catalog.lifecycle import check_lifecycle_sources
@@ -102,6 +107,25 @@ def check_content_lint(catalog: CatalogLike) -> tuple[list[str], list[str]]:
 
             warnings.extend(
                 lint_unknown_directives(node.content_ir, registry, source=source),
+            )
+        if node.body_md and node.content_format == "mdx":
+            warnings.extend(
+                warning_messages(
+                    mdx_compatibility_findings(
+                        node.body_md,
+                        source_path=source,
+                        known_directives=registry.names,
+                    )
+                )
+            )
+        elif node.body_md and node.content_format == "docutils-rst":
+            warnings.extend(
+                warning_messages(
+                    rst_compatibility_findings(
+                        node.body_md,
+                        source_path=source,
+                    )
+                )
             )
 
     return sorted(errors), sorted(warnings)

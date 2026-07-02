@@ -734,6 +734,26 @@ class TestHtmlAdapter:
 
 
 class TestRstAdapter:
+    def test_rst_compatibility_reports_roles_and_directives(self) -> None:
+        from furatena.catalog.format_compat import rst_compatibility_findings
+
+        source = (
+            "Guide\n"
+            "=====\n\n"
+            ".. note:: Supported note.\n\n"
+            ".. tabs::\n\n"
+            "See :py:class:`example.Client`.\n"
+        )
+        findings = rst_compatibility_findings(source, source_path="docs/guide.rst")
+        by_construct = {finding.construct: finding for finding in findings}
+        assert by_construct["RST directive '.. note::'"].severity == "info"
+        assert by_construct["RST directive '.. note::'"].line == 3
+        assert by_construct["RST directive '.. tabs::'"].severity == "warning"
+        assert by_construct["RST directive '.. tabs::'"].line == 5
+        assert by_construct["RST role ':py:class:'"].severity == "warning"
+        assert by_construct["RST role ':py:class:'"].line == 8
+        assert "not resolved through Furatena inventories" in by_construct["RST role ':py:class:'"].behavior
+
     def test_extracts_rst_structure(self) -> None:
         pytest = __import__("pytest")
         docutils = pytest.importorskip("docutils")
@@ -770,6 +790,24 @@ class TestRstAdapter:
 
 
 class TestMdxAdapter:
+    def test_mdx_compatibility_reports_mapped_and_unsupported_jsx(self) -> None:
+        from furatena.catalog.directives.registry import create_directive_registry
+        from furatena.catalog.format_compat import mdx_compatibility_findings
+
+        source = "# MDX\n\n<Cards columns=\"2\">Body</Cards>\n\n<ApiTable endpoint=\"/v1\" />\n"
+        findings = mdx_compatibility_findings(
+            source,
+            source_path="docs/page.mdx",
+            known_directives=create_directive_registry().names,
+        )
+        by_construct = {finding.construct: finding for finding in findings}
+        assert by_construct["MDX JSX component <Cards>"].severity == "info"
+        assert by_construct["MDX JSX component <Cards>"].line == 3
+        assert "mapped to Patitas directive 'cards'" in by_construct["MDX JSX component <Cards>"].behavior
+        assert by_construct["MDX JSX component <ApiTable>"].severity == "warning"
+        assert by_construct["MDX JSX component <ApiTable>"].line == 5
+        assert "unregistered Patitas directive" in by_construct["MDX JSX component <ApiTable>"].behavior
+
     def test_lowers_jsx_to_markdown_extensions(self) -> None:
         from furatena.catalog.sources.adapters.mdx import mdx_to_markdown
 
@@ -791,3 +829,19 @@ class TestMdxAdapter:
         assert node is not None
         assert node.content_format == "mdx"
         assert node.body_html
+
+    def test_check_warns_for_unsupported_mdx_jsx(self, tmp_path: Path) -> None:
+        from furatena.catalog.check import check_catalog
+
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "page.mdx").write_text(
+            "---\ntitle: MDX Page\n---\n\n# MDX Page\n\n<ApiTable endpoint=\"/v1\" />\n",
+            encoding="utf-8",
+        )
+        config = MountSourceConfig.from_mount_dict({"extensions": [".mdx"]})
+        catalog = DocCatalog(tmp_path, autodoc=False, source_config=config)
+        errors, warnings = check_catalog(catalog)
+
+        assert errors == []
+        assert any("docs/page.mdx:3: MDX JSX component <ApiTable>" in warning for warning in warnings)
