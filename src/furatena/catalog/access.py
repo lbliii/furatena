@@ -112,12 +112,15 @@ class AccessPolicy:
         data = raw or {}
         access_raw = data.get("access")
         access = access_raw if isinstance(access_raw, Mapping) else {}
-        visibility = str(
-            access.get("visibility")
-            or data.get("visibility")
-            or default_visibility
-            or "public"
-        ).strip().lower()
+        raw_visibility = access.get("visibility") or data.get("visibility")
+        if raw_visibility:
+            visibility = str(raw_visibility).strip().lower()
+        elif _truthy(data.get("draft")):
+            visibility = "draft"
+        elif data.get("archived_at"):
+            visibility = "archived"
+        else:
+            visibility = str(default_visibility or "public").strip().lower()
         teams = set(_normalize_strings(access.get("teams")))
         admin_only = _truthy(access.get("admin_only") or data.get("admin_only"))
         roles = _normalize_roles(access.get("roles"))
@@ -206,6 +209,29 @@ def can_access(
     permission: AccessPermission | str = AccessPermission.READ,
 ) -> bool:
     return evaluate_access(policy, subject, permission=permission).allowed
+
+
+def accessible_nodes(
+    catalog: Any,
+    nodes: Any,
+    *,
+    subject: AccessSubject | None = None,
+    permission: AccessPermission | str = AccessPermission.READ,
+    include_private: bool = False,
+) -> list[Any]:
+    """Filter nodes for a subject, preserving private-mode escape hatches."""
+    items = list(nodes)
+    if include_private:
+        return items
+    if hasattr(catalog, "can_access_node"):
+        return [
+            node
+            for node in items
+            if catalog.can_access_node(node, subject, permission=permission)
+        ]
+    from furatena.catalog.lifecycle import public_nodes
+
+    return public_nodes(items)
 
 
 def _normalize_permission(permission: AccessPermission | str) -> AccessPermission:

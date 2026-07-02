@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.content_ir import content_ir_record
-from furatena.catalog.lifecycle import public_nodes
 
 
 def build_structure_index(catalog, *, include_private: bool = False) -> dict[str, Any]:
@@ -14,7 +14,12 @@ def build_structure_index(catalog, *, include_private: bool = False) -> dict[str
     headings: list[dict[str, Any]] = []
     directive_names: set[str] = set()
 
-    nodes = list(catalog.nodes) if include_private else public_nodes(catalog.nodes)
+    nodes = accessible_nodes(
+        catalog,
+        catalog.nodes,
+        permission=AccessPermission.EXPORT,
+        include_private=include_private,
+    )
     for node in nodes:
         if node.meta.get("draft"):
             continue

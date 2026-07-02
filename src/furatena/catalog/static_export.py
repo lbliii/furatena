@@ -352,10 +352,15 @@ def _canonical_export_path(url_path: str) -> str:
 
 
 def _collect_routes(docs_app: DocsApp, options: StaticExportOptions) -> list[str]:
+    from furatena.catalog.access import AccessPermission, accessible_nodes
     from furatena.catalog.i18n import collect_i18n_export_routes, collect_i18n_home_routes
-    from furatena.catalog.lifecycle import public_nodes
 
-    public_urls = {node.url for node in public_nodes(docs_app.catalog.nodes)}
+    public_nodes = accessible_nodes(
+        docs_app.catalog,
+        docs_app.catalog.nodes,
+        permission=AccessPermission.EXPORT,
+    )
+    public_urls = {node.url for node in public_nodes}
     routes = {
         docs_app.catalog.scoped_url(_canonical_export_path(url))
         for url in public_urls
@@ -416,7 +421,7 @@ def _write_hosting_files(output_dir: Path, *, site_url: str | None, base_path: s
 
 
 def _index_txt_routes(docs_app: DocsApp) -> list[str]:
-    from furatena.catalog.lifecycle import public_nodes
+    from furatena.catalog.access import AccessPermission, accessible_nodes
 
     routes: list[str] = []
     nodes = (
@@ -424,8 +429,13 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
         if hasattr(docs_app.catalog, "all_doc_nodes")
         else docs_app.catalog.doc_nodes()
     )
-    public_urls = {node.url for node in public_nodes(nodes)}
-    for node in public_nodes(nodes):
+    public_nodes = accessible_nodes(
+        docs_app.catalog,
+        nodes,
+        permission=AccessPermission.EXPORT,
+    )
+    public_urls = {node.url for node in public_nodes}
+    for node in public_nodes:
         url = node.url.rstrip("/")
         if not url.startswith("/docs/") and url != "/docs":
             continue

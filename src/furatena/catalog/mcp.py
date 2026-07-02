@@ -10,11 +10,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote
 
+from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.check import check_catalog
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
-from furatena.catalog.lifecycle import public_nodes
 from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.registry import load_mounts
 from furatena.catalog.semantic import hybrid_search, retrieve_node
@@ -868,7 +868,7 @@ class FuraMCPServer:
         if uri == "fura://catalog/api-operations":
             return self._api_operations()
         if uri == "fura://catalog/structure":
-            return build_structure_index(self.catalog)
+            return build_structure_index(self.catalog, include_private=self.include_private)
         if uri == "fura://catalog/inventories":
             return inventories_json(self.catalog, base_url=self.base_url)
         if uri == "fura://catalog/sources":
@@ -1021,6 +1021,8 @@ class FuraMCPServer:
             node = self.catalog.get_path(url)
             if node is None:
                 raise MCPError(-32602, f"unknown url: {url}")
+            if not self._can_retrieve_node(node):
+                raise MCPError(-32602, f"unknown url: {url}")
             return node
         raise MCPError(-32602, "traverse_graph requires node_id or url")
 
@@ -1031,16 +1033,19 @@ class FuraMCPServer:
             return None
         if node is None:
             return None
-        if not self.include_private and node not in public_nodes([node]):
+        if not self._can_retrieve_node(node):
             return None
         return node
 
     def _child_records(self, node: Any, *, limit: int) -> list[dict[str, Any]]:
         prefix = f"{node.slug.strip('/')}/" if node.slug.strip("/") else ""
         children = []
-        candidates = self.catalog.doc_nodes(lang=node.lang)
-        if not self.include_private:
-            candidates = public_nodes(candidates)
+        candidates = accessible_nodes(
+            self.catalog,
+            self.catalog.doc_nodes(lang=node.lang),
+            permission=AccessPermission.RETRIEVE,
+            include_private=self.include_private,
+        )
         for candidate in candidates:
             if candidate.node_id == node.node_id or candidate.mount != node.mount:
                 continue
@@ -1111,12 +1116,30 @@ class FuraMCPServer:
         return {"schema_version": 1, "count": len(operations), "operations": operations}
 
     def _nodes(self) -> list[Any]:
-        nodes = list(self.catalog.nodes)
-        return nodes if self.include_private else public_nodes(nodes)
+        return accessible_nodes(
+            self.catalog,
+            self.catalog.nodes,
+            permission=AccessPermission.RETRIEVE,
+            include_private=self.include_private,
+        )
 
     def _doc_nodes(self) -> list[Any]:
-        nodes = self.catalog.doc_nodes()
-        return nodes if self.include_private else public_nodes(nodes)
+        return accessible_nodes(
+            self.catalog,
+            self.catalog.doc_nodes(),
+            permission=AccessPermission.RETRIEVE,
+            include_private=self.include_private,
+        )
+
+    def _can_retrieve_node(self, node: Any) -> bool:
+        return bool(
+            accessible_nodes(
+                self.catalog,
+                [node],
+                permission=AccessPermission.RETRIEVE,
+                include_private=self.include_private,
+            )
+        )
 
     @staticmethod
     def _response(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:

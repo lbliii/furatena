@@ -29,6 +29,7 @@ from chirp.ext.chirp_ui import use_chirp_ui
 from chirp.i18n import get_locale, set_locale
 from chirp.middleware.static import StaticFiles
 
+from furatena.catalog.access import AccessPermission
 from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
@@ -67,7 +68,7 @@ from furatena.catalog.i18n import (
 )
 from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.incremental import is_partial_reload
-from furatena.catalog.lifecycle import is_public_node, visibility_state
+from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
 from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.registry import CatalogRegistry
@@ -444,7 +445,7 @@ class DocsApp:
         source = self._author_source_info(node)
         validation = self._author_validation_status(node)
         visibility = visibility_state(getattr(node, "meta", {}) or {})
-        export_included = is_public_node(node)
+        export_included = self.catalog.can_access_node(node, permission=AccessPermission.EXPORT)
         stale_entries = self.catalog.author_stale_entries(node.slug)
         dirty = bool(source["dirty"])
         stale = dirty or bool(stale_entries)
