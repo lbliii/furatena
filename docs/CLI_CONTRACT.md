@@ -50,6 +50,7 @@ Fields such as `source_path`, `line`, `mount`, `node_id`, `rule_id`, and `next_a
 - `fura query --json`
 - `fura freeze --json`
 - `fura export --json`
+- `fura pdf --json`
 - `fura migrate --json`
 - `fura recipes --json`
 - `fura evals --json`
@@ -68,6 +69,8 @@ Fields such as `source_path`, `line`, `mount`, `node_id`, `rule_id`, and `next_a
 `fura check --report-format github|junit|checkstyle|markdown` renders the same diagnostics as GitHub Actions annotations, JUnit XML, checkstyle XML, or a markdown summary. The command keeps the same exit-code behavior as normal checks, so CI can fail on errors or on warnings when `--warnings-as-errors` is set while still surfacing warnings in review tools.
 
 `fura api-diff OLD.yaml NEW.yaml --json` compares two OpenAPI specs by operation and reports added, removed, changed, and breaking operation summaries. Terminal output is readable for release notes; JSON output preserves the same counts and per-operation change reasons for CI or changelog automation.
+
+`fura pdf --json` exports one public page (`--page`), one public collection (`--collection`), or the full public site as PDF artifacts. The JSON `data` includes `output_dir`, `target`, generated `paths`, `page_count`, `byte_count`, and whether `channels.json` was refreshed. By default artifacts are written under `app/public/pdf/` and the public channel manifest is updated with available PDF outputs.
 
 `fura impact --json` emits a CI-friendly stale-content impact report without requiring an MCP session. The payload includes stale entries, affected chunks, graph context, changed graph edges touching each DCP node, provenance, owner/source/channel groupings, recommended remediation, and GitHub-issue-ready `repair_tasks` plus `task_markdown`. It combines live author invalidations with frozen public-output freshness checks so local, static, and deployed workflows can route repair work from the same structured contract.
 

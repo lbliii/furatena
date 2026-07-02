@@ -274,11 +274,12 @@ resolved global and per-mount head/theme selections used by live routing and
 static export.
 
 `channels.json` describes publication outputs rather than document versions. It
-lists live, static, agent, and planned PDF channels with canonical URLs,
-public/protected page counts, source/catalog/theme fingerprints, and static
-artifact paths when an export has been written. Freeze and static export both
-write this manifest so CI, deploy tooling, and develop/admin views can discover
-available outputs without scraping route lists.
+lists live, static, agent, and PDF channels with canonical URLs,
+public/protected page counts, source/catalog/theme fingerprints, static artifact
+paths when an export has been written, and PDF artifact paths after `fura pdf`
+runs. Freeze, static export, and PDF export write this manifest so CI, deploy
+tooling, and develop/admin views can discover available outputs without scraping
+route lists.
 
 ## Adapter contract
 

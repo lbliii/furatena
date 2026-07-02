@@ -565,6 +565,77 @@ def test_freeze_and_export_json_report_outputs(tmp_path: Path, capsys) -> None:
     assert public_channels["channels"][3]["status"] == "planned"
 
 
+def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) -> None:
+    from pypdf import PdfReader
+
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    page = app_root / "content" / "docs" / "pdf-source.md"
+    page.write_text(
+        "---\n"
+        "title: PDF Source\n"
+        "description: PDF export fixture.\n"
+        "---\n"
+        "# PDF Source\n\n"
+        "Intro paragraph with [Example](https://example.com).\n\n"
+        "## Heading One\n\n"
+        "Body under heading.\n\n"
+        "```python\n"
+        "print('pdf code')\n"
+        "```\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+
+    main([
+        "--app-root",
+        str(app_root),
+        "pdf",
+        "--page",
+        "/docs/pdf-source/",
+        "--json",
+        "--no-autodoc",
+    ])
+    page_payload = json.loads(capsys.readouterr().out)
+    main([
+        "--app-root",
+        str(app_root),
+        "pdf",
+        "--collection",
+        "docs",
+        "--json",
+        "--no-autodoc",
+    ])
+    collection_payload = json.loads(capsys.readouterr().out)
+    main(["--app-root", str(app_root), "pdf", "--json", "--no-autodoc"])
+    site_payload = json.loads(capsys.readouterr().out)
+
+    page_pdf = Path(page_payload["data"]["paths"][0])
+    collection_pdf = Path(collection_payload["data"]["paths"][0])
+    site_pdf = Path(site_payload["data"]["paths"][0])
+    assert page_payload["ok"] is True
+    assert page_payload["data"]["target"] == "page"
+    assert collection_payload["data"]["target"] == "collection"
+    assert site_payload["data"]["target"] == "site"
+    assert page_pdf.stat().st_size > 1000
+    assert collection_pdf.stat().st_size > page_pdf.stat().st_size
+    assert site_pdf.stat().st_size > 1000
+    assert site_payload["data"]["page_count"] >= collection_payload["data"]["page_count"]
+
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(str(page_pdf)).pages)
+    assert "PDF Source" in text
+    assert "Heading One" in text
+    assert "print('pdf code')" in text
+    assert "https://example.com" in text
+    assert "Page 1" in text
+
+    channels = json.loads((app_root / "public" / "channels.json").read_text(encoding="utf-8"))
+    pdf_channel = next(item for item in channels["channels"] if item["id"] == "pdf")
+    assert pdf_channel["status"] == "available"
+    assert any(output["url"].endswith(".pdf") for output in pdf_channel["outputs"])
+
+
 def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 

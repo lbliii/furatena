@@ -49,7 +49,12 @@ fura serve [--author] [--preview] [--workers N] [--port PORT]
 ```bash
 fura freeze [--workers N]
 fura export
+fura pdf [--page /docs/get-started/ | --collection docs]
 ```
+
+`fura pdf` writes PDF artifacts for one public page, one collection, or the full
+public site. The default output is `app/public/pdf/`; successful runs also refresh
+`app/public/channels.json` unless `--no-channels` is set.
 
 ## Validate
 

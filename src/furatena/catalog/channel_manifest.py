@@ -34,6 +34,7 @@ def channel_manifest(
     base_path: str = "",
     mode: str = "live",
     paths: list[str] | tuple[str, ...] | None = None,
+    pdf_paths: list[str] | tuple[str, ...] | None = None,
     fingerprints: dict[str, str] | None = None,
     mount_status: dict[str, dict[str, Any]] | None = None,
     renderer_fingerprint: str = "",
@@ -47,6 +48,7 @@ def channel_manifest(
     )
     all_nodes = list(getattr(catalog, "nodes", ()))
     artifact_paths = sorted(str(path) for path in (paths or ()))
+    pdf_artifact_paths = sorted(str(path) for path in (pdf_paths or ()))
     route_fingerprints = dict(sorted((fingerprints or {}).items()))
     source_fingerprints = _source_fingerprints(catalog, mount_status=mount_status)
     fingerprints_payload = {
@@ -72,7 +74,7 @@ def channel_manifest(
             _live_channel(base, enabled=mode == "live"),
             _static_channel(base, enabled=mode in {"static", "freeze"}, paths=artifact_paths),
             _agent_channel(base),
-            _pdf_channel(base),
+            _pdf_channel(base, paths=pdf_artifact_paths),
         ],
     }
 
@@ -135,26 +137,39 @@ def _agent_channel(base: str) -> dict[str, Any]:
     }
 
 
-def _pdf_channel(base: str) -> dict[str, Any]:
+def _pdf_channel(base: str, *, paths: list[str]) -> dict[str, Any]:
+    status = "available" if paths else "planned"
+    outputs = [
+        {
+            "id": Path(path).stem,
+            "label": Path(path).stem.replace("-", " ").title(),
+            "format": "pdf",
+            "media_type": "application/pdf",
+            "url": _url(base, f"/{path.lstrip('/')}"),
+            "status": "available",
+            "visibility": "public",
+        }
+        for path in paths
+    ] or [
+        {
+            "id": "pdf",
+            "label": "PDF bundle",
+            "format": "pdf",
+            "media_type": "application/pdf",
+            "url": _url(base, "/pdf/"),
+            "status": "planned",
+            "visibility": "public",
+        }
+    ]
     return {
         "id": "pdf",
         "label": "PDF artifacts",
         "kind": "pdf",
-        "status": "planned",
+        "status": status,
         "visibility": "public",
-        "canonical_url": _url(base, "/pdf/"),
-        "outputs": [
-            {
-                "id": "pdf",
-                "label": "PDF bundle",
-                "format": "pdf",
-                "media_type": "application/pdf",
-                "url": _url(base, "/pdf/"),
-                "status": "planned",
-                "visibility": "public",
-            }
-        ],
-        "next_action": "Implement PDF rendering in the PDF export task.",
+        "canonical_url": _url(base, f"/{paths[0].lstrip('/')}") if paths else _url(base, "/pdf/"),
+        "outputs": outputs,
+        **({} if paths else {"next_action": "Implement PDF rendering in the PDF export task."}),
     }
 
 

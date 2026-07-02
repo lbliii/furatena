@@ -70,7 +70,23 @@ Set **`FURA_BASE_URL`** so these URLs resolve correctly in exported JSON.
 
 `channels.json` records the active docs channel, site identity, public/protected page
 counts, source/catalog/theme fingerprints, canonical URLs, and output artifacts. PDF
-is advertised as `planned` until the PDF export renderer is enabled.
+is advertised as `planned` until PDF artifacts exist, then the PDF channel lists the
+generated files.
+
+## PDF artifacts
+
+Use `fura pdf` to publish a page, collection, or full-site PDF bundle:
+
+```bash
+uv run fura pdf --page /docs/get-started/
+uv run fura pdf --collection docs
+uv run fura pdf
+```
+
+By default the command writes to `app/public/pdf/`, writes a PDF `manifest.json`,
+and refreshes `app/public/channels.json` so deploy tooling can discover generated
+PDF outputs. Pass an explicit output directory for a custom artifact location, or
+`--no-channels` when a job should not update the public channel manifest.
 
 ## Branding at deploy time
 
