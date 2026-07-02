@@ -63,6 +63,17 @@ fura check [--content-only] [--strict-edition-links]
 fura query --directive tabs
 ```
 
+## Migrate
+
+```bash
+fura migrate [--dry-run] [--keep-mdx]
+fura migrate --report [--json]
+```
+
+`fura migrate --report` is read-only. It groups migration readiness findings by
+severity, source path, construct, and suggested action before source files are
+changed.
+
 ## Theme
 
 ```bash

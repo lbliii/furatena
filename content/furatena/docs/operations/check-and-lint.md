@@ -82,6 +82,19 @@ fura query --mount furatena --tag concepts
 
 At freeze, **`structure.json`** captures a flat directive + heading index with source lines.
 
+## Migration readiness
+
+Before switching a corpus over, run:
+
+```bash
+fura migrate --report --json
+```
+
+The migration report reuses `fura check` diagnostics and adds format compatibility
+findings for MDX, RST, and MyST. JSON output groups findings by severity, source
+path, construct, and suggested action so teams can triage unsupported constructs
+and risky links before applying migrations.
+
 ## Recommended CI job
 
 ```bash
