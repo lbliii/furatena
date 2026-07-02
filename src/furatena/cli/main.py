@@ -1971,6 +1971,56 @@ def _run_init(args: argparse.Namespace) -> None:
             {% end %}
             """
         ),
+        "theme/views/author_dashboard.html": dedent(
+            """\
+            {% extends "shell.html" %}
+
+            {% block page_root %}
+            <main id="author-dashboard"
+                  class="chirp-theme-author-dashboard__workspace"
+                  data-author-dashboard
+                  data-author-dashboard-errors="{{ author_dashboard.summary.error_count }}"
+                  data-author-dashboard-warnings="{{ author_dashboard.summary.warning_count }}">
+              <header>
+                <p>Local authoring</p>
+                <h1>Author dashboard</h1>
+                <p>Import, freshness, and lint status for this local docs workspace.</p>
+                <a href="/docs/_author/dashboard?json=1">JSON</a>
+              </header>
+              <section aria-label="Author workspace summary">
+                <p>Mounts: {{ author_dashboard.summary.mount_count }}</p>
+                <p>Pages: {{ author_dashboard.summary.page_count }}</p>
+                <p>Blocking errors: {{ author_dashboard.summary.error_count }}</p>
+              </section>
+              {% if author_dashboard.blocking %}
+              <section aria-label="Top blocking errors">
+                <h2>Top blocking errors</h2>
+                {% for item in author_dashboard.blocking %}
+                <article data-severity="{{ item.severity }}">
+                  <strong>{{ item.source_path }}{% if item.line %}:{{ item.line }}{% end %}</strong>
+                  <span>{{ item.message }}</span>
+                  {% if item.studio_url %}<a href="{{ item.studio_url }}">Open</a>{% end %}
+                </article>
+                {% end %}
+              </section>
+              {% end %}
+              <section aria-label="Mounted sources">
+                {% for mount in author_dashboard.mounts %}
+                <article data-mount-id="{{ mount.id }}" data-mount-status="{{ mount.status }}">
+                  <h2>{{ mount.label }}</h2>
+                  <p>{{ mount.source_root }}</p>
+                  <p>{{ mount.page_count }} page(s)</p>
+                  <p>{{ mount.error_count }} error(s) / {{ mount.warning_count }} warning(s)</p>
+                  {% for item in mount.formats %}
+                  <span data-source-format="{{ item.format }}">{{ item.format }} {{ item.count }}</span>
+                  {% end %}
+                </article>
+                {% end %}
+              </section>
+            </main>
+            {% end %}
+            """
+        ),
         "theme/views/develop.html": dedent(
             """\
             {% extends "shell.html" %}

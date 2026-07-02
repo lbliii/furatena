@@ -1248,6 +1248,81 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert "Author controls" not in public_payload["page"].text
 
 
+def test_author_dashboard_lists_mount_status_and_lint_drilldown(tmp_path: Path) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    broken = app_root / "content" / "docs" / "broken.md"
+    broken.write_text(
+        "---\ntitle: Broken\n---\n# Broken\n\n[Missing](/docs/missing/)\n",
+        encoding="utf-8",
+    )
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, True),
+    )
+    author_client = TestClient(docs.create_app())
+
+    target = app_root / "content" / "docs" / "get-started.md"
+    target.write_text(
+        target.read_text(encoding="utf-8").replace(
+            "Run the local docs server:",
+            "Run the local author dashboard:",
+        ),
+        encoding="utf-8",
+    )
+    future = time.time() + 5
+    os.utime(target, (future, future))
+    time.sleep(1.1)
+
+    async def _fetch_author() -> dict[str, object]:
+        dashboard = await author_client.get("/docs/_author/dashboard")
+        data = await author_client.get("/docs/_author/dashboard?json=1")
+        page = await author_client.get("/docs/get-started/")
+        return {"dashboard": dashboard, "data": data, "page": page}
+
+    author_payload = asyncio.run(_fetch_author())
+    dashboard = author_payload["dashboard"]
+    data_payload = json.loads(author_payload["data"].text.split("<script", 1)[0])
+
+    assert dashboard.status == 200
+    assert 'id="author-dashboard"' in dashboard.text
+    assert 'data-mount-id="docs"' in dashboard.text
+    assert 'data-source-format="patitas-markdown"' in dashboard.text
+    assert "Top blocking errors" in dashboard.text
+    assert "broken internal link" in dashboard.text
+    assert "/docs/_author/studio?slug=docs/broken" in dashboard.text
+    assert author_payload["page"].status == 200
+    assert "Dashboard" in author_payload["page"].text
+    assert data_payload["ok"] is True
+    summary = data_payload["data"]["summary"]
+    assert summary["mount_count"] == 1
+    assert summary["page_count"] >= 3
+    assert summary["error_count"] >= 1
+    assert summary["freshness_count"] >= 1
+    mount = data_payload["data"]["mounts"][0]
+    assert mount["id"] == "docs"
+    assert mount["status"] in {"blocked", "stale"}
+    assert mount["dirty_count"] + mount["stale_count"] >= 1
+    assert any(item["format"] == "patitas-markdown" for item in mount["formats"])
+    assert any("broken internal link" in item["message"] for item in data_payload["data"]["blocking"])
+
+    public_docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.PREVIEW, None, True, False),
+    )
+    public_client = TestClient(public_docs.create_app())
+    public_dashboard = asyncio.run(public_client.get("/docs/_author/dashboard"))
+    public_page = asyncio.run(public_client.get("/docs/get-started/"))
+    assert public_dashboard.status == 404
+    assert 'id="author-dashboard"' not in public_page.text
+    assert "Dashboard" not in public_page.text
+
+
 def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 

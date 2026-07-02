@@ -95,6 +95,10 @@ findings for MDX, RST, and MyST. JSON output groups findings by severity, source
 path, construct, and suggested action so teams can triage unsupported constructs
 and risky links before applying migrations.
 
+For a browser view while authoring locally, run `fura serve --author` and open
+`/docs/_author/dashboard`. The dashboard lists mounts, source formats, page counts,
+freshness, and lint blockers without requiring cloud services.
+
 ## Recommended CI job
 
 ```bash
