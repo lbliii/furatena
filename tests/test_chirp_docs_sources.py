@@ -36,6 +36,7 @@ class TestMountSourceConfig:
         assert "html" in formats
         assert "docutils-rst" in formats
         assert "mdx" in formats
+        assert "myst-markdown" in formats
 
     def test_default_tracks_markdown(self) -> None:
         config = MountSourceConfig()
@@ -45,14 +46,25 @@ class TestMountSourceConfig:
     def test_from_mount_dict(self) -> None:
         config = MountSourceConfig.from_mount_dict(
             {
-                "extensions": [".md", ".html", ".rst", ".mdx"],
+                "extensions": [".md", ".html", ".rst", ".mdx", ".myst"],
             }
         )
         assert config.content_format_for(Path("page.html")) == "html"
         assert config.content_format_for(Path("page.rst")) == "docutils-rst"
         assert config.content_format_for(Path("page.mdx")) == "mdx"
+        assert config.content_format_for(Path("page.myst")) == "myst-markdown"
         assert "index.html" in config.index_files
         assert "index.rst" in config.index_files
+        assert "index.myst" in config.index_files
+
+    def test_mount_can_declare_myst_markdown_for_md_files(self) -> None:
+        config = MountSourceConfig.from_mount_dict(
+            {
+                "extensions": [".md"],
+                "format_map": {".md": "myst-markdown"},
+            }
+        )
+        assert config.content_format_for(Path("page.md")) == "myst-markdown"
 
     def test_from_mount_dict_parses_git_source(self) -> None:
         config = MountSourceConfig.from_mount_dict(
@@ -845,3 +857,101 @@ class TestMdxAdapter:
 
         assert errors == []
         assert any("docs/page.mdx:3: MDX JSX component <ApiTable>" in warning for warning in warnings)
+
+
+class TestMystAdapter:
+    def test_lowers_myst_directives_and_roles_to_markdown(self) -> None:
+        from furatena.catalog.sources.adapters.myst import myst_to_markdown
+
+        source = (
+            "# Guide\n\n"
+            "```{note}\n"
+            "Body.\n"
+            "```\n\n"
+            "See {ref}`Section <section-target>` and {doc}`Other <docs/other>`.\n"
+        )
+        lowered = myst_to_markdown(source)
+        assert ":::{note}" in lowered
+        assert "[Section](#section-target)" in lowered
+        assert "[Other](/docs/other/)" in lowered
+
+    def test_myst_compatibility_reports_mapped_and_unsupported_constructs(self) -> None:
+        from furatena.catalog.directives.registry import create_directive_registry
+        from furatena.catalog.format_compat import myst_compatibility_findings
+
+        source = (
+            "# Guide\n\n"
+            "```{note}\n"
+            "Body.\n"
+            "```\n\n"
+            "```{unknown-panel}\n"
+            "Body.\n"
+            "```\n\n"
+            "See {ref}`Section <section-target>` and {term}`Content IR`.\n"
+        )
+        findings = myst_compatibility_findings(
+            source,
+            source_path="docs/guide.myst",
+            known_directives=create_directive_registry().names,
+        )
+        by_construct = {finding.construct: finding for finding in findings}
+        assert by_construct["MyST directive '{note}'"].severity == "info"
+        assert by_construct["MyST directive '{note}'"].line == 3
+        assert by_construct["MyST directive '{unknown-panel}'"].severity == "warning"
+        assert by_construct["MyST directive '{unknown-panel}'"].line == 7
+        assert by_construct["MyST role '{ref}'"].severity == "info"
+        assert by_construct["MyST role '{term}'"].severity == "warning"
+        assert "not mapped to Content IR" in by_construct["MyST role '{term}'"].behavior
+
+    def test_catalog_indexes_myst_fixture_corpus(self, tmp_path: Path) -> None:
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "other.myst").write_text("---\ntitle: Other\n---\n\n# Other\n", encoding="utf-8")
+        (docs / "guide.myst").write_text(
+            "---\ntitle: MyST Guide\n---\n\n"
+            "# MyST Guide\n\n"
+            "```{note}\n"
+            "Admonition body.\n"
+            "```\n\n"
+            "```{tabs}\n"
+            "Tab body.\n"
+            "```\n\n"
+            "See {ref}`Section <section-target>` and {doc}`Other <docs/other>`.\n\n"
+            "```python\n"
+            "print('ok')\n"
+            "```\n\n"
+            "## Section {#section-target}\n",
+            encoding="utf-8",
+        )
+        config = MountSourceConfig.from_mount_dict({"extensions": [".myst"]})
+        catalog = DocCatalog(tmp_path, autodoc=False, source_config=config)
+        node = catalog.get_by_slug("docs/guide")
+        assert node is not None
+        assert node.content_format == "myst-markdown"
+        assert node.content_ir is not None
+        assert any(heading.text.startswith("MyST Guide") for heading in node.content_ir.headings)
+        assert {directive.name for directive in node.content_ir.directives} >= {"note", "tabs"}
+        assert {link.href for link in node.content_ir.links} >= {"#section-target", "/docs/other/"}
+        assert "print" in node.body_text
+
+    def test_check_warns_for_unsupported_myst_constructs(self, tmp_path: Path) -> None:
+        from furatena.catalog.check import check_catalog
+
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "guide.myst").write_text(
+            "---\ntitle: MyST Guide\n---\n\n"
+            "# MyST Guide\n\n"
+            "```{unknown-panel}\n"
+            "Body.\n"
+            "```\n\n"
+            "See {term}`Content IR`.\n",
+            encoding="utf-8",
+        )
+        config = MountSourceConfig.from_mount_dict({"extensions": [".myst"]})
+        catalog = DocCatalog(tmp_path, autodoc=False, source_config=config)
+        errors, warnings = check_catalog(catalog)
+
+        assert errors == []
+        assert any("docs/guide.myst:3: MyST directive '{unknown-panel}'" in warning for warning in warnings)
+        assert any("docs/guide.myst:7: MyST role '{term}'" in warning for warning in warnings)

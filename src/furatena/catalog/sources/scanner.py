@@ -145,7 +145,7 @@ class FilesystemScanner:
         resolved: list[PageSource] = []
         for page in pages:
             body = page.body
-            if page.content_format == "patitas-markdown" or page.content_format == "mdx":
+            if page.content_format in {"patitas-markdown", "mdx", "myst-markdown"}:
                 body = replace(body, slug_to_url)
             resolved.append(
                 PageSource(

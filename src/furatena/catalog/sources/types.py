@@ -16,6 +16,7 @@ _DEFAULT_FORMAT_BY_EXTENSION = {
     ".htm": "html",
     ".rst": "docutils-rst",
     ".mdx": "mdx",
+    ".myst": "myst-markdown",
 }
 
 _DEFAULT_INDEX_FILES = {
@@ -23,6 +24,7 @@ _DEFAULT_INDEX_FILES = {
     ".html": ("index.html",),
     ".htm": ("index.html",),
     ".rst": ("index.rst", "_index.rst"),
+    ".myst": ("index.myst", "_index.myst"),
 }
 
 

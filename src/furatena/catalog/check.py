@@ -14,6 +14,7 @@ from furatena.catalog.directives.manifest import (
 from furatena.catalog.directives.registry import create_directive_registry
 from furatena.catalog.format_compat import (
     mdx_compatibility_findings,
+    myst_compatibility_findings,
     rst_compatibility_findings,
     warning_messages,
 )
@@ -112,6 +113,16 @@ def check_content_lint(catalog: CatalogLike) -> tuple[list[str], list[str]]:
             warnings.extend(
                 warning_messages(
                     mdx_compatibility_findings(
+                        node.body_md,
+                        source_path=source,
+                        known_directives=registry.names,
+                    )
+                )
+            )
+        elif node.body_md and node.content_format == "myst-markdown":
+            warnings.extend(
+                warning_messages(
+                    myst_compatibility_findings(
                         node.body_md,
                         source_path=source,
                         known_directives=registry.names,
