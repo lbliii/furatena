@@ -30,10 +30,13 @@ _ROOT_PATH_ATTRS = (
     "formaction",
 )
 _ROOT_PATH_RE = re.compile(
-    rf"""(?P<prefix>\s(?:{'|'.join(_ROOT_PATH_ATTRS)})=(["']))(?P<url>/[^"']*)""",
+    rf"""(?P<prefix>\s(?:{"|".join(_ROOT_PATH_ATTRS)})=(["']))(?P<url>/[^"']*)""",
     re.IGNORECASE,
 )
-_JSON_URL_RE = re.compile(r'("url"\s*:\s*")(/[^"]*)(")')
+_JSON_URL_KEYS = ("canonical_url", "href", "og_url", "page_url", "self", "url")
+_JSON_URL_RE = re.compile(
+    rf'("(?:{"|".join(_JSON_URL_KEYS)}|[^"]*(?:_href|_url))"\s*:\s*")(/[^"]*)(")'
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -116,15 +119,15 @@ def prefix_root_paths(text: str, base_path: str) -> str:
 
     def html_repl(match: re.Match[str]) -> str:
         url = match.group("url")
-        if url.startswith("//"):
+        if url.startswith("//") or url == normalized or url.startswith(f"{normalized}/"):
             return match.group(0)
         return f"{match.group('prefix')}{normalized}{url}"
 
     def json_repl(match: re.Match[str]) -> str:
         url = match.group(2)
-        if url.startswith("//"):
+        if url.startswith("//") or url == normalized or url.startswith(f"{normalized}/"):
             return match.group(0)
-        return f'{match.group(1)}{normalized}{url}{match.group(3)}'
+        return f"{match.group(1)}{normalized}{url}{match.group(3)}"
 
     text = _ROOT_PATH_RE.sub(html_repl, text)
     return _JSON_URL_RE.sub(json_repl, text)
@@ -146,9 +149,7 @@ def prefix_markdown_links(text: str, base_path: str) -> str:
             parts = re.split(r"(`+[^`]*`+)", line)
             lines.append(
                 "".join(
-                    part
-                    if index % 2
-                    else re.sub(r"\]\((/[^)]*)\)", rf"]({normalized}\1)", part)
+                    part if index % 2 else re.sub(r"\]\((/[^)]*)\)", rf"]({normalized}\1)", part)
                     for index, part in enumerate(parts)
                 )
             )
@@ -189,11 +190,17 @@ def _node_source_fingerprint(node, *, renderer_fp: str, frozen_dir: Path | None)
     return digest[:16]
 
 
-def _route_fingerprint(docs_app: DocsApp, url_path: str, *, renderer_fp: str, frozen_dir: Path | None) -> str:
+def _route_fingerprint(
+    docs_app: DocsApp, url_path: str, *, renderer_fp: str, frozen_dir: Path | None
+) -> str:
     if url_path in {"/search", "/search/"}:
-        return hashlib.sha256(f"search|{renderer_fp}|{len(docs_app.catalog.nodes)}".encode()).hexdigest()[:16]
+        return hashlib.sha256(
+            f"search|{renderer_fp}|{len(docs_app.catalog.nodes)}".encode()
+        ).hexdigest()[:16]
     if url_path == "/portal/":
-        return hashlib.sha256(f"portal|{renderer_fp}|{len(docs_app.catalog.mounts)}".encode()).hexdigest()[:16]
+        return hashlib.sha256(
+            f"portal|{renderer_fp}|{len(docs_app.catalog.mounts)}".encode()
+        ).hexdigest()[:16]
     node = docs_app.catalog.get(url_path) or docs_app.catalog.get(url_path.rstrip("/") + "/")
     if node is None:
         return hashlib.sha256(f"route|{renderer_fp}|{url_path}".encode()).hexdigest()[:16]
@@ -205,7 +212,9 @@ def _sidecar_fingerprint(name: str, *, renderer_fp: str, frozen_dir: Path | None
         path = frozen_dir / name
         if path.is_file():
             stat = path.stat()
-            return hashlib.sha256(f"{name}|{stat.st_mtime_ns}|{stat.st_size}".encode()).hexdigest()[:16]
+            return hashlib.sha256(f"{name}|{stat.st_mtime_ns}|{stat.st_size}".encode()).hexdigest()[
+                :16
+            ]
     return hashlib.sha256(f"sidecar|{renderer_fp}|{name}".encode()).hexdigest()[:16]
 
 
@@ -254,14 +263,18 @@ def _default_content_type(url_path: str) -> str:
 
 def _finalize_static_html(body: str, base_path: str) -> str:
     body = prefix_root_paths(body, base_path)
-    if 'data-fura-static' not in body:
+    if "data-fura-static" not in body:
         body = body.replace("<body", '<body data-fura-static="true"', 1)
     prefix = normalize_base_path(base_path)
     search_url = f"{prefix}/search.json" if prefix else "/search.json"
-    script_src = f"{prefix}/docs-theme/local/js/fura-static-search.js" if prefix else "/docs-theme/local/js/fura-static-search.js"
+    script_src = (
+        f"{prefix}/docs-theme/local/js/fura-static-search.js"
+        if prefix
+        else "/docs-theme/local/js/fura-static-search.js"
+    )
     inject = (
-        f'<script>window.FURA_STATIC={{basePath:{json.dumps(prefix)},'
-        f'searchUrl:{json.dumps(search_url)}}};</script>\n'
+        f"<script>window.FURA_STATIC={{basePath:{json.dumps(prefix)},"
+        f"searchUrl:{json.dumps(search_url)}}};</script>\n"
         f'<script src="{script_src}" defer></script>\n'
     )
     if inject not in body:
@@ -365,7 +378,9 @@ def _copy_theme_assets(docs_app: DocsApp, output_dir: Path) -> int:
     return count + 1
 
 
-def _copy_frozen_sidecar(frozen_dir: Path | None, name: str, output_dir: Path, base_path: str) -> bool:
+def _copy_frozen_sidecar(
+    frozen_dir: Path | None, name: str, output_dir: Path, base_path: str
+) -> bool:
     if frozen_dir is None:
         return False
     source = frozen_dir / name
@@ -395,10 +410,7 @@ def _collect_routes(docs_app: DocsApp, options: StaticExportOptions) -> list[str
         permission=AccessPermission.EXPORT,
     )
     public_urls = {node.url for node in public_nodes}
-    routes = {
-        docs_app.catalog.scoped_url(_canonical_export_path(url))
-        for url in public_urls
-    }
+    routes = {docs_app.catalog.scoped_url(_canonical_export_path(url)) for url in public_urls}
     i18n = docs_app.config.i18n
     if i18n.enabled:
         routes.update(collect_i18n_home_routes(i18n))
@@ -435,6 +447,7 @@ def _sidecar_routes() -> tuple[str, ...]:
         "/channels.json",
         "/deployment-profiles.json",
         "/inventories.json",
+        "/routes.json",
     )
 
 
@@ -553,7 +566,9 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
         client = TestClient(docs_app.create_app())
         async with client:
             for url_path in _collect_routes(docs_app, options):
-                fp = _route_fingerprint(docs_app, url_path, renderer_fp=renderer_fp, frozen_dir=frozen_dir)
+                fp = _route_fingerprint(
+                    docs_app, url_path, renderer_fp=renderer_fp, frozen_dir=frozen_dir
+                )
                 route_fps[url_path] = fp
                 rel = url_path_to_output_file(url_path)
                 if (
@@ -604,7 +619,9 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                     continue
                 response = await client.get(url_path)
                 if response.status != 200:
-                    raise RuntimeError(f"Sidecar export failed for {url_path}: HTTP {response.status}")
+                    raise RuntimeError(
+                        f"Sidecar export failed for {url_path}: HTTP {response.status}"
+                    )
                 content_type = _response_header(
                     response.headers,
                     "content-type",
@@ -638,7 +655,9 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                         doc_path = f"{doc_path}/"
                     node = docs_app.catalog.get_path(doc_path)
                     fp = (
-                        _node_source_fingerprint(node, renderer_fp=renderer_fp, frozen_dir=frozen_dir)
+                        _node_source_fingerprint(
+                            node, renderer_fp=renderer_fp, frozen_dir=frozen_dir
+                        )
                         + "|index.txt"
                         if node is not None
                         else hashlib.sha256(f"index.txt|{url_path}".encode()).hexdigest()[:16]

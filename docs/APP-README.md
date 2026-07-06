@@ -94,6 +94,7 @@ repo venv from `make install` does.
 - Patitas directives render through **Kida + chirp-ui macros** at catalog index time (`catalog/directives/`, `templates/directives/`)
 - Supported: admonitions, cards, child-cards, dropdown, tabs, code-tabs (Rosettes), steps, since/deprecated/related, list-table, include, literalinclude
 - **`GET /catalog.json`**, **`GET /sitemap.xml`**, enriched **`/llms.txt`**
+- **`GET /routes.json`** — inspectable route ownership and response contracts ([ROUTES.md](ROUTES.md))
 - **Search v2** — snippets, heading boost, sidebar **`/search/suggest`** (htmx)
 - **SEO** — per-page title, meta description, Open Graph (with OOB updates on boosted nav)
 - **Glossary, youtube, gist, figure** directives; data in `data/glossary.yaml`

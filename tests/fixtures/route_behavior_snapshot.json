@@ -1,0 +1,82 @@
+{
+  "boosted_page": {
+    "format": "html",
+    "markers": [
+      "page-root"
+    ],
+    "status": 200
+  },
+  "catalog": {
+    "format": "json",
+    "keys": [
+      "channel",
+      "edges",
+      "edition",
+      "graph_nodes",
+      "inventories",
+      "namespaces",
+      "page_count",
+      "pages",
+      "schema_version",
+      "structure_index",
+      "version"
+    ],
+    "rule_ids": [],
+    "status": 200
+  },
+  "missing_page": {
+    "format": "html",
+    "markers": [
+      "page-root",
+      "page-not-found"
+    ],
+    "status": 404
+  },
+  "page": {
+    "format": "html",
+    "markers": [
+      "page-root"
+    ],
+    "status": 200
+  },
+  "routes": {
+    "format": "json",
+    "keys": [
+      "route_count",
+      "routes",
+      "schema_version"
+    ],
+    "rule_ids": [],
+    "status": 200
+  },
+  "search": {
+    "format": "html",
+    "markers": [
+      "page-root",
+      "search-results-panel"
+    ],
+    "status": 200
+  },
+  "transition_get": {
+    "format": "json",
+    "keys": [
+      "diagnostics",
+      "ok"
+    ],
+    "rule_ids": [
+      "fura.author.method"
+    ],
+    "status": 405
+  },
+  "transition_post": {
+    "format": "json",
+    "keys": [
+      "diagnostics",
+      "ok"
+    ],
+    "rule_ids": [
+      "fura.author.csrf"
+    ],
+    "status": 403
+  }
+}
