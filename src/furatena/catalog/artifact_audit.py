@@ -84,6 +84,8 @@ class _HTMLReferenceParser(HTMLParser):
         rel_tokens = set(values.get("rel", "").lower().split())
         for name, value in values.items():
             if name in _HTML_URL_ATTRS:
+                if name == "hx-push-url" and value.lower() in {"true", "false"}:
+                    continue
                 kind = "canonical" if tag == "link" and "canonical" in rel_tokens else f"html:{name}"
                 self._append(value, kind=kind)
             elif name == "srcset":
