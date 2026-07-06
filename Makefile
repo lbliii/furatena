@@ -104,7 +104,8 @@ ci-contract:
 
 ci-coverage:
 	$(COVERAGE) erase
-	$(COVERAGE) run --branch --source=$(CORE_COVERAGE_SOURCE) -m pytest -q $(CORE_COVERAGE_TESTS)
+	FURA_TEST_FROZEN_DIR="$$(mktemp -d)/frozen" \
+		$(COVERAGE) run --branch --source=$(CORE_COVERAGE_SOURCE) -m pytest -q $(CORE_COVERAGE_TESTS)
 	$(COVERAGE) json -o .coverage-core.json
 	$(PYTHON) scripts/check_core_coverage.py .coverage-core.json
 	$(COVERAGE) report -m

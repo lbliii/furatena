@@ -25,6 +25,7 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "$(UV_RUN) ruff check src tests app" in makefile
     assert "$(UV_RUN) fura check" in makefile
     assert "$(COVERAGE) run --branch" in makefile
+    assert 'FURA_TEST_FROZEN_DIR="$$(mktemp -d)/frozen"' in makefile
     assert "scripts/check_core_coverage.py" in makefile
     assert "$(MAKE) pages-build" in makefile
     assert "$(PYTEST) -m browser tests/test_author_sse_browser.py" in makefile

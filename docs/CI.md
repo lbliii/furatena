@@ -25,10 +25,10 @@ the final local fallback when a change crosses multiple surfaces.
 
 ## Branch gates and artifacts
 
-Pull requests run the `fast` and `contract` jobs for early lint, unit, and
-hypermedia/diagnostic feedback. Pushes to `main` and manual runs add the
-`export`, `browser`, `agent`, and `release` safety jobs. GitHub Pages deploys
-only after all seven jobs pass.
+Pull requests run the `fast`, `contract`, and `coverage` jobs for early lint,
+unit, hypermedia/diagnostic, and core coverage feedback. Pushes to `main` and
+manual runs add the `export`, `browser`, `agent`, and `release` safety jobs.
+GitHub Pages deploys only after all seven jobs pass.
 
 Each job scopes the uv cache with its GitHub job name, so a cache or install
 failure identifies one owning lane. The export job alone uploads the Pages
@@ -49,7 +49,10 @@ draft, private, protected, and archived source, then scans all generated files
 
 `make ci-coverage` records branch coverage in `.coverage-core.json`, prints the
 normal coverage report, and checks each foundational module against
-`config/core-coverage.json`. The policy stores the measured baseline and a
+`config/core-coverage.json`. It points artifact-dependent smoke tests at a fresh,
+absent temporary frozen path so clean CI and developer workspaces execute the
+same tests; pre-existing `app/frozen` output cannot inflate the measurement.
+The policy stores the measured baseline and a
 whole-number minimum separately. A change may raise a minimum after tests add
 durable coverage, but must not lower one merely to make CI pass; a decrease
 requires an explicit rationale in the pull request and an updated baseline.
@@ -57,10 +60,10 @@ requires an explicit rationale in the pull request and an updated baseline.
 The initial CPython 3.14t, GIL-disabled baselines recorded on 2026-07-06 are:
 
 - `catalog/access.py`: 89.00% (minimum 88%)
-- `catalog/export.py`: 91.67% (minimum 91%)
+- `catalog/export.py`: 90.18% (minimum 90%)
 - `catalog/graph.py`: 86.67% (minimum 86%)
-- `catalog/graph_schema.py`: 85.39% (minimum 85%)
-- `catalog/loader.py`: 79.41% (minimum 79%)
+- `catalog/graph_schema.py`: 84.64% (minimum 84%)
+- `catalog/loader.py`: 76.56% (minimum 76%)
 
 The browser suite uses Playwright's async API. Playwright's synchronous API
 crosses a greenlet bridge that segfaulted in the Linux 3.14t job with the GIL

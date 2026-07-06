@@ -8,20 +8,20 @@
       "minimum_percent": 88
     },
     "src/furatena/catalog/export.py": {
-      "baseline_percent": 91.67,
-      "minimum_percent": 91
+      "baseline_percent": 90.18,
+      "minimum_percent": 90
     },
     "src/furatena/catalog/graph.py": {
       "baseline_percent": 86.67,
       "minimum_percent": 86
     },
     "src/furatena/catalog/graph_schema.py": {
-      "baseline_percent": 85.39,
-      "minimum_percent": 85
+      "baseline_percent": 84.64,
+      "minimum_percent": 84
     },
     "src/furatena/catalog/loader.py": {
-      "baseline_percent": 79.41,
-      "minimum_percent": 79
+      "baseline_percent": 76.56,
+      "minimum_percent": 76
     }
   }
 }
