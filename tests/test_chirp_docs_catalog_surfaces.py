@@ -1,4 +1,4 @@
-"""Wave 6/7 tests for the app catalog."""
+"""Catalog search, delivery, autodoc, metadata, and graph surfaces."""
 
 from __future__ import annotations
 

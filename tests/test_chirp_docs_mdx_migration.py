@@ -1,4 +1,4 @@
-"""Tests for Wave F — MDX migration to canonical markdown."""
+"""MDX migration to canonical markdown."""
 
 from __future__ import annotations
 

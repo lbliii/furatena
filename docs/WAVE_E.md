@@ -126,7 +126,7 @@ role_domains:
 - `check_unresolved_references()` alongside broken-link check
 - `catalog.json` — `inventories[]` metadata; link records with `domain`, `inventory_id`, `resolved`
 - Proof page: `content/shared/reference/reference-inventories.md`
-- Tests: `tests/examples/test_chirp_docs_wave_e.py`
+- Tests: `tests/test_chirp_docs_reference_resolution.py`
 - ROADMAP Wave E section marked planned → done as sub-waves land
 
 ## DCP v3.1 (minor bump)

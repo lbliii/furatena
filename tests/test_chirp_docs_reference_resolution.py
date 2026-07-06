@@ -1,4 +1,4 @@
-"""Tests for Wave E — federation, inventories, and reference resolution."""
+"""Federated rewrites, inventories, and reference resolution."""
 
 from __future__ import annotations
 
