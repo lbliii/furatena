@@ -51,6 +51,9 @@ def _run_export(args: argparse.Namespace) -> None:
                 full_rebuild=args.fresh,
                 autodoc=True,
                 autodoc_config=_autodoc_config(args, repo_root),
+                # The static export immediately applies the same shared gate
+                # and owns this command's structured lifecycle diagnostics.
+                allow_lifecycle_errors=True,
             )
         )
     docs = DocsApp.from_paths(

@@ -6,7 +6,6 @@ import asyncio
 import hashlib
 import json
 import os
-import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,24 +17,13 @@ if TYPE_CHECKING:
 
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.identity import scoped_frozen_dir
-
-_ROOT_PATH_ATTRS = (
-    "href",
-    "src",
-    "action",
-    "content",
-    "hx-get",
-    "hx-post",
-    "hx-push-url",
-    "formaction",
-)
-_ROOT_PATH_RE = re.compile(
-    rf"""(?P<prefix>\s(?:{"|".join(_ROOT_PATH_ATTRS)})=(["']))(?P<url>/[^"']*)""",
-    re.IGNORECASE,
-)
-_JSON_URL_KEYS = ("canonical_url", "href", "og_url", "page_url", "self", "url")
-_JSON_URL_RE = re.compile(
-    rf'("(?:{"|".join(_JSON_URL_KEYS)}|[^"]*(?:_href|_url))"\s*:\s*")(/[^"]*)(")'
+from furatena.catalog.packaging import (
+    PackagingLifecycleError,
+    normalize_base_path,
+    prefix_markdown_links,
+    prefix_root_paths,
+    prune_stale_files,
+    validate_packaging_lifecycle,
 )
 
 
@@ -68,13 +56,11 @@ class StaticExportOptions:
     allow_lifecycle_errors: bool = False
 
 
-class StaticExportLifecycleError(RuntimeError):
-    """Raised when public export would violate lifecycle safety checks."""
+class StaticExportLifecycleError(PackagingLifecycleError):
+    """Backward-compatible lifecycle failure for static exports."""
 
     def __init__(self, errors: list[str], warnings: list[str]) -> None:
-        super().__init__("static export blocked by lifecycle safety checks")
-        self.errors = errors
-        self.warnings = warnings
+        super().__init__("static export", errors, warnings)
 
 
 def docs_base_path() -> str:
@@ -90,14 +76,6 @@ def docs_base_path() -> str:
     return ""
 
 
-def normalize_base_path(base_path: str) -> str:
-    """Return a leading-slash path without trailing slash, or empty for site root."""
-    raw = base_path.strip()
-    if not raw or raw == "/":
-        return ""
-    return "/" + raw.strip("/").rstrip("/")
-
-
 def url_path_to_output_file(url_path: str) -> Path:
     """Map a request path to a relative output file (``index.html`` for directories)."""
     path = url_path.split("?", 1)[0]
@@ -109,53 +87,6 @@ def url_path_to_output_file(url_path: str) -> Path:
     if path.endswith((".txt", ".xml", ".json")):
         return Path(path.lstrip("/"))
     return Path(path.lstrip("/")) / "index.html"
-
-
-def prefix_root_paths(text: str, base_path: str) -> str:
-    """Prefix root-relative URLs in HTML or JSON sidecars."""
-    normalized = normalize_base_path(base_path)
-    if not normalized:
-        return text
-
-    def html_repl(match: re.Match[str]) -> str:
-        url = match.group("url")
-        if url.startswith("//") or url == normalized or url.startswith(f"{normalized}/"):
-            return match.group(0)
-        return f"{match.group('prefix')}{normalized}{url}"
-
-    def json_repl(match: re.Match[str]) -> str:
-        url = match.group(2)
-        if url.startswith("//") or url == normalized or url.startswith(f"{normalized}/"):
-            return match.group(0)
-        return f"{match.group(1)}{normalized}{url}{match.group(3)}"
-
-    text = _ROOT_PATH_RE.sub(html_repl, text)
-    return _JSON_URL_RE.sub(json_repl, text)
-
-
-def prefix_markdown_links(text: str, base_path: str) -> str:
-    """Prefix root-relative markdown links (``(/path)``) for ``llms.txt``."""
-    normalized = normalize_base_path(base_path)
-    if not normalized:
-        return text
-    lines: list[str] = []
-    fence: str | None = None
-    for line in text.splitlines(keepends=True):
-        marker = line.lstrip()[:3]
-        if marker in {"```", "~~~"}:
-            fence = None if fence == marker else marker
-            lines.append(line)
-        elif fence is None:
-            parts = re.split(r"(`+[^`]*`+)", line)
-            lines.append(
-                "".join(
-                    part if index % 2 else re.sub(r"\]\((/[^)]*)\)", rf"]({normalized}\1)", part)
-                    for index, part in enumerate(parts)
-                )
-            )
-        else:
-            lines.append(line)
-    return "".join(lines)
 
 
 def _content_digest(body: str) -> str:
@@ -508,24 +439,8 @@ def _effective_frozen_dir(docs_app: DocsApp, frozen_dir: Path | None) -> Path | 
     )
 
 
-def _prune_stale_outputs(output_dir: Path, *, keep_paths: set[Path]) -> int:
-    removed = 0
-    for path in output_dir.rglob("*"):
-        if not path.is_file():
-            continue
-        rel = path.relative_to(output_dir)
-        if rel.name in {".nojekyll", "robots.txt", "export.manifest.json"}:
-            continue
-        if rel not in keep_paths:
-            path.unlink()
-            removed += 1
-    return removed
-
-
 async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> StaticExportResult:
     from chirp.testing.client import TestClient
-
-    from furatena.catalog.lifecycle import check_lifecycle_sources
 
     output_dir = options.output_dir.resolve()
     configured_base_path = docs_base_path() if options.base_path is None else options.base_path
@@ -534,10 +449,14 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     if frozen_dir is None and docs_app.serve.frozen_dir is not None:
         frozen_dir = docs_app.serve.frozen_dir
     frozen_dir = _effective_frozen_dir(docs_app, frozen_dir)
-    if not options.allow_lifecycle_errors:
-        lifecycle_errors, lifecycle_warnings = check_lifecycle_sources(docs_app.catalog)
-        if lifecycle_errors:
-            raise StaticExportLifecycleError(lifecycle_errors, lifecycle_warnings)
+    try:
+        validate_packaging_lifecycle(
+            docs_app.catalog,
+            target="static export",
+            allow_errors=options.allow_lifecycle_errors,
+        )
+    except PackagingLifecycleError as exc:
+        raise StaticExportLifecycleError(exc.errors, exc.warnings) from exc
 
     if options.incremental and output_dir.is_dir():
         pass
@@ -728,7 +647,13 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
         written_paths.update({Path(".nojekyll"), Path("robots.txt")})
 
         if options.incremental:
-            _prune_stale_outputs(output_dir, keep_paths=written_paths)
+            prune_stale_files(
+                output_dir,
+                written_paths,
+                preserve=frozenset(
+                    {Path(".nojekyll"), Path("robots.txt"), Path("export.manifest.json")}
+                ),
+            )
 
         written_paths.add(Path("channels.json"))
         manifest = {
