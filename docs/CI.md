@@ -40,7 +40,9 @@ URL/base-path variables for unit tests, then applies production defaults inside
 the Pages build. Its final crawler parses rendered HTML, JSON sidecars, sitemap
 XML, and navigable text links; it fails on repeated or escaped base paths,
 incorrect canonical origins, and missing targets while naming the source
-artifact and public referrer.
+artifact and public referrer. Export also derives unique canaries for every
+draft, private, protected, and archived source, then scans all generated files
+(including extracted PDF text and inventory payloads) for policy leaks.
 
 The browser suite uses Playwright's async API. Playwright's synchronous API
 crosses a greenlet bridge that segfaulted in the Linux 3.14t job with the GIL

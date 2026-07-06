@@ -44,6 +44,11 @@ def check_lifecycle_sources(catalog: Any) -> tuple[list[str], list[str]]:
     return sorted(errors), sorted(warnings)
 
 
+def lifecycle_records(catalog: Any) -> tuple[list[SourceLifecycleRecord], list[str]]:
+    """Return source lifecycle records and parse errors for policy audits."""
+    return _collect_lifecycle_records(catalog)
+
+
 def check_stale_public_outputs(catalog: Any, frozen_dir: Path) -> list[str]:
     """Report public source pages whose frozen output is missing or older."""
     if not (frozen_dir / "catalog.json").is_file():

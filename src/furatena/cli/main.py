@@ -276,6 +276,7 @@ def _run_export(args: argparse.Namespace) -> None:
         export_static_site,
         normalize_base_path,
     )
+    from furatena.catalog.visibility_audit import StaticExportVisibilityError
 
     app_root = _app_root(args)
     repo_root = _repo_for_app(app_root)
@@ -341,6 +342,36 @@ def _run_export(args: argparse.Namespace) -> None:
         for diagnostic in diagnostics:
             print(f"error: {diagnostic.message}")
         raise SystemExit(int(ExitCode.VALIDATION_ERROR)) from exc
+    except StaticExportVisibilityError as exc:
+        diagnostics = tuple(
+            diagnostic_from_message(
+                finding.format(),
+                severity="error",
+                rule_id="fura.visibility_leak",
+                next_action=f"Remove the leaked {finding.boundary} content from public outputs.",
+            )
+            for finding in exc.report.findings
+        )
+        if _json_output(args):
+            _finish_result(
+                CommandResult(
+                    command=command_name(args),
+                    ok=False,
+                    exit_code=ExitCode.VALIDATION_ERROR,
+                    summary="static export blocked by public visibility leak",
+                    diagnostics=diagnostics,
+                    data={
+                        "leak_count": len(exc.report.findings),
+                        "canary_count": len(exc.report.canaries),
+                        "scanned_artifacts": exc.report.scanned_artifacts,
+                    },
+                ),
+                json_output=True,
+            )
+            return
+        for diagnostic in diagnostics:
+            print(f"error: {diagnostic.message}")
+        raise SystemExit(int(ExitCode.VALIDATION_ERROR)) from exc
     base = options.base_path or "/"
     if _json_output(args):
         _finish_result(
@@ -358,6 +389,8 @@ def _run_export(args: argparse.Namespace) -> None:
                     "frozen_dir": frozen,
                     "fresh": bool(args.fresh),
                     "incremental": bool(args.incremental),
+                    "visibility_canary_count": result.visibility_canary_count,
+                    "visibility_scanned_artifacts": result.visibility_scanned_artifacts,
                 },
             ),
             json_output=True,
@@ -365,7 +398,9 @@ def _run_export(args: argparse.Namespace) -> None:
         return
     print(
         f"Exported {result.page_count} pages + {result.sidecar_count} sidecars "
-        f"to {result.output_dir} (base_path={base}, skipped={result.skipped_count})"
+        f"to {result.output_dir} (base_path={base}, skipped={result.skipped_count}, "
+        f"visibility={result.visibility_canary_count} canaries/"
+        f"{result.visibility_scanned_artifacts} artifacts)"
     )
 
 
