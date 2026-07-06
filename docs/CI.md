@@ -11,12 +11,12 @@ for scheduling, not as enforced performance thresholds.
 | Contract | `make ci-contract` | Structured `fura check`, authorization, content, response-shape, template, CSP, and boost contracts | None beyond `make install` | ~60 seconds |
 | Coverage | `make ci-coverage` | Branch coverage and per-module ratchets for graph, access, export, and loader foundations | None beyond `make install` | ~60 seconds |
 | Export | `make ci-export` | Static-export and DCP worker tests, a production-shaped Pages build, and an artifact URL crawl | None beyond `make install` | ~3 minutes |
-| Browser | `make ci-browser` | Real-browser author preview, live reload, save, and create flows | `uv run playwright install chromium` | ~60 seconds |
+| Browser | `make ci-browser` | Complete real-browser search, navigation, authoring, and responsive regression tier | `uv run playwright install chromium` | ~90 seconds |
 | Agent | `make ci-agent` | MCP/resource lint, adapter parity, agent safety, and deterministic eval tests | None beyond `make install` | ~30 seconds |
 | Release | `make ci-release` | Wheel/sdist build and CLI entry-point smoke | None beyond `make install` | ~3 minutes |
 
 Short aliases are available for `make fast`, `make contract`, `make coverage`, `make browser`,
-`make agent`, and `make release`. The existing `make export` command remains a
+`make browser-smoke`, `make browser-authoring`, `make browser-responsive`, `make agent`, and `make release`. The existing `make export` command remains a
 direct product export; use `make ci-export` for the complete export CI lane.
 
 The lanes are intentionally independent so CI jobs can run in parallel and
@@ -69,3 +69,16 @@ The browser suite uses Playwright's async API. Playwright's synchronous API
 crosses a greenlet bridge that segfaulted in the Linux 3.14t job with the GIL
 disabled; direct asyncio calls avoid that bridge while preserving the same
 browser coverage and the repository-wide free-threading requirement.
+
+## Browser test tiers
+
+Every real-browser test carries the base `browser` marker, the `browser_full`
+regression marker, and at least one purpose marker. `tests/test_browser_tiers.py`
+enforces that contract so new browser tests cannot silently bypass tiered runs.
+
+| Tier | Marker | Command | Intended use |
+| --- | --- | --- | --- |
+| Smoke | `browser_smoke` | `make ci-browser-smoke` | Smallest critical search, navigation, and author live-reload paths |
+| Authoring | `browser_authoring` | `make ci-browser-authoring` | Preview reload, studio save, and draft creation workflows |
+| Responsive | `browser_responsive` | `make ci-browser-responsive` | Mobile and responsive layout/interaction checks |
+| Full | `browser_full` | `make ci-browser-full` or `make ci-browser` | Complete browser regression set used by main CI |

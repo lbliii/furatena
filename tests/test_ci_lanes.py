@@ -28,7 +28,10 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert 'FURA_TEST_FROZEN_DIR="$$(mktemp -d)/frozen"' in makefile
     assert "scripts/check_core_coverage.py" in makefile
     assert "$(MAKE) pages-build" in makefile
-    assert "$(PYTEST) -m browser tests/test_author_sse_browser.py" in makefile
+    assert '$(PYTEST) -m "browser and browser_smoke" $(BROWSER_TESTS)' in makefile
+    assert '$(PYTEST) -m "browser and browser_authoring" $(BROWSER_TESTS)' in makefile
+    assert '$(PYTEST) -m "browser and browser_responsive" $(BROWSER_TESTS)' in makefile
+    assert '$(PYTEST) -m "browser and browser_full" $(BROWSER_TESTS)' in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
     assert "uv build" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile
