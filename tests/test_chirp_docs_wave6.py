@@ -770,6 +770,12 @@ class TestSeo:
         assert canonical_url("https://docs.example.com", "/docs/about/") == (
             "https://docs.example.com/docs/about/"
         )
+        assert canonical_url("https://lbliii.github.io/chirp", "/chirp/docs/") == (
+            "https://lbliii.github.io/chirp/docs/"
+        )
+        assert canonical_url("https://lbliii.github.io/furatena", "/furatena/docs/get-started/") == (
+            "https://lbliii.github.io/furatena/docs/get-started/"
+        )
 
 
 class TestIncrementalReindex:
