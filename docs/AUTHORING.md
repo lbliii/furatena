@@ -88,6 +88,13 @@ hidden CSRF field for ordinary browser submission, while the shell copies the
 same token into the `X-CSRF-Token` header for htmx requests. A missing or
 invalid token returns `403` without changing source.
 
+Authorization is evaluated after CSRF validation and before source access. A
+contributor can create, edit, and draft; a publisher can also publish and
+unpublish; only an admin can archive. Browser identity is read from the signed
+session, and submitted form fields cannot select an actor or role. See
+[RBAC.md](RBAC.md#author-mutation-matrix) for the shared browser, CLI, and MCP
+matrix.
+
 Successful lifecycle forms use Chirp `FormAction` semantics: htmx receives the
 updated author-chrome fragment, and a browser without JavaScript receives a
 `303` redirect to the affected page. GET requests to the transition endpoint

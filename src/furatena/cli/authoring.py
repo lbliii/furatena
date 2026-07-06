@@ -11,6 +11,11 @@ from typing import Any
 
 import yaml
 
+from furatena.catalog.access import (
+    AccessPolicy,
+    AccessSubject,
+    evaluate_author_access,
+)
 from furatena.catalog.lifecycle import is_public_meta, visibility_state
 from furatena.catalog.sources.parse import parse_source_text
 
@@ -79,11 +84,20 @@ class ResolvedAuthorTarget:
     source_format: str
 
 
-def author_status(target: str, *, mounts: tuple[Any, ...], mount_id: str | None = None) -> AuthorOperationResult:
+def author_status(
+    target: str,
+    *,
+    mounts: tuple[Any, ...],
+    subject: AccessSubject,
+    mount_id: str | None = None,
+) -> AuthorOperationResult:
     resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id)
     if isinstance(resolved, AuthorOperationResult):
         return resolved
     meta, _body = _read_source(resolved)
+    denied = _authorize_existing("status", resolved, mounts=mounts, meta=meta, subject=subject)
+    if denied is not None:
+        return denied
     return AuthorOperationResult(
         operation_id=_operation_id("status"),
         operation="status",
@@ -102,6 +116,7 @@ def author_validate(
     target: str,
     *,
     mounts: tuple[Any, ...],
+    subject: AccessSubject,
     mount_id: str | None = None,
     validation_errors: tuple[str, ...] = (),
     validation_warnings: tuple[str, ...] = (),
@@ -110,6 +125,17 @@ def author_validate(
     resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation=operation)
     if isinstance(resolved, AuthorOperationResult):
         return resolved
+
+    current_meta, _current_body = _read_source(resolved)
+    denied = _authorize_existing(
+        operation,
+        resolved,
+        mounts=mounts,
+        meta=current_meta,
+        subject=subject,
+    )
+    if denied is not None:
+        return denied
 
     source = resolved.path.read_text(encoding="utf-8")
     meta, _body = _validate_source_text(
@@ -151,12 +177,16 @@ def author_read_source(
     target: str,
     *,
     mounts: tuple[Any, ...],
+    subject: AccessSubject,
     mount_id: str | None = None,
 ) -> tuple[AuthorOperationResult, str | None]:
     resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation="read")
     if isinstance(resolved, AuthorOperationResult):
         return resolved, None
     meta, _body = _read_source(resolved)
+    denied = _authorize_existing("read", resolved, mounts=mounts, meta=meta, subject=subject)
+    if denied is not None:
+        return denied, None
     result = AuthorOperationResult(
         operation_id=_operation_id("read"),
         operation="read",
@@ -174,6 +204,7 @@ def author_new(
     slug: str,
     *,
     mounts: tuple[Any, ...],
+    subject: AccessSubject,
     mount_id: str | None = None,
     title: str | None = None,
     dry_run: bool = False,
@@ -183,6 +214,9 @@ def author_new(
     selected = _select_mount(mounts, mount_id=mount_id)
     if isinstance(selected, AuthorOperationResult):
         return selected
+    denied = _authorize_mount("new", selected, subject=subject)
+    if denied is not None:
+        return denied
     slug_path = _normalize_slug(slug)
     if not slug_path:
         return _failed(
@@ -249,6 +283,7 @@ def author_apply_edit(
     target: str,
     *,
     mounts: tuple[Any, ...],
+    subject: AccessSubject,
     old_text: str,
     new_text: str,
     mount_id: str | None = None,
@@ -260,6 +295,15 @@ def author_apply_edit(
     if isinstance(resolved, AuthorOperationResult):
         return resolved
     meta, _body = _read_source(resolved)
+    denied = _authorize_existing(
+        operation,
+        resolved,
+        mounts=mounts,
+        meta=meta,
+        subject=subject,
+    )
+    if denied is not None:
+        return denied
     old_source = resolved.path.read_text(encoding="utf-8")
     if not old_text:
         return _failed(
@@ -328,6 +372,7 @@ def author_save_source(
     target: str,
     *,
     mounts: tuple[Any, ...],
+    subject: AccessSubject,
     source_text: str,
     mount_id: str | None = None,
     dry_run: bool = False,
@@ -338,6 +383,16 @@ def author_save_source(
     if isinstance(resolved, AuthorOperationResult):
         return resolved
     old_source = resolved.path.read_text(encoding="utf-8")
+    old_meta, _old_body = _read_source(resolved)
+    denied = _authorize_existing(
+        operation,
+        resolved,
+        mounts=mounts,
+        meta=old_meta,
+        subject=subject,
+    )
+    if denied is not None:
+        return denied
     meta, _body = _validate_source_text(
         source_text,
         content_format=resolved.source_format,
@@ -347,7 +402,6 @@ def author_save_source(
     )
     if isinstance(meta, AuthorOperationResult):
         return meta
-    old_meta, _old_body = _read_source(resolved)
     if old_source == source_text:
         return AuthorOperationResult(
             operation_id=_operation_id(operation),
@@ -391,6 +445,7 @@ def author_transition(
     target: str,
     *,
     mounts: tuple[Any, ...],
+    subject: AccessSubject,
     mount_id: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
@@ -399,6 +454,15 @@ def author_transition(
     if isinstance(resolved, AuthorOperationResult):
         return resolved
     meta, body = _read_source(resolved)
+    denied = _authorize_existing(
+        operation,
+        resolved,
+        mounts=mounts,
+        meta=meta,
+        subject=subject,
+    )
+    if denied is not None:
+        return denied
     previous_visibility = visibility_state(meta)
     new_meta = dict(meta)
 
@@ -579,6 +643,95 @@ def _read_source(target: ResolvedAuthorTarget) -> tuple[dict[str, Any], str]:
     return parse_source_text(source, content_format=target.source_format)
 
 
+def _authorize_mount(
+    operation: str,
+    mount: Any,
+    *,
+    subject: AccessSubject,
+) -> AuthorOperationResult | None:
+    policy = getattr(mount, "access", None)
+    if not isinstance(policy, AccessPolicy):
+        policy = AccessPolicy()
+    decision = evaluate_author_access(operation, policy, subject)
+    if decision.allowed:
+        return None
+    return _authorization_failed(
+        operation,
+        subject=subject,
+        required_role=decision.required_role.value,
+        reason=decision.reason,
+        mount=str(getattr(mount, "id", "") or "") or None,
+    )
+
+
+def _authorize_existing(
+    operation: str,
+    target: ResolvedAuthorTarget,
+    *,
+    mounts: tuple[Any, ...],
+    meta: dict[str, Any],
+    subject: AccessSubject,
+) -> AuthorOperationResult | None:
+    mount = next((item for item in mounts if item.id == target.mount_id), None)
+    if mount is None:
+        return _authorization_failed(
+            operation,
+            subject=subject,
+            required_role="admin",
+            reason="mount not found",
+            target_path=target.path,
+            mount=target.mount_id,
+            previous_visibility=visibility_state(meta),
+        )
+    mount_policy = getattr(mount, "access", None)
+    if not isinstance(mount_policy, AccessPolicy):
+        mount_policy = AccessPolicy()
+    mount_decision = evaluate_author_access(operation, mount_policy, subject)
+    if not mount_decision.allowed:
+        return _authorization_failed(
+            operation,
+            subject=subject,
+            required_role=mount_decision.required_role.value,
+            reason=f"mount policy denied access: {mount_decision.reason}",
+            target_path=target.path,
+            mount=target.mount_id,
+            previous_visibility=visibility_state(meta),
+        )
+    decision = evaluate_author_access(operation, AccessPolicy.from_page_meta(meta), subject)
+    if decision.allowed:
+        return None
+    return _authorization_failed(
+        operation,
+        subject=subject,
+        required_role=decision.required_role.value,
+        reason=decision.reason,
+        target_path=target.path,
+        mount=target.mount_id,
+        previous_visibility=visibility_state(meta),
+    )
+
+
+def _authorization_failed(
+    operation: str,
+    *,
+    subject: AccessSubject,
+    required_role: str,
+    reason: str,
+    target_path: Path | None = None,
+    mount: str | None = None,
+    previous_visibility: str | None = None,
+) -> AuthorOperationResult:
+    return _failed(
+        operation,
+        f"actor {subject.actor} requires role {required_role} for {operation}; {reason}",
+        target_path=target_path,
+        mount=mount,
+        previous_visibility=previous_visibility,
+        rule_id="fura.author.authorization",
+        next_action="Use an authenticated subject with the required author role.",
+    )
+
+
 def _validate_source_text(
     source_text: str,
     *,
@@ -721,11 +874,14 @@ def _failed(
     *,
     target_path: Path | None = None,
     mount: str | None = None,
+    previous_visibility: str | None = None,
+    rule_id: str = "fura.author",
     next_action: str | None = None,
 ) -> AuthorOperationResult:
     diagnostic = AuthorDiagnostic(
         severity="error",
         message=message,
+        rule_id=rule_id,
         source_path=str(target_path) if target_path is not None else None,
         next_action=next_action,
     )
@@ -735,7 +891,7 @@ def _failed(
         ok=False,
         target_path=target_path,
         mount=mount,
-        previous_visibility=None,
+        previous_visibility=previous_visibility,
         resulting_visibility=None,
         diagnostics=(diagnostic,),
         next_actions=tuple(item for item in (next_action,) if item),
