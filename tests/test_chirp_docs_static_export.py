@@ -43,11 +43,18 @@ class TestStaticExportHelpers:
         assert normalize_base_path("chirp/") == "/chirp"
 
     def test_prefix_root_paths(self) -> None:
-        html = '<a href="/docs/">Home</a><link rel="stylesheet" href="/static/app.css">'
+        html = (
+            '<a href="/docs/">Home</a><link rel="stylesheet" href="/static/app.css">'
+            '{"url":"/api/","href":"/guide/","download_url":"/artifact/",'
+            '"self":"/chirp/already/"}'
+        )
         out = prefix_root_paths(html, "/chirp")
         assert 'href="/chirp/docs/"' in out
         assert 'href="/chirp/static/app.css"' in out
-
+        assert '"url":"/chirp/api/"' in out
+        assert '"href":"/chirp/guide/"' in out
+        assert '"download_url":"/chirp/artifact/"' in out
+        assert '"self":"/chirp/already/"' in out
 
     def test_robots_txt(self) -> None:
         body = _robots_txt(site_url="https://example.github.io/chirp", base_path="/chirp")
@@ -149,7 +156,9 @@ class TestMiniStaticExport:
             json.dumps(
                 {
                     "schema_version": 1,
-                    "mounts": [{"id": "chirp", "label": "Chirp", "url_prefix": "/", "default": True}],
+                    "mounts": [
+                        {"id": "chirp", "label": "Chirp", "url_prefix": "/", "default": True}
+                    ],
                 }
             ),
             encoding="utf-8",
@@ -188,6 +197,7 @@ class TestMiniStaticExport:
         assert (out / "catalog.json").is_file()
         assert (out / "channels.json").is_file()
         assert (out / "deployment-profiles.json").is_file()
+        assert (out / "routes.json").is_file()
         assert (out / "llms.txt").is_file()
         assert (out / "robots.txt").is_file()
         assert (out / ".nojekyll").is_file()
@@ -201,6 +211,9 @@ class TestMiniStaticExport:
         assert channels["mode"] == "static"
         assert channels["base_url"] == "http://127.0.0.1:8080"
         assert "catalog.json" in channels["channels"][1]["artifacts"]
+        routes = json.loads((out / "routes.json").read_text(encoding="utf-8"))
+        assert routes["schema_version"] == 1
+        assert routes["route_count"] >= 40
         home = (out / "index.html").read_text(encoding="utf-8")
         assert "Home" in home
         assert 'id="page-root"' in home

@@ -126,7 +126,9 @@ _DEPLOYMENT_ENVS = frozenset({"staging", "production"})
 
 def _runtime_environment() -> str:
     """Return the Chirp security posture for this Furatena process."""
-    return (os.environ.get("FURA_ENV") or os.environ.get("CHIRP_ENV") or "development").strip().lower()
+    return (
+        (os.environ.get("FURA_ENV") or os.environ.get("CHIRP_ENV") or "development").strip().lower()
+    )
 
 
 def _session_secret(environment: str) -> str:
@@ -157,7 +159,12 @@ def _static_cache_control(url_prefix: str, mode: ServeMode) -> str:
         return _IMMUTABLE_CACHE if mode == ServeMode.PREVIEW else "public, max-age=86400"
     if url_prefix.startswith("/docs-theme/js"):
         return "public, max-age=86400"
-    if url_prefix in ("/docs-theme/local", "/docs-theme/tokens", "/docs-theme/fonts", "/docs-theme/generated"):
+    if url_prefix in (
+        "/docs-theme/local",
+        "/docs-theme/tokens",
+        "/docs-theme/fonts",
+        "/docs-theme/generated",
+    ):
         return _IMMUTABLE_CACHE if mode == ServeMode.PREVIEW else "public, max-age=300"
     return "public, max-age=3600"
 
@@ -187,7 +194,9 @@ class DocsApp:
             else AccessSubject.anonymous()
         )
         frozen = self.serve.frozen_dir or frozen_dir
-        self.theme = DocsTheme.from_docs_config(config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None)
+        self.theme = DocsTheme.from_docs_config(
+            config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None
+        )
         self.views = ViewRegistry(config)
         self.catalog = CatalogRegistry.from_config(
             config.mounts_path or config.root / "mounts.yaml",
@@ -208,7 +217,9 @@ class DocsApp:
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
         )
-        semantic_root = scoped_frozen_dir(frozen or config.root / "frozen", config.identity.to_meta())
+        semantic_root = scoped_frozen_dir(
+            frozen or config.root / "frozen", config.identity.to_meta()
+        )
         semantic_path = semantic_root / "semantic.json"
         self.embedding_index = EmbeddingIndex.load(semantic_path) or EmbeddingIndex.from_nodes(
             list(self.catalog.nodes),
@@ -267,7 +278,9 @@ class DocsApp:
         app.template_filter("collection_toc_items")(collection_toc_items)
         app.template_global("build_toc_tree")(build_toc_tree)
         app.template_global("search_hit_url")(lambda hit: search_hit_url(hit, self.embedding_index))
-        app.template_global("search_hit_heading")(lambda hit: search_hit_heading(hit, self.embedding_index))
+        app.template_global("search_hit_heading")(
+            lambda hit: search_hit_heading(hit, self.embedding_index)
+        )
         app.template_global("search_partial_attrs")(
             lambda: {
                 "hx-disinherit": "hx-select hx-target hx-swap",
@@ -341,7 +354,9 @@ class DocsApp:
         )
         if self.config.i18n.enabled:
             set_locale(active_lang)
-        fallback_url = locale_match.requested_url if locale_match and locale_match.fallback else None
+        fallback_url = (
+            locale_match.requested_url if locale_match and locale_match.fallback else None
+        )
         ctx = locale_context(
             self.config.i18n,
             active_lang=active_lang,
@@ -349,7 +364,11 @@ class DocsApp:
             translation_index=self.catalog.translation_index,
             fallback_url=fallback_url,
         )
-        if request is not None and node is not None and not (locale_match and locale_match.fallback):
+        if (
+            request is not None
+            and node is not None
+            and not (locale_match and locale_match.fallback)
+        ):
             base = self._site_base(request)
             from furatena.catalog.i18n import alternate_links
 
@@ -374,7 +393,7 @@ class DocsApp:
             )
             if part is not None
         )
-        return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
+        return Response(body, content_type="text/plain; charset=utf-8")
 
     def _resolve_page_from_path(
         self,
@@ -412,7 +431,7 @@ class DocsApp:
         self._ensure_catalog()
         path = request.path
         if path.endswith("/index.txt"):
-            doc_path = f"{path[:-len('index.txt')].rstrip('/')}/"
+            doc_path = f"{path[: -len('index.txt')].rstrip('/')}/"
             match = self._resolve_page_from_path(doc_path, requested_lang=requested_lang)
             return self._plaintext_node_response(match.node)
         match = self._resolve_page_from_path(path, requested_lang=requested_lang)
@@ -595,7 +614,9 @@ class DocsApp:
             "source_revision": source["revision"],
             "export_impact": {
                 "included": export_included,
-                "label": "Included in public output" if export_included else "Excluded from public output",
+                "label": "Included in public output"
+                if export_included
+                else "Excluded from public output",
                 "reason": "public visibility" if export_included else f"{visibility} visibility",
             },
             "stale": stale_entries,
@@ -632,8 +653,7 @@ class DocsApp:
             if getattr(node, "source_path", "")
         }
         source_to_mount = {
-            source: getattr(node, "mount", "")
-            for source, node in source_to_node.items()
+            source: getattr(node, "mount", "") for source, node in source_to_node.items()
         }
         diagnostics = [
             *(
@@ -652,7 +672,9 @@ class DocsApp:
         stale_entries = self.catalog.author_stale_entries()
         stale_by_mount: dict[str, list[dict[str, Any]]] = {}
         for entry in stale_entries:
-            stale_by_mount.setdefault(str(entry.get("mount") or "<catalog>"), []).append(dict(entry))
+            stale_by_mount.setdefault(str(entry.get("mount") or "<catalog>"), []).append(
+                dict(entry)
+            )
 
         health_by_mount = {
             item["id"]: item
@@ -752,7 +774,11 @@ class DocsApp:
     def _author_source_info(self, node) -> dict[str, Any]:
         source_path = str(getattr(node, "source_path", "") or "")
         mount = next((item for item in self.catalog.mounts if item.id == node.mount), None)
-        path = (mount.content_root / source_path).resolve() if mount is not None and source_path else None
+        path = (
+            (mount.content_root / source_path).resolve()
+            if mount is not None and source_path
+            else None
+        )
         indexed_mtime = self._author_indexed_mtime(node, path)
         current_mtime = path.stat().st_mtime if path is not None and path.is_file() else None
         revision = (
@@ -852,7 +878,9 @@ class DocsApp:
         else:
             slug = (create_slug or (request.query.get("slug") or "")).strip().strip("/")
             page_title = title or _title_from_slug(slug)
-            source_text = source_text if source_text is not None else _compose_draft_source(slug, page_title)
+            source_text = (
+                source_text if source_text is not None else _compose_draft_source(slug, page_title)
+            )
             ctx = {
                 **self._site_context(),
                 **self._locale_template_context(request=request),
@@ -892,7 +920,9 @@ class DocsApp:
                     "source_path": source_path,
                     "source_regions": _source_heading_regions(source_text or ""),
                     "has_ast": bool(getattr(node, "ast_json", None)) if node is not None else False,
-                    "source_provenance": "patitas-ast" if getattr(node, "ast_json", None) else "source-lines",
+                    "source_provenance": "patitas-ast"
+                    if getattr(node, "ast_json", None)
+                    else "source-lines",
                     "preview_html": preview_html,
                     "visibility": visibility,
                     "save_url": "/docs/_author/studio/save",
@@ -984,7 +1014,9 @@ class DocsApp:
             "active_view": view_name,
             "chirp_docs_surface": surface,
             "nav_items": nav_items,
-            "catalog_rail_items": self.catalog.catalog_rail_items(active_url=active_url, lang=page_lang),
+            "catalog_rail_items": self.catalog.catalog_rail_items(
+                active_url=active_url, lang=page_lang
+            ),
             "child_page_count": child_count,
             "llm_txt_url": llm_txt_url,
             "breadcrumb_items": self.catalog.trail(node),
@@ -1329,7 +1361,9 @@ class DocsApp:
         else:
             body = ""
         if len(body) > limit:
-            return body[:limit] + "\n\n… (truncated preview — download raw export for full payload)\n"
+            return (
+                body[:limit] + "\n\n… (truncated preview — download raw export for full payload)\n"
+            )
         return body
 
     def _register_routes(self, app: App) -> None:
@@ -1372,14 +1406,10 @@ class DocsApp:
         def author_stale(request: Request):
             if not self.serve.auto_reload:
                 body = {"event": _AUTHOR_SSE_EVENT, "generation": "0", "stale": [], "current": None}
-                return Response(json.dumps(body)).with_header(
-                    "Content-Type", "application/json; charset=utf-8"
-                )
+                return Response(json.dumps(body), content_type="application/json; charset=utf-8")
             slug = (request.query.get("slug") or "").strip("/")
             body = self._author_invalidation_payload(slug or None)
-            return Response(json.dumps(body)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
-            )
+            return Response(json.dumps(body), content_type="application/json; charset=utf-8")
 
         @app.route("/docs/_author/events", referenced=True)
         async def author_events(request: Request):
@@ -1527,7 +1557,7 @@ class DocsApp:
                 return _json_response(
                     {"ok": False, "error": "author page status is available only in author mode"},
                     status=404,
-            )
+                )
             self._ensure_catalog()
             node = self._author_node_from_request(request)
             denied = self._browser_node_denial(node, "status")
@@ -1553,10 +1583,7 @@ class DocsApp:
                 return _json_response({"ok": False, "data": result.to_dict()}, status=403)
             if not result.ok or source_text is None:
                 return _json_response({"ok": False, "data": result.to_dict()}, status=404)
-            return Response(source_text).with_header(
-                "Content-Type",
-                "text/plain; charset=utf-8",
-            )
+            return Response(source_text, content_type="text/plain; charset=utf-8")
 
         @app.route("/docs/_author/transition", methods=["POST"], referenced=True)
         async def author_page_transition(request: Request):
@@ -1650,7 +1677,9 @@ class DocsApp:
             channel = (request.query.get("channel") or "").strip() or None
             lang = (request.query.get("lang") or "").strip() or None
             global_search = (request.query.get("global") or "").strip() in {"1", "true", "yes"}
-            target = (request.htmx_target_id or "").strip() if request.headers.get("HX-Request") else ""
+            target = (
+                (request.htmx_target_id or "").strip() if request.headers.get("HX-Request") else ""
+            )
             partial = target == "search-results-panel"
             ctx = self._search_context(
                 request,
@@ -1695,7 +1724,9 @@ class DocsApp:
         def error_suggest(request: Request):
             self._ensure_catalog()
             query = (request.query.get("q") or "").strip()
-            keyword_hits, semantic_hits = recovery_hits_for_query(self, query, limit=6) if query else ((), ())
+            keyword_hits, semantic_hits = (
+                recovery_hits_for_query(self, query, limit=6) if query else ((), ())
+            )
             return Fragment(
                 "partials/error_suggest_panel.html",
                 "error_suggest_panel",
@@ -1735,8 +1766,8 @@ class DocsApp:
                 )
             else:
                 body = search_json(self.catalog, base_url=base, include_private=include_private)
-            return Response(json.dumps(body, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(body, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/tools.json", referenced=True)
@@ -1748,8 +1779,8 @@ class DocsApp:
                 site_name=self.config.site.name,
                 include_private=self._include_private_output(request),
             )
-            return Response(json.dumps(body, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(body, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/catalog/api-operations.json", referenced=True)
@@ -1760,8 +1791,8 @@ class DocsApp:
                 base_url=self._site_base(request),
                 include_private=self._include_private_output(request),
             )
-            return Response(json.dumps(body, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(body, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/sitemap.xml", referenced=True)
@@ -1772,7 +1803,7 @@ class DocsApp:
                 base_url=self._site_base(request),
                 include_private=self._include_private_output(request),
             )
-            return Response(body).with_header("Content-Type", "application/xml; charset=utf-8")
+            return Response(body, content_type="application/xml; charset=utf-8")
 
         @app.route("/index.txt", referenced=True)
         def home_index_txt(request: Request):
@@ -1800,8 +1831,8 @@ class DocsApp:
                     edition=edition,
                     include_private=include_private,
                 )
-            return Response(json.dumps(body, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(body, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/catalog/retrieve", referenced=True)
@@ -1809,8 +1840,10 @@ class DocsApp:
             self._ensure_catalog()
             node_id = (request.query.get("id") or request.query.get("node_id") or "").strip()
             if not node_id:
-                return Response(json.dumps({"error": "missing node id"}), status=400).with_header(
-                    "Content-Type", "application/json; charset=utf-8"
+                return Response(
+                    json.dumps({"error": "missing node id"}),
+                    status=400,
+                    content_type="application/json; charset=utf-8",
                 )
             payload = retrieve_node(
                 self.catalog,
@@ -1819,11 +1852,13 @@ class DocsApp:
                 include_private=self._include_private_output(request),
             )
             if payload is None:
-                return Response(json.dumps({"error": "not found"}), status=404).with_header(
-                    "Content-Type", "application/json; charset=utf-8"
+                return Response(
+                    json.dumps({"error": "not found"}),
+                    status=404,
+                    content_type="application/json; charset=utf-8",
                 )
-            return Response(json.dumps(payload, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/catalog.json", referenced=True)
@@ -1836,7 +1871,7 @@ class DocsApp:
                 ),
                 indent=2,
             )
-            return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+            return Response(body, content_type="application/json; charset=utf-8")
 
         @app.route("/catalog/query.json", referenced=True)
         @app.route("/graph/query.json", referenced=True)
@@ -1870,8 +1905,8 @@ class DocsApp:
                 target=target,
                 include_private=self._include_private_output(request),
             )
-            return Response(json.dumps(payload, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/catalog/source-health.json", referenced=True)
@@ -1879,8 +1914,8 @@ class DocsApp:
             self._ensure_catalog()
             mount = (request.query.get("mount") or "").strip() or None
             body = self.catalog.source_health(mount=mount)
-            return Response(json.dumps(body, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(body, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/inventories.json", referenced=True)
@@ -1894,8 +1929,8 @@ class DocsApp:
                 base_url=self._site_base(request),
                 frozen_dir=frozen,
             )
-            return Response(json.dumps(body, indent=2)).with_header(
-                "Content-Type", "application/json; charset=utf-8"
+            return Response(
+                json.dumps(body, indent=2), content_type="application/json; charset=utf-8"
             )
 
         @app.route("/objects.inv", referenced=True)
@@ -1915,9 +1950,7 @@ class DocsApp:
             payload = inventory_bytes(self.catalog, inventory_id, frozen_dir=frozen)
             if payload is None:
                 raise NotFound(f"Inventory not found: {inventory_id}")
-            return Response(payload).with_header(
-                "Content-Type", "application/octet-stream",
-            )
+            return Response(payload, content_type="application/octet-stream")
 
         @app.route("/llms.txt", referenced=True)
         def llms_txt(request: Request):
@@ -1927,7 +1960,7 @@ class DocsApp:
                 site_name=self.config.site.name,
                 include_private=self._include_private_output(request),
             )
-            return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
+            return Response(body, content_type="text/plain; charset=utf-8")
 
         @app.route("/llms-full.txt", referenced=True)
         def llms_full(request: Request):
@@ -1937,7 +1970,7 @@ class DocsApp:
                 site_name=self.config.site.name,
                 include_private=self._include_private_output(request),
             )
-            return Response(body).with_header("Content-Type", "text/plain; charset=utf-8")
+            return Response(body, content_type="text/plain; charset=utf-8")
 
         @app.route("/meta.json", referenced=True)
         def meta_json_route(request: Request):
@@ -1946,13 +1979,13 @@ class DocsApp:
                 meta_json(self.catalog, include_private=self._include_private_output(request)),
                 indent=2,
             )
-            return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+            return Response(body, content_type="application/json; charset=utf-8")
 
         @app.route("/surface.json", referenced=True)
         def surface_json_route():
             self._ensure_catalog()
             body = json.dumps(surface_json(self.config, self.catalog), indent=2)
-            return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+            return Response(body, content_type="application/json; charset=utf-8")
 
         @app.route("/channels.json", referenced=True)
         def channels_json_route(request: Request):
@@ -1966,7 +1999,7 @@ class DocsApp:
                 ),
                 indent=2,
             )
-            return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+            return Response(body, content_type="application/json; charset=utf-8")
 
         @app.route("/deployment-profiles.json", referenced=True)
         def deployment_profiles_json_route(request: Request):
@@ -1974,7 +2007,16 @@ class DocsApp:
                 deployment_profiles_manifest(base_url=self._site_base(request)),
                 indent=2,
             )
-            return Response(body).with_header("Content-Type", "application/json; charset=utf-8")
+            return Response(body, content_type="application/json; charset=utf-8")
+
+        @app.route("/routes.json", referenced=True)
+        def routes_json_route(request: Request):
+            from furatena.catalog.route_manifest import route_manifest_payload
+
+            body = route_manifest_payload(app, catalog=self.catalog)
+            return Response(
+                json.dumps(body, indent=2), content_type="application/json; charset=utf-8"
+            )
 
         @app.route("/og/{name}", referenced=True)
         def og_image(name: str):
@@ -1984,7 +2026,7 @@ class DocsApp:
   <text x="80" y="180" fill="#e2e8f0" font-family="system-ui,sans-serif" font-size="48" font-weight="700">Furatena</text>
   <text x="80" y="280" fill="#94a3b8" font-family="system-ui,sans-serif" font-size="36">{label}</text>
 </svg>"""
-            return Response(svg).with_header("Content-Type", "image/svg+xml; charset=utf-8")
+            return Response(svg, content_type="image/svg+xml; charset=utf-8")
 
         self._register_localized_routes(app)
 
@@ -2006,7 +2048,7 @@ class DocsApp:
             if not icon.is_file():
                 raise NotFound("Favicon not found.")
             content_type = "image/x-icon" if icon.suffix == ".ico" else "image/svg+xml"
-            return Response(icon.read_bytes()).with_header("Content-Type", content_type)
+            return Response(icon.read_bytes(), content_type=content_type)
 
         @app.error(404)
         @app.error(NotFound)
@@ -2180,9 +2222,10 @@ class DocsApp:
 
 
 def _json_response(payload: dict[str, Any], *, status: int = 200) -> Response:
-    return Response(json.dumps(_jsonable(payload), sort_keys=True), status=status).with_header(
-        "Content-Type",
-        "application/json; charset=utf-8",
+    return Response(
+        json.dumps(_jsonable(payload), sort_keys=True),
+        status=status,
+        content_type="application/json; charset=utf-8",
     )
 
 
@@ -2318,7 +2361,9 @@ def _author_dashboard_diagnostic(
 def _iso_from_mtime(mtime: float | None) -> str | None:
     if mtime is None:
         return None
-    return datetime.fromtimestamp(mtime, UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.fromtimestamp(mtime, UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    )
 
 
 def _query_bool(request: Request, name: str, *, default: bool) -> bool:
