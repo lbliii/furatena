@@ -14,3 +14,9 @@ explicit review decision.
 The contract test runs on free-threaded CPython with `PYTHON_GIL=0` as part of
 the normal test lane. The manifest only inspects immutable registration metadata
 after app construction; it does not add shared mutable runtime state.
+
+Route definitions are grouped in `furatena.catalog.route_registrars` by public,
+author, search, catalog/export, media, and error surfaces. `DocsApp` composes
+those registrars with its dynamic mount and localized routes before app freeze.
+Handlers that require direct source inspection, such as the Open Graph image
+route, are module-level functions.

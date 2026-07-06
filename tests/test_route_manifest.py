@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 from pathlib import Path
 
@@ -61,12 +62,29 @@ def test_route_manifest_records_required_contract_metadata() -> None:
         assert entry.methods
         assert entry.mount
         assert entry.handler
-        assert entry.handler_origin.startswith("furatena.catalog.docs_app:")
+        assert entry.handler_origin.startswith(
+            ("furatena.catalog.docs_app:", "furatena.catalog.route_registrars:")
+        )
         assert entry.response_contract
     save = next(entry for entry in entries if entry.path == "/docs/_author/studio/save")
     assert save.methods == ("POST",)
     assert save.template == "views/author_studio.html"
     assert save.fragment == "author_studio_workspace"
+    og_image = next(entry for entry in entries if entry.path == "/og/{name}")
+    assert og_image.handler_origin == "furatena.catalog.route_registrars:og_image"
+
+
+def test_moved_route_handlers_remain_source_inspectable() -> None:
+    app = _docs().create_app()
+    moved = [
+        route.handler
+        for route in app._pending_routes
+        if route.handler.__module__ == "furatena.catalog.route_registrars"
+    ]
+
+    assert moved
+    for handler in moved:
+        assert f"def {handler.__name__}" in inspect.getsource(handler)
 
 
 def _summarize(response) -> dict[str, object]:
