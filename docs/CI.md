@@ -33,3 +33,13 @@ Each job scopes the uv cache with its GitHub job name, so a cache or install
 failure identifies one owning lane. The export job alone uploads the Pages
 artifact, while the release job uploads a commit-named wheel/sdist artifact;
 the remaining jobs keep their diagnostics in their named job logs.
+
+Every Make lane runs Python with `PYTHON_GIL=0`, matching the workflow's
+free-threaded CPython 3.14t runtime. The export lane clears deployment
+URL/base-path variables for unit tests, then applies production defaults inside
+the Pages build.
+
+The browser suite uses Playwright's async API. Playwright's synchronous API
+crosses a greenlet bridge that segfaulted in the Linux 3.14t job with the GIL
+disabled; direct asyncio calls avoid that bridge while preserving the same
+browser coverage and the repository-wide free-threading requirement.

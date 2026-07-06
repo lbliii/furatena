@@ -1,5 +1,6 @@
 VENV_DIR ?= .venv
-UV_RUN = uv run
+FREE_THREADED = env PYTHON_GIL=0
+UV_RUN = $(FREE_THREADED) uv run
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
 .PHONY: help install test lint serve stop freeze export pages-build check clean \
@@ -27,7 +28,7 @@ help:
 	@echo "  make ci-release   package build + CLI smoke test (~3m)"
 
 install:
-	uv sync --group dev
+	$(FREE_THREADED) uv sync --group dev
 
 serve:
 	$(UV_RUN) fura serve
@@ -42,7 +43,7 @@ export:
 	$(UV_RUN) fura export
 
 pages-build:
-	./scripts/pages-build.sh
+	$(FREE_THREADED) ./scripts/pages-build.sh
 
 check:
 	$(UV_RUN) fura check
@@ -85,10 +86,13 @@ ci-contract:
 		tests/test_shell_boost_links.py
 
 ci-export:
-	$(PYTEST) \
+	env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST) \
 		tests/test_chirp_docs_static_export.py \
 		tests/test_chirp_docs_workers.py
-	$(MAKE) pages-build
+	FURA_BASE_URL=https://lbliii.github.io/furatena \
+		FURA_BASE_PATH=/furatena \
+		FURA_WORKERS=8 \
+		$(MAKE) pages-build
 
 ci-browser:
 	$(PYTEST) -m browser tests/test_author_sse_browser.py
@@ -98,7 +102,7 @@ ci-agent:
 	$(PYTEST) tests/test_fura_cli_standalone.py -k "agent or mcp or evals"
 
 ci-release:
-	uv build
+	$(FREE_THREADED) uv build
 	$(UV_RUN) fura --help
 
 clean:

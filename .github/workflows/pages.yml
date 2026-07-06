@@ -22,7 +22,7 @@ jobs:
     name: Fast lint and unit checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"
@@ -38,7 +38,7 @@ jobs:
     name: Hypermedia and diagnostic contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"
@@ -55,7 +55,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"
@@ -66,10 +66,6 @@ jobs:
         run: uv sync --group dev
       - name: Export lane
         run: make ci-export
-        env:
-          FURA_BASE_URL: https://lbliii.github.io/furatena
-          FURA_BASE_PATH: /furatena
-          FURA_WORKERS: "8"
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -80,7 +76,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"
@@ -99,7 +95,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"
@@ -116,7 +112,7 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"

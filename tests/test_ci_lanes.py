@@ -21,12 +21,17 @@ def test_makefile_exposes_documented_ci_lanes() -> None:
 def test_ci_lanes_use_shared_project_commands() -> None:
     makefile = (REPO / "Makefile").read_text(encoding="utf-8")
 
+    assert "FREE_THREADED = env PYTHON_GIL=0" in makefile
     assert "$(UV_RUN) ruff check src tests app" in makefile
     assert "$(UV_RUN) fura check" in makefile
     assert "$(MAKE) pages-build" in makefile
-    assert "-m browser tests/test_author_sse_browser.py" in makefile
+    assert "$(PYTEST) -m browser tests/test_author_sse_browser.py" in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
     assert "uv build" in makefile
+    assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile
+    assert "FURA_BASE_URL=https://lbliii.github.io/furatena" in makefile
+    assert "FURA_BASE_PATH=/furatena" in makefile
+    assert "FURA_WORKERS=8" in makefile
 
 
 def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
@@ -34,6 +39,7 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
     jobs = workflow["jobs"]
 
+    assert workflow["env"]["PYTHON_GIL"] == "0"
     assert set(jobs) == {*LANES, "deploy"}
     for lane in LANES:
         job = jobs[lane]
@@ -45,12 +51,15 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
             if step.get("uses") == "astral-sh/setup-uv@v8.2.0"
         )
         assert setup["with"]["cache-suffix"] == "${{ github.job }}"
+        assert any(step.get("uses") == "actions/checkout@v7.0.0" for step in job["steps"])
 
     for lane in ("export", "browser", "agent", "release"):
         assert jobs[lane]["if"] == "github.event_name != 'pull_request'"
     assert "if" not in jobs["fast"]
     assert "if" not in jobs["contract"]
     assert set(jobs["deploy"]["needs"]) == set(LANES)
+    export_lane = next(step for step in jobs["export"]["steps"] if step.get("name") == "Export lane")
+    assert "env" not in export_lane
 
     export_uses = {step.get("uses") for step in jobs["export"]["steps"]}
     release_uses = {step.get("uses") for step in jobs["release"]["steps"]}

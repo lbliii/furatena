@@ -8,6 +8,7 @@ FROZEN="${FURA_FROZEN_DIR:-$APP/frozen}"
 BASE_PATH="${FURA_BASE_PATH:-/furatena}"
 SITE_URL="${FURA_BASE_URL:-https://lbliii.github.io/furatena}"
 
+export PYTHON_GIL="${PYTHON_GIL:-0}"
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 
 cd "$ROOT"
