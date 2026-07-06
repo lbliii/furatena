@@ -174,6 +174,83 @@ class AccessDecision:
     reason: str
 
 
+@dataclass(frozen=True, slots=True)
+class AccessEvaluationService:
+    """Shared catalog access entry point for browser, export, and agent surfaces."""
+
+    def mount_decision(
+        self,
+        catalog: Any,
+        mount: Any,
+        subject: AccessSubject | None = None,
+        *,
+        permission: AccessPermission | str = AccessPermission.READ,
+    ) -> AccessDecision:
+        policy = (
+            getattr(mount, "access", None)
+            if not isinstance(mount, str)
+            else catalog.mount_access_policy(mount)
+        )
+        if policy is None:
+            return _missing_mount_decision(permission)
+        return evaluate_access(policy, subject, permission=permission)
+
+    def node_decision(
+        self,
+        catalog: Any,
+        node: Any,
+        subject: AccessSubject | None = None,
+        *,
+        permission: AccessPermission | str = AccessPermission.READ,
+    ) -> AccessDecision:
+        mount_decision = self.mount_decision(
+            catalog,
+            str(getattr(node, "mount", "")),
+            subject,
+            permission=permission,
+        )
+        if not mount_decision.allowed:
+            return mount_decision
+        policy = catalog.node_access_policy(node)
+        return evaluate_access(policy, subject, permission=permission)
+
+    def filter_nodes(
+        self,
+        catalog: Any,
+        nodes: Any,
+        *,
+        subject: AccessSubject | None = None,
+        permission: AccessPermission | str = AccessPermission.READ,
+        include_private: bool = False,
+    ) -> list[Any]:
+        items = list(nodes)
+        if include_private:
+            return items
+        if hasattr(catalog, "mount_access_policy") and hasattr(catalog, "node_access_policy"):
+            return [
+                node
+                for node in items
+                if self.node_decision(
+                    catalog,
+                    node,
+                    subject,
+                    permission=permission,
+                ).allowed
+            ]
+        if hasattr(catalog, "can_access_node"):
+            return [
+                node
+                for node in items
+                if catalog.can_access_node(node, subject, permission=permission)
+            ]
+        from furatena.catalog.lifecycle import public_nodes
+
+        return public_nodes(items)
+
+
+ACCESS_EVALUATOR = AccessEvaluationService()
+
+
 def evaluate_access(
     policy: AccessPolicy,
     subject: AccessSubject | None = None,
@@ -194,8 +271,12 @@ def evaluate_access(
             f"requires role {required_role.value}",
         )
     if policy.roles and not _has_any_allowed_role(actor, policy.roles):
-        allowed = ", ".join(role.value for role in sorted(policy.roles, key=lambda item: _ROLE_RANK[item]))
-        return AccessDecision(False, normalized_permission, required_role, f"requires one of roles: {allowed}")
+        allowed = ", ".join(
+            role.value for role in sorted(policy.roles, key=lambda item: _ROLE_RANK[item])
+        )
+        return AccessDecision(
+            False, normalized_permission, required_role, f"requires one of roles: {allowed}"
+        )
     if policy.teams and AccessRole.ADMIN not in actor.roles and not (policy.teams & actor.teams):
         return AccessDecision(False, normalized_permission, required_role, "requires matching team")
     return AccessDecision(True, normalized_permission, required_role, "allowed")
@@ -255,19 +336,24 @@ def accessible_nodes(
     permission: AccessPermission | str = AccessPermission.READ,
     include_private: bool = False,
 ) -> list[Any]:
-    """Filter nodes for a subject, preserving private-mode escape hatches."""
-    items = list(nodes)
-    if include_private:
-        return items
-    if hasattr(catalog, "can_access_node"):
-        return [
-            node
-            for node in items
-            if catalog.can_access_node(node, subject, permission=permission)
-        ]
-    from furatena.catalog.lifecycle import public_nodes
+    """Filter nodes through the shared browser/export/agent access service."""
+    return ACCESS_EVALUATOR.filter_nodes(
+        catalog,
+        nodes,
+        subject=subject,
+        permission=permission,
+        include_private=include_private,
+    )
 
-    return public_nodes(items)
+
+def _missing_mount_decision(permission: AccessPermission | str) -> AccessDecision:
+    normalized_permission = _normalize_permission(permission)
+    return AccessDecision(
+        False,
+        normalized_permission,
+        AccessRole.ADMIN,
+        "mount not found",
+    )
 
 
 def _normalize_permission(permission: AccessPermission | str) -> AccessPermission:

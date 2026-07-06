@@ -10,12 +10,11 @@ from typing import Any
 import yaml
 
 from furatena.catalog.access import (
+    ACCESS_EVALUATOR,
     AccessDecision,
     AccessPermission,
     AccessPolicy,
-    AccessRole,
     AccessSubject,
-    evaluate_access,
 )
 from furatena.catalog.catalog_nav import CatalogNavConfig
 from furatena.catalog.graph import build_federated_backlinks, normalize_internal_url
@@ -172,7 +171,9 @@ class CatalogRegistry:
         self.include_private = include_private
         self._source_sync_status: dict[str, dict[str, Any]] = {}
         self._shard_status: dict[str, dict[str, Any]] = {}
-        self.mounts = mounts if serve_mode == ServeMode.PREVIEW else self._sync_mount_sources(mounts)
+        self.mounts = (
+            mounts if serve_mode == ServeMode.PREVIEW else self._sync_mount_sources(mounts)
+        )
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
         self._mount_for_url: list[tuple[str, MountConfig]] = []
@@ -196,7 +197,9 @@ class CatalogRegistry:
         resolved: list[MountConfig] = []
         for mount in mounts:
             if mount.source.git is None:
-                self._record_source_sync(mount, "ok", stage="source", provider=mount.source.provider)
+                self._record_source_sync(
+                    mount, "ok", stage="source", provider=mount.source.provider
+                )
                 resolved.append(mount)
                 continue
             try:
@@ -314,10 +317,15 @@ class CatalogRegistry:
 
         self._shards = {}
         self._mount_for_url = []
-        use_frozen = self.serve_mode in {ServeMode.HYBRID, ServeMode.PREVIEW} and self.frozen_root is not None
+        use_frozen = (
+            self.serve_mode in {ServeMode.HYBRID, ServeMode.PREVIEW}
+            and self.frozen_root is not None
+        )
         cached_autodoc = None
         if use_frozen and self.autodoc_enabled:
-            default_mount_id = next((mount.id for mount in self.mounts if mount.default), self.mounts[0].id)
+            default_mount_id = next(
+                (mount.id for mount in self.mounts if mount.default), self.mounts[0].id
+            )
             cached_autodoc = load_cached_autodoc_nodes(
                 config_path=self.autodoc_config,
                 repo_root=self.repo_root,
@@ -402,9 +410,13 @@ class CatalogRegistry:
                         try:
                             self._shards[mount.id] = future.result()
                         except Exception as exc:
-                            self._record_shard_status(mount, "failed", stage="live_index", error=exc)
+                            self._record_shard_status(
+                                mount, "failed", stage="live_index", error=exc
+                            )
                         else:
-                            self._record_shard_status(mount, "ok", stage="live_index", loaded_from="live")
+                            self._record_shard_status(
+                                mount, "ok", stage="live_index", loaded_from="live"
+                            )
             else:
                 for mount, _shard_frozen in live_mount_jobs:
                     try:
@@ -415,7 +427,9 @@ class CatalogRegistry:
                     except Exception as exc:
                         self._record_shard_status(mount, "failed", stage="live_index", error=exc)
                     else:
-                        self._record_shard_status(mount, "ok", stage="live_index", loaded_from="live")
+                        self._record_shard_status(
+                            mount, "ok", stage="live_index", loaded_from="live"
+                        )
 
         for mount in self.mounts:
             prefix = mount.url_prefix or "/"
@@ -541,10 +555,12 @@ class CatalogRegistry:
         permission: AccessPermission | str = AccessPermission.READ,
     ) -> bool:
         """Return whether a subject can use a mount-level surface."""
-        policy = mount.access if isinstance(mount, MountConfig) else self.mount_access_policy(mount)
-        if policy is None:
-            return False
-        return evaluate_access(policy, subject, permission=permission).allowed
+        return ACCESS_EVALUATOR.mount_decision(
+            self,
+            mount,
+            subject,
+            permission=permission,
+        ).allowed
 
     def access_decision_for_node(
         self,
@@ -554,23 +570,12 @@ class CatalogRegistry:
         permission: AccessPermission | str = AccessPermission.READ,
     ) -> AccessDecision:
         """Evaluate mount and page policy for a catalog node."""
-        mount_policy = self.mount_access_policy(node.mount)
-        if mount_policy is None:
-            normalized_permission = (
-                permission
-                if isinstance(permission, AccessPermission)
-                else AccessPermission(str(permission).strip().lower())
-            )
-            return AccessDecision(
-                False,
-                normalized_permission,
-                AccessRole.ADMIN,
-                "mount not found",
-            )
-        mount_decision = evaluate_access(mount_policy, subject, permission=permission)
-        if not mount_decision.allowed:
-            return mount_decision
-        return evaluate_access(self.node_access_policy(node), subject, permission=permission)
+        return ACCESS_EVALUATOR.node_decision(
+            self,
+            node,
+            subject,
+            permission=permission,
+        )
 
     def can_access_node(
         self,
@@ -617,7 +622,9 @@ class CatalogRegistry:
     def default_mount_sections(self) -> tuple[str, ...]:
         """Top-level URL segments owned by the default mount (for route registration)."""
         default_id = self.default_mount.id
-        explicit_prefixes = tuple(mount.url_prefix.rstrip("/") for mount in self.mounts if mount.url_prefix)
+        explicit_prefixes = tuple(
+            mount.url_prefix.rstrip("/") for mount in self.mounts if mount.url_prefix
+        )
         sections: set[str] = set()
         for node in self.nodes:
             if node.mount != default_id and any(
@@ -1015,7 +1022,9 @@ class CatalogRegistry:
                 return shard.docs_section_nav(active_url, lang=lang)
         return self.nav_tree(active_url=active_url, lang=lang)
 
-    def nav_tree(self, active_url: str | None = None, *, lang: str | None = None) -> list[dict[str, Any]]:
+    def nav_tree(
+        self, active_url: str | None = None, *, lang: str | None = None
+    ) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
         if len(self.mounts) > 1:
             items.append(

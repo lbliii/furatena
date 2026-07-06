@@ -202,6 +202,90 @@ class LocalizedNodeMatch:
     requested_url: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class LocaleResolutionService:
+    """App-independent locale detection, fallback, and context assembly."""
+
+    config: DocsI18nConfig
+
+    def request_language(
+        self,
+        *,
+        path: str = "",
+        node: Any | None = None,
+        override: str | None = None,
+    ) -> str:
+        if override and override in self.config.language_codes():
+            return override
+        if node is not None:
+            return str(getattr(node, "lang", self.config.default_language))
+        return detect_lang_from_path(path, self.config)
+
+    def resolve_page(
+        self,
+        catalog: Any,
+        path: str,
+        *,
+        requested_lang: str | None = None,
+    ) -> LocalizedNodeMatch | None:
+        lang = requested_lang or self.request_language(path=path)
+        if self.config.enabled and lang != self.config.default_language:
+            match = resolve_localized_node(
+                catalog,
+                path,
+                requested_lang=lang,
+                config=self.config,
+            )
+            if match is not None:
+                return match
+        node = catalog.get_path(path)
+        if node is None:
+            return None
+        return LocalizedNodeMatch(
+            node=node,
+            requested_lang=str(getattr(node, "lang", lang)),
+            fallback=False,
+            requested_url=str(getattr(node, "url", path)),
+        )
+
+    def template_context(
+        self,
+        catalog: Any,
+        *,
+        path: str = "",
+        node: Any | None = None,
+        locale_match: LocalizedNodeMatch | None = None,
+        override: str | None = None,
+        base_url: str = "",
+    ) -> dict[str, Any]:
+        active_lang = (
+            locale_match.requested_lang
+            if locale_match is not None
+            else self.request_language(path=path, node=node, override=override)
+        )
+        fallback_url = (
+            locale_match.requested_url if locale_match and locale_match.fallback else None
+        )
+        context = locale_context(
+            self.config,
+            active_lang=active_lang,
+            node=node,
+            translation_index=getattr(catalog, "translation_index", {}),
+            fallback_url=fallback_url,
+        )
+        if node is not None and not (locale_match and locale_match.fallback):
+            context["alternate_links"] = alternate_links(
+                node,
+                translation_index=getattr(catalog, "translation_index", {}),
+                config=self.config,
+                base_url=base_url,
+            )
+        return context
+
+    def fallback_context(self, match: LocalizedNodeMatch) -> dict[str, Any]:
+        return fallback_context(match, config=self.config)
+
+
 def canonical_doc_slug(slug: str, config: DocsI18nConfig) -> str:
     """Strip locale prefix from a docs slug lookup."""
     return strip_locale_prefix(slug.strip("/"), config)
@@ -291,7 +375,11 @@ def collect_i18n_home_routes(config: DocsI18nConfig) -> set[str]:
     """Locale home paths (``/es/``) for static export when i18n is enabled."""
     if not config.enabled:
         return set()
-    return {locale_url("/", lang, config) for lang in config.language_codes() if lang != config.default_language}
+    return {
+        locale_url("/", lang, config)
+        for lang in config.language_codes()
+        if lang != config.default_language
+    }
 
 
 def fallback_context(

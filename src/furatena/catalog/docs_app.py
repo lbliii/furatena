@@ -69,12 +69,9 @@ from furatena.catalog.export import (
     llms_txt as llms_index_txt,
 )
 from furatena.catalog.i18n import (
+    LocaleResolutionService,
     LocalizedNodeMatch,
     active_language_override,
-    detect_lang_from_path,
-    fallback_context,
-    locale_context,
-    resolve_localized_node,
     supported_app_locales,
 )
 from furatena.catalog.identity import scoped_frozen_dir
@@ -176,6 +173,7 @@ class DocsApp:
         author_subject: AccessSubject | None = None,
     ) -> None:
         self.config = config
+        self.locale_service = LocaleResolutionService(config.i18n)
         self.repo_root = repo_root
         self.serve = serve or ServeConfig(ServeMode.AUTHOR, None, False, True)
         self.author_subject = author_subject or (
@@ -320,15 +318,11 @@ class DocsApp:
         self.catalog.refresh_if_stale()
 
     def _request_language(self, request: Request | None, *, node=None) -> str:
-        i18n = self.config.i18n
-        override = active_language_override()
-        if override and override in i18n.language_codes():
-            return override
-        if node is not None:
-            return node.lang
-        if request is not None:
-            return detect_lang_from_path(request.path, i18n)
-        return i18n.default_language
+        return self.locale_service.request_language(
+            path=request.path if request is not None else "",
+            node=node,
+            override=active_language_override(),
+        )
 
     def _locale_template_context(
         self,
@@ -339,36 +333,19 @@ class DocsApp:
     ) -> dict[str, Any]:
         active_lang = (
             locale_match.requested_lang
-            if locale_match is not None
+            if locale_match
             else self._request_language(request, node=node)
         )
         if self.config.i18n.enabled:
             set_locale(active_lang)
-        fallback_url = (
-            locale_match.requested_url if locale_match and locale_match.fallback else None
-        )
-        ctx = locale_context(
-            self.config.i18n,
-            active_lang=active_lang,
+        return self.locale_service.template_context(
+            self.catalog,
+            path=request.path if request is not None else "",
             node=node,
-            translation_index=self.catalog.translation_index,
-            fallback_url=fallback_url,
+            locale_match=locale_match,
+            override=active_lang,
+            base_url=self._site_base(request) if request is not None else "",
         )
-        if (
-            request is not None
-            and node is not None
-            and not (locale_match and locale_match.fallback)
-        ):
-            base = self._site_base(request)
-            from furatena.catalog.i18n import alternate_links
-
-            ctx["alternate_links"] = alternate_links(
-                node,
-                translation_index=self.catalog.translation_index,
-                config=self.config.i18n,
-                base_url=base,
-            )
-        return ctx
 
     @staticmethod
     def _plaintext_node_response(node) -> Response:
@@ -391,26 +368,14 @@ class DocsApp:
         *,
         requested_lang: str | None = None,
     ) -> LocalizedNodeMatch:
-        i18n = self.config.i18n
-        lang = requested_lang or detect_lang_from_path(path, i18n)
-        if i18n.enabled and lang != i18n.default_language:
-            match = resolve_localized_node(
-                self.catalog,
-                path,
-                requested_lang=lang,
-                config=i18n,
-            )
-            if match is not None:
-                return match
-        node = self.catalog.get_path(path)
-        if node is None:
-            raise NotFound(f"Page not found: {path}")
-        return LocalizedNodeMatch(
-            node=node,
-            requested_lang=node.lang,
-            fallback=False,
-            requested_url=node.url,
+        match = self.locale_service.resolve_page(
+            self.catalog,
+            path,
+            requested_lang=requested_lang,
         )
+        if match is None:
+            raise NotFound(f"Page not found: {path}")
+        return match
 
     def _render_catalog_page(
         self,
@@ -1023,7 +988,7 @@ class DocsApp:
             **self._site_context(),
             **channel_context(self.catalog.channels_for(node.mount), self.catalog.active_channel),
             **self._locale_template_context(request=request, node=node, locale_match=locale_match),
-            **fallback_context(locale_match, config=self.config.i18n),
+            **self.locale_service.fallback_context(locale_match),
             **self._theme_effects_context(),
         }
         if self._is_author_mode() and self.catalog.can_access_node(

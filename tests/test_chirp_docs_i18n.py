@@ -15,6 +15,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.export import search_json
 from furatena.catalog.i18n import (
+    LocaleResolutionService,
     build_translation_index,
     collect_i18n_export_routes,
     detect_lang_from_path,
@@ -280,6 +281,20 @@ class TestI18nFallback:
         assert match.fallback is True
         assert match.node.lang == "en"
         assert match.requested_url == "/es/docs/only-en/"
+
+        service = LocaleResolutionService(config)
+        service_match = service.resolve_page(catalog, "/es/docs/only-en/")
+        assert service_match == match
+        assert service.request_language(path="/es/docs/only-en/") == "es"
+        context = service.template_context(
+            catalog,
+            path="/es/docs/only-en/",
+            node=service_match.node,
+            locale_match=service_match,
+        )
+        assert context["active_language"] == "es"
+        assert context["doc_languages"][1]["active"] is True
+        assert service.fallback_context(service_match)["i18n_fallback_active"] is True
 
     def test_collect_export_routes_for_fallback_pages(self, tmp_path: Path) -> None:
         content = tmp_path / "content"
