@@ -172,6 +172,123 @@ def test_check_json_emits_standard_result(tmp_path: Path, capsys) -> None:
     assert payload["data"]["content_only"] is True
 
 
+def test_check_composes_structured_chirp_diagnostics_once(
+    tmp_path: Path,
+    capsys,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import importlib
+
+    from chirp.contracts import CheckResult, ContractIssue, Severity
+
+    cli_main = importlib.import_module("furatena.cli.main")
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+    current = {
+        "result": CheckResult(
+            issues=[
+                ContractIssue(
+                    severity=Severity.WARNING,
+                    category="hx_target",
+                    message="Target selector does not resolve.",
+                    template="broken.html",
+                    details="Point hx-target at a declared fragment id.",
+                ),
+                ContractIssue(
+                    severity=Severity.INFO,
+                    category="route_reference",
+                    message="Route is not referenced from a template.",
+                    route="/unlinked",
+                ),
+            ],
+            routes_checked=3,
+            templates_scanned=2,
+        )
+    }
+    monkeypatch.setattr(cli_main, "_run_chirp_app_check", lambda _args: current["result"])
+    monkeypatch.setattr(cli_main, "_run_docs_content_check", lambda **_kwargs: ([], []))
+    monkeypatch.setattr(cli_main, "_run_dcp_file_checks", lambda _args: ([], 0))
+
+    main(["--app-root", str(app_root), "check", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["exit_code"] == 0
+    assert payload["summary"] == (
+        "check completed with 0 error(s), 1 warning(s), and 1 info finding(s)"
+    )
+    assert payload["diagnostics"] == [
+        {
+            "severity": "warning",
+            "message": "Target selector does not resolve.",
+            "source_path": "broken.html",
+            "rule_id": "chirp.hx_target",
+            "next_action": "Point hx-target at a declared fragment id.",
+        },
+        {
+            "severity": "info",
+            "message": "Route is not referenced from a template.",
+            "source_path": "/unlinked",
+            "rule_id": "chirp.route_reference",
+            "next_action": "Fix the Chirp route reference contract and rerun fura check.",
+        },
+    ]
+    assert payload["data"]["warning_count"] == 1
+    assert payload["data"]["info_count"] == 1
+    assert payload["data"]["chirp_routes_checked"] == 3
+    assert payload["data"]["chirp_templates_scanned"] == 2
+
+    main(["--app-root", str(app_root), "check"])
+    terminal = capsys.readouterr().out
+    assert terminal.count("Target selector does not resolve.") == 1
+    assert terminal.count("Point hx-target at a declared fragment id.") == 1
+    assert terminal.count("Route is not referenced from a template.") == 1
+
+    with pytest.raises(SystemExit) as warning_exit:
+        main(["--app-root", str(app_root), "check", "--warnings-as-errors", "--json"])
+    assert warning_exit.value.code == 1
+    warning_payload = json.loads(capsys.readouterr().out)
+    assert warning_payload["exit_code"] == 1
+    assert warning_payload["data"]["error_count"] == 0
+    assert warning_payload["data"]["warning_count"] == 1
+
+    current["result"] = CheckResult(
+        issues=[
+            ContractIssue(
+                severity=Severity.ERROR,
+                category="form_contract",
+                message="POST form has no CSRF contract.",
+                route="/mutate",
+                details="Declare the form CSRF field and retry.",
+            )
+        ]
+    )
+    with pytest.raises(SystemExit) as error_exit:
+        main(["--app-root", str(app_root), "check", "--json"])
+    assert error_exit.value.code == 2
+    error_payload = json.loads(capsys.readouterr().out)
+    assert error_payload["data"]["error_count"] == 1
+    assert error_payload["diagnostics"][0]["rule_id"] == "chirp.form_contract"
+
+    current["result"] = CheckResult()
+    main(["--app-root", str(app_root), "check", "--json"])
+    clean_payload = json.loads(capsys.readouterr().out)
+    assert clean_payload["ok"] is True
+    assert clean_payload["diagnostics"] == []
+
+
+def test_check_terminal_skips_legacy_chirp_formatter(tmp_path: Path, capsys) -> None:
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+
+    main(["--app-root", str(app_root), "check"])
+    output = capsys.readouterr().out
+
+    assert output.count("check completed with") == 1
+    assert "── chirp check" not in output
+
+
 def test_migrate_report_json_groups_risks(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 

@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
 import getpass
-import io
 import ipaddress
 import os
 import sys
@@ -654,29 +652,54 @@ def _run_api_diff(args: argparse.Namespace) -> None:
             print(f"- {op}{suffix}")
 
 
-def _run_chirp_app_check(args: argparse.Namespace) -> None:
-    if args.app:
-        from chirp.cli._resolve import resolve_app
+def _run_chirp_app_check(args: argparse.Namespace):
+    # Freeze without Chirp's debug-time terminal renderer; the explicit
+    # structured check below is the single source for every output mode.
+    skip_env = "CHIRP_SKIP_CONTRACT_CHECKS"
+    previous_skip = os.environ.get(skip_env)
+    os.environ[skip_env] = "1"
+    try:
+        if args.app:
+            from chirp.cli._resolve import resolve_app
 
-        sys.path.insert(0, str(_app_root(args)))
-        app = resolve_app(args.app)
-    else:
-        from furatena.catalog.docs_app import DocsApp
-        from furatena.catalog.runtime import ServeConfig, ServeMode
+            sys.path.insert(0, str(_app_root(args)))
+            app = resolve_app(args.app)
+        else:
+            from furatena.catalog.docs_app import DocsApp
+            from furatena.catalog.runtime import ServeConfig, ServeMode
 
-        app_root = _app_root(args)
-        repo_root = _repo_for_app(app_root)
-        docs = DocsApp.from_paths(
-            _docs_yaml(args),
-            repo_root=repo_root,
-            autodoc_config=_autodoc_config(args, repo_root),
-            autodoc=False,
-            serve=ServeConfig(ServeMode.AUTHOR, None, False, True),
-        )
-        app = docs.app
-    app.check(
-        deploy=args.deploy,
-        warnings_as_errors=args.warnings_as_errors or args.deploy,
+            app_root = _app_root(args)
+            repo_root = _repo_for_app(app_root)
+            docs = DocsApp.from_paths(
+                _docs_yaml(args),
+                repo_root=repo_root,
+                autodoc_config=_autodoc_config(args, repo_root),
+                autodoc=False,
+                serve=ServeConfig(ServeMode.AUTHOR, None, False, True),
+            )
+            app = docs.app
+        app.freeze()
+    finally:
+        if previous_skip is None:
+            os.environ.pop(skip_env, None)
+        else:
+            os.environ[skip_env] = previous_skip
+    from chirp.contracts import check_hypermedia_surface
+
+    return check_hypermedia_surface(app, deploy=args.deploy)
+
+
+def _chirp_diagnostic(issue) -> Diagnostic:
+    category = str(issue.category or "contract")
+    return Diagnostic(
+        severity=issue.severity.value,
+        message=issue.message,
+        source_path=issue.template or issue.route,
+        rule_id=f"chirp.{category}",
+        next_action=(
+            issue.details
+            or f"Fix the Chirp {category.replace('_', ' ')} contract and rerun fura check."
+        ),
     )
 
 
@@ -753,17 +776,10 @@ def _agent_diagnostic(finding) -> Diagnostic:
 
 
 def _run_check(args: argparse.Namespace) -> None:
-    app_check_exit = 0
+    chirp_result = None
     if not args.content_only and not args.agent_only:
         _ensure_pythonpath()
-        if _json_output(args) or args.report_format:
-            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                try:
-                    _run_chirp_app_check(args)
-                except SystemExit as exc:
-                    app_check_exit = _coerce_exit_code(exc.code)
-        else:
-            _run_chirp_app_check(args)
+        chirp_result = _run_chirp_app_check(args)
     else:
         _ensure_pythonpath()
         sys.path.insert(0, str(_app_root(args)))
@@ -793,15 +809,11 @@ def _run_check(args: argparse.Namespace) -> None:
             stale_public_outputs=stale_public_outputs,
         )
     diagnostics: list[Diagnostic] = []
-    if app_check_exit:
-        diagnostics.append(
-            Diagnostic(
-                severity="error",
-                message="Chirp app contract check failed",
-                rule_id="chirp.app_check",
-                next_action="Run fura check without --json for the upstream Chirp check output.",
-            )
-        )
+    chirp_issues = tuple(chirp_result.issues) if chirp_result is not None else ()
+    chirp_errors = tuple(issue for issue in chirp_issues if issue.severity.value == "error")
+    chirp_warnings = tuple(issue for issue in chirp_issues if issue.severity.value == "warning")
+    chirp_infos = tuple(issue for issue in chirp_issues if issue.severity.value == "info")
+    diagnostics.extend(_chirp_diagnostic(issue) for issue in chirp_issues)
     diagnostics.extend(
         diagnostic_from_message(
             message,
@@ -832,8 +844,10 @@ def _run_check(args: argparse.Namespace) -> None:
     )
     diagnostics.extend(_agent_diagnostic(finding) for finding in agent_errors)
     diagnostics.extend(_agent_diagnostic(finding) for finding in agent_warnings)
-    has_error = bool(app_check_exit or errors or agent_errors)
-    warnings_fail = bool((warnings or agent_warnings) and args.warnings_as_errors)
+    has_error = bool(chirp_errors or errors or agent_errors)
+    warnings_fail = bool((warnings or agent_warnings) and args.warnings_as_errors) or bool(
+        chirp_warnings and (args.warnings_as_errors or args.deploy)
+    )
     exit_code = (
         ExitCode.VALIDATION_ERROR
         if has_error
@@ -841,17 +855,31 @@ def _run_check(args: argparse.Namespace) -> None:
         if warnings_fail
         else ExitCode.SUCCESS
     )
-    total_errors = len(errors) + len(agent_errors) + (1 if app_check_exit else 0)
-    total_warnings = len(warnings) + len(agent_warnings)
+    total_errors = len(chirp_errors) + len(errors) + len(agent_errors)
+    total_warnings = len(chirp_warnings) + len(warnings) + len(agent_warnings)
+    total_infos = len(chirp_infos)
     result = CommandResult(
         command=command_name(args),
         ok=exit_code == ExitCode.SUCCESS,
         exit_code=exit_code,
-        summary=(f"check completed with {total_errors} error(s) and {total_warnings} warning(s)"),
+        summary=(
+            "check completed with "
+            f"{total_errors} error(s), {total_warnings} warning(s), and {total_infos} info finding(s)"
+        ),
         diagnostics=tuple(diagnostics),
         data={
             "error_count": total_errors,
             "warning_count": total_warnings,
+            "info_count": total_infos,
+            "chirp_error_count": len(chirp_errors),
+            "chirp_warning_count": len(chirp_warnings),
+            "chirp_info_count": len(chirp_infos),
+            "chirp_routes_checked": (
+                chirp_result.routes_checked if chirp_result is not None else 0
+            ),
+            "chirp_templates_scanned": (
+                chirp_result.templates_scanned if chirp_result is not None else 0
+            ),
             "content_only": bool(args.content_only),
             "agent": bool(args.agent or args.agent_only),
             "agent_only": bool(args.agent_only),
@@ -877,18 +905,17 @@ def _run_check(args: argparse.Namespace) -> None:
         if result.exit_code:
             raise SystemExit(int(result.exit_code))
         return
-    for finding in agent_warnings:
-        print(f"warning: {finding.message}")
-    for finding in agent_errors:
-        print(f"error: {finding.message}")
-    for message in warnings:
-        print(f"warning: {message}")
-    for message in errors:
-        print(f"error: {message}")
-    if errors or agent_errors:
-        raise SystemExit(1)
-    if (warnings or agent_warnings) and args.warnings_as_errors:
-        raise SystemExit(1)
+    print(result.summary)
+    for diagnostic in result.diagnostics:
+        location = diagnostic.source_path or ""
+        if diagnostic.line is not None:
+            location = f"{location}:{diagnostic.line}" if location else str(diagnostic.line)
+        prefix = f"{location}: " if location else ""
+        print(f"{diagnostic.severity}: {prefix}{diagnostic.message}")
+        if diagnostic.next_action:
+            print(f"  next: {diagnostic.next_action}")
+    if result.exit_code:
+        raise SystemExit(int(result.exit_code))
 
 
 def _run_impact(args: argparse.Namespace) -> None:
