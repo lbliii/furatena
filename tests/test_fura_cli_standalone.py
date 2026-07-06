@@ -1001,19 +1001,37 @@ def test_export_excludes_unlinked_draft_pages(tmp_path: Path, capsys) -> None:
     main(["init", str(app_root), "--name", "Acme Docs"])
     secret = app_root / "content" / "docs" / "secret.md"
     secret.write_text(
-        "---\ntitle: Secret\ndraft: true\n---\n# Secret\n\nPrivate notes.\n",
+        "---\ntitle: Canary Draft\ndraft: true\n---\n# Canary Draft\n\nCANARY_DRAFT_BODY_7H2K\n",
         encoding="utf-8",
     )
+    protected_sources = {
+        "private.md": (
+            "---\ntitle: Canary Private\nvisibility: private\n---\n# Canary Private\n\n"
+            "CANARY_PRIVATE_BODY_8M3L\n"
+        ),
+        "protected.md": (
+            "---\ntitle: Canary Protected\nvisibility: internal\naccess:\n  teams: [security]\n"
+            "---\n# Canary Protected\n\nCANARY_PROTECTED_BODY_9N4P\n"
+        ),
+        "archived.md": (
+            "---\ntitle: Canary Archived\nvisibility: archived\narchived_at: 2026-07-01\n"
+            "---\n# Canary Archived\n\nCANARY_ARCHIVED_BODY_5Q6R\n"
+        ),
+    }
+    for name, source in protected_sources.items():
+        (secret.parent / name).write_text(source, encoding="utf-8")
     capsys.readouterr()
     main(["--app-root", str(app_root), "export", "--fresh", "--base-path", "", "--json"])
     payload = json.loads(capsys.readouterr().out)
 
     assert payload["ok"] is True
+    assert payload["data"]["visibility_canary_count"] == 4
+    assert payload["data"]["visibility_scanned_artifacts"] > 0
     assert not (app_root / "public" / "docs" / "secret" / "index.html").exists()
     assert not (app_root / "public" / "docs" / "secret" / "index.txt").exists()
     catalog_payload = json.loads((app_root / "public" / "catalog.json").read_text(encoding="utf-8"))
     search_payload = json.loads((app_root / "public" / "search.json").read_text(encoding="utf-8"))
-    assert all(entry["title"] != "Secret" for entry in search_payload["entries"])
+    assert all(not entry["title"].startswith("Canary ") for entry in search_payload["entries"])
     for sidecar in (
         "catalog.json",
         "catalog/api-operations.json",
@@ -1022,9 +1040,75 @@ def test_export_excludes_unlinked_draft_pages(tmp_path: Path, capsys) -> None:
         "meta.json",
         "sitemap.xml",
     ):
-        assert "Secret" not in (app_root / "public" / sidecar).read_text(encoding="utf-8")
+        assert "CANARY_" not in (app_root / "public" / sidecar).read_text(encoding="utf-8")
     tools_payload = json.loads((app_root / "public" / "tools.json").read_text(encoding="utf-8"))
     assert tools_payload["page_count"] == catalog_payload["page_count"]
+
+    from furatena.catalog.visibility_audit import scan_visibility_leaks, visibility_canaries
+
+    preview_docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.PREVIEW, app_root / "frozen", True, False),
+    )
+    canaries = visibility_canaries(preview_docs.catalog)
+    report = scan_visibility_leaks(app_root / "public", canaries)
+    assert {item.boundary for item in canaries} == {"draft", "private", "protected", "archived"}
+    assert report.ok
+
+
+def test_export_json_reports_public_visibility_leak(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    capsys.readouterr()
+
+    from furatena.catalog import visibility_audit
+    from furatena.catalog.visibility_audit import (
+        VisibilityAuditReport,
+        VisibilityCanary,
+        VisibilityLeakFinding,
+    )
+
+    def leaked_report(output_dir: Path, canaries) -> VisibilityAuditReport:
+        canary = VisibilityCanary(
+            source_path="docs/private.md",
+            boundary="private",
+            tokens=("CANARY_PRIVATE_BODY_8M3L",),
+        )
+        return VisibilityAuditReport(
+            output_dir=output_dir,
+            canaries=(*canaries, canary),
+            scanned_artifacts=12,
+            findings=(
+                VisibilityLeakFinding(
+                    artifact=Path("tools.json"),
+                    source_path=canary.source_path,
+                    boundary=canary.boundary,
+                    token=canary.tokens[0],
+                ),
+            ),
+        )
+
+    monkeypatch.setattr(visibility_audit, "scan_visibility_leaks", leaked_report)
+
+    try:
+        main(["--app-root", str(app_root), "export", "--fresh", "--json"])
+    except SystemExit as exc:
+        assert exc.code == 2
+    else:  # pragma: no cover - defensive assertion
+        raise AssertionError("export should fail on a public visibility leak")
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["summary"] == "static export blocked by public visibility leak"
+    assert payload["data"]["leak_count"] == 1
+    assert payload["diagnostics"][0]["rule_id"] == "fura.visibility_leak"
+    assert payload["diagnostics"][0]["source_path"] == "tools.json"
+    assert "private content" in payload["diagnostics"][0]["message"]
 
 
 def test_freeze_excludes_draft_pages_from_frozen_ir_and_preview(tmp_path: Path, capsys) -> None:

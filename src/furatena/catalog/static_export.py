@@ -45,6 +45,8 @@ class StaticExportResult:
     sidecar_count: int
     asset_mounts: int
     skipped_count: int = 0
+    visibility_canary_count: int = 0
+    visibility_scanned_artifacts: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +54,7 @@ class StaticExportOptions:
     """Options for ``export_static_site``."""
 
     output_dir: Path
-    base_path: str = ""
+    base_path: str | None = None
     site_url: str | None = None
     frozen_dir: Path | None = None
     include_index_txt: bool = True
@@ -218,6 +220,8 @@ def _configure_export_env(*, site_url: str | None, base_path: str) -> dict[str, 
         os.environ["FURA_BASE_URL"] = site_url.rstrip("/")
     if base_path:
         os.environ["FURA_BASE_PATH"] = normalize_base_path(base_path)
+    else:
+        os.environ.pop("FURA_BASE_PATH", None)
     os.environ["FURA_STATIC"] = "1"
     return prior
 
@@ -511,7 +515,8 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     from furatena.catalog.lifecycle import check_lifecycle_sources
 
     output_dir = options.output_dir.resolve()
-    base_path = normalize_base_path(options.base_path or docs_base_path())
+    configured_base_path = docs_base_path() if options.base_path is None else options.base_path
+    base_path = normalize_base_path(configured_base_path)
     frozen_dir = options.frozen_dir
     if frozen_dir is None and docs_app.serve.frozen_dir is not None:
         frozen_dir = docs_app.serve.frozen_dir
@@ -735,6 +740,18 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
             json.dumps(channel_payload, indent=2) + "\n",
             encoding="utf-8",
         )
+        from furatena.catalog.visibility_audit import (
+            StaticExportVisibilityError,
+            scan_visibility_leaks,
+            visibility_canaries,
+        )
+
+        visibility_report = scan_visibility_leaks(
+            output_dir,
+            visibility_canaries(docs_app.catalog),
+        )
+        if not visibility_report.ok:
+            raise StaticExportVisibilityError(visibility_report)
     finally:
         _restore_export_env(prior_env)
 
@@ -744,6 +761,8 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
         sidecar_count=sidecar_count,
         asset_mounts=asset_mounts,
         skipped_count=skipped_count,
+        visibility_canary_count=len(visibility_report.canaries),
+        visibility_scanned_artifacts=visibility_report.scanned_artifacts,
     )
 
 
