@@ -96,14 +96,44 @@
       {{ docs_icon('sparkle', 15) }}
       <span>Validate page</span>
     </a>
-    <a href="{{ author_chrome.actions.mark_draft }}" class="chirp-theme-page-actions__item">
-      {{ docs_icon('sparkle', 15) }}
-      <span>Mark draft</span>
-    </a>
-    <a href="{{ author_chrome.actions.publish }}" class="chirp-theme-page-actions__item">
-      {{ docs_icon('external', 15) }}
-      <span>Publish</span>
-    </a>
+    <form
+      method="post"
+      action="{{ author_chrome.actions.transition }}"
+      hx-post="{{ author_chrome.actions.transition }}"
+      hx-target="#fura-author-chrome"
+      hx-swap="outerHTML"
+      hx-confirm="Mark this page as draft?"
+    >
+      {{ csrf_field() }}
+      <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
+      <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+      <input type="hidden" name="operation" value="draft">
+      <input type="hidden" name="dry_run" value="0">
+      <input type="hidden" name="confirmed" value="1">
+      <button type="submit" class="chirp-theme-page-actions__item">
+        {{ docs_icon('sparkle', 15) }}
+        <span>Mark draft</span>
+      </button>
+    </form>
+    <form
+      method="post"
+      action="{{ author_chrome.actions.transition }}"
+      hx-post="{{ author_chrome.actions.transition }}"
+      hx-target="#fura-author-chrome"
+      hx-swap="outerHTML"
+      hx-confirm="Publish this page?"
+    >
+      {{ csrf_field() }}
+      <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
+      <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+      <input type="hidden" name="operation" value="publish">
+      <input type="hidden" name="dry_run" value="0">
+      <input type="hidden" name="confirmed" value="1">
+      <button type="submit" class="chirp-theme-page-actions__item">
+        {{ docs_icon('external', 15) }}
+        <span>Publish</span>
+      </button>
+    </form>
     <a href="{{ author_chrome.actions.inspect_public }}" class="chirp-theme-page-actions__item">
       {{ docs_icon('external', 15) }}
       <span>Inspect public output</span>

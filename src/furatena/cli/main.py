@@ -1809,6 +1809,9 @@ def _run_init(args: argparse.Namespace) -> None:
             {% block title %}{% if node %}{{ node.title }}{% else %}{{ site_name | default('Furatena') }}{% end %}{% end %}
 
             {% block head %}
+            {% if fura_form_proof() %}
+            <meta name="csrf-token" content="{{ fura_form_proof() }}">
+            {% end %}
             {% for href in docs_stylesheets() %}
             <link rel="stylesheet" href="{{ href }}">
             {% end %}
@@ -1816,6 +1819,15 @@ def _run_init(args: argparse.Namespace) -> None:
 
             {% block content %}
             {% block page_root %}{% end %}
+            {% end %}
+
+            {% block body_after %}
+            <script nonce="{{ csp_nonce() }}">
+            document.body.addEventListener("htmx:configRequest", function(event) {
+              var meta = document.querySelector('meta[name="csrf-token"]');
+              if (meta) { event.detail.headers["X-CSRF-Token"] = meta.content; }
+            });
+            </script>
             {% end %}
             """
         ),
@@ -1935,6 +1947,7 @@ def _run_init(args: argparse.Namespace) -> None:
                       hx-post="{{ author_studio.save_url }}"
                       hx-target="#author-studio-workspace"
                       hx-swap="outerHTML">
+                  {{ csrf_field() }}
                   <input type="hidden" name="slug" value="{{ author_studio.slug }}">
                   <input type="hidden" name="mode" value="{{ author_studio.mode }}">
                   <input type="hidden" name="title" value="{{ author_studio.title }}">

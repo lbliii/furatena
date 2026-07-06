@@ -8,6 +8,7 @@
   data-fura-author-slug="{{ author_chrome.slug }}"
   data-fura-author-states="{{ author_chrome.states | join(' ') }}"
   data-fura-author-output="{% if author_chrome.export_impact.included %}included{% else %}excluded{% end %}"
+  hx-disinherit="hx-select hx-target hx-swap"
   aria-label="Local author controls"
 >
   <div class="fura-author-chrome__summary">
@@ -42,28 +43,50 @@
             {{ docs_icon('external', 14) }}
             <span>Studio</span>
           </a>
-          <a
-            class="fura-author-chrome__action"
-            href="{{ author_chrome.actions.publish }}"
-            hx-get="{{ author_chrome.actions.publish_confirm }}"
+          <form
+            method="post"
+            action="{{ author_chrome.actions.transition }}"
+            hx-post="{{ author_chrome.actions.transition }}"
             hx-target="#fura-author-chrome"
             hx-swap="outerHTML"
             hx-confirm="Publish this page?"
           >
-            {{ docs_icon('rocket', 14) }}
-            <span>Publish</span>
-          </a>
-          <a
-            class="fura-author-chrome__action"
-            href="{{ author_chrome.actions.mark_draft }}"
-            hx-get="{{ author_chrome.actions.mark_draft_confirm }}"
+            {{ csrf_field() }}
+            <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
+            <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+            <input type="hidden" name="operation" value="publish">
+            <input type="hidden" name="dry_run" value="0">
+            <input type="hidden" name="confirmed" value="1">
+            <button
+              type="submit"
+              class="fura-author-chrome__action"
+            >
+              {{ docs_icon('rocket', 14) }}
+              <span>Publish</span>
+            </button>
+          </form>
+          <form
+            method="post"
+            action="{{ author_chrome.actions.transition }}"
+            hx-post="{{ author_chrome.actions.transition }}"
             hx-target="#fura-author-chrome"
             hx-swap="outerHTML"
             hx-confirm="Mark this page as draft?"
           >
-            {{ docs_icon('article', 14) }}
-            <span>Mark draft</span>
-          </a>
+            {{ csrf_field() }}
+            <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
+            <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+            <input type="hidden" name="operation" value="draft">
+            <input type="hidden" name="dry_run" value="0">
+            <input type="hidden" name="confirmed" value="1">
+            <button
+              type="submit"
+              class="fura-author-chrome__action"
+            >
+              {{ docs_icon('article', 14) }}
+              <span>Mark draft</span>
+            </button>
+          </form>
         </div>
         <div class="fura-author-chrome__action-group" aria-label="Source and output actions">
           <a class="fura-author-chrome__action" href="{{ author_chrome.actions.open_source }}">

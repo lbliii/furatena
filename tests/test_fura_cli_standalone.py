@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import time
 from pathlib import Path
 
 import pytest
+from chirp import ConfigurationError
 from chirp.testing import TestClient
 
 from furatena.catalog.develop_exports import develop_export
@@ -16,6 +18,22 @@ from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.cli.main import main
 
 _UNSET = object()
+
+
+def _csrf_context(response) -> tuple[str, str]:
+    match = re.search(r'<meta name="csrf-token" content="([^"]+)">', response.text)
+    assert match is not None, "expected rendered CSRF meta token"
+    headers = {str(key).lower(): str(value) for key, value in response.headers}
+    cookie = headers.get("set-cookie", "").split(";", 1)[0]
+    assert cookie.startswith("chirp_session="), "expected signed Chirp session cookie"
+    return match.group(1), cookie
+
+
+def _csrf_headers(token: str, cookie: str, *, htmx: bool = False) -> dict[str, str]:
+    headers = {"Cookie": cookie, "X-CSRF-Token": token}
+    if htmx:
+        headers["HX-Request"] = "true"
+    return headers
 
 
 def _assert_author_json_envelope(
@@ -64,6 +82,35 @@ def test_init_scaffolds_standalone_app(tmp_path: Path) -> None:
     assert (app_root / "content" / "docs" / "get-started.md").is_file()
     assert (app_root / "theme" / "views" / "doc.html").is_file()
     assert (app_root / "theme" / "search.html").is_file()
+
+
+def test_deployment_security_requires_stable_session_secret(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    monkeypatch.setenv("FURA_ENV", "production")
+    monkeypatch.delenv("FURA_SESSION_SECRET", raising=False)
+    monkeypatch.delenv("CHIRP_SECRET_KEY", raising=False)
+
+    with pytest.raises(ConfigurationError, match="secret_key must not be empty"):
+        DocsApp.from_paths(
+            app_root / "docs.yaml",
+            repo_root=app_root,
+            autodoc=False,
+            serve=ServeConfig(ServeMode.PREVIEW, None, True, False),
+        )
+
+    monkeypatch.setenv("FURA_SESSION_SECRET", "stable-test-secret")
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.PREVIEW, None, True, False),
+    )
+    assert docs.app.config.env == "production"
+    assert docs.app.config.secret_key == "stable-test-secret"
 
 
 def test_init_json_emits_written_files(tmp_path: Path, capsys) -> None:
@@ -1091,7 +1138,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
         source = await author_client.get("/docs/_author/source?slug=docs/get-started")
         private_page = await author_client.get("/docs/private/")
         private_status = await author_client.get("/docs/_author/page.json?slug=docs/private")
-        preview = await author_client.get(
+        transition_get = await author_client.get(
             "/docs/_author/transition?slug=docs/get-started&operation=publish&dry_run=1"
         )
         htmx_validate = await author_client.get(
@@ -1105,14 +1152,14 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
             "source": source,
             "private_page": private_page,
             "private_status": private_status,
-            "preview": preview,
+            "transition_get": transition_get,
             "htmx_validate": htmx_validate,
         }
 
     author_payload = asyncio.run(_fetch_author())
     status_payload = parse_json(author_payload["status"])
     private_payload = parse_json(author_payload["private_status"])
-    preview_payload = parse_json(author_payload["preview"])
+    csrf_token, session_cookie = _csrf_context(author_payload["page"])
 
     assert author_payload["page"].status == 200
     assert 'data-fura-author-chrome' in author_payload["page"].text
@@ -1132,8 +1179,12 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert "Not exported" in author_payload["page"].text
     assert 'data-action="copy-source-path"' in author_payload["page"].text
     assert 'hx-target="#fura-author-chrome"' in author_payload["page"].text
-    assert "operation=draft&amp;dry_run=0&amp;confirmed=1" in author_payload["page"].text
-    assert "operation=publish&amp;dry_run=0&amp;confirmed=1" in author_payload["page"].text
+    assert 'action="/docs/_author/transition"' in author_payload["page"].text
+    assert 'hx-post="/docs/_author/transition"' in author_payload["page"].text
+    assert 'name="operation" value="draft"' in author_payload["page"].text
+    assert 'name="operation" value="publish"' in author_payload["page"].text
+    assert 'name="_csrf_token"' in author_payload["page"].text
+    assert 'hx-get="/docs/_author/transition' not in author_payload["page"].text
     assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" in author_payload[
         "page"
     ].text
@@ -1145,18 +1196,55 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert "# Get started" in author_payload["source"].text
     assert 'data-author-state="private"' in author_payload["private_page"].text
     assert {"private", "excluded-output"} <= set(private_payload["states"])
-    assert preview_payload["ok"] is True
-    assert preview_payload["data"]["dry_run"] is True
+    assert author_payload["transition_get"].status == 405
     assert author_payload["htmx_validate"].status == 200
     assert 'id="fura-author-chrome"' in author_payload["htmx_validate"].text
     assert "Author controls" in author_payload["htmx_validate"].text
     assert "Local only" in author_payload["htmx_validate"].text
     assert '"ok":' not in author_payload["htmx_validate"].text
 
+    private_before = private.read_text(encoding="utf-8")
+    missing_csrf = asyncio.run(
+        author_client.post(
+            "/docs/_author/transition",
+            data={
+                "slug": "docs/private",
+                "operation": "draft",
+                "dry_run": "0",
+                "confirmed": "1",
+            },
+        )
+    )
+    assert missing_csrf.status == 403
+    assert parse_json(missing_csrf)["diagnostics"][0]["rule_id"] == "fura.author.csrf"
+    assert private.read_text(encoding="utf-8") == private_before
+
+    invalid_csrf = asyncio.run(
+        author_client.post(
+            "/docs/_author/transition",
+            headers=_csrf_headers("invalid", session_cookie),
+            data={
+                "slug": "docs/private",
+                "operation": "draft",
+                "dry_run": "0",
+                "confirmed": "1",
+            },
+        )
+    )
+    assert invalid_csrf.status == 403
+    assert parse_json(invalid_csrf)["diagnostics"][0]["rule_id"] == "fura.author.csrf"
+    assert private.read_text(encoding="utf-8") == private_before
+
     draft_response = asyncio.run(
-        author_client.get(
-            "/docs/_author/transition?slug=docs/private&operation=draft&dry_run=0&confirmed=1",
-            headers={"HX-Request": "true"},
+        author_client.post(
+            "/docs/_author/transition",
+            headers=_csrf_headers(csrf_token, session_cookie, htmx=True),
+            data={
+                "slug": "docs/private",
+                "operation": "draft",
+                "dry_run": "0",
+                "confirmed": "1",
+            },
         )
     )
     assert draft_response.status == 200
@@ -1165,19 +1253,35 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert '"ok":' not in draft_response.text
 
     archive_response = asyncio.run(
-        author_client.get(
-            "/docs/_author/transition?slug=docs/private&operation=archive&dry_run=0&confirmed=1"
+        author_client.post(
+            "/docs/_author/transition",
+            headers=_csrf_headers(csrf_token, session_cookie),
+            data={
+                "slug": "docs/private",
+                "operation": "archive",
+                "dry_run": "0",
+                "confirmed": "1",
+            },
         )
     )
-    archive_payload = parse_json(archive_response)
-    assert archive_payload["ok"] is True
-    assert archive_payload["data"]["resulting_visibility"] == "archived"
+    assert archive_response.status == 303
+    assert dict(archive_response.headers)["location"] == "/docs/private/"
     archive_status = asyncio.run(author_client.get("/docs/_author/page.json?slug=docs/private"))
     archive_status_payload = parse_json(archive_status)
     assert {"archived", "valid", "excluded-output"} <= set(archive_status_payload["states"])
     assert "public-output" not in archive_status_payload["states"]
     assert archive_status_payload["visibility"] == "archived"
     assert archive_status_payload["export_impact"]["included"] is False
+
+    from chirp.contracts import check_hypermedia_surface
+
+    contract_result = check_hypermedia_surface(docs.app)
+    security_findings = [
+        issue
+        for issue in (*contract_result.errors, *contract_result.warnings)
+        if issue.category in {"security_stack", "csrf_form"}
+    ]
+    assert security_findings == []
 
     target = app_root / "content" / "docs" / "get-started.md"
     target.write_text(
@@ -1348,9 +1452,20 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
 
     async def _exercise_author() -> dict[str, object]:
         studio = await author_client.get("/docs/_author/studio?slug=docs/get-started")
-        saved = await author_client.post(
+        csrf_token, session_cookie = _csrf_context(studio)
+        missing_csrf = await author_client.post(
             "/docs/_author/studio/save",
             headers={"HX-Request": "true"},
+            data={
+                "slug": "docs/get-started",
+                "mode": "edit",
+                "title": "Get started",
+                "source": edited,
+            },
+        )
+        saved = await author_client.post(
+            "/docs/_author/studio/save",
+            headers=_csrf_headers(csrf_token, session_cookie, htmx=True),
             data={
                 "slug": "docs/get-started",
                 "mode": "edit",
@@ -1361,7 +1476,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
         page = await author_client.get("/docs/get-started/")
         invalid = await author_client.post(
             "/docs/_author/studio/save",
-            headers={"HX-Request": "true"},
+            headers=_csrf_headers(csrf_token, session_cookie, htmx=True),
             data={
                 "slug": "docs/get-started",
                 "mode": "edit",
@@ -1371,7 +1486,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
         )
         create = await author_client.post(
             "/docs/_author/studio/save",
-            headers={"HX-Request": "true"},
+            headers=_csrf_headers(csrf_token, session_cookie, htmx=True),
             data={
                 "slug": "docs/studio-draft",
                 "mode": "create",
@@ -1382,6 +1497,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
         created_page = await author_client.get("/docs/studio-draft/")
         return {
             "studio": studio,
+            "missing_csrf": missing_csrf,
             "saved": saved,
             "page": page,
             "invalid": invalid,
@@ -1395,7 +1511,9 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     assert payload["studio"].status == 200
     assert 'id="author-studio-workspace"' in payload["studio"].text
     assert 'name="source"' in payload["studio"].text
+    assert 'name="_csrf_token"' in payload["studio"].text
     assert "Run the local docs server:" in payload["studio"].text
+    assert payload["missing_csrf"].status == 403
     assert payload["saved"].status == 200
     assert "Updated in studio." in payload["saved"].text
     assert 'data-author-studio-saved="true"' in payload["saved"].text
@@ -1415,8 +1533,11 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
 
     async def _exercise_public() -> dict[str, object]:
         studio = await public_client.get("/docs/_author/studio?slug=docs/get-started")
+        public_page = await public_client.get("/docs/get-started/")
+        csrf_token, session_cookie = _csrf_context(public_page)
         save = await public_client.post(
             "/docs/_author/studio/save",
+            headers=_csrf_headers(csrf_token, session_cookie),
             data={
                 "slug": "docs/get-started",
                 "mode": "edit",
@@ -1429,6 +1550,9 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     public_payload = asyncio.run(_exercise_public())
     assert public_payload["studio"].status == 404
     assert public_payload["save"].status == 404
+    assert json.loads(public_payload["save"].text)["error"] == (
+        "author studio saves are available only in author mode"
+    )
 
 
 def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> None:

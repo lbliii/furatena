@@ -15,8 +15,8 @@
 {% block title %}{% if error_title is defined %}{{ error_title }}{% elif node is defined and node %}{{ node.title }}{% else %}{{ site_name | default('Furatena') }}{% end %}{% end %}
 
 {% block head %}
-{% if csrf_token is defined %}
-<meta name="csrf-token" content="{{ csrf_token() }}">
+{% if fura_form_proof() %}
+<meta name="csrf-token" content="{{ fura_form_proof() }}">
 {% end %}
 <link rel="stylesheet" href="/static/chirpui.css">
 <link rel="stylesheet" href="/static/chirpui-transitions.css">
