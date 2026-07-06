@@ -230,6 +230,39 @@ class TestHybridSearchRoutes:
         assert "search-workspace-panel" in html or "search-workspace__panel" in html
         assert "search-product-card" in html or "search-product-grid" in html
 
+    def test_search_page_negotiates_full_boosted_and_targeted_shapes(
+        self,
+        docs_client: TestClient,
+    ) -> None:
+        async def _fetch():
+            normal = await docs_client.get("/search?q=htmx")
+            boosted = await docs_client.get(
+                "/search?q=htmx",
+                headers={"HX-Request": "true", "HX-Boosted": "true"},
+            )
+            targeted = await docs_client.get(
+                "/search?q=htmx",
+                headers={"HX-Request": "true", "HX-Target": "search-results-panel"},
+            )
+            return normal, boosted, targeted
+
+        normal, boosted, targeted = asyncio.run(_fetch())
+        assert normal.status == boosted.status == targeted.status == 200
+        assert normal.text.lstrip().startswith("<!DOCTYPE html>")
+        assert "<html" in normal.text and "<body" in normal.text
+
+        assert 'id="page-root"' in boosted.text
+        assert "search-workspace" in boosted.text
+        assert "<!DOCTYPE" not in boosted.text
+        assert "<html" not in boosted.text and "<body" not in boosted.text
+
+        assert 'id="search-results-panel"' in targeted.text
+        assert 'id="page-root"' not in targeted.text
+        assert "search-workspace__header" not in targeted.text
+        assert "<!DOCTYPE" not in targeted.text
+        assert "<html" not in targeted.text and "<body" not in targeted.text
+        assert "hx-swap-oob" in targeted.text
+
     def test_search_page_empty_state(self, docs_client: TestClient) -> None:
         async def _fetch() -> str:
             resp = await docs_client.get("/search")
