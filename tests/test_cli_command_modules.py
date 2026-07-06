@@ -28,5 +28,6 @@ def test_main_module_contains_only_parser_wiring_and_dispatch() -> None:
     source = inspect.getsource(cli_main)
 
     assert "def _run_" not in source
-    assert len(source.splitlines()) < 60
+    assert len(source.splitlines()) < 70
     assert "command.configure(subparsers)" in source
+    assert "def run_command" in source

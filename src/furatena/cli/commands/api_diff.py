@@ -6,11 +6,11 @@ import argparse
 from pathlib import Path
 from typing import Any
 
-from furatena.cli.commands._shared import CommandModule, _finish_result, _json_output
+from furatena.cli.commands._shared import CommandModule
 from furatena.cli.contracts import CommandResult, Diagnostic, ExitCode, command_name
 
 
-def _run_api_diff(args: argparse.Namespace) -> None:
+def _run_api_diff(args: argparse.Namespace) -> CommandResult:
     from furatena.catalog.api_governance import diff_openapi_specs
 
     old_path = Path(args.old).expanduser().resolve()
@@ -18,7 +18,7 @@ def _run_api_diff(args: argparse.Namespace) -> None:
     try:
         payload = diff_openapi_specs(old_path, new_path)
     except Exception as exc:
-        result = CommandResult(
+        return CommandResult(
             command=command_name(args),
             ok=False,
             exit_code=ExitCode.VALIDATION_ERROR,
@@ -32,37 +32,35 @@ def _run_api_diff(args: argparse.Namespace) -> None:
                 ),
             ),
             data={"old_spec": str(old_path), "new_spec": str(new_path)},
+            terminal_lines=(f"api diff failed: {exc}",),
         )
-        _finish_result(result, json_output=_json_output(args))
-        return
-    result = CommandResult(
-        command=command_name(args),
-        ok=True,
-        summary=(
-            "api diff completed: "
-            f"{payload['summary']['added']} added, "
-            f"{payload['summary']['removed']} removed, "
-            f"{payload['summary']['changed']} changed, "
-            f"{payload['summary']['breaking']} breaking"
-        ),
-        data=payload,
+    summary = (
+        "api diff completed: "
+        f"{payload['summary']['added']} added, "
+        f"{payload['summary']['removed']} removed, "
+        f"{payload['summary']['changed']} changed, "
+        f"{payload['summary']['breaking']} breaking"
     )
-    if _json_output(args):
-        _finish_result(result, json_output=True)
-        return
-    print(result.summary)
+    terminal_lines = [summary]
     for label in ("added", "removed", "changed", "breaking"):
         items = payload[label]
         if not items:
             continue
-        print(f"\n{label.title()}:")
+        terminal_lines.extend(("", f"{label.title()}:"))
         for item in items:
             op = f"{item['method']} {item['path']}"
             if item.get("operation_id"):
                 op = f"{op} ({item['operation_id']})"
             changes = item.get("changes")
             suffix = f" - {', '.join(changes)}" if changes else ""
-            print(f"- {op}{suffix}")
+            terminal_lines.append(f"- {op}{suffix}")
+    return CommandResult(
+        command=command_name(args),
+        ok=True,
+        summary=summary,
+        data=payload,
+        terminal_lines=tuple(terminal_lines),
+    )
 
 
 def configure(sub: Any) -> None:

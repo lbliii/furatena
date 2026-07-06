@@ -6,31 +6,27 @@ import argparse
 import os
 from typing import Any
 
-from furatena.cli.commands._shared import CommandModule, _finish_result, _json_output, _repo_root
+from furatena.cli.commands._shared import CommandModule, _repo_root
 from furatena.cli.contracts import CommandResult, command_name
 
 
-def _run_stop(args: argparse.Namespace) -> None:
+def _run_stop(args: argparse.Namespace) -> CommandResult:
     from furatena.catalog.dev_reload import stop_dev_server
 
     host = args.host or "127.0.0.1"
     port = args.port or int(os.environ.get("FURA_PORT", "8001"))
     stopped = stop_dev_server(_repo_root(), host=host, port=port)
-    if _json_output(args):
-        _finish_result(
-            CommandResult(
-                command=command_name(args),
-                ok=True,
-                summary="dev server stopped" if stopped else "no dev server was listening",
-                data={"host": host, "port": port, "stopped": stopped},
-            ),
-            json_output=True,
-        )
-        return
-    if stopped:
-        print(f"stopped dev server on {host}:{port}")
-    else:
-        print(f"no dev server listening on {host}:{port}")
+    return CommandResult(
+        command=command_name(args),
+        ok=True,
+        summary="dev server stopped" if stopped else "no dev server was listening",
+        data={"host": host, "port": port, "stopped": stopped},
+        terminal_lines=(
+            f"stopped dev server on {host}:{port}"
+            if stopped
+            else f"no dev server listening on {host}:{port}",
+        ),
+    )
 
 
 def configure(sub: Any) -> None:

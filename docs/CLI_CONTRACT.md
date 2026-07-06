@@ -6,6 +6,13 @@ result shaping, exposed through the immutable `CommandModule` registration
 contract. `cli/main.py` contains only global parser options, command
 registration, parsing, and dispatch.
 
+Python callers and command tests can bypass presentation with
+`furatena.cli.main.run_command(argv)`. It returns the command's structured
+`CommandResult` directly and does not write terminal or JSON output. The
+console entry point applies presentation and exit-code behavior afterward.
+This keeps command logic fast and deterministic in-process while a small
+subprocess smoke suite verifies the installed `fura` entry point itself.
+
 Fura commands that support `--json` emit one stable JSON object:
 
 ```json

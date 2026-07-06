@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 
 from furatena.cli.commands import COMMANDS
+from furatena.cli.commands._shared import _finish_result, _json_output
+from furatena.cli.contracts import CommandResult
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -38,9 +40,21 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> None:
+def _invoke(argv: list[str] | None = None) -> tuple[argparse.Namespace, CommandResult | None]:
     args = _build_parser().parse_args(argv)
-    args.handler(args)
+    return args, args.handler(args)
+
+
+def run_command(argv: list[str]) -> CommandResult | None:
+    """Run command logic in-process without terminal or JSON presentation."""
+
+    return _invoke(argv)[1]
+
+
+def main(argv: list[str] | None = None) -> None:
+    args, result = _invoke(argv)
+    if result is not None:
+        _finish_result(result, json_output=_json_output(args))
 
 
 if __name__ == "__main__":
