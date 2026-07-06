@@ -49,6 +49,11 @@ warning threshold applies, including `--warnings-as-errors` and Chirp's deploy
 posture. Terminal, JSON, and CI report formats render this one composed result,
 so no finding is counted or printed twice.
 
+`tests/fixtures/diagnostics.json` is the versioned golden dataset for this
+contract. Its clean, warning-only, and error cases preserve each finding's id,
+severity, message, origin, and remediation, then verify matching summaries and
+exit codes in both terminal and JSON modes.
+
 ## Current JSON commands
 
 - `fura init --json`

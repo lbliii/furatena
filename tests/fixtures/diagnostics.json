@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "clean",
+      "cli_args": [],
+      "findings": [],
+      "expected": {
+        "ok": true,
+        "exit_code": 0,
+        "error_count": 0,
+        "warning_count": 0,
+        "info_count": 0,
+        "summary": "check completed with 0 error(s), 0 warning(s), and 0 info finding(s)"
+      }
+    },
+    {
+      "name": "warning_only",
+      "cli_args": [
+        "--warnings-as-errors"
+      ],
+      "findings": [
+        {
+          "id": "chirp.hx_target",
+          "severity": "warning",
+          "message": "Target selector does not resolve.",
+          "origin": {
+            "template": "broken.html"
+          },
+          "remediation": "Point hx-target at a declared fragment id."
+        },
+        {
+          "id": "chirp.route_reference",
+          "severity": "info",
+          "message": "Route is not referenced from a template.",
+          "origin": {
+            "route": "/unlinked"
+          },
+          "remediation": "Reference the route or explicitly declare it unreachable."
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "exit_code": 1,
+        "error_count": 0,
+        "warning_count": 1,
+        "info_count": 1,
+        "summary": "check completed with 0 error(s), 1 warning(s), and 1 info finding(s)"
+      }
+    },
+    {
+      "name": "error",
+      "cli_args": [],
+      "findings": [
+        {
+          "id": "chirp.form_contract",
+          "severity": "error",
+          "message": "POST form has no CSRF contract.",
+          "origin": {
+            "route": "/mutate"
+          },
+          "remediation": "Declare the form CSRF field and retry."
+        },
+        {
+          "id": "chirp.dead_template",
+          "severity": "warning",
+          "message": "Template is not reachable from a route.",
+          "origin": {
+            "template": "unused.html"
+          },
+          "remediation": "Reference the template or remove it."
+        }
+      ],
+      "expected": {
+        "ok": false,
+        "exit_code": 2,
+        "error_count": 1,
+        "warning_count": 1,
+        "info_count": 0,
+        "summary": "check completed with 1 error(s), 1 warning(s), and 0 info finding(s)"
+      }
+    }
+  ]
+}

@@ -48,6 +48,13 @@ def _source_revision(path: Path) -> str:
     return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
 
 
+def _diagnostic_golden_cases() -> list[dict[str, object]]:
+    fixture = Path(__file__).parent / "fixtures" / "diagnostics.json"
+    payload = json.loads(fixture.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == 1
+    return payload["cases"]
+
+
 def _assert_author_json_envelope(
     payload: dict[str, object],
     *,
@@ -172,10 +179,16 @@ def test_check_json_emits_standard_result(tmp_path: Path, capsys) -> None:
     assert payload["data"]["content_only"] is True
 
 
-def test_check_composes_structured_chirp_diagnostics_once(
+@pytest.mark.parametrize(
+    "diagnostic_case",
+    _diagnostic_golden_cases(),
+    ids=lambda case: str(case["name"]),
+)
+def test_check_matches_golden_structured_diagnostics(
     tmp_path: Path,
     capsys,
     monkeypatch: pytest.MonkeyPatch,
+    diagnostic_case: dict[str, object],
 ) -> None:
     import importlib
 
@@ -185,96 +198,74 @@ def test_check_composes_structured_chirp_diagnostics_once(
     app_root = tmp_path / "docs-site"
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
-    current = {
-        "result": CheckResult(
-            issues=[
-                ContractIssue(
-                    severity=Severity.WARNING,
-                    category="hx_target",
-                    message="Target selector does not resolve.",
-                    template="broken.html",
-                    details="Point hx-target at a declared fragment id.",
-                ),
-                ContractIssue(
-                    severity=Severity.INFO,
-                    category="route_reference",
-                    message="Route is not referenced from a template.",
-                    route="/unlinked",
-                ),
-            ],
-            routes_checked=3,
-            templates_scanned=2,
+    findings = diagnostic_case["findings"]
+    assert isinstance(findings, list)
+    issues = []
+    for finding in findings:
+        assert isinstance(finding, dict)
+        origin = finding["origin"]
+        assert isinstance(origin, dict)
+        issues.append(
+            ContractIssue(
+                severity=Severity(str(finding["severity"])),
+                category=str(finding["id"]).removeprefix("chirp."),
+                message=str(finding["message"]),
+                template=origin.get("template"),
+                route=origin.get("route"),
+                details=str(finding["remediation"]),
+            )
         )
-    }
-    monkeypatch.setattr(cli_main, "_run_chirp_app_check", lambda _args: current["result"])
+    chirp_result = CheckResult(issues=issues, routes_checked=3, templates_scanned=2)
+    monkeypatch.setattr(cli_main, "_run_chirp_app_check", lambda _args: chirp_result)
     monkeypatch.setattr(cli_main, "_run_docs_content_check", lambda **_kwargs: ([], []))
     monkeypatch.setattr(cli_main, "_run_dcp_file_checks", lambda _args: ([], 0))
 
-    main(["--app-root", str(app_root), "check", "--json"])
-    payload = json.loads(capsys.readouterr().out)
-    assert payload["ok"] is True
-    assert payload["exit_code"] == 0
-    assert payload["summary"] == (
-        "check completed with 0 error(s), 1 warning(s), and 1 info finding(s)"
-    )
-    assert payload["diagnostics"] == [
-        {
-            "severity": "warning",
-            "message": "Target selector does not resolve.",
-            "source_path": "broken.html",
-            "rule_id": "chirp.hx_target",
-            "next_action": "Point hx-target at a declared fragment id.",
-        },
-        {
-            "severity": "info",
-            "message": "Route is not referenced from a template.",
-            "source_path": "/unlinked",
-            "rule_id": "chirp.route_reference",
-            "next_action": "Fix the Chirp route reference contract and rerun fura check.",
-        },
-    ]
-    assert payload["data"]["warning_count"] == 1
-    assert payload["data"]["info_count"] == 1
+    expected = diagnostic_case["expected"]
+    assert isinstance(expected, dict)
+    cli_args = diagnostic_case["cli_args"]
+    assert isinstance(cli_args, list)
+    json_args = ["--app-root", str(app_root), "check", *cli_args, "--json"]
+    if expected["exit_code"]:
+        with pytest.raises(SystemExit) as json_exit:
+            main(json_args)
+        assert json_exit.value.code == expected["exit_code"]
+    else:
+        main(json_args)
+    json_output = capsys.readouterr().out
+    payload = json.loads(json_output)
+    assert payload["ok"] is expected["ok"]
+    assert payload["exit_code"] == expected["exit_code"]
+    assert payload["summary"] == expected["summary"]
+    assert payload["data"]["error_count"] == expected["error_count"]
+    assert payload["data"]["warning_count"] == expected["warning_count"]
+    assert payload["data"]["info_count"] == expected["info_count"]
     assert payload["data"]["chirp_routes_checked"] == 3
     assert payload["data"]["chirp_templates_scanned"] == 2
+    assert len(payload["diagnostics"]) == len(findings)
 
-    main(["--app-root", str(app_root), "check"])
+    for finding, diagnostic in zip(findings, payload["diagnostics"], strict=True):
+        origin = finding["origin"]
+        assert isinstance(origin, dict)
+        assert diagnostic["rule_id"] == finding["id"]
+        assert diagnostic["severity"] == finding["severity"]
+        assert diagnostic["message"] == finding["message"]
+        assert diagnostic["source_path"] == next(iter(origin.values()))
+        assert diagnostic["next_action"] == finding["remediation"]
+        assert json_output.count(str(finding["message"])) == 1
+        assert json_output.count(str(finding["remediation"])) == 1
+
+    terminal_args = ["--app-root", str(app_root), "check", *cli_args]
+    if expected["exit_code"]:
+        with pytest.raises(SystemExit) as terminal_exit:
+            main(terminal_args)
+        assert terminal_exit.value.code == expected["exit_code"]
+    else:
+        main(terminal_args)
     terminal = capsys.readouterr().out
-    assert terminal.count("Target selector does not resolve.") == 1
-    assert terminal.count("Point hx-target at a declared fragment id.") == 1
-    assert terminal.count("Route is not referenced from a template.") == 1
-
-    with pytest.raises(SystemExit) as warning_exit:
-        main(["--app-root", str(app_root), "check", "--warnings-as-errors", "--json"])
-    assert warning_exit.value.code == 1
-    warning_payload = json.loads(capsys.readouterr().out)
-    assert warning_payload["exit_code"] == 1
-    assert warning_payload["data"]["error_count"] == 0
-    assert warning_payload["data"]["warning_count"] == 1
-
-    current["result"] = CheckResult(
-        issues=[
-            ContractIssue(
-                severity=Severity.ERROR,
-                category="form_contract",
-                message="POST form has no CSRF contract.",
-                route="/mutate",
-                details="Declare the form CSRF field and retry.",
-            )
-        ]
-    )
-    with pytest.raises(SystemExit) as error_exit:
-        main(["--app-root", str(app_root), "check", "--json"])
-    assert error_exit.value.code == 2
-    error_payload = json.loads(capsys.readouterr().out)
-    assert error_payload["data"]["error_count"] == 1
-    assert error_payload["diagnostics"][0]["rule_id"] == "chirp.form_contract"
-
-    current["result"] = CheckResult()
-    main(["--app-root", str(app_root), "check", "--json"])
-    clean_payload = json.loads(capsys.readouterr().out)
-    assert clean_payload["ok"] is True
-    assert clean_payload["diagnostics"] == []
+    assert terminal.count(str(expected["summary"])) == 1
+    for finding in findings:
+        assert terminal.count(str(finding["message"])) == 1
+        assert terminal.count(str(finding["remediation"])) == 1
 
 
 def test_check_terminal_skips_legacy_chirp_formatter(tmp_path: Path, capsys) -> None:
