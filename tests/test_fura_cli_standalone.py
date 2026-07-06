@@ -194,7 +194,7 @@ def test_check_matches_golden_structured_diagnostics(
 
     from chirp.contracts import CheckResult, ContractIssue, Severity
 
-    cli_main = importlib.import_module("furatena.cli.main")
+    check_command = importlib.import_module("furatena.cli.commands.check")
     app_root = tmp_path / "docs-site"
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
@@ -216,9 +216,9 @@ def test_check_matches_golden_structured_diagnostics(
             )
         )
     chirp_result = CheckResult(issues=issues, routes_checked=3, templates_scanned=2)
-    monkeypatch.setattr(cli_main, "_run_chirp_app_check", lambda _args: chirp_result)
-    monkeypatch.setattr(cli_main, "_run_docs_content_check", lambda **_kwargs: ([], []))
-    monkeypatch.setattr(cli_main, "_run_dcp_file_checks", lambda _args: ([], 0))
+    monkeypatch.setattr(check_command, "_run_chirp_app_check", lambda _args: chirp_result)
+    monkeypatch.setattr(check_command, "_run_docs_content_check", lambda **_kwargs: ([], []))
+    monkeypatch.setattr(check_command, "_run_dcp_file_checks", lambda _args: ([], 0))
 
     expected = diagnostic_case["expected"]
     assert isinstance(expected, dict)

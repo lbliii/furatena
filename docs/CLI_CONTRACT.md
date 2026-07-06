@@ -1,5 +1,11 @@
 # Fura CLI Automation Contract
 
+The CLI is composed from one module per top-level command under
+`furatena.cli.commands`. Each module owns its arguments, help text, runner, and
+result shaping, exposed through the immutable `CommandModule` registration
+contract. `cli/main.py` contains only global parser options, command
+registration, parsing, and dispatch.
+
 Fura commands that support `--json` emit one stable JSON object:
 
 ```json
