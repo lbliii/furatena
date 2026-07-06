@@ -18,8 +18,18 @@ from furatena.catalog.assets import (
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
+from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.embeddings import EmbeddingIndex
-from furatena.catalog.export import api_operations_json, catalog_graph, search_json, tools_manifest
+from furatena.catalog.export import (
+    api_operations_json,
+    catalog_graph,
+    llms_full_txt,
+    llms_txt,
+    meta_json,
+    search_json,
+    surface_json,
+    tools_manifest,
+)
 from furatena.catalog.freeze_incremental import (
     mount_content_fingerprint,
     mount_source_statuses,
@@ -333,7 +343,23 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
 
     _write_registry_manifest(out_dir, registry, mount_status=mount_status)
 
-    if mounts_to_freeze and not failed_mounts:
+    required_agent_sidecars = (
+        "catalog.json",
+        "search.json",
+        "tools.json",
+        "catalog/api-operations.json",
+        "llms.txt",
+        "llms-full.txt",
+        "meta.json",
+        "semantic.json",
+        "structure.json",
+        "surface.json",
+        "deployment-profiles.json",
+        "channels.json",
+    )
+    if not failed_mounts and (
+        mounts_to_freeze or any(not (out_dir / path).is_file() for path in required_agent_sidecars)
+    ):
         merged_graph = catalog_graph(registry)
         from furatena.catalog.dcp_validate import validate_catalog_payload
 
@@ -350,7 +376,15 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             encoding="utf-8",
         )
         (out_dir / "tools.json").write_text(
-            json.dumps(tools_manifest(registry, base_url=base), indent=2) + "\n",
+            json.dumps(
+                tools_manifest(
+                    registry,
+                    base_url=base,
+                    site_name=docs_config.site.name,
+                ),
+                indent=2,
+            )
+            + "\n",
             encoding="utf-8",
         )
         api_operations_path = out_dir / "catalog" / "api-operations.json"
@@ -363,27 +397,26 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             json.dumps(build_structure_index(registry), indent=2) + "\n",
             encoding="utf-8",
         )
-        channel_payload = channel_manifest(
-            registry,
-            config=docs_config,
-            base_url=base,
-            mode="freeze",
-            paths=[
-                "catalog.json",
-                "search.json",
-                "tools.json",
-                "catalog/api-operations.json",
-                "structure.json",
-                "semantic.json",
-            ],
-            mount_status=mount_status,
-            renderer_fingerprint=renderer_fp,
-        )
-        (out_dir / "channels.json").write_text(
-            json.dumps(channel_payload, indent=2) + "\n",
+        (out_dir / "llms.txt").write_text(
+            llms_txt(registry, site_name=docs_config.site.name),
             encoding="utf-8",
         )
-        _freeze_inventories(registry, out_dir)
+        (out_dir / "llms-full.txt").write_text(
+            llms_full_txt(registry, site_name=docs_config.site.name),
+            encoding="utf-8",
+        )
+        (out_dir / "meta.json").write_text(
+            json.dumps(meta_json(registry), indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (out_dir / "surface.json").write_text(
+            json.dumps(surface_json(docs_config, registry), indent=2) + "\n",
+            encoding="utf-8",
+        )
+        (out_dir / "deployment-profiles.json").write_text(
+            json.dumps(deployment_profiles_manifest(base_url=base), indent=2) + "\n",
+            encoding="utf-8",
+        )
         semantic = EmbeddingIndex.from_nodes(
             accessible_nodes(
                 registry,
@@ -393,6 +426,43 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             documents=registry.ast_documents(),
         )
         semantic.write(out_dir / "semantic.json")
+        _freeze_inventories(registry, out_dir)
+        artifact_paths = [*required_agent_sidecars[:-1]]
+        inventory_store = registry.inventory_store
+        if inventory_store is not None and inventory_store.entries:
+            from furatena.catalog.inventories.export import inventories_json, inventory_bytes
+
+            (out_dir / "inventories.json").write_text(
+                json.dumps(
+                    inventories_json(registry, base_url=base, frozen_dir=out_dir),
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            artifact_paths.append("inventories.json")
+            if inventory_store.specs:
+                default_inventory = inventory_bytes(
+                    registry,
+                    inventory_store.specs[0].id,
+                    frozen_dir=out_dir,
+                )
+                if default_inventory is not None:
+                    (out_dir / "objects.inv").write_bytes(default_inventory)
+                    artifact_paths.append("objects.inv")
+        channel_payload = channel_manifest(
+            registry,
+            config=docs_config,
+            base_url=base,
+            mode="freeze",
+            paths=artifact_paths,
+            mount_status=mount_status,
+            renderer_fingerprint=renderer_fp,
+        )
+        (out_dir / "channels.json").write_text(
+            json.dumps(channel_payload, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
     if failed_mounts:
         write_freeze_manifest(

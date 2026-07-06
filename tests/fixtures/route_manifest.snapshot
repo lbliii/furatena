@@ -1,5 +1,5 @@
 # Generated pre-refactor route contract. Update intentionally with route changes.
-# handler-origins-sha256: 5e1a29c3b17104a11c718206b1cba6562890e818e3813aa6ef5b211ff48f01ff
+# handler-origins-sha256: 65a46b14233c39ec93cb9f5f1db8735a0e17a722973d1cca507aa2eacee1e015
 GET|/|-|furatena|home|html-document|dynamic:view-kind|-
 GET|/api/|-|furatena|default_api|html-document|dynamic:view-kind|-
 GET|/api/{slug:path}|-|furatena|default_api|html-document|dynamic:view-kind|-
@@ -41,8 +41,10 @@ GET|/search|-|application|search|html-or-fragment|search.html|search_results+oob
 GET|/search.json|-|application|search_json_route|json|-|-
 GET|/search/semantic|-|application|search_semantic|json|-|-
 GET|/search/suggest|-|application|search_suggest|html-fragment|partials/search_suggest.html|search_suggest
+GET|/semantic.json|-|application|semantic_json_route|json|-|-
 GET|/shared/|-|shared|mount_shared|html-document|dynamic:view-kind|-
 GET|/shared/{slug:path}|-|shared|mount_shared|html-document|dynamic:view-kind|-
 GET|/sitemap.xml|-|application|sitemap|xml|-|-
+GET|/structure.json|-|application|structure_json_route|json|-|-
 GET|/surface.json|-|application|surface_json_route|json|-|-
 GET|/tools.json|-|application|tools_json|json|-|-

@@ -699,10 +699,18 @@ def tools_manifest(
         "surface_url": f"{origin}/surface.json" if origin else "/surface.json",
         "semantic_url": f"{origin}/semantic.json" if origin else "/semantic.json",
         "structure_url": f"{origin}/structure.json" if origin else "/structure.json",
+        "channels_url": f"{origin}/channels.json" if origin else "/channels.json",
+        "deployment_profiles_url": (
+            f"{origin}/deployment-profiles.json" if origin else "/deployment-profiles.json"
+        ),
         "api_operations_url": (
             f"{origin}/catalog/api-operations.json" if origin else "/catalog/api-operations.json"
         ),
         "page_count": len(nodes),
+        "access": {
+            "visibility": "trusted" if include_private else "public",
+            "include_private": include_private,
+        },
         "api_operation_count": len(api_operations),
         "api_operation_groups": _api_agent_operation_groups(api_operations),
         "api_operations": api_operations,

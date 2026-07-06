@@ -18,8 +18,16 @@ _JSON_OUTPUTS = (
     ("tools", "/tools.json", "Agent tool manifest", "application/json"),
     ("api-operations", "/catalog/api-operations.json", "API operation inventory", "application/json"),
     ("meta", "/meta.json", "Metadata index", "application/json"),
+    ("semantic", "/semantic.json", "Semantic search index", "application/json"),
+    ("structure", "/structure.json", "Content structure index", "application/json"),
     ("surface", "/surface.json", "Surface manifest", "application/json"),
     ("channels", "/channels.json", "Publication channel manifest", "application/json"),
+    (
+        "deployment-profiles",
+        "/deployment-profiles.json",
+        "Deployment profile manifest",
+        "application/json",
+    ),
 )
 _TEXT_OUTPUTS = (
     ("llms", "/llms.txt", "Compact LLM index", "text/plain"),
@@ -74,7 +82,7 @@ def channel_manifest(
         "channels": [
             _live_channel(base, enabled=mode == "live"),
             _static_channel(base, enabled=mode in {"static", "freeze"}, paths=artifact_paths),
-            _agent_channel(base),
+            _agent_channel(base, catalog=catalog),
             _pdf_channel(base, paths=pdf_artifact_paths),
         ],
     }
@@ -108,7 +116,7 @@ def _static_channel(base: str, *, enabled: bool, paths: list[str]) -> dict[str, 
     return channel
 
 
-def _agent_channel(base: str) -> dict[str, Any]:
+def _agent_channel(base: str, *, catalog: Any) -> dict[str, Any]:
     outputs = [
         *[
             _output(output_id, href, label, media_type, base=base, format="json")
@@ -127,6 +135,28 @@ def _agent_channel(base: str) -> dict[str, Any]:
             "visibility": "public",
         },
     ]
+    inventory_store = getattr(catalog, "inventory_store", None)
+    if inventory_store is not None and inventory_store.specs:
+        outputs.extend(
+            (
+                _output(
+                    "inventories",
+                    "/inventories.json",
+                    "Reference inventory manifest",
+                    "application/json",
+                    base=base,
+                    format="json",
+                ),
+                _output(
+                    "objects-inventory",
+                    "/objects.inv",
+                    "Default Sphinx object inventory",
+                    "application/octet-stream",
+                    base=base,
+                    format="inventory",
+                ),
+            )
+        )
     return {
         "id": "agent",
         "label": "Agent exports",
