@@ -7,6 +7,7 @@ import json
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.identity import normalize_identity
@@ -263,6 +264,9 @@ def _canonical_base(*, base_url: str, base_path: str) -> str:
     origin = base_url.rstrip("/")
     prefix = _normalize_base_path(base_path)
     if origin:
+        origin_path = urlsplit(origin).path.rstrip("/")
+        if prefix and (origin_path == prefix or origin_path.endswith(f"{prefix}")):
+            return origin
         return f"{origin}{prefix}"
     return prefix
 

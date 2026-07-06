@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 if TYPE_CHECKING:
     from furatena.catalog.models import DocNode
@@ -22,7 +23,11 @@ def docs_base_url(request_host: str | None = None) -> str:
 def canonical_url(base: str, path: str) -> str:
     """Build an absolute canonical URL from base origin and doc path."""
     normalized = path if path.startswith("/") else f"/{path}"
-    return f"{base.rstrip('/')}{normalized}"
+    clean_base = base.rstrip("/")
+    base_path = urlsplit(clean_base).path.rstrip("/")
+    if base_path and (normalized == base_path or normalized.startswith(f"{base_path}/")):
+        normalized = normalized.removeprefix(base_path) or "/"
+    return f"{clean_base}{normalized}"
 
 
 def og_image_url(base: str, node: DocNode | None = None) -> str:

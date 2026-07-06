@@ -199,6 +199,25 @@ class TestMiniStaticExport:
         assert "Home" in home
         assert 'id="page-root"' in home
 
+        pages_out = tmp_path / "pages-public"
+        export_static_site(
+            docs,
+            StaticExportOptions(
+                output_dir=pages_out,
+                base_path="/chirp",
+                site_url="https://example.github.io/chirp",
+                include_index_txt=True,
+                include_portal=False,
+                include_search=False,
+            ),
+        )
+        page_html = (pages_out / "docs/hello/index.html").read_text(encoding="utf-8")
+        assert "https://example.github.io/chirp/docs/hello/index.txt" in page_html
+        assert "https://example.github.io/chirp/chirp/" not in page_html
+        pages_channels = json.loads((pages_out / "channels.json").read_text(encoding="utf-8"))
+        assert pages_channels["base_url"] == "https://example.github.io/chirp"
+        assert "https://example.github.io/chirp/chirp/" not in json.dumps(pages_channels)
+
 
 @pytest.mark.slow
 class TestFullStaticExportSmoke:
