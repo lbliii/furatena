@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
-FROZEN_DIR = APP_ROOT / "frozen"
+FROZEN_DIR = Path(os.environ.get("FURA_TEST_FROZEN_DIR", APP_ROOT / "frozen"))
 
 sys.path.insert(0, str(REPO / "src"))
 

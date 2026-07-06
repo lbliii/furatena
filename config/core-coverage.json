@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "measured_on": "2026-07-06",
+  "python": "CPython 3.14t, PYTHON_GIL=0",
+  "modules": {
+    "src/furatena/catalog/access.py": {
+      "baseline_percent": 89.0,
+      "minimum_percent": 88
+    },
+    "src/furatena/catalog/export.py": {
+      "baseline_percent": 90.18,
+      "minimum_percent": 90
+    },
+    "src/furatena/catalog/graph.py": {
+      "baseline_percent": 86.67,
+      "minimum_percent": 86
+    },
+    "src/furatena/catalog/graph_schema.py": {
+      "baseline_percent": 84.64,
+      "minimum_percent": 84
+    },
+    "src/furatena/catalog/loader.py": {
+      "baseline_percent": 76.56,
+      "minimum_percent": 76
+    }
+  }
+}

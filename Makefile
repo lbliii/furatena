@@ -1,11 +1,25 @@
 VENV_DIR ?= .venv
 FREE_THREADED = env PYTHON_GIL=0
 UV_RUN = $(FREE_THREADED) uv run
+COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
+PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
 .PHONY: help install test lint serve stop freeze export pages-build check clean \
-	fast contract browser agent release \
-	ci-fast ci-contract ci-export ci-browser ci-agent ci-release
+	fast contract coverage browser agent release \
+	ci-fast ci-contract ci-coverage ci-export ci-browser ci-agent ci-release
+
+CORE_COVERAGE_SOURCE = furatena.catalog.graph,furatena.catalog.graph_schema,furatena.catalog.access,furatena.catalog.export,furatena.catalog.loader
+CORE_COVERAGE_TESTS = \
+	tests/test_chirp_docs_graph_query.py \
+	tests/test_chirp_docs_graph_structure.py \
+	tests/test_chirp_docs_federation_and_semantic_search.py \
+	tests/test_chirp_docs_rbac.py \
+	tests/test_chirp_docs_catalog_surfaces.py \
+	tests/test_chirp_docs_sources.py \
+	tests/test_chirp_docs_static_export.py \
+	tests/test_chirp_docs_reference_resolution.py \
+	tests/test_chirp_docs_link_and_inventory_contracts.py
 
 help:
 	@echo "Furatena"
@@ -22,6 +36,7 @@ help:
 	@echo "CI lanes (see docs/CI.md)"
 	@echo "  make ci-fast      lint + core unit tests (~20s)"
 	@echo "  make ci-contract  hypermedia/content contract tests (~60s)"
+	@echo "  make ci-coverage  core per-module coverage ratchets (~60s)"
 	@echo "  make ci-export    export tests + Pages artifact build (~3m)"
 	@echo "  make ci-browser   Playwright author browser tests (~60s)"
 	@echo "  make ci-agent     agent/MCP lint and tests (~30s)"
@@ -58,6 +73,8 @@ fast: ci-fast
 
 contract: ci-contract
 
+coverage: ci-coverage
+
 browser: ci-browser
 
 agent: ci-agent
@@ -84,6 +101,14 @@ ci-contract:
 		tests/test_chirp_docs_view_lint.py \
 		tests/test_csp.py \
 		tests/test_shell_boost_links.py
+
+ci-coverage:
+	$(COVERAGE) erase
+	FURA_TEST_FROZEN_DIR="$$(mktemp -d)/frozen" \
+		$(COVERAGE) run --branch --source=$(CORE_COVERAGE_SOURCE) -m pytest -q $(CORE_COVERAGE_TESTS)
+	$(COVERAGE) json -o .coverage-core.json
+	$(PYTHON) scripts/check_core_coverage.py .coverage-core.json
+	$(COVERAGE) report -m
 
 ci-export:
 	env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST) \
