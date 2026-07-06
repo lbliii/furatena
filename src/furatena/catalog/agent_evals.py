@@ -523,6 +523,7 @@ def _eval_author_validation_repair(case: AgentEvalCase, client: Any, include_pri
             {"target": target, "read_error": _structured(source_before)},
         )
     original_source = str(_structured(source_before).get("source") or "")
+    source_revision = str(_structured(source_before).get("source_revision") or "")
     source_target = str(_structured(source_before).get("target_path") or target)
     clean_span, invalid_span = _validation_repair_spans(original_source)
     if not clean_span or not invalid_span:
@@ -533,6 +534,7 @@ def _eval_author_validation_repair(case: AgentEvalCase, client: Any, include_pri
         target=source_target,
         old_text=clean_span,
         new_text=invalid_span,
+        source_revision=source_revision,
         dry_run=False,
         confirmed=True,
     )
@@ -548,6 +550,7 @@ def _eval_author_validation_repair(case: AgentEvalCase, client: Any, include_pri
         target=source_target,
         old_text=invalid_span,
         new_text=clean_span,
+        source_revision=str(_structured(introduce_error).get("source_revision") or ""),
         dry_run=False,
         confirmed=True,
     )
@@ -562,6 +565,7 @@ def _eval_author_validation_repair(case: AgentEvalCase, client: Any, include_pri
             target=source_target,
             old_text=after_source,
             new_text=original_source,
+            source_revision=str(_structured(source_after).get("source_revision") or ""),
             dry_run=False,
             confirmed=True,
         )
@@ -629,10 +633,23 @@ def _eval_author_publish_round_trip(
             {"target": target, "read_error": _structured(source_before)},
         )
     original_source = str(_structured(source_before).get("source") or "")
+    source_revision = str(_structured(source_before).get("source_revision") or "")
     public_before = public_client.call("retrieve_node", node_id=node_id)
-    publish = private_client.call("author_publish", target=target, dry_run=False, confirmed=True)
+    publish = private_client.call(
+        "author_publish",
+        target=target,
+        source_revision=source_revision,
+        dry_run=False,
+        confirmed=True,
+    )
     public_after_publish = public_client.call("retrieve_node", node_id=node_id)
-    unpublish = private_client.call("author_unpublish", target=target, dry_run=False, confirmed=True)
+    unpublish = private_client.call(
+        "author_unpublish",
+        target=target,
+        source_revision=str(_structured(publish).get("source_revision") or ""),
+        dry_run=False,
+        confirmed=True,
+    )
     public_after_unpublish = public_client.call("retrieve_node", node_id=node_id)
 
     restore_payload: dict[str, Any] = {}
@@ -645,6 +662,9 @@ def _eval_author_publish_round_trip(
                 target=target,
                 old_text=round_trip_source,
                 new_text=original_source,
+                source_revision=str(
+                    _structured(source_after_unpublish).get("source_revision") or ""
+                ),
                 dry_run=False,
                 confirmed=True,
             )

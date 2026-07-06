@@ -81,6 +81,9 @@ MCP tools return both text content and `structuredContent` payloads:
 - `author_apply_edit` — apply an exact-text source edit after explicit confirmation.
 - `author_validate` — run validation, optionally scoped to one author target.
 - `author_publish` / `author_unpublish` / `author_archive` — change lifecycle state; dry-run by default.
+- Existing-source writes require the `source_revision` returned by
+  `author_read_source`; conflicts include the current revision and require a
+  reread/merge/retry cycle.
 - `author_inspect_publication_impact` — return lifecycle status, validation, and stale impact before a publication change.
 
 CI and local automation can use `fura impact --json` for the same stale-impact contract without opening MCP. The report includes affected chunks, graph context, changed graph edges touching each DCP node, provenance, output channels, recommended remediation, and GitHub-issue-ready repair task markdown.

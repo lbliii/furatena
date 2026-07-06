@@ -107,6 +107,7 @@
       {{ csrf_field() }}
       <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
       <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+      <input type="hidden" name="source_revision" value="{{ author_chrome.source_revision }}">
       <input type="hidden" name="operation" value="draft">
       <input type="hidden" name="dry_run" value="0">
       <input type="hidden" name="confirmed" value="1">
@@ -126,6 +127,7 @@
       {{ csrf_field() }}
       <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
       <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+      <input type="hidden" name="source_revision" value="{{ author_chrome.source_revision }}">
       <input type="hidden" name="operation" value="publish">
       <input type="hidden" name="dry_run" value="0">
       <input type="hidden" name="confirmed" value="1">

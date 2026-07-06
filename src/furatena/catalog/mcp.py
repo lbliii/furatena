@@ -406,7 +406,9 @@ class FuraMCPServer:
                     },
                     "required": ["target"],
                 },
-                "outputSchema": _object_schema("operation_id", "ok", "source", "audit"),
+                "outputSchema": _object_schema(
+                    "operation_id", "ok", "source", "source_revision", "audit"
+                ),
             },
             {
                 "name": "author_propose_edit",
@@ -719,6 +721,7 @@ class FuraMCPServer:
             mount_id=_optional_str(arguments.get("mount")),
             old_text=str(arguments.get("old_text") or ""),
             new_text=str(arguments.get("new_text") or ""),
+            expected_revision=_optional_str(arguments.get("source_revision")),
             dry_run=dry_run,
             confirmed=False if force_dry_run else _bool_arg(arguments.get("confirmed"), default=False),
         )
@@ -736,6 +739,7 @@ class FuraMCPServer:
             str(arguments.get("target") or ""),
             mounts=self._author_mounts(),
             subject=self.policy.subject,
+            expected_revision=_optional_str(arguments.get("source_revision")),
             mount_id=_optional_str(arguments.get("mount")),
             dry_run=_bool_arg(arguments.get("dry_run"), default=True),
             confirmed=_bool_arg(arguments.get("confirmed"), default=False),
@@ -1406,6 +1410,7 @@ def build_milo_cli(server: FuraMCPServer):
         old_text: str,
         new_text: str,
         mount: str = "",
+        source_revision: str = "",
         dry_run: bool = True,
         confirmed: bool = False,
         actor: str = "",
@@ -1419,6 +1424,7 @@ def build_milo_cli(server: FuraMCPServer):
                 "old_text": old_text,
                 "new_text": new_text,
                 "mount": mount,
+                "source_revision": source_revision,
                 "dry_run": dry_run,
                 "confirmed": confirmed,
                 "actor": actor,
@@ -1436,6 +1442,7 @@ def build_milo_cli(server: FuraMCPServer):
         old_text: str,
         new_text: str,
         mount: str = "",
+        source_revision: str = "",
         dry_run: bool = True,
         confirmed: bool = False,
         actor: str = "",
@@ -1449,6 +1456,7 @@ def build_milo_cli(server: FuraMCPServer):
                 "old_text": old_text,
                 "new_text": new_text,
                 "mount": mount,
+                "source_revision": source_revision,
                 "dry_run": dry_run,
                 "confirmed": confirmed,
                 "actor": actor,
@@ -1481,6 +1489,7 @@ def build_milo_cli(server: FuraMCPServer):
     def author_publish(
         target: str,
         mount: str = "",
+        source_revision: str = "",
         dry_run: bool = True,
         confirmed: bool = False,
         actor: str = "",
@@ -1492,6 +1501,7 @@ def build_milo_cli(server: FuraMCPServer):
             {
                 "target": target,
                 "mount": mount,
+                "source_revision": source_revision,
                 "dry_run": dry_run,
                 "confirmed": confirmed,
                 "actor": actor,
@@ -1507,6 +1517,7 @@ def build_milo_cli(server: FuraMCPServer):
     def author_unpublish(
         target: str,
         mount: str = "",
+        source_revision: str = "",
         dry_run: bool = True,
         confirmed: bool = False,
         actor: str = "",
@@ -1518,6 +1529,7 @@ def build_milo_cli(server: FuraMCPServer):
             {
                 "target": target,
                 "mount": mount,
+                "source_revision": source_revision,
                 "dry_run": dry_run,
                 "confirmed": confirmed,
                 "actor": actor,
@@ -1533,6 +1545,7 @@ def build_milo_cli(server: FuraMCPServer):
     def author_archive(
         target: str,
         mount: str = "",
+        source_revision: str = "",
         dry_run: bool = True,
         confirmed: bool = False,
         actor: str = "",
@@ -1544,6 +1557,7 @@ def build_milo_cli(server: FuraMCPServer):
             {
                 "target": target,
                 "mount": mount,
+                "source_revision": source_revision,
                 "dry_run": dry_run,
                 "confirmed": confirmed,
                 "actor": actor,
@@ -1700,6 +1714,9 @@ def _author_edit_schema() -> dict[str, Any]:
             "target": _string_schema("Existing source slug or path to edit."),
             "old_text": _string_schema("Exact source text that must be replaced."),
             "new_text": _string_schema("Replacement source text."),
+            "source_revision": _string_schema(
+                "SHA-256 revision returned by author_read_source; required for writes."
+            ),
             "mount": _string_schema("Optional mount id used to disambiguate the target."),
             "dry_run": _boolean_schema("When true, preview the edit without changing files.", default=True),
             "confirmed": _boolean_schema(
@@ -1719,6 +1736,9 @@ def _author_transition_schema() -> dict[str, Any]:
         "properties": {
             "target": _string_schema("Existing source slug or path whose lifecycle state changes."),
             "mount": _string_schema("Optional mount id used to disambiguate the target."),
+            "source_revision": _string_schema(
+                "SHA-256 revision returned by author_read_source; required for writes."
+            ),
             "dry_run": _boolean_schema("When true, preview the transition without changing files.", default=True),
             "confirmed": _boolean_schema(
                 "Must be true with dry_run=false before files are written.",
