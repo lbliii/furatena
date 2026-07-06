@@ -1,4 +1,4 @@
-"""Tests for Wave 15 — edition xrefs, inventory export, AST chunks."""
+"""Edition-aware references, inventory export, and AST chunk behavior."""
 
 from __future__ import annotations
 

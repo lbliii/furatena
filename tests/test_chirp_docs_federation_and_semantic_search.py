@@ -1,4 +1,4 @@
-"""Wave 8/9 tests for federated graph platform and semantic retrieval."""
+"""Federated graph, lazy frozen catalogs, and semantic retrieval."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def embedding_index(registry: CatalogRegistry) -> EmbeddingIndex:
     return EmbeddingIndex.from_nodes(list(registry.nodes))
 
 
-class TestWave8GraphPlatform:
+class TestFederatedGraphPlatform:
     def test_node_ids_include_mount_and_edition(self, registry: CatalogRegistry) -> None:
         node = registry.get("/chirp/docs/get-started/installation/")
         assert node is not None
@@ -150,7 +150,7 @@ class TestFederatedDocsRouting:
             federated_docs_app._resolve_page_from_path("/docs/reference/api/")
 
 
-class TestWave8LazyFrozen:
+class TestLazyFrozenCatalog:
     def test_lazy_frozen_loads_html_on_demand(self, tmp_path: Path) -> None:
         content = tmp_path / "content"
         docs = content / "docs"
@@ -177,7 +177,7 @@ class TestWave8LazyFrozen:
         assert cold.resolve_body_html(cold_node) == "<p>Hello world.</p>"
 
 
-class TestWave9SemanticLayer:
+class TestSemanticRetrieval:
     def test_semantic_search_finds_related_topic(
         self,
         registry: CatalogRegistry,

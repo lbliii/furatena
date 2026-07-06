@@ -1,4 +1,4 @@
-"""Tests for Wave 14 — AST-native graph and structure indexes."""
+"""AST-native graph edges, structure indexes, and query filters."""
 
 from __future__ import annotations
 

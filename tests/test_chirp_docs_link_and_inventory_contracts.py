@@ -1,4 +1,4 @@
-"""Tests for Wave 16 — boosted links, inventory HTTP, strict edition checks."""
+"""Boosted-link, inventory HTTP, and strict-edition contracts."""
 
 from __future__ import annotations
 
