@@ -6,6 +6,7 @@ import asyncio
 import os
 import socket
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -86,9 +87,7 @@ def author_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
     env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
         [
-            "uv",
-            "run",
-            "fura",
+            str(Path(sys.executable).with_name("fura")),
             "serve",
             "--author",
             "--no-autodoc",
@@ -146,6 +145,9 @@ async def _submit_studio(page: Page, *, button_name: str) -> None:
 
 
 @pytest.mark.browser
+@pytest.mark.browser_smoke
+@pytest.mark.browser_authoring
+@pytest.mark.browser_full
 async def test_author_sse_updates_preview_without_polling(
     browser: Browser,
     author_server: tuple[str, Path],
@@ -222,6 +224,8 @@ async def test_author_sse_updates_preview_without_polling(
 
 
 @pytest.mark.browser
+@pytest.mark.browser_responsive
+@pytest.mark.browser_full
 async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
     browser: Browser,
     author_server: tuple[str, Path],
@@ -258,6 +262,8 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
 
 
 @pytest.mark.browser
+@pytest.mark.browser_authoring
+@pytest.mark.browser_full
 async def test_author_studio_save_and_create_refresh_preview(
     browser: Browser,
     author_server: tuple[str, Path],
@@ -314,5 +320,28 @@ async def test_author_studio_save_and_create_refresh_preview(
         assert "visibility: draft" in draft_source
         assert "draft: true" in draft_source
         assert "Created as a private draft." in draft_source
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_smoke
+@pytest.mark.browser_full
+async def test_search_result_navigates_to_document(
+    browser: Browser,
+    author_server: tuple[str, Path],
+) -> None:
+    base_url, _page_path = author_server
+    context = await browser.new_context(viewport={"width": 1280, "height": 900})
+    page = await context.new_page()
+    try:
+        await page.goto(f"{base_url}/search?q=browser", wait_until="domcontentloaded")
+        results = page.locator("#search-results-panel")
+        await results.wait_for()
+        result = results.locator('a[href="/docs/page/"]').first
+        await result.wait_for()
+        await result.click()
+        await page.wait_for_url(f"{base_url}/docs/page/")
+        await page.locator("#page-root").get_by_text("Hello from browser SSE.").wait_for()
     finally:
         await context.close()

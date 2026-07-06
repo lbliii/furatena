@@ -6,8 +6,9 @@ PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
 .PHONY: help install test lint serve stop freeze export pages-build check clean \
-	fast contract coverage browser agent release \
-	ci-fast ci-contract ci-coverage ci-export ci-browser ci-agent ci-release
+	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
+	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
+	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
 
 CORE_COVERAGE_SOURCE = furatena.catalog.graph,furatena.catalog.graph_schema,furatena.catalog.access,furatena.catalog.export,furatena.catalog.loader
 CORE_COVERAGE_TESTS = \
@@ -20,6 +21,7 @@ CORE_COVERAGE_TESTS = \
 	tests/test_chirp_docs_static_export.py \
 	tests/test_chirp_docs_reference_resolution.py \
 	tests/test_chirp_docs_link_and_inventory_contracts.py
+BROWSER_TESTS = tests/test_author_sse_browser.py
 
 help:
 	@echo "Furatena"
@@ -39,6 +41,10 @@ help:
 	@echo "  make ci-coverage  core per-module coverage ratchets (~60s)"
 	@echo "  make ci-export    export tests + Pages artifact build (~3m)"
 	@echo "  make ci-browser   Playwright author browser tests (~60s)"
+	@echo "  make ci-browser-smoke       critical search/navigation/reload browser paths"
+	@echo "  make ci-browser-authoring   author preview, save, and create browser paths"
+	@echo "  make ci-browser-responsive  responsive viewport browser paths"
+	@echo "  make ci-browser-full        complete browser regression tier"
 	@echo "  make ci-agent     agent/MCP lint and tests (~30s)"
 	@echo "  make ci-release   package build + CLI smoke test (~3m)"
 
@@ -76,6 +82,12 @@ contract: ci-contract
 coverage: ci-coverage
 
 browser: ci-browser
+
+browser-smoke: ci-browser-smoke
+
+browser-authoring: ci-browser-authoring
+
+browser-responsive: ci-browser-responsive
 
 agent: ci-agent
 
@@ -123,7 +135,19 @@ ci-export:
 		--site-url https://lbliii.github.io/furatena
 
 ci-browser:
-	$(PYTEST) -m browser tests/test_author_sse_browser.py
+	$(MAKE) ci-browser-full
+
+ci-browser-smoke:
+	$(PYTEST) -m "browser and browser_smoke" $(BROWSER_TESTS)
+
+ci-browser-authoring:
+	$(PYTEST) -m "browser and browser_authoring" $(BROWSER_TESTS)
+
+ci-browser-responsive:
+	$(PYTEST) -m "browser and browser_responsive" $(BROWSER_TESTS)
+
+ci-browser-full:
+	$(PYTEST) -m "browser and browser_full" $(BROWSER_TESTS)
 
 ci-agent:
 	$(UV_RUN) fura check --agent-only --json

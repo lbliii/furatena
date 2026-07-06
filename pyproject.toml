@@ -108,6 +108,10 @@ addopts = ["-ra", "-q", "--import-mode=importlib"]
 markers = [
     "slow: runs a larger static export or frozen-catalog path",
     "browser: runs a real browser against a local Furatena server",
+    "browser_smoke: smallest critical browser search, navigation, and author reload paths",
+    "browser_authoring: browser author preview, edit, save, and create workflows",
+    "browser_responsive: browser layout and interaction checks at responsive viewports",
+    "browser_full: complete browser regression tier run on main",
 ]
 
 [dependency-groups]

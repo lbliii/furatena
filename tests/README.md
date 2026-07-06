@@ -7,7 +7,7 @@ file would otherwise mix unrelated fixtures or ownership.
 | Domain | Primary modules |
 | --- | --- |
 | Access and authorization | `test_author_authorization.py`, `test_chirp_docs_rbac.py`, `test_visibility_audit.py` |
-| Authoring and browser behavior | `test_author_sse_browser.py`, `test_chirp_docs_runtime.py`, `test_chirp_docs_view_lint.py` |
+| Authoring and browser behavior | `test_author_sse_browser.py`, `test_browser_tiers.py`, `test_chirp_docs_runtime.py`, `test_chirp_docs_view_lint.py` |
 | Catalog graph and structure | `test_chirp_docs_graph_query.py`, `test_chirp_docs_graph_structure.py`, `test_chirp_docs_federation_and_semantic_search.py` |
 | Search and retrieval | `test_chirp_docs_search.py`, `test_chirp_docs_catalog_surfaces.py`, `test_chirp_docs_federation_and_semantic_search.py` |
 | Delivery, freeze, and export | `test_chirp_docs_static_export.py`, `test_catalog_packaging.py`, `test_chirp_docs_catalog_surfaces.py` |
