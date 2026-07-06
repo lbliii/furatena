@@ -34,6 +34,7 @@ from furatena.catalog.export import (
 from furatena.catalog.export import (
     llms_txt as llms_index_txt,
 )
+from furatena.catalog.graph_schema import EdgeKind
 from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.semantic import retrieve_node, semantic_search_json
@@ -44,6 +45,54 @@ from furatena.cli.authoring import (
     author_save_source,
     author_transition,
 )
+
+_CATALOG_QUERY_FILTERS = frozenset(
+    {
+        "mount",
+        "tag",
+        "format",
+        "owner",
+        "team",
+        "locale",
+        "lang",
+        "edge_kind",
+        "edge",
+        "kind",
+        "link_edge",
+        "target",
+        "to",
+        "linked_to",
+        "source",
+        "from",
+        "linked_from",
+    }
+)
+_GRAPH_EDGE_KINDS = frozenset(item.value for item in EdgeKind)
+
+
+def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | None:
+    unknown = sorted(set(request.query.keys()) - _CATALOG_QUERY_FILTERS)
+    invalid: dict[str, object] = {}
+    if unknown:
+        invalid["unknown"] = unknown
+    normalized_edge = str(edge_kind or "").strip().lower()
+    if normalized_edge and normalized_edge not in _GRAPH_EDGE_KINDS:
+        invalid["edge_kind"] = normalized_edge
+    if not invalid:
+        return None
+    return Response(
+        json.dumps(
+            {
+                "error": "invalid catalog query filters",
+                "invalid_filters": invalid,
+                "allowed_filters": sorted(_CATALOG_QUERY_FILTERS),
+                "allowed_edge_kinds": sorted(_GRAPH_EDGE_KINDS),
+            },
+            indent=2,
+        ),
+        status=400,
+        content_type="application/json; charset=utf-8",
+    )
 
 
 def register_public_routes(docs: Any, app: App) -> None:
@@ -577,6 +626,9 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             or request.query.get("from")
             or request.query.get("linked_from")
         )
+        query_error = _catalog_query_error(request, edge_kind)
+        if query_error is not None:
+            return query_error
         payload = query_catalog_graph(
             self.catalog,
             mount=request.query.get("mount"),

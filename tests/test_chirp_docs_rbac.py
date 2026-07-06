@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 
 sys.path.insert(0, str(REPO / "src"))
@@ -17,6 +19,7 @@ from furatena.catalog.access import (
     AccessRole,
     AccessSubject,
     can_access,
+    evaluate_access,
     required_role_for,
 )
 from furatena.catalog.export import catalog_graph, search_json
@@ -28,7 +31,9 @@ from furatena.catalog.structure_index import build_structure_index
 from tests.support import write_mounts_yaml
 
 
-def _write_permission_output_fixture(tmp_path: Path, *, include_private: bool = True) -> CatalogRegistry:
+def _write_permission_output_fixture(
+    tmp_path: Path, *, include_private: bool = True
+) -> CatalogRegistry:
     app_root = tmp_path / "app"
     public_content = app_root / "content" / "public"
     team_content = app_root / "content" / "team"
@@ -85,7 +90,9 @@ def test_access_policy_covers_public_private_team_and_admin_surfaces() -> None:
     publisher = AccessSubject.from_values(actor="publisher", roles=["publisher"])
     admin = AccessSubject.from_values(actor="admin", roles=["admin"])
 
-    assert can_access(AccessPolicy(visibility="public"), anonymous, permission=AccessPermission.READ)
+    assert can_access(
+        AccessPolicy(visibility="public"), anonymous, permission=AccessPermission.READ
+    )
     assert not can_access(AccessPolicy(visibility="private"), anonymous)
     assert can_access(AccessPolicy(visibility="private"), reader)
     assert not can_access(AccessPolicy.from_page_meta({"draft": True}), anonymous)
@@ -99,6 +106,97 @@ def test_access_policy_covers_public_private_team_and_admin_surfaces() -> None:
     assert not can_access(admin_policy, publisher, permission=AccessPermission.ADMINISTER)
     assert can_access(admin_policy, admin, permission=AccessPermission.ADMINISTER)
     assert required_role_for(admin_policy, AccessPermission.ADMINISTER) == AccessRole.ADMIN
+
+
+@pytest.mark.parametrize(
+    ("visibility", "denied_role", "allowed_role"),
+    (
+        ("public", None, AccessRole.ANONYMOUS),
+        ("unlisted", AccessRole.ANONYMOUS, AccessRole.READER),
+        ("internal", AccessRole.ANONYMOUS, AccessRole.READER),
+        ("private", AccessRole.ANONYMOUS, AccessRole.READER),
+        ("draft", AccessRole.READER, AccessRole.CONTRIBUTOR),
+        ("archived", AccessRole.PUBLISHER, AccessRole.ADMIN),
+        ("unknown", AccessRole.PUBLISHER, AccessRole.ADMIN),
+    ),
+)
+def test_visibility_access_has_explicit_denial_boundaries(
+    visibility: str,
+    denied_role: AccessRole | None,
+    allowed_role: AccessRole,
+) -> None:
+    policy = AccessPolicy(visibility=visibility)
+    if denied_role is not None:
+        denied = evaluate_access(
+            policy,
+            AccessSubject.from_values(roles=[denied_role]),
+            permission=AccessPermission.READ,
+        )
+        assert denied.allowed is False
+        assert denied.reason == f"requires role {denied.required_role.value}"
+
+    allowed = evaluate_access(
+        policy,
+        AccessSubject.from_values(roles=[allowed_role]),
+        permission=AccessPermission.READ,
+    )
+    assert allowed.allowed is True
+
+
+@pytest.mark.parametrize(
+    ("permission", "denied_role", "required_role"),
+    (
+        (AccessPermission.AUTHOR, AccessRole.READER, AccessRole.CONTRIBUTOR),
+        (AccessPermission.PUBLISH, AccessRole.CONTRIBUTOR, AccessRole.PUBLISHER),
+        (AccessPermission.CONFIGURE, AccessRole.PUBLISHER, AccessRole.ADMIN),
+        (AccessPermission.ADMINISTER, AccessRole.PUBLISHER, AccessRole.ADMIN),
+    ),
+)
+def test_privileged_permissions_deny_the_role_below_threshold(
+    permission: AccessPermission,
+    denied_role: AccessRole,
+    required_role: AccessRole,
+) -> None:
+    decision = evaluate_access(
+        AccessPolicy(),
+        AccessSubject.from_values(roles=[denied_role]),
+        permission=permission,
+    )
+
+    assert decision.allowed is False
+    assert decision.required_role is required_role
+    assert decision.reason == f"requires role {required_role.value}"
+
+
+def test_explicit_role_team_admin_and_missing_mount_denials() -> None:
+    contributor = AccessSubject.from_values(roles=[AccessRole.CONTRIBUTOR])
+    role_decision = evaluate_access(
+        AccessPolicy(roles=frozenset({AccessRole.PUBLISHER})),
+        contributor,
+    )
+    assert role_decision.allowed is False
+    assert role_decision.reason == "requires one of roles: publisher"
+
+    team_decision = evaluate_access(
+        AccessPolicy(teams=frozenset({"platform"})),
+        AccessSubject.from_values(roles=[AccessRole.READER], teams=["docs"]),
+    )
+    assert team_decision.allowed is False
+    assert team_decision.reason == "requires matching team"
+
+    admin_decision = evaluate_access(
+        AccessPolicy(admin_only=True),
+        AccessSubject.from_values(roles=[AccessRole.PUBLISHER]),
+    )
+    assert admin_decision.allowed is False
+    assert admin_decision.reason == "admin-only surface"
+
+    missing_mount = AccessEvaluationService().mount_decision(
+        SimpleNamespace(mount_access_policy=lambda _mount: None),
+        "missing",
+    )
+    assert missing_mount.allowed is False
+    assert missing_mount.reason == "mount not found"
 
 
 def test_registry_evaluates_mount_and_page_access(tmp_path: Path) -> None:
@@ -215,7 +313,9 @@ def test_public_outputs_filter_page_and_mount_access(tmp_path: Path) -> None:
 
 def test_public_search_snapshot_and_static_routes_filter_access(tmp_path: Path) -> None:
     registry = _write_permission_output_fixture(tmp_path)
-    public_registry = _write_permission_output_fixture(tmp_path / "public-registry", include_private=False)
+    public_registry = _write_permission_output_fixture(
+        tmp_path / "public-registry", include_private=False
+    )
 
     snapshot = build_search_catalog_snapshot(public_registry)
     snapshot_titles = {node.title for node in snapshot.nodes}
@@ -230,7 +330,9 @@ def test_public_search_snapshot_and_static_routes_filter_access(tmp_path: Path) 
     routes = set(
         _collect_routes(
             docs_app,
-            StaticExportOptions(output_dir=tmp_path / "public", include_portal=False, include_search=False),
+            StaticExportOptions(
+                output_dir=tmp_path / "public", include_portal=False, include_search=False
+            ),
         )
     )
     assert "/public/" in routes

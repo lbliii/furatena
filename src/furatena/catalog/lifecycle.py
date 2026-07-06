@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 _ALLOWED_VISIBILITY = frozenset({"public", "private", "internal", "draft", "unlisted", "archived"})
 _DATE_FIELDS = ("published_at", "updated_at", "expires_at", "archived_at")
 _MD_LINK_RE = re.compile(r"\]\((/[^)#?]+)(?:[)#?][^)]*)?\)")
@@ -153,7 +151,11 @@ def lint_lifecycle_record(record: SourceLifecycleRecord) -> tuple[list[str], lis
         errors.append(f"{source}: visibility must be one of {allowed}")
 
     for field in _DATE_FIELDS:
-        if field in meta and meta.get(field) not in (None, "") and not _valid_datetime(meta.get(field)):
+        if (
+            field in meta
+            and meta.get(field) not in (None, "")
+            and not _valid_datetime(meta.get(field))
+        ):
             errors.append(f"{source}: {field} must be an ISO date or datetime")
 
     if draft and visibility == "public":
@@ -198,7 +200,9 @@ def _collect_lifecycle_records(catalog: Any) -> tuple[list[SourceLifecycleRecord
     url_prefix = getattr(catalog, "url_prefix", "")
     if content_root is None or source_config is None:
         return [], []
-    return _scan_root(content_root, source_config=source_config, mount_id=mount, url_prefix=url_prefix)
+    return _scan_root(
+        content_root, source_config=source_config, mount_id=mount, url_prefix=url_prefix
+    )
 
 
 def _scan_root(
@@ -208,7 +212,7 @@ def _scan_root(
     mount_id: str,
     url_prefix: str = "",
 ) -> tuple[list[SourceLifecycleRecord], list[str]]:
-    from furatena.catalog.sources.parse import parse_source_text
+    from furatena.catalog.sources.parse import frontmatter_parse_error, parse_source_text
     from furatena.catalog.sources.scanner import file_to_url
 
     if not content_root.is_dir():
@@ -223,9 +227,11 @@ def _scan_root(
         source = path.read_text(encoding="utf-8")
         content_format = source_config.content_format_for(path)
         source_path = str(path.relative_to(content_root))
-        frontmatter_error = _frontmatter_parse_error(source)
+        frontmatter_error = frontmatter_parse_error(source)
         if frontmatter_error is not None:
-            errors.append(f"{source_path}: source frontmatter could not be parsed: {frontmatter_error}")
+            errors.append(
+                f"{source_path}: source frontmatter could not be parsed: {frontmatter_error}"
+            )
             continue
         try:
             meta, body = parse_source_text(source, content_format=content_format)
@@ -254,9 +260,7 @@ def _scan_root(
 
 def _check_private_target_links(records: list[SourceLifecycleRecord]) -> list[str]:
     private_by_url = {
-        _normalize_url(record.url): record
-        for record in records
-        if _is_private(record.meta)
+        _normalize_url(record.url): record for record in records if _is_private(record.meta)
     }
     if not private_by_url:
         return []
@@ -291,28 +295,6 @@ def _source_links(body: str, slug_to_url: dict[str, str]) -> set[str]:
                 links.add(slug_to_url[candidate])
                 break
     return links
-
-
-def _frontmatter_parse_error(source: str) -> str | None:
-    stripped = source.lstrip()
-    if not stripped.startswith("---"):
-        return None
-    lines = stripped.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return None
-    end = next((index for index, line in enumerate(lines[1:], start=1) if line.strip() == "---"), None)
-    if end is None:
-        return "closing frontmatter marker was not found"
-    frontmatter = "\n".join(lines[1:end])
-    if not frontmatter.strip():
-        return None
-    try:
-        loaded = yaml.safe_load(frontmatter)
-    except yaml.YAMLError as exc:
-        return str(exc).splitlines()[0]
-    if loaded is not None and not isinstance(loaded, dict):
-        return "frontmatter must be a mapping"
-    return None
 
 
 def _visibility(meta: dict[str, Any]) -> str:
