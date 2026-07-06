@@ -1,4 +1,4 @@
-name: Deploy Furatena to GitHub Pages
+name: Validate and deploy Furatena
 
 on:
   push:
@@ -10,52 +10,135 @@ on:
 permissions:
   contents: read
 
+env:
+  PYTHON_GIL: "0"
+
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
+  fast:
+    name: Fast lint and unit checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"
           enable-cache: true
           cache-dependency-glob: uv.lock
-
+          cache-suffix: ${{ github.job }}
       - name: Install
         run: uv sync --group dev
-        env:
-          PYTHON_GIL: "0"
+      - name: Fast lane
+        run: make ci-fast
 
-      - name: Install browser test runtime
-        run: uv run playwright install --with-deps chromium
-        env:
-          PYTHON_GIL: "0"
+  contract:
+    name: Hypermedia and diagnostic contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+      - name: Install
+        run: uv sync --group dev
+      - name: Contract lane
+        run: make ci-contract
 
-      - name: Test
-        run: uv run pytest
+  export:
+    name: Static export artifact
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+      - name: Install
+        run: uv sync --group dev
+      - name: Export lane
+        run: make ci-export
         env:
-          PYTHON_GIL: "0"
-
-      - name: Build static site
-        run: ./scripts/pages-build.sh app/public
-        env:
-          PYTHON_GIL: "0"
           FURA_BASE_URL: https://lbliii.github.io/furatena
           FURA_BASE_PATH: /furatena
           FURA_WORKERS: "8"
-
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: app/public
 
-  deploy:
+  browser:
+    name: Author browser flows
     if: github.event_name != 'pull_request'
-    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+      - name: Install
+        run: uv sync --group dev
+      - name: Install browser runtime
+        run: uv run playwright install --with-deps chromium
+      - name: Browser lane
+        run: make ci-browser
+
+  agent:
+    name: Agent and MCP contracts
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+      - name: Install
+        run: uv sync --group dev
+      - name: Agent lane
+        run: make ci-agent
+
+  release:
+    name: Package and CLI smoke
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+      - name: Install
+        run: uv sync --group dev
+      - name: Release lane
+        run: make ci-release
+      - name: Upload release distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dist-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy GitHub Pages
+    if: github.event_name != 'pull_request'
+    needs: [fast, contract, export, browser, agent, release]
     runs-on: ubuntu-latest
     permissions:
       pages: write

@@ -21,3 +21,15 @@ direct product export; use `make ci-export` for the complete export CI lane.
 The lanes are intentionally independent so CI jobs can run in parallel and
 retain a clear failure owner. `make test` remains the full pytest suite and is
 the final local fallback when a change crosses multiple surfaces.
+
+## Branch gates and artifacts
+
+Pull requests run the `fast` and `contract` jobs for early lint, unit, and
+hypermedia/diagnostic feedback. Pushes to `main` and manual runs add the
+`export`, `browser`, `agent`, and `release` safety jobs. GitHub Pages deploys
+only after all six jobs pass.
+
+Each job scopes the uv cache with its GitHub job name, so a cache or install
+failure identifies one owning lane. The export job alone uploads the Pages
+artifact, while the release job uploads a commit-named wheel/sdist artifact;
+the remaining jobs keep their diagnostics in their named job logs.
