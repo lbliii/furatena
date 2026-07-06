@@ -1,0 +1,28 @@
+{
+  "fixture_version": 1,
+  "profile": "trusted-author",
+  "surfaces": {
+    "tools": {
+      "schema_version": 1,
+      "access": {"visibility": "trusted", "include_private": true},
+      "tools": [
+        {"name": "semantic_search", "read_only": true},
+        {"name": "author_read_source", "read_only": true},
+        {"name": "author_apply_edit", "read_only": false, "confirmation_required": true}
+      ]
+    },
+    "mcp": {
+      "protocolVersion": "2025-06-18",
+      "server": {"name": "furatena-catalog"},
+      "resources": [
+        {"uri": "fura://catalog/nodes", "name": "Catalog nodes"},
+        {"uri": "fura://reports/audit", "name": "MCP audit report"}
+      ],
+      "tools": [
+        {"name": "semantic_search", "read_only": true},
+        {"name": "author_read_source", "read_only": true},
+        {"name": "author_apply_edit", "read_only": false, "confirmation_required": true}
+      ]
+    }
+  }
+}

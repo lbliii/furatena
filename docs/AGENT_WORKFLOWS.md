@@ -64,6 +64,8 @@ Run `fura check --agent --json` before publishing MCP changes; it lints tool/res
 Use `fura check --report-format github|junit|checkstyle|markdown` when CI or code review tools need annotations, XML reports, or markdown summaries from the same diagnostics.
 Run `fura evals --json` for deterministic golden-path agent checks. The suite exercises the Milo MCP adapter for prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, tool selection, and non-mutating author workflows without paid model calls.
 
+Versioned public and trusted-author contract fixtures live under `tests/fixtures/agent-contracts/`. Run `fura agent-diff OLD.json NEW.json --json` to review semantic contract changes without treating keyed-array reordering as drift. Breaking removals, type/version changes, and URL or URI changes require an explicit `--decision` describing the major-version or migration policy.
+
 Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, validation-error repair, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the validation repair and publish round-trip cases perform confirmed writes against a private fixture and restore the original source before finishing.
 
 MCP tools return both text content and `structuredContent` payloads:
