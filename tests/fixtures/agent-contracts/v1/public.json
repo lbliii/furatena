@@ -1,0 +1,50 @@
+{
+  "fixture_version": 1,
+  "profile": "public",
+  "surfaces": {
+    "catalog": {
+      "schema_version": 3,
+      "required_fields": ["node_id", "url", "title", "provenance"]
+    },
+    "tools": {
+      "schema_version": 1,
+      "access": {"visibility": "public", "include_private": false},
+      "urls": {
+        "catalog_url": "/catalog.json",
+        "search_url": "/search.json",
+        "llms_url": "/llms.txt"
+      },
+      "tools": [
+        {"name": "semantic_search", "read_only": true},
+        {"name": "retrieve_node", "read_only": true}
+      ]
+    },
+    "channels": {
+      "schema_version": 1,
+      "outputs": [
+        {"id": "catalog", "url": "/catalog.json", "visibility": "public"},
+        {"id": "llms", "url": "/llms.txt", "visibility": "public"},
+        {"id": "mcp", "uri": "fura://catalog/nodes", "visibility": "public"}
+      ]
+    },
+    "deployment_profiles": {
+      "schema_version": 1,
+      "profiles": [
+        {"id": "static-pages", "agent_modes": ["static_only"]},
+        {"id": "cloud-live", "agent_modes": ["deployed_app_mcp"]}
+      ]
+    },
+    "mcp": {
+      "protocolVersion": "2025-06-18",
+      "server": {"name": "furatena-catalog"},
+      "resources": [
+        {"uri": "fura://catalog/nodes", "name": "Catalog nodes"},
+        {"uri": "fura://catalog/graph", "name": "Catalog graph"}
+      ],
+      "tools": [
+        {"name": "semantic_search", "read_only": true},
+        {"name": "retrieve_node", "read_only": true}
+      ]
+    }
+  }
+}

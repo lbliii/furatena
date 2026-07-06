@@ -75,6 +75,7 @@ exit codes in both terminal and JSON modes.
 - `fura check --json`
 - `fura check --agent --json`
 - `fura api-diff OLD.yaml NEW.yaml --json`
+- `fura agent-diff OLD.json NEW.json --json [--decision TEXT]`
 - `fura query --json`
 - `fura freeze --json`
 - `fura export --json`
@@ -99,6 +100,8 @@ exit codes in both terminal and JSON modes.
 `fura check --report-format github|junit|checkstyle|markdown` renders the same diagnostics as GitHub Actions annotations, JUnit XML, checkstyle XML, or a markdown summary. The command keeps the same exit-code behavior as normal checks, so CI can fail on errors or on warnings when `--warnings-as-errors` is set while still surfacing warnings in review tools.
 
 `fura api-diff OLD.yaml NEW.yaml --json` compares two OpenAPI specs by operation and reports added, removed, changed, and breaking operation summaries. Terminal output is readable for release notes; JSON output preserves the same counts and per-operation change reasons for CI or changelog automation.
+
+`fura agent-diff OLD.json NEW.json --json` compares versioned agent-output fixtures by stable record identity instead of byte order. It reports added, removed, changed, and breaking paths across sidecars and MCP contracts. Breaking removals, type/version changes, and URL or URI changes return validation exit code `2` until `--decision` records the explicit compatibility or migration decision.
 
 `fura pdf --json` exports one public page (`--page`), one public collection (`--collection`), or the full public site as PDF artifacts. The JSON `data` includes `output_dir`, `target`, generated `paths`, `page_count`, `byte_count`, and whether `channels.json` was refreshed. By default artifacts are written under `app/public/pdf/` and the public channel manifest is updated with available PDF outputs.
 

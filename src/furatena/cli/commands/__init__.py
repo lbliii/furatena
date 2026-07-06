@@ -1,6 +1,7 @@
 """Per-command parser and execution modules for the Fura CLI."""
 
 from furatena.cli.commands import (
+    agent_diff,
     api_diff,
     author,
     check,
@@ -29,6 +30,7 @@ COMMANDS: tuple[CommandModule, ...] = (
     pdf.COMMAND,
     query.COMMAND,
     check.COMMAND,
+    agent_diff.COMMAND,
     api_diff.COMMAND,
     impact.COMMAND,
     recipes.COMMAND,
