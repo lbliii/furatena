@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from chirp import (
     App,
     AppConfig,
     EventStream,
+    FormAction,
     Fragment,
     Page,
     Request,
@@ -27,6 +29,9 @@ from chirp import (
 from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
 from chirp.ext.chirp_ui import use_chirp_ui
 from chirp.i18n import get_locale, set_locale
+from chirp.middleware.csrf import get_csrf_token
+from chirp.middleware.security_headers import SecurityHeadersConfig
+from chirp.middleware.stack import secure_stack
 from chirp.middleware.static import StaticFiles
 
 from furatena.catalog.access import AccessPermission
@@ -108,6 +113,30 @@ from furatena.cli.authoring import (
 
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 _AUTHOR_SSE_EVENT = "author-invalidate"
+_DEPLOYMENT_ENVS = frozenset({"staging", "production"})
+
+
+def _runtime_environment() -> str:
+    """Return the Chirp security posture for this Furatena process."""
+    return (os.environ.get("FURA_ENV") or os.environ.get("CHIRP_ENV") or "development").strip().lower()
+
+
+def _session_secret(environment: str) -> str:
+    """Resolve a stable deployment secret or an ephemeral local-only secret."""
+    configured = os.environ.get("FURA_SESSION_SECRET") or os.environ.get("CHIRP_SECRET_KEY")
+    if configured:
+        return configured
+    if environment in _DEPLOYMENT_ENVS:
+        return ""
+    return secrets.token_urlsafe(32)
+
+
+def _active_form_proof() -> str:
+    """Return the request token, or no token while rendering an error handler."""
+    try:
+        return get_csrf_token()
+    except LookupError:
+        return ""
 
 
 def _static_cache_control(url_prefix: str, mode: ServeMode) -> str:
@@ -187,24 +216,31 @@ class DocsApp:
         }
         i18n = self.config.i18n
         locales_dir = self.config.locales_dir or self.config.root / "locales"
-        app = App(
-            AppConfig(
-                template_dir=self.config.templates_dir,
-                component_dirs=component_dirs,
-                debug=not preview,
-                skip_contract_checks=skip_checks,
-                htmx=True,
-                reload_dirs=browser_reload_dirs(self.theme),
-                i18n_enabled=i18n.enabled,
-                i18n_supported_locales=supported_app_locales(i18n),
-                i18n_default_locale=i18n.default_language,
-                i18n_directory=str(locales_dir),
-            )
+        environment = _runtime_environment()
+        app_config = AppConfig(
+            template_dir=self.config.templates_dir,
+            component_dirs=component_dirs,
+            debug=not preview,
+            skip_contract_checks=skip_checks,
+            htmx=True,
+            reload_dirs=browser_reload_dirs(self.theme),
+            i18n_enabled=i18n.enabled,
+            i18n_supported_locales=supported_app_locales(i18n),
+            i18n_default_locale=i18n.default_language,
+            i18n_directory=str(locales_dir),
+            env=environment,
+            secret_key=_session_secret(environment),
         )
+        app = App(app_config)
         use_chirp_ui(app)
+        for middleware in secure_stack(
+            app_config,
+            headers=SecurityHeadersConfig(content_security_policy=None),
+        ):
+            app.add_middleware(middleware)
+        app.template_global("fura_form_proof")(_active_form_proof)
         if i18n.enabled:
             app.template_global("get_locale")(get_locale)
-        app.template_global("csrf_token")(lambda: "")
         app.template_global("fura_author")(lambda: self.serve.auto_reload)
         app.template_global("fura_author_mode")(lambda: self._is_author_mode())
         app.template_global("docs_stylesheets")(lambda: self.theme.stylesheet_hrefs)
@@ -487,14 +523,7 @@ class DocsApp:
                 "studio": f"/docs/_author/studio?{query}",
                 "open_source": f"/docs/_author/source?{query}",
                 "validate": f"/docs/_author/page.json?{query}&validate=1",
-                "mark_draft": f"/docs/_author/transition?{query}&operation=draft&dry_run=1",
-                "mark_draft_confirm": (
-                    f"/docs/_author/transition?{query}&operation=draft&dry_run=0&confirmed=1"
-                ),
-                "publish": f"/docs/_author/transition?{query}&operation=publish&dry_run=1",
-                "publish_confirm": (
-                    f"/docs/_author/transition?{query}&operation=publish&dry_run=0&confirmed=1"
-                ),
+                "transition": "/docs/_author/transition",
                 "inspect_public": f"/docs/_author/page.json?{query}&inspect_public=1",
             },
         }
@@ -1405,19 +1434,44 @@ class DocsApp:
                 "text/plain; charset=utf-8",
             )
 
-        @app.route("/docs/_author/transition")
-        def author_page_transition(request: Request):
+        @app.route("/docs/_author/transition", methods=["POST"], referenced=True)
+        async def author_page_transition(request: Request):
             if not self._is_author_mode():
                 return _json_response(
                     {
                         "ok": False,
-                        "error": "author lifecycle transitions are available only in author mode",
+                        "diagnostics": [
+                            {
+                                "severity": "error",
+                                "message": "author lifecycle transitions require author mode",
+                                "rule_id": "fura.author.authorization",
+                            }
+                        ],
+                    },
+                    status=403,
+                )
+            self._ensure_catalog()
+            form = await request.form()
+            node_id = str(form.get("node_id") or "").strip()
+            slug = str(form.get("slug") or "").strip().strip("/")
+            node = self.catalog.get_by_node_id(node_id) if node_id else None
+            if node is None and slug:
+                node = self.catalog.get_by_slug(slug)
+            if node is None:
+                return _json_response(
+                    {
+                        "ok": False,
+                        "diagnostics": [
+                            {
+                                "severity": "error",
+                                "message": "author page target not found",
+                                "rule_id": "fura.author.target",
+                            }
+                        ],
                     },
                     status=404,
                 )
-            self._ensure_catalog()
-            node = self._author_node_from_request(request)
-            operation = (request.query.get("operation") or "").strip()
+            operation = str(form.get("operation") or "").strip()
             if operation not in {"draft", "publish", "unpublish", "archive"}:
                 return _json_response(
                     {
@@ -1437,14 +1491,20 @@ class DocsApp:
                 node.slug,
                 mounts=tuple(self.catalog.mounts),
                 mount_id=node.mount,
-                dry_run=_query_bool(request, "dry_run", default=True),
-                confirmed=_query_bool(request, "confirmed", default=False),
+                dry_run=_form_bool(form, "dry_run", default=True),
+                confirmed=_form_bool(form, "confirmed", default=False),
             )
+            if not result.ok:
+                return _json_response({"ok": False, "data": result.to_dict()}, status=422)
             self._reindex_author_result(result)
+            refreshed = self.catalog.get_by_slug(node.slug, mount=node.mount) or node
             if request.is_htmx:
-                refreshed = self._author_node_from_request(request)
-                return self._author_page_chrome_fragment(refreshed)
-            return _json_response({"ok": result.ok, "data": result.to_dict()})
+                return FormAction(
+                    refreshed.url,
+                    self._author_page_chrome_fragment(refreshed),
+                    trigger="furaAuthorTransition",
+                )
+            return FormAction(refreshed.url)
 
         @app.route("/search")
         def search(request: Request):
@@ -1819,11 +1879,40 @@ class DocsApp:
 
         @app.error(403)
         def forbidden(request: Request, exc: Exception | None = None):
+            detail = str(getattr(exc, "detail", ""))
+            if detail.startswith("CSRF token"):
+                return _json_response(
+                    {
+                        "ok": False,
+                        "diagnostics": [
+                            {
+                                "severity": "error",
+                                "message": detail,
+                                "rule_id": "fura.author.csrf",
+                            }
+                        ],
+                    },
+                    status=403,
+                )
             return self._render_error(request, exc, status=403)
 
         @app.error(405)
         @app.error(MethodNotAllowed)
         def method_not_allowed(request: Request, exc: Exception | None = None):
+            if request.path == "/docs/_author/transition":
+                return _json_response(
+                    {
+                        "ok": False,
+                        "diagnostics": [
+                            {
+                                "severity": "error",
+                                "message": "author lifecycle transitions require POST",
+                                "rule_id": "fura.author.method",
+                            }
+                        ],
+                    },
+                    status=405,
+                )
             return self._render_error(request, exc, status=405)
 
         @app.error(413)
@@ -1957,6 +2046,13 @@ def _json_response(payload: dict[str, Any], *, status: int = 200) -> Response:
         "Content-Type",
         "application/json; charset=utf-8",
     )
+
+
+def _form_bool(form: Any, key: str, *, default: bool = False) -> bool:
+    value = form.get(key)
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _jsonable(value: Any) -> Any:

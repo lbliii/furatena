@@ -80,6 +80,26 @@ fura author archive docs/new-page --yes --json
 
 Mutating commands require either `--dry-run` or `--yes`. `fura author validate` is read-only and reports target-scoped content and lifecycle diagnostics with validation exit code `2` on failure. `fura author edit` applies an exact source span replacement, so agents should run `status` or `author_read_source` first and pass the precise `--old-text` value they intend to replace. JSON responses include an operation id, target path, mount id, previous and resulting visibility, changed files, diagnostics, diff preview, and next actions. Lifecycle transitions also include `publication_impact`, which reports whether public output inclusion changes and whether navigation, search, export, and agent retrieval surfaces are affected before any write occurs. Transitions clear incompatible lifecycle timestamps when changing states, such as removing `archived_at` before publishing or drafting an archived page.
 
+## Browser Mutation Security
+
+Browser authoring uses signed Chirp sessions and session-backed CSRF tokens.
+Lifecycle changes and studio saves are POST-only. The author forms render a
+hidden CSRF field for ordinary browser submission, while the shell copies the
+same token into the `X-CSRF-Token` header for htmx requests. A missing or
+invalid token returns `403` without changing source.
+
+Successful lifecycle forms use Chirp `FormAction` semantics: htmx receives the
+updated author-chrome fragment, and a browser without JavaScript receives a
+`303` redirect to the affected page. GET requests to the transition endpoint
+return `405` and cannot mutate lifecycle state.
+
+Local development uses an ephemeral signing secret, so author sessions reset
+when the process restarts. Set `FURA_SESSION_SECRET` (or
+`CHIRP_SECRET_KEY`) to a stable random value for staging or production and set
+`FURA_ENV=staging` or `FURA_ENV=production` to enable the corresponding Chirp
+cookie-security posture. Furatena refuses a staging or production app without a
+configured secret.
+
 ## MCP Authoring Tools
 
 Local agents can use `fura mcp --author --include-private` for source-aware authoring. Authoring tools are disabled unless the MCP session explicitly includes private content.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -123,7 +124,16 @@ class TestErrorPages:
         import asyncio
 
         async def _fetch() -> str:
-            resp = await docs_client.request("POST", "/catalog.json")
+            landing = await docs_client.get("/")
+            match = re.search(r'<meta name="csrf-token" content="([^"]+)">', landing.text)
+            assert match is not None
+            headers = {str(key).lower(): str(value) for key, value in landing.headers}
+            cookie = headers["set-cookie"].split(";", 1)[0]
+            resp = await docs_client.request(
+                "POST",
+                "/catalog.json",
+                headers={"Cookie": cookie, "X-CSRF-Token": match.group(1)},
+            )
             assert resp.status == 405
             return resp.text
 
