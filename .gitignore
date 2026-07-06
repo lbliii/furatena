@@ -21,5 +21,6 @@ app/.docs-cache-test/
 .pytest_cache/
 .ruff_cache/
 .coverage
+.coverage-core.json
 htmlcov/
 .DS_Store
