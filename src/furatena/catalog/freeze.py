@@ -29,6 +29,7 @@ from furatena.catalog.freeze_incremental import (
 )
 from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.inventories.sphinx import write_objects_inv_bytes
+from furatena.catalog.packaging import prune_stale_files, validate_packaging_lifecycle
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.renderer_fingerprint import (
     read_renderer_fingerprint,
@@ -54,6 +55,7 @@ class FreezeCatalogOptions:
     workers: int | None = None
     autodoc: bool = True
     autodoc_config: Path | None = None
+    allow_lifecycle_errors: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,14 +87,6 @@ def _write_frozen_page(
         ast_target = ast_dir / f"{slug_path}.json"
         ast_target.parent.mkdir(parents=True, exist_ok=True)
         ast_target.write_text(ast_json + "\n", encoding="utf-8")
-
-
-def _prune_stale_frozen_files(root: Path, keep_paths: set[Path], *, suffix: str) -> None:
-    if not root.is_dir():
-        return
-    for path in root.rglob(f"*{suffix}"):
-        if path not in keep_paths:
-            path.unlink()
 
 
 def _freeze_shard(registry: CatalogRegistry, mount_id: str, out_dir: Path, *, workers: int) -> int:
@@ -144,8 +138,8 @@ def _freeze_shard(registry: CatalogRegistry, mount_id: str, out_dir: Path, *, wo
                 ast_json=ast_json,
             )
 
-    _prune_stale_frozen_files(pages_dir, keep_pages, suffix=".html")
-    _prune_stale_frozen_files(mount_dir / "ast", keep_ast, suffix=".json")
+    prune_stale_files(pages_dir, keep_pages, suffixes=(".html",))
+    prune_stale_files(mount_dir / "ast", keep_ast, suffixes=(".json",))
 
     return len(jobs)
 
@@ -221,7 +215,9 @@ def _freeze_assets(out_dir: Path, *, app_root: Path, theme_id: str, skin_pack: s
     )
 
 
-def _registry_manifest(registry: CatalogRegistry, mount_status: dict[str, dict] | None = None) -> dict:
+def _registry_manifest(
+    registry: CatalogRegistry, mount_status: dict[str, dict] | None = None
+) -> dict:
     payload: dict = {
         "schema_version": 2,
         "mounts": [
@@ -283,6 +279,11 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         autodoc=options.autodoc,
         workers=worker_count,
     )
+    validate_packaging_lifecycle(
+        registry,
+        target="catalog freeze",
+        allow_errors=options.allow_lifecycle_errors,
+    )
     index_seconds = time.perf_counter() - index_start
     base = docs_base_url()
 
@@ -341,7 +342,9 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             preview = "\n".join(f"  - {line}" for line in dcp_errors[:8])
             extra = f"\n  ... and {len(dcp_errors) - 8} more" if len(dcp_errors) > 8 else ""
             raise RuntimeError(f"catalog.json failed DCP v3 validation:\n{preview}{extra}")
-        (out_dir / "catalog.json").write_text(json.dumps(merged_graph, indent=2) + "\n", encoding="utf-8")
+        (out_dir / "catalog.json").write_text(
+            json.dumps(merged_graph, indent=2) + "\n", encoding="utf-8"
+        )
         (out_dir / "search.json").write_text(
             json.dumps(search_json(registry, base_url=base), indent=2) + "\n",
             encoding="utf-8",
