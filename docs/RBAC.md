@@ -136,6 +136,11 @@ The runtime model exposes mount and page checks through the catalog registry so
 output filters can evaluate the same policy for routes, search, catalog JSON,
 MCP resources, `llms.txt`, and static exports.
 
+`AccessEvaluationService` is the shared policy boundary behind those registry
+checks and `accessible_nodes()`. Browser routes, static export, and MCP therefore
+use the same mount-then-page decision path. The service is immutable and accepts
+the catalog, subject, permission, and nodes explicitly.
+
 ## Public Output Filtering
 
 Public output surfaces evaluate anonymous permissions by default. A page is

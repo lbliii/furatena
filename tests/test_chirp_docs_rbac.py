@@ -11,6 +11,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
 from furatena.catalog.access import (
+    AccessEvaluationService,
     AccessPermission,
     AccessPolicy,
     AccessRole,
@@ -150,6 +151,11 @@ def test_registry_evaluates_mount_and_page_access(tmp_path: Path) -> None:
     assert registry.can_access_node(team, docs_reader)
     assert not registry.can_access_node(admin_page, docs_reader)
     assert registry.can_access_node(admin_page, admin, permission=AccessPermission.ADMINISTER)
+
+    service = AccessEvaluationService()
+    assert service.node_decision(registry, public, anonymous).allowed
+    assert not service.node_decision(registry, private, anonymous).allowed
+    assert service.filter_nodes(registry, [public, private], subject=anonymous) == [public]
 
 
 def test_mount_access_restricts_every_page_in_mount(tmp_path: Path) -> None:
