@@ -17,9 +17,16 @@ from furatena.catalog.develop_exports import develop_export
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.mcp import FuraMCPServer, MCPAccessPolicy
 from furatena.catalog.runtime import ServeConfig, ServeMode
-from furatena.cli.main import main
+from furatena.cli.contracts import CommandResult
+from furatena.cli.main import main, run_command
 
 _UNSET = object()
+
+
+def _run_result(argv: list[str]) -> CommandResult:
+    result = run_command(argv)
+    assert isinstance(result, CommandResult)
+    return result
 
 
 def _csrf_context(response) -> tuple[str, str]:
@@ -132,16 +139,15 @@ def test_deployment_security_requires_stable_session_secret(
     assert docs.app.config.secret_key == "stable-test-secret"
 
 
-def test_init_json_emits_written_files(tmp_path: Path, capsys) -> None:
+def test_init_returns_written_files_in_process(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 
-    main(["init", str(app_root), "--name", "Acme Docs", "--json"])
-    payload = json.loads(capsys.readouterr().out)
+    result = _run_result(["init", str(app_root), "--name", "Acme Docs"])
 
-    assert payload["ok"] is True
-    assert payload["command"] == "init"
-    assert payload["data"]["count"] > 0
-    assert "docs.yaml" in payload["data"]["written"]
+    assert result.ok is True
+    assert result.command == "init"
+    assert result.data["count"] > 0
+    assert Path("docs.yaml") in result.data["written"]
 
 
 def test_init_app_passes_strict_content_check(tmp_path: Path) -> None:
@@ -157,26 +163,23 @@ def test_init_app_passes_strict_content_check(tmp_path: Path) -> None:
     ])
 
 
-def test_check_json_emits_standard_result(tmp_path: Path, capsys) -> None:
+def test_check_returns_standard_result_in_process(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 
-    main(["init", str(app_root), "--name", "Acme Docs"])
-    capsys.readouterr()
-    main([
+    _run_result(["init", str(app_root), "--name", "Acme Docs"])
+    result = _run_result([
         "--app-root",
         str(app_root),
         "check",
         "--content-only",
         "--warnings-as-errors",
-        "--json",
     ])
-    payload = json.loads(capsys.readouterr().out)
 
-    assert payload["ok"] is True
-    assert payload["command"] == "check"
-    assert payload["exit_code"] == 0
-    assert payload["diagnostics"] == []
-    assert payload["data"]["content_only"] is True
+    assert result.ok is True
+    assert result.command == "check"
+    assert result.exit_code == 0
+    assert result.diagnostics == ()
+    assert result.data["content_only"] is True
 
 
 @pytest.mark.parametrize(
@@ -397,7 +400,7 @@ paths:
     assert {item["rule_id"] for item in api_diagnostics} == {"fura.api"}
 
 
-def test_api_diff_json_reports_operation_changes(tmp_path: Path, capsys) -> None:
+def test_api_diff_returns_operation_changes_in_process(tmp_path: Path) -> None:
     old = tmp_path / "old.yaml"
     new = tmp_path / "new.yaml"
     old.write_text(
@@ -447,11 +450,10 @@ paths:
         encoding="utf-8",
     )
 
-    main(["api-diff", str(old), str(new), "--json"])
-    payload = json.loads(capsys.readouterr().out)
+    result = _run_result(["api-diff", str(old), str(new)])
 
-    assert payload["ok"] is True
-    data = payload["data"]
+    assert result.ok is True
+    data = result.data
     assert data["summary"] == {"added": 1, "removed": 1, "changed": 1, "breaking": 2}
     assert data["added"][0]["operation_id"] == "deleteUsers"
     assert data["removed"][0]["operation_id"] == "createUser"
@@ -2363,22 +2365,20 @@ def test_migrate_json_reports_validation_errors(tmp_path: Path, capsys) -> None:
     assert payload["diagnostics"][0]["source_path"] == str(missing.resolve())
 
 
-def test_stop_json_reports_no_listener(capsys) -> None:
-    main(["stop", "--port", "65534", "--json"])
-    payload = json.loads(capsys.readouterr().out)
+def test_stop_returns_no_listener_in_process() -> None:
+    result = _run_result(["stop", "--port", "65534"])
 
-    assert payload["ok"] is True
-    assert payload["command"] == "stop"
-    assert payload["data"]["stopped"] is False
+    assert result.ok is True
+    assert result.command == "stop"
+    assert result.data["stopped"] is False
 
 
-def test_recipes_json_lists_agent_workflows(capsys) -> None:
-    main(["recipes", "--json"])
-    payload = json.loads(capsys.readouterr().out)
-    recipe_ids = {recipe["id"] for recipe in payload["data"]["recipes"]}
+def test_recipes_return_agent_workflows_in_process() -> None:
+    result = _run_result(["recipes"])
+    recipe_ids = {recipe["id"] for recipe in result.data["recipes"]}
 
-    assert payload["ok"] is True
-    assert payload["command"] == "recipes"
+    assert result.ok is True
+    assert result.command == "recipes"
     assert {
         "init",
         "inspect",
@@ -2395,10 +2395,9 @@ def test_recipes_json_lists_agent_workflows(capsys) -> None:
     } <= recipe_ids
 
 
-def test_author_recipes_encode_safe_mutation_flow(capsys) -> None:
-    main(["recipes", "--json"])
-    payload = json.loads(capsys.readouterr().out)
-    recipes = {recipe["id"]: recipe for recipe in payload["data"]["recipes"]}
+def test_author_recipes_encode_safe_mutation_flow() -> None:
+    result = _run_result(["recipes"])
+    recipes = {recipe["id"]: recipe for recipe in result.data["recipes"]}
 
     draft_steps = {step["id"]: step for step in recipes["author-draft"]["steps"]}
     assert draft_steps["preview-draft"]["dry_run"] is True
@@ -2447,10 +2446,9 @@ def test_author_recipes_encode_safe_mutation_flow(capsys) -> None:
     assert "check --content-only --json" in archive_steps["validate"]["command"]
 
 
-def test_query_recipe_covers_dcp_and_mcp_graph_queries(capsys) -> None:
-    main(["recipes", "query", "--json"])
-    payload = json.loads(capsys.readouterr().out)
-    recipe = payload["data"]["recipes"][0]
+def test_query_recipe_covers_dcp_and_mcp_graph_queries() -> None:
+    result = _run_result(["recipes", "query"])
+    recipe = result.data["recipes"][0]
     steps = {step["id"]: step for step in recipe["steps"]}
 
     assert {"by-heading", "by-directive", "by-namespace", "by-dcp-edge", "by-mcp-graph"} <= set(steps)
@@ -2462,34 +2460,26 @@ def test_query_recipe_covers_dcp_and_mcp_graph_queries(capsys) -> None:
     assert "graph/query.json" in recipe["related_commands"]
 
 
-def test_recipe_json_reports_single_workflow(capsys) -> None:
-    main(["recipes", "publish", "--json"])
-    payload = json.loads(capsys.readouterr().out)
-    recipe = payload["data"]["recipes"][0]
+def test_recipe_returns_single_workflow_in_process() -> None:
+    result = _run_result(["recipes", "publish"])
+    recipe = result.data["recipes"][0]
 
-    assert payload["ok"] is True
-    assert payload["data"]["count"] == 1
+    assert result.ok is True
+    assert result.data["count"] == 1
     assert recipe["id"] == "publish"
     assert [step["id"] for step in recipe["steps"]] == ["freeze", "export", "verify-preview"]
 
-    main(["recipes", "validate", "--json"])
-    validate_payload = json.loads(capsys.readouterr().out)
-    validate_recipe = validate_payload["data"]["recipes"][0]
+    validate_result = _run_result(["recipes", "validate"])
+    validate_recipe = validate_result.data["recipes"][0]
     assert "agent-evals" in [step["id"] for step in validate_recipe["steps"]]
 
 
-def test_unknown_recipe_json_reports_config_error(capsys) -> None:
-    try:
-        main(["recipes", "missing", "--json"])
-    except SystemExit as exc:
-        assert exc.code == 3
-    else:  # pragma: no cover - defensive assertion
-        raise AssertionError("unknown recipe should fail")
-    payload = json.loads(capsys.readouterr().out)
+def test_unknown_recipe_returns_config_error_in_process() -> None:
+    result = _run_result(["recipes", "missing"])
 
-    assert payload["ok"] is False
-    assert payload["exit_code"] == 3
-    assert payload["diagnostics"][0]["rule_id"] == "fura.recipes"
+    assert result.ok is False
+    assert result.exit_code == 3
+    assert result.diagnostics[0].rule_id == "fura.recipes"
 
 
 def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -> None:

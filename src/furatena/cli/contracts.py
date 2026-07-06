@@ -60,6 +60,7 @@ class CommandResult:
     summary: str = ""
     diagnostics: tuple[Diagnostic, ...] = ()
     data: dict[str, Any] = field(default_factory=dict)
+    terminal_lines: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {

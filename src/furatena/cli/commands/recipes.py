@@ -5,11 +5,11 @@ from __future__ import annotations
 import argparse
 from typing import Any
 
-from furatena.cli.commands._shared import CommandModule, _finish_result, _json_output
+from furatena.cli.commands._shared import CommandModule
 from furatena.cli.contracts import CommandResult, Diagnostic, ExitCode, command_name
 
 
-def _run_recipes(args: argparse.Namespace) -> None:
+def _run_recipes(args: argparse.Namespace) -> CommandResult:
     from furatena.cli.recipes import all_recipes, get_recipe, recipe_ids
 
     selected = (get_recipe(args.recipe),) if args.recipe else all_recipes()
@@ -22,43 +22,24 @@ def _run_recipes(args: argparse.Namespace) -> None:
                 next_action=f"Choose one of: {', '.join(recipe_ids())}.",
             ),
         )
-        result = CommandResult(
+        return CommandResult(
             command=command_name(args),
             ok=False,
             exit_code=ExitCode.CONFIG_ERROR,
             summary="unknown recipe",
             diagnostics=diagnostics,
             data={"available": recipe_ids()},
+            terminal_lines=tuple(f"error: {item.message}" for item in diagnostics),
         )
-        if _json_output(args):
-            _finish_result(result, json_output=True)
-        for diagnostic in diagnostics:
-            print(f"error: {diagnostic.message}")
-        raise SystemExit(int(ExitCode.CONFIG_ERROR))
     recipes = tuple(recipe for recipe in selected if recipe is not None)
-    if _json_output(args):
-        _finish_result(
-            CommandResult(
-                command=command_name(args),
-                ok=True,
-                summary=f"returned {len(recipes)} recipe(s)",
-                data={
-                    "recipes": [recipe.to_dict() for recipe in recipes],
-                    "count": len(recipes),
-                    "available": recipe_ids(),
-                },
-            ),
-            json_output=True,
-        )
-        return
-
+    terminal_lines: list[str] = []
     for index, recipe in enumerate(recipes):
         if index:
-            print()
-        print(f"{recipe.id}: {recipe.title}")
-        print(f"  {recipe.summary}")
-        print(f"  applies to: {', '.join(recipe.applies_to)}")
-        print("  steps:")
+            terminal_lines.append("")
+        terminal_lines.append(f"{recipe.id}: {recipe.title}")
+        terminal_lines.append(f"  {recipe.summary}")
+        terminal_lines.append(f"  applies to: {', '.join(recipe.applies_to)}")
+        terminal_lines.append("  steps:")
         for step in recipe.steps:
             flags = []
             if step.dry_run:
@@ -66,10 +47,21 @@ def _run_recipes(args: argparse.Namespace) -> None:
             if step.requires_confirmation:
                 flags.append("requires confirmation")
             suffix = f" ({', '.join(flags)})" if flags else ""
-            print(f"    - {step.id}: {step.command}{suffix}")
-            print(f"      {step.purpose}")
+            terminal_lines.append(f"    - {step.id}: {step.command}{suffix}")
+            terminal_lines.append(f"      {step.purpose}")
         if recipe.verifies:
-            print(f"  verifies: {', '.join(recipe.verifies)}")
+            terminal_lines.append(f"  verifies: {', '.join(recipe.verifies)}")
+    return CommandResult(
+        command=command_name(args),
+        ok=True,
+        summary=f"returned {len(recipes)} recipe(s)",
+        data={
+            "recipes": [recipe.to_dict() for recipe in recipes],
+            "count": len(recipes),
+            "available": recipe_ids(),
+        },
+        terminal_lines=tuple(terminal_lines),
+    )
 
 
 def configure(sub: Any) -> None:

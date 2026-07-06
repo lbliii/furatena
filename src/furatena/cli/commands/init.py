@@ -7,11 +7,11 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
-from furatena.cli.commands._shared import CommandModule, _finish_result, _json_output
+from furatena.cli.commands._shared import CommandModule
 from furatena.cli.contracts import CommandResult, command_name
 
 
-def _run_init(args: argparse.Namespace) -> None:
+def _run_init(args: argparse.Namespace) -> CommandResult:
     app_root = Path(args.directory).expanduser().resolve()
     force = args.force
 
@@ -402,43 +402,33 @@ def _run_init(args: argparse.Namespace) -> None:
         written.append(target)
 
     if not written:
-        if _json_output(args):
-            _finish_result(
-                CommandResult(
-                    command=command_name(args),
-                    ok=True,
-                    summary="no scaffold files written",
-                    data={
-                        "app_root": app_root,
-                        "written": [],
-                        "skipped_existing": True,
-                        "force": bool(force),
-                    },
-                ),
-                json_output=True,
-            )
-            return
-        print(f"no files written — {app_root} already has a Furatena scaffold (use --force)")
-        return
-    if _json_output(args):
-        _finish_result(
-            CommandResult(
-                command=command_name(args),
-                ok=True,
-                summary=f"initialized Furatena app at {app_root}",
-                data={
-                    "app_root": app_root,
-                    "written": [path.relative_to(app_root) for path in written],
-                    "count": len(written),
-                    "force": bool(force),
-                },
+        return CommandResult(
+            command=command_name(args),
+            ok=True,
+            summary="no scaffold files written",
+            data={
+                "app_root": app_root,
+                "written": [],
+                "skipped_existing": True,
+                "force": bool(force),
+            },
+            terminal_lines=(
+                f"no files written — {app_root} already has a Furatena scaffold (use --force)",
             ),
-            json_output=True,
         )
-        return
-    print(f"initialized Furatena app at {app_root}")
-    for path in written:
-        print(f"  {path.relative_to(app_root)}")
+    summary = f"initialized Furatena app at {app_root}"
+    return CommandResult(
+        command=command_name(args),
+        ok=True,
+        summary=summary,
+        data={
+            "app_root": app_root,
+            "written": [path.relative_to(app_root) for path in written],
+            "count": len(written),
+            "force": bool(force),
+        },
+        terminal_lines=(summary, *(f"  {path.relative_to(app_root)}" for path in written)),
+    )
 
 
 def configure(sub: Any) -> None:

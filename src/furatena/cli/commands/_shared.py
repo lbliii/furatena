@@ -73,6 +73,9 @@ def _json_output(args: argparse.Namespace) -> bool:
 def _finish_result(result: CommandResult, *, json_output: bool) -> None:
     if json_output:
         result.write_json()
+    else:
+        for line in result.terminal_lines or (result.summary,):
+            print(line)
     if result.exit_code:
         raise SystemExit(int(result.exit_code))
 

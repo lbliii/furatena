@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +15,6 @@ from furatena.cli.commands._shared import (
     _autodoc_config,
     _docs_yaml,
     _ensure_pythonpath,
-    _finish_result,
-    _json_output,
     _repo_for_app,
 )
 from furatena.cli.contracts import (
@@ -234,7 +233,7 @@ def _agent_diagnostic(finding) -> Diagnostic:
     )
 
 
-def _run_check(args: argparse.Namespace) -> None:
+def _run_check(args: argparse.Namespace) -> CommandResult:
     chirp_result = None
     if not args.content_only and not args.agent_only:
         _ensure_pythonpath()
@@ -351,30 +350,20 @@ def _run_check(args: argparse.Namespace) -> None:
             "dcp_fixtures": bool(getattr(args, "dcp_fixtures", False)),
         },
     )
-    if _json_output(args):
-        _finish_result(
-            result,
-            json_output=True,
-        )
-        return
     if args.report_format:
         from furatena.cli.reports import render_report
 
-        print(render_report(result, args.report_format))
-        if result.exit_code:
-            raise SystemExit(int(result.exit_code))
-        return
-    print(result.summary)
+        return replace(result, terminal_lines=(render_report(result, args.report_format),))
+    terminal_lines = [result.summary]
     for diagnostic in result.diagnostics:
         location = diagnostic.source_path or ""
         if diagnostic.line is not None:
             location = f"{location}:{diagnostic.line}" if location else str(diagnostic.line)
         prefix = f"{location}: " if location else ""
-        print(f"{diagnostic.severity}: {prefix}{diagnostic.message}")
+        terminal_lines.append(f"{diagnostic.severity}: {prefix}{diagnostic.message}")
         if diagnostic.next_action:
-            print(f"  next: {diagnostic.next_action}")
-    if result.exit_code:
-        raise SystemExit(int(result.exit_code))
+            terminal_lines.append(f"  next: {diagnostic.next_action}")
+    return replace(result, terminal_lines=tuple(terminal_lines))
 
 
 def configure(sub: Any) -> None:
