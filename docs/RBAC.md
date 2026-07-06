@@ -5,6 +5,9 @@ agent exports, authoring, and administration. The model is intentionally
 conservative: pages are public only when lifecycle visibility is public and no
 extra access policy is declared.
 
+The role model is applied to concrete browser, CLI, and MCP mutation boundaries
+in [AUTHOR_MUTATION_THREAT_MODEL.md](AUTHOR_MUTATION_THREAT_MODEL.md).
+
 ## Roles
 
 Roles are ordered. A higher role includes the lower-role capabilities.

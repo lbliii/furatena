@@ -2,6 +2,10 @@
 
 Furatena treats source front matter as the contract for local drafting, private preview, and publication safety. `fura check` validates lifecycle fields directly from source files, including drafts that are not indexed as public catalog nodes.
 
+Author mutation trust boundaries, confirmation requirements, unresolved risks,
+and the remote-exposure policy are defined in
+[AUTHOR_MUTATION_THREAT_MODEL.md](AUTHOR_MUTATION_THREAT_MODEL.md).
+
 ## Fields
 
 - `draft`: boolean. Draft pages are private author-mode work and are excluded from public catalog output.
