@@ -11,6 +11,7 @@ import pytest
 from chirp import ConfigurationError
 from chirp.testing import TestClient
 
+from furatena.catalog.access import AccessRole
 from furatena.catalog.develop_exports import develop_export
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.mcp import FuraMCPServer, MCPAccessPolicy
@@ -2542,6 +2543,7 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
         tenant="acme",
         site="docs",
         allow_private=True,
+        roles=frozenset({AccessRole.CONTRIBUTOR}),
         privileged_tokens=frozenset({"secret"}),
         rate_limit_per_minute=10,
         max_output_chars=200_000,
@@ -2573,7 +2575,7 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
     assert denied["isError"] is True
     assert denied["structuredContent"]["diagnostics"][0]["rule_id"] == "fura.mcp.privileged_token"
     assert search["isError"] is False
-    assert allowed["isError"] is False
+    assert allowed["isError"] is False, allowed
     assert "# Get started" in allowed["structuredContent"]["source"]
     assert milo_allowed.is_error is False
     assert "# Get started" in milo_allowed.structured["source"]
@@ -2724,7 +2726,11 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
         serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
     )
     public_server = FuraMCPServer(docs)
-    private_server = FuraMCPServer(docs, include_private=True)
+    private_server = FuraMCPServer(
+        docs,
+        include_private=True,
+        policy=MCPAccessPolicy(actor="agent-test", allow_private=True),
+    )
     target = app_root / "content" / "docs" / "mcp-draft.md"
 
     def raw_call(server: FuraMCPServer, name: str, arguments: dict[str, object]) -> dict[str, object]:

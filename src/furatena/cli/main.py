@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import getpass
 import io
+import ipaddress
 import os
 import sys
 from pathlib import Path
@@ -84,6 +86,16 @@ def _coerce_exit_code(code: object) -> int:
     return int(ExitCode.INTERNAL_ERROR)
 
 
+def _is_loopback_host(host: str) -> bool:
+    normalized = host.strip().strip("[]").lower()
+    if normalized == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(normalized).is_loopback
+    except ValueError:
+        return False
+
+
 def _run_serve(args: argparse.Namespace) -> None:
     _ensure_pythonpath()
     if args.author:
@@ -129,6 +141,11 @@ def _run_serve(args: argparse.Namespace) -> None:
         frozen_dir=app_root / "frozen",
         env_frozen=bool(os.environ.get("FURA_FROZEN")),
     )
+    host = args.host or "127.0.0.1"
+    if serve.mode == ServeMode.AUTHOR and not _is_loopback_host(host):
+        raise SystemExit(
+            "author mode may bind only to a loopback host until a trusted identity integration is configured"
+        )
     docs = DocsApp.from_paths(
         docs_yaml,
         repo_root=repo_root,
@@ -138,7 +155,6 @@ def _run_serve(args: argparse.Namespace) -> None:
     )
 
     port = args.port or int(os.environ.get("FURA_PORT", "8001"))
-    host = args.host or "127.0.0.1"
     url = f"http://{host}:{port}/"
     from furatena.catalog.dev_banner import format_serve_startup
 
@@ -936,6 +952,7 @@ def _run_impact(args: argparse.Namespace) -> None:
 def _run_mcp(args: argparse.Namespace) -> None:
     _ensure_pythonpath()
     sys.path.insert(0, str(_app_root(args)))
+    from furatena.catalog.access import AccessRole
     from furatena.catalog.docs_app import DocsApp
     from furatena.catalog.mcp import FuraMCPServer, MCPAccessPolicy, run_milo_stdio
     from furatena.catalog.runtime import ServeConfig, ServeMode
@@ -971,6 +988,7 @@ def _run_mcp(args: argparse.Namespace) -> None:
         tenant=args.tenant,
         site=args.site,
         allow_private=allow_private,
+        roles=frozenset(AccessRole(role) for role in args.role),
         privileged_tokens=privileged_tokens,
         rate_limit_per_minute=args.rate_limit,
         timeout_seconds=args.timeout,
@@ -1033,6 +1051,7 @@ def _author_diagnostics(result) -> tuple[Diagnostic, ...]:
 def _run_author(args: argparse.Namespace) -> None:
     _ensure_pythonpath()
     sys.path.insert(0, str(_app_root(args)))
+    from furatena.catalog.access import AccessSubject
     from furatena.catalog.config import load_docs_config
     from furatena.catalog.registry import load_mounts
     from furatena.cli.authoring import (
@@ -1049,16 +1068,26 @@ def _run_author(args: argparse.Namespace) -> None:
     mounts = load_mounts(config.mounts_path or app_root / "mounts.yaml", repo_root=repo)
     mount_id = getattr(args, "mount", None)
     command = args.author_command
+    subject = AccessSubject.from_values(
+        actor=f"local:{getpass.getuser()}",
+        roles=["admin"],
+    )
 
     if command == "status":
-        result = author_status(args.target, mounts=mounts, mount_id=mount_id)
+        result = author_status(args.target, mounts=mounts, subject=subject, mount_id=mount_id)
     elif command == "validate":
-        result = author_validate(args.target, mounts=mounts, mount_id=mount_id)
+        result = author_validate(
+            args.target,
+            mounts=mounts,
+            subject=subject,
+            mount_id=mount_id,
+        )
         if result.ok:
             errors, warnings = _run_docs_content_check(args=args)
             result = author_validate(
                 args.target,
                 mounts=mounts,
+                subject=subject,
                 mount_id=mount_id,
                 validation_errors=tuple(errors),
                 validation_warnings=tuple(warnings),
@@ -1067,6 +1096,7 @@ def _run_author(args: argparse.Namespace) -> None:
         result = author_new(
             args.slug,
             mounts=mounts,
+            subject=subject,
             mount_id=mount_id,
             title=args.title,
             dry_run=args.dry_run,
@@ -1076,6 +1106,7 @@ def _run_author(args: argparse.Namespace) -> None:
         result = author_apply_edit(
             args.target,
             mounts=mounts,
+            subject=subject,
             mount_id=mount_id,
             old_text=args.old_text,
             new_text=args.new_text,
@@ -1087,6 +1118,7 @@ def _run_author(args: argparse.Namespace) -> None:
             command,
             args.target,
             mounts=mounts,
+            subject=subject,
             mount_id=mount_id,
             dry_run=args.dry_run,
             confirmed=args.yes,
@@ -2357,6 +2389,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     mcp.add_argument("--remote", action="store_true", help="Apply remote MCP auth, audit, and safety policy")
     mcp.add_argument("--actor", default="", help="Actor id recorded in MCP audit events")
+    mcp.add_argument(
+        "--role",
+        action="append",
+        default=[],
+        choices=("anonymous", "reader", "contributor", "publisher", "admin"),
+        help="Trusted MCP session role; may be repeated (remote defaults to anonymous)",
+    )
     mcp.add_argument("--tenant", default=None, help="Tenant id recorded in MCP audit events")
     mcp.add_argument("--site", default=None, help="Site id recorded in MCP audit events")
     mcp.add_argument(

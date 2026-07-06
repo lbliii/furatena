@@ -10,7 +10,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote
 
-from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.access import (
+    AccessPermission,
+    AccessPolicy,
+    AccessRole,
+    AccessSubject,
+    accessible_nodes,
+    evaluate_author_access,
+)
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
 from furatena.catalog.export import catalog_graph
@@ -44,6 +51,24 @@ _SENSITIVE_TOOLS = {
     "author_inspect_publication_impact",
 }
 _TOKEN_KEYS = {"token", "privileged_token", "authorization", "api_key"}
+_MCP_AUTHOR_OPERATIONS = {
+    "author_create_draft": "new",
+    "author_read_source": "read",
+    "author_propose_edit": "apply_edit",
+    "author_apply_edit": "apply_edit",
+    "author_validate": "validate",
+    "author_publish": "publish",
+    "author_unpublish": "unpublish",
+    "author_archive": "archive",
+    "author_inspect_publication_impact": "inspect_publication_impact",
+}
+
+
+def _author_operation(command: str) -> str:
+    try:
+        return _MCP_AUTHOR_OPERATIONS[command]
+    except KeyError as exc:
+        raise ValueError(f"unknown MCP author command: {command}") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +80,7 @@ class MCPAccessPolicy:
     tenant: str | None = None
     site: str | None = None
     allow_private: bool = False
+    roles: frozenset[AccessRole] = field(default_factory=frozenset)
     privileged_tokens: frozenset[str] = field(default_factory=frozenset)
     rate_limit_per_minute: int = 120
     timeout_seconds: float = 15.0
@@ -72,6 +98,13 @@ class MCPAccessPolicy:
         token = _optional_str(arguments.get("privileged_token")) or _optional_str(arguments.get("token"))
         return bool(token and token in self.privileged_tokens)
 
+    @property
+    def subject(self) -> AccessSubject:
+        roles: object = self.roles
+        if not roles:
+            roles = [AccessRole.ANONYMOUS] if self.remote else [AccessRole.ADMIN]
+        return AccessSubject.from_values(actor=self.actor, roles=roles)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "transport": self.transport,
@@ -79,6 +112,7 @@ class MCPAccessPolicy:
             "tenant": self.tenant,
             "site": self.site,
             "allow_private": self.allow_private,
+            "roles": sorted(role.value for role in self.subject.roles),
             "requires_privileged_token": self.requires_privileged_token,
             "rate_limit_per_minute": self.rate_limit_per_minute,
             "timeout_seconds": self.timeout_seconds,
@@ -608,7 +642,7 @@ class FuraMCPServer:
         self.audit_log.append(
             {
                 "timestamp": round(time.time(), 3),
-                "actor": _optional_str(arguments.get("actor")) or self.policy.actor,
+                "actor": self.policy.actor,
                 "tenant": self.policy.tenant,
                 "site": self.policy.site,
                 "transport": self.policy.transport,
@@ -643,6 +677,7 @@ class FuraMCPServer:
         result = author_new(
             str(arguments.get("slug") or ""),
             mounts=self._author_mounts(),
+            subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
             title=_optional_str(arguments.get("title")),
             dry_run=_bool_arg(arguments.get("dry_run"), default=True),
@@ -659,6 +694,7 @@ class FuraMCPServer:
         result, source = author_read_source(
             str(arguments.get("target") or ""),
             mounts=self._author_mounts(),
+            subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
         )
         payload = self._author_payload(result, "author_read_source", arguments)
@@ -679,6 +715,7 @@ class FuraMCPServer:
         result = author_apply_edit(
             str(arguments.get("target") or ""),
             mounts=self._author_mounts(),
+            subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
             old_text=str(arguments.get("old_text") or ""),
             new_text=str(arguments.get("new_text") or ""),
@@ -698,6 +735,7 @@ class FuraMCPServer:
             operation,
             str(arguments.get("target") or ""),
             mounts=self._author_mounts(),
+            subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
             dry_run=_bool_arg(arguments.get("dry_run"), default=True),
             confirmed=_bool_arg(arguments.get("confirmed"), default=False),
@@ -716,6 +754,7 @@ class FuraMCPServer:
             result = author_validate(
                 target,
                 mounts=self._author_mounts(),
+                subject=self.policy.subject,
                 mount_id=_optional_str(arguments.get("mount")),
                 validation_errors=_validation_messages(report, "errors"),
                 validation_warnings=_validation_messages(report, "warnings"),
@@ -733,6 +772,7 @@ class FuraMCPServer:
         status = author_status(
             str(arguments.get("target") or ""),
             mounts=self._author_mounts(),
+            subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
         )
         status_payload = self._author_payload(status, "author_inspect_publication_impact", arguments)
@@ -742,6 +782,7 @@ class FuraMCPServer:
         validation_result = author_validate(
             str(arguments.get("target") or ""),
             mounts=self._author_mounts(),
+            subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
             validation_errors=_validation_messages(report, "errors"),
             validation_warnings=_validation_messages(report, "warnings"),
@@ -772,7 +813,24 @@ class FuraMCPServer:
         return load_mounts(config_path, repo_root=self.docs_app.repo_root)
 
     def _author_gate(self, command: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-        if self.include_private:
+        if not self.include_private:
+            return {
+                "schema_version": 1,
+                "ok": False,
+                "operation": command,
+                "diagnostics": [
+                    {
+                        "severity": "error",
+                        "message": "authoring tools require an include-private author MCP session",
+                        "rule_id": "fura.mcp.author",
+                        "next_action": "Start fura mcp --author --include-private for local authoring.",
+                    }
+                ],
+                "audit": self._audit_record(command, arguments, None),
+            }
+        operation = _author_operation(command)
+        decision = evaluate_author_access(operation, AccessPolicy(), self.policy.subject)
+        if decision.allowed:
             return None
         return {
             "schema_version": 1,
@@ -781,9 +839,12 @@ class FuraMCPServer:
             "diagnostics": [
                 {
                     "severity": "error",
-                    "message": "authoring tools require an include-private author MCP session",
-                    "rule_id": "fura.mcp.author",
-                    "next_action": "Start fura mcp --author --include-private for local authoring.",
+                    "message": (
+                        f"actor {self.policy.actor} requires role "
+                        f"{decision.required_role.value} for {operation}"
+                    ),
+                    "rule_id": "fura.author.authorization",
+                    "next_action": "Configure the MCP session with the required trusted role.",
                 }
             ],
             "audit": self._audit_record(command, arguments, None),
@@ -820,7 +881,7 @@ class FuraMCPServer:
         result: dict[str, Any] | None,
     ) -> dict[str, Any]:
         return {
-            "actor": _optional_str(arguments.get("actor")) or "mcp-local",
+            "actor": self.policy.actor,
             "command": command,
             "target": _optional_str(arguments.get("target")) or _optional_str(arguments.get("slug")),
             "target_path": result.get("target_path") if result else None,

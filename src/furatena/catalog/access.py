@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -57,6 +57,20 @@ _VISIBILITY_READ_MIN_ROLE = {
     "private": AccessRole.READER,
     "draft": AccessRole.CONTRIBUTOR,
     "archived": AccessRole.ADMIN,
+}
+
+_AUTHOR_OPERATION_PERMISSION = {
+    "status": AccessPermission.AUTHOR,
+    "validate": AccessPermission.AUTHOR,
+    "read": AccessPermission.AUTHOR,
+    "new": AccessPermission.AUTHOR,
+    "apply_edit": AccessPermission.AUTHOR,
+    "save_source": AccessPermission.AUTHOR,
+    "draft": AccessPermission.AUTHOR,
+    "publish": AccessPermission.PUBLISH,
+    "unpublish": AccessPermission.PUBLISH,
+    "archive": AccessPermission.ADMINISTER,
+    "inspect_publication_impact": AccessPermission.PUBLISH,
 }
 
 
@@ -211,6 +225,28 @@ def can_access(
     return evaluate_access(policy, subject, permission=permission).allowed
 
 
+def author_permission_for(operation: str) -> AccessPermission:
+    """Return the permission required by one author operation."""
+    normalized = str(operation).strip().lower()
+    try:
+        return _AUTHOR_OPERATION_PERMISSION[normalized]
+    except KeyError as exc:
+        raise ValueError(f"unknown author operation: {operation}") from exc
+
+
+def evaluate_author_access(
+    operation: str,
+    policy: AccessPolicy,
+    subject: AccessSubject | None = None,
+) -> AccessDecision:
+    """Evaluate the shared CLI, browser, and MCP author policy."""
+    return evaluate_access(
+        policy,
+        subject,
+        permission=author_permission_for(operation),
+    )
+
+
 def accessible_nodes(
     catalog: Any,
     nodes: Any,
@@ -263,7 +299,7 @@ def _normalize_strings(raw: object) -> tuple[str, ...]:
         return ()
     if isinstance(raw, str):
         return tuple(item.strip().lower() for item in raw.split(",") if item.strip())
-    if isinstance(raw, Sequence):
+    if isinstance(raw, Iterable) and not isinstance(raw, Mapping):
         return tuple(str(item).strip().lower() for item in raw if str(item).strip())
     return (str(raw).strip().lower(),) if str(raw).strip() else ()
 

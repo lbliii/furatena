@@ -31,10 +31,18 @@ from chirp.ext.chirp_ui import use_chirp_ui
 from chirp.i18n import get_locale, set_locale
 from chirp.middleware.csrf import get_csrf_token
 from chirp.middleware.security_headers import SecurityHeadersConfig
+from chirp.middleware.sessions import get_session
 from chirp.middleware.stack import secure_stack
 from chirp.middleware.static import StaticFiles
 
-from furatena.catalog.access import AccessPermission
+from furatena.catalog.access import (
+    AccessPermission,
+    AccessPolicy,
+    AccessRole,
+    AccessSubject,
+    author_permission_for,
+    evaluate_author_access,
+)
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
@@ -168,10 +176,16 @@ class DocsApp:
         frozen_dir: Path | None = None,
         lazy_html: bool = False,
         workers: int | None = None,
+        author_subject: AccessSubject | None = None,
     ) -> None:
         self.config = config
         self.repo_root = repo_root
         self.serve = serve or ServeConfig(ServeMode.AUTHOR, None, False, True)
+        self.author_subject = author_subject or (
+            AccessSubject.from_values(actor="local-author", roles=[AccessRole.ADMIN])
+            if self.serve.mode == ServeMode.AUTHOR
+            else AccessSubject.anonymous()
+        )
         frozen = self.serve.frozen_dir or frozen_dir
         self.theme = DocsTheme.from_docs_config(config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None)
         self.views = ViewRegistry(config)
@@ -479,6 +493,73 @@ class DocsApp:
     def _is_author_mode(self) -> bool:
         return self.serve.mode == ServeMode.AUTHOR
 
+    def _browser_author_subject(self) -> AccessSubject:
+        """Resolve the server-owned subject from the signed browser session."""
+        session = get_session()
+        raw = session.get("fura_author_subject")
+        if not isinstance(raw, dict):
+            raw = {
+                "actor": self.author_subject.actor,
+                "roles": [role.value for role in self.author_subject.roles],
+                "teams": sorted(self.author_subject.teams),
+            }
+            session["fura_author_subject"] = raw
+        return AccessSubject.from_values(
+            actor=str(raw.get("actor") or ""),
+            roles=raw.get("roles") or (),
+            teams=raw.get("teams") or (),
+        )
+
+    def _browser_author_denial(self, operation: str) -> Response | None:
+        decision = evaluate_author_access(
+            operation,
+            AccessPolicy(),
+            self._browser_author_subject(),
+        )
+        if decision.allowed:
+            return None
+        return _json_response(
+            {
+                "ok": False,
+                "diagnostics": [
+                    {
+                        "severity": "error",
+                        "message": (
+                            f"browser subject requires role {decision.required_role.value} "
+                            f"for {operation}"
+                        ),
+                        "rule_id": "fura.author.authorization",
+                    }
+                ],
+            },
+            status=403,
+        )
+
+    def _browser_node_denial(self, node: Any, operation: str) -> Response | None:
+        decision = self.catalog.access_decision_for_node(
+            node,
+            self._browser_author_subject(),
+            permission=author_permission_for(operation),
+        )
+        if decision.allowed:
+            return None
+        return _json_response(
+            {
+                "ok": False,
+                "diagnostics": [
+                    {
+                        "severity": "error",
+                        "message": (
+                            f"browser subject requires role {decision.required_role.value} "
+                            f"for {operation}; {decision.reason}"
+                        ),
+                        "rule_id": "fura.author.authorization",
+                    }
+                ],
+            },
+            status=403,
+        )
+
     def _author_page_chrome(self, node) -> dict[str, Any]:
         source = self._author_source_info(node)
         validation = self._author_validation_status(node)
@@ -748,6 +829,7 @@ class DocsApp:
             read_result, current_source = author_read_source(
                 node.slug,
                 mounts=tuple(self.catalog.mounts),
+                subject=self._browser_author_subject(),
                 mount_id=node.mount,
             )
             if result is None and not read_result.ok:
@@ -914,7 +996,11 @@ class DocsApp:
             **fallback_context(locale_match, config=self.config.i18n),
             **self._theme_effects_context(),
         }
-        if self._is_author_mode():
+        if self._is_author_mode() and self.catalog.can_access_node(
+            node,
+            self._browser_author_subject(),
+            permission=AccessPermission.AUTHOR,
+        ):
             ctx["author_chrome"] = self._author_page_chrome(node)
         ctx.update(self.views.compose(node, self.catalog))
         ctx.update(self._view_chrome_context(view_name, node, ctx))
@@ -1314,6 +1400,9 @@ class DocsApp:
         def author_dashboard(request: Request):
             if not self._is_author_mode():
                 return Response("author dashboard is available only in author mode", status=404)
+            denied = self._browser_author_denial("status")
+            if denied is not None:
+                return denied
             self._ensure_catalog()
             ctx = self._author_dashboard_context(request)
             if _query_bool(request, "json", default=False):
@@ -1326,8 +1415,17 @@ class DocsApp:
                 return Response("author studio is available only in author mode", status=404)
             self._ensure_catalog()
             node = self._author_node_from_request_or_none(request)
-            if node is None and not _query_bool(request, "new", default=False):
+            create = _query_bool(request, "new", default=False)
+            if node is None and not create:
                 raise NotFound("Author studio target not found.")
+            if create:
+                denied = self._browser_author_denial("new")
+                if denied is not None:
+                    return denied
+            elif node is not None:
+                denied = self._browser_node_denial(node, "read")
+                if denied is not None:
+                    return denied
             ctx = self._author_studio_context(
                 request,
                 node=node,
@@ -1350,12 +1448,14 @@ class DocsApp:
             title = str(form.get("title") or "").strip() or None
             create = str(form.get("mode") or "").strip() == "create"
             result = None
+            subject = self._browser_author_subject()
 
             if create:
                 source_text = _draft_source_text(source_text, slug=slug, title=title)
                 result = author_new(
                     slug,
                     mounts=tuple(self.catalog.mounts),
+                    subject=subject,
                     title=title,
                     dry_run=False,
                     confirmed=True,
@@ -1364,6 +1464,7 @@ class DocsApp:
                     result = author_save_source(
                         slug,
                         mounts=tuple(self.catalog.mounts),
+                        subject=subject,
                         source_text=source_text,
                         mount_id=result.mount,
                         dry_run=False,
@@ -1375,12 +1476,15 @@ class DocsApp:
                 result = author_save_source(
                     slug,
                     mounts=tuple(self.catalog.mounts),
+                    subject=subject,
                     source_text=source_text,
                     mount_id=mount_id,
                     dry_run=False,
                     confirmed=True,
                 )
 
+            if _author_authorization_denied(result):
+                return _json_response({"ok": False, "data": result.to_dict()}, status=403)
             self._reindex_author_result(result)
             node = self.catalog.get_by_slug(slug)
             ctx = self._author_studio_context(
@@ -1415,6 +1519,9 @@ class DocsApp:
             )
             self._ensure_catalog()
             node = self._author_node_from_request(request)
+            denied = self._browser_node_denial(node, "status")
+            if denied is not None:
+                return denied
             if request.is_htmx:
                 return self._author_page_chrome_fragment(node)
             return _json_response(self._author_page_chrome(node))
@@ -1425,11 +1532,17 @@ class DocsApp:
                 return Response("author source is available only in author mode", status=404)
             self._ensure_catalog()
             node = self._author_node_from_request(request)
-            source = self._author_source_info(node)
-            path = Path(str(source["path"]))
-            if not path.is_file():
-                raise NotFound(f"Source file not found: {source['path']}")
-            return Response(path.read_text(encoding="utf-8")).with_header(
+            result, source_text = author_read_source(
+                node.slug,
+                mounts=tuple(self.catalog.mounts),
+                subject=self._browser_author_subject(),
+                mount_id=node.mount,
+            )
+            if _author_authorization_denied(result):
+                return _json_response({"ok": False, "data": result.to_dict()}, status=403)
+            if not result.ok or source_text is None:
+                return _json_response({"ok": False, "data": result.to_dict()}, status=404)
+            return Response(source_text).with_header(
                 "Content-Type",
                 "text/plain; charset=utf-8",
             )
@@ -1490,12 +1603,14 @@ class DocsApp:
                 operation,
                 node.slug,
                 mounts=tuple(self.catalog.mounts),
+                subject=self._browser_author_subject(),
                 mount_id=node.mount,
                 dry_run=_form_bool(form, "dry_run", default=True),
                 confirmed=_form_bool(form, "confirmed", default=False),
             )
             if not result.ok:
-                return _json_response({"ok": False, "data": result.to_dict()}, status=422)
+                status = 403 if _author_authorization_denied(result) else 422
+                return _json_response({"ok": False, "data": result.to_dict()}, status=status)
             self._reindex_author_result(result)
             refreshed = self.catalog.get_by_slug(node.slug, mount=node.mount) or node
             if request.is_htmx:
@@ -2002,6 +2117,7 @@ class DocsApp:
         frozen_dir: Path | None = None,
         lazy_html: bool = False,
         workers: int | None = None,
+        author_subject: AccessSubject | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
         if autodoc is None:
@@ -2015,6 +2131,7 @@ class DocsApp:
             frozen_dir=frozen_dir,
             lazy_html=lazy_html,
             workers=workers,
+            author_subject=author_subject,
         )
 
     def create_app(self) -> App:
@@ -2053,6 +2170,13 @@ def _form_bool(form: Any, key: str, *, default: bool = False) -> bool:
     if value is None:
         return default
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _author_authorization_denied(result: Any) -> bool:
+    return any(
+        getattr(diagnostic, "rule_id", "") == "fura.author.authorization"
+        for diagnostic in getattr(result, "diagnostics", ())
+    )
 
 
 def _jsonable(value: Any) -> Any:

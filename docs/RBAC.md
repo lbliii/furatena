@@ -49,6 +49,31 @@ Lifecycle visibility sets the minimum role for read-like permissions:
 Author, publish, configure, and administer permissions use their role minimums
 even on public pages.
 
+## Author Mutation Matrix
+
+Every author transport evaluates the same operation policy before reading or
+changing source:
+
+| Operation | Minimum role | Permission |
+|-----------|--------------|------------|
+| create draft | `contributor` | `author` |
+| edit or save source | `contributor` | `author` |
+| mark draft | `contributor` | `author` |
+| publish | `publisher` | `publish` |
+| unpublish | `publisher` | `publish` |
+| archive | `admin` | `administer` |
+
+Anonymous and reader subjects fail closed. Mount and page access policies are
+also evaluated, so a role alone cannot bypass team or admin-only restrictions.
+Dry runs use the same authorization decision as writes.
+
+The browser subject is server-owned and stored in its signed session. MCP roles
+come from `MCPAccessPolicy` (or the server's repeatable `--role` option), not
+tool arguments. Actor and role fields submitted by a browser form or MCP tool
+cannot elevate the request or change the audit identity. Local CLI author
+commands use an explicit local-OS admin subject; remote author serving is
+loopback-only until a trusted identity integration is configured.
+
 ## Mount Policy
 
 Mounts can declare access in `mounts.yaml`. Mount policy is evaluated before page
