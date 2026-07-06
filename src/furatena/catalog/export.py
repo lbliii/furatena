@@ -687,7 +687,7 @@ def tools_manifest(
         for node in nodes
         if (operation := _api_agent_operation(catalog, node, base_url=base_url)) is not None
     ]
-    return {
+    payload: dict[str, Any] = {
         "schema_version": 1,
         "name": f"{tool_slug}-docs",
         "description": f"Search and retrieve {site_name} documentation from the live catalog graph.",
@@ -702,8 +702,6 @@ def tools_manifest(
         "api_operations_url": (
             f"{origin}/catalog/api-operations.json" if origin else "/catalog/api-operations.json"
         ),
-        "inventories_url": f"{origin}/inventories.json" if origin else "/inventories.json",
-        "objects_inv_url": f"{origin}/objects.inv" if origin else "/objects.inv",
         "page_count": len(nodes),
         "api_operation_count": len(api_operations),
         "api_operation_groups": _api_agent_operation_groups(api_operations),
@@ -805,6 +803,13 @@ def tools_manifest(
             },
         ],
     }
+    inventory_store = getattr(catalog, "inventory_store", None)
+    if inventory_store is not None and inventory_store.specs:
+        payload["inventories_url"] = (
+            f"{origin}/inventories.json" if origin else "/inventories.json"
+        )
+        payload["objects_inv_url"] = f"{origin}/objects.inv" if origin else "/objects.inv"
+    return payload
 
 
 def _absolute_url(base_url: str, path: str) -> str:

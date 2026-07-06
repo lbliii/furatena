@@ -133,7 +133,26 @@ def prefix_markdown_links(text: str, base_path: str) -> str:
     normalized = normalize_base_path(base_path)
     if not normalized:
         return text
-    return re.sub(r"\]\((/[^)]+)\)", rf"]({normalized}\1)", text)
+    lines: list[str] = []
+    fence: str | None = None
+    for line in text.splitlines(keepends=True):
+        marker = line.lstrip()[:3]
+        if marker in {"```", "~~~"}:
+            fence = None if fence == marker else marker
+            lines.append(line)
+        elif fence is None:
+            parts = re.split(r"(`+[^`]*`+)", line)
+            lines.append(
+                "".join(
+                    part
+                    if index % 2
+                    else re.sub(r"\]\((/[^)]*)\)", rf"]({normalized}\1)", part)
+                    for index, part in enumerate(parts)
+                )
+            )
+        else:
+            lines.append(line)
+    return "".join(lines)
 
 
 def _content_digest(body: str) -> str:
@@ -219,6 +238,16 @@ def _response_header(headers: tuple[tuple[str, str], ...], name: str, default: s
     return default
 
 
+def _default_content_type(url_path: str) -> str:
+    suffix = Path(url_path.split("?", 1)[0]).suffix
+    return {
+        ".html": "text/html",
+        ".json": "application/json",
+        ".txt": "text/plain",
+        ".xml": "application/xml",
+    }.get(suffix, "application/octet-stream")
+
+
 def _finalize_static_html(body: str, base_path: str) -> str:
     body = prefix_root_paths(body, base_path)
     if 'data-fura-static' not in body:
@@ -247,7 +276,7 @@ def _prepare_body(
         return _finalize_static_html(body, base_path)
     if "json" in content_type:
         return prefix_root_paths(body, base_path)
-    if "text/plain" in content_type and rel.suffix == ".txt" and "llms" in rel.name:
+    if "text/plain" in content_type and rel.suffix == ".txt":
         return prefix_markdown_links(body, base_path)
     return body
 
@@ -379,6 +408,10 @@ def _collect_routes(docs_app: DocsApp, options: StaticExportOptions) -> list[str
     if options.include_search:
         for path in ("/search", "/search/"):
             routes.add(path)
+    from furatena.catalog.develop_exports import DEVELOP_EXPORTS
+
+    routes.add("/develop/")
+    routes.update(item.preview_href for item in DEVELOP_EXPORTS)
     for path in options.extra_routes:
         routes.add(path)
     return sorted(routes)
@@ -397,6 +430,7 @@ def _sidecar_routes() -> tuple[str, ...]:
         "/surface.json",
         "/channels.json",
         "/deployment-profiles.json",
+        "/inventories.json",
     )
 
 
@@ -427,11 +461,7 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
     from furatena.catalog.access import AccessPermission, accessible_nodes
 
     routes: list[str] = []
-    nodes = (
-        docs_app.catalog.all_doc_nodes()
-        if hasattr(docs_app.catalog, "all_doc_nodes")
-        else docs_app.catalog.doc_nodes()
-    )
+    nodes = docs_app.catalog.nodes
     public_nodes = accessible_nodes(
         docs_app.catalog,
         nodes,
@@ -440,8 +470,6 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
     public_urls = {node.url for node in public_nodes}
     for node in public_nodes:
         url = node.url.rstrip("/")
-        if not url.startswith("/docs/") and url != "/docs":
-            continue
         routes.append(docs_app.catalog.scoped_url(f"{url}/index.txt"))
     i18n = docs_app.config.i18n
     if i18n.enabled and i18n.fallback_to_default:
@@ -575,7 +603,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                 content_type = _response_header(
                     response.headers,
                     "content-type",
-                    "application/octet-stream",
+                    _default_content_type(url_path),
                 )
                 if _maybe_skip_existing(
                     output_dir,
@@ -644,9 +672,32 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                     written_paths.add(target.relative_to(output_dir))
                     sidecar_count += 1
 
-        if _copy_frozen_sidecar(frozen_dir, "semantic.json", output_dir, base_path):
-            written_paths.add(Path("semantic.json"))
-            sidecar_count += 1
+        for frozen_sidecar in ("semantic.json", "structure.json"):
+            if _copy_frozen_sidecar(frozen_dir, frozen_sidecar, output_dir, base_path):
+                written_paths.add(Path(frozen_sidecar))
+                sidecar_count += 1
+
+        if frozen_dir is not None:
+            frozen_inventories = frozen_dir / "inventories"
+            inventory_specs = tuple(
+                getattr(getattr(docs_app.catalog, "inventory_store", None), "specs", ())
+            )
+            for spec in inventory_specs:
+                source = frozen_inventories / f"{spec.id}.inv"
+                if not source.is_file():
+                    continue
+                rel = Path("inventories") / spec.id / "objects.inv"
+                target = output_dir / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                written_paths.add(rel)
+                sidecar_count += 1
+            if inventory_specs:
+                default_source = frozen_inventories / f"{inventory_specs[0].id}.inv"
+                if default_source.is_file():
+                    shutil.copy2(default_source, output_dir / "objects.inv")
+                    written_paths.add(Path("objects.inv"))
+                    sidecar_count += 1
 
         asset_mounts = _copy_theme_assets(docs_app, output_dir)
         _write_hosting_files(output_dir, site_url=options.site_url, base_path=base_path)
@@ -663,7 +714,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
             "base_path": base_path or "/",
             "site_url": options.site_url or "",
             "incremental": options.incremental,
-            "sidecars": [*list(_sidecar_routes()), "semantic.json"],
+            "sidecars": [*list(_sidecar_routes()), "semantic.json", "structure.json"],
             "paths": sorted(str(path) for path in written_paths),
             "fingerprints": route_fps,
         }

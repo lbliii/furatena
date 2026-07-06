@@ -9,7 +9,7 @@ for scheduling, not as enforced performance thresholds.
 | --- | --- | --- | --- | --- |
 | Fast | `make ci-fast` | Ruff plus core catalog, config, and theme unit tests | None beyond `make install` | ~20 seconds |
 | Contract | `make ci-contract` | Structured `fura check`, authorization, content, response-shape, template, CSP, and boost contracts | None beyond `make install` | ~60 seconds |
-| Export | `make ci-export` | Static-export and DCP worker tests plus a production-shaped Pages artifact build | None beyond `make install` | ~3 minutes |
+| Export | `make ci-export` | Static-export and DCP worker tests, a production-shaped Pages build, and an artifact URL crawl | None beyond `make install` | ~3 minutes |
 | Browser | `make ci-browser` | Real-browser author preview, live reload, save, and create flows | `uv run playwright install chromium` | ~60 seconds |
 | Agent | `make ci-agent` | MCP/resource lint, adapter parity, agent safety, and deterministic eval tests | None beyond `make install` | ~30 seconds |
 | Release | `make ci-release` | Wheel/sdist build and CLI entry-point smoke | None beyond `make install` | ~3 minutes |
@@ -37,7 +37,10 @@ the remaining jobs keep their diagnostics in their named job logs.
 Every Make lane runs Python with `PYTHON_GIL=0`, matching the workflow's
 free-threaded CPython 3.14t runtime. The export lane clears deployment
 URL/base-path variables for unit tests, then applies production defaults inside
-the Pages build.
+the Pages build. Its final crawler parses rendered HTML, JSON sidecars, sitemap
+XML, and navigable text links; it fails on repeated or escaped base paths,
+incorrect canonical origins, and missing targets while naming the source
+artifact and public referrer.
 
 The browser suite uses Playwright's async API. Playwright's synchronous API
 crosses a greenlet bridge that segfaulted in the Linux 3.14t job with the GIL

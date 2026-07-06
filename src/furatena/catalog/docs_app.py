@@ -1774,6 +1774,12 @@ class DocsApp:
             )
             return Response(body).with_header("Content-Type", "application/xml; charset=utf-8")
 
+        @app.route("/index.txt", referenced=True)
+        def home_index_txt(request: Request):
+            self._ensure_catalog()
+            match = self._resolve_page_from_path("/")
+            return self._plaintext_node_response(match.node)
+
         @app.route("/search/semantic", referenced=True)
         def search_semantic(request: Request):
             self._ensure_catalog()

@@ -62,14 +62,14 @@ def inventories_json(catalog, *, base_url: str = "", frozen_dir: Path | None = N
                 "domain": spec.domain or None,
             }
         )
-    default_id = specs[0].id if specs else "local-catalog"
-    objects_path = "/objects.inv"
     payload: dict = {
         "schema_version": 1,
-        "default_inventory": default_id,
-        "objects_inv_url": f"{origin}{objects_path}" if origin else objects_path,
         "inventories": items,
     }
+    if specs:
+        objects_path = "/objects.inv"
+        payload["default_inventory"] = specs[0].id
+        payload["objects_inv_url"] = f"{origin}{objects_path}" if origin else objects_path
     if frozen_dir is not None:
         frozen_inv = frozen_dir / "inventories"
         if frozen_inv.is_dir():
