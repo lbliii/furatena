@@ -93,6 +93,9 @@ ci-export:
 		FURA_BASE_PATH=/furatena \
 		FURA_WORKERS=8 \
 		$(MAKE) pages-build
+	$(UV_RUN) python -m furatena.catalog.artifact_audit app/public \
+		--base-path /furatena \
+		--site-url https://lbliii.github.io/furatena
 
 ci-browser:
 	$(PYTEST) -m browser tests/test_author_sse_browser.py

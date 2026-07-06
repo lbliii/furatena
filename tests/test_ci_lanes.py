@@ -32,6 +32,7 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "FURA_BASE_URL=https://lbliii.github.io/furatena" in makefile
     assert "FURA_BASE_PATH=/furatena" in makefile
     assert "FURA_WORKERS=8" in makefile
+    assert "python -m furatena.catalog.artifact_audit app/public" in makefile
 
 
 def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:

@@ -54,9 +54,15 @@ class TestStaticExportHelpers:
         assert "Sitemap: https://example.github.io/chirp/sitemap.xml" in body
 
     def test_prefix_markdown_links(self) -> None:
-        text = "- [Quickstart](/docs/get-started/quickstart/)\n"
+        text = (
+            "- [Home](/)\n"
+            "- [Quickstart](/docs/get-started/quickstart/)\n"
+            "- Example: `[raw](/docs/example/)`\n"
+        )
         out = prefix_markdown_links(text, "/chirp")
+        assert "[Home](/chirp/)" in out
         assert "(/chirp/docs/get-started/quickstart/)" in out
+        assert "`[raw](/docs/example/)`" in out
 
 
 class TestMiniStaticExport:
