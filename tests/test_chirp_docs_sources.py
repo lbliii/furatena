@@ -22,10 +22,13 @@ from furatena.catalog.runtime import ServeMode
 from furatena.catalog.sources import (
     FilesystemScanner,
     FilesystemSourceProvider,
+    GitSourceConfig,
     GitSourceProvider,
     MountSourceConfig,
     get_content_adapter,
+    sync_git_source,
 )
+from furatena.catalog.sources.parse import parse_source_text
 from furatena.catalog.sources.registry import registered_formats
 from furatena.catalog.sources.scanner import file_to_url
 
@@ -110,6 +113,32 @@ class TestFilesystemScanner:
         assert slug == "docs/guide"
         assert url == "/docs/guide/"
 
+    def test_invalid_utf8_fails_with_source_decode_error(self, tmp_path: Path) -> None:
+        page = tmp_path / "docs" / "invalid.md"
+        page.parent.mkdir()
+        page.write_bytes(b"---\ntitle: Invalid\n---\n\xff\xfe")
+
+        scanner = FilesystemScanner(MountSourceConfig())
+
+        with pytest.raises(UnicodeDecodeError):
+            scanner.scan(tmp_path)
+
+    def test_malformed_frontmatter_is_skipped_by_scanner(self, tmp_path: Path) -> None:
+        page = tmp_path / "docs" / "broken.md"
+        page.parent.mkdir()
+        page.write_text("---\ntitle: [broken\n---\n# Broken\n", encoding="utf-8")
+
+        scanner = FilesystemScanner(MountSourceConfig())
+
+        assert scanner.scan(tmp_path) == []
+
+    def test_source_parser_rejects_malformed_frontmatter(self) -> None:
+        with pytest.raises(Exception, match="flow sequence"):
+            parse_source_text(
+                "---\ntitle: [broken\n---\n# Broken\n",
+                content_format="patitas-markdown",
+            )
+
 
 class TestFilesystemSourceProvider:
     def test_provider_enumerates_reads_fingerprints_and_reports_provenance(
@@ -179,7 +208,7 @@ def _write_frozen_mount(root: Path, *, mount: str, slug: str, title: str, url: s
             '  "schema_version": 3,\n'
             '  "channel": "latest",\n'
             f'  "mount": "{mount}",\n'
-            "  \"pages\": [\n"
+            '  "pages": [\n'
             "    {\n"
             f'      "url": "{url}",\n'
             f'      "slug": "{slug}",\n'
@@ -191,7 +220,7 @@ def _write_frozen_mount(root: Path, *, mount: str, slug: str, title: str, url: s
             '      "toc": []\n'
             "    }\n"
             "  ],\n"
-            "  \"edges\": []\n"
+            '  "edges": []\n'
             "}\n"
         ),
         encoding="utf-8",
@@ -200,6 +229,20 @@ def _write_frozen_mount(root: Path, *, mount: str, slug: str, title: str, url: s
 
 
 class TestGitSourceProvider:
+    @pytest.mark.parametrize("repo_kind", ("unreachable", "corrupt"))
+    def test_git_sync_rejects_unreachable_and_corrupt_repositories(
+        self,
+        tmp_path: Path,
+        repo_kind: str,
+    ) -> None:
+        repo = tmp_path / f"{repo_kind}-repo"
+        if repo_kind == "corrupt":
+            (repo / ".git").mkdir(parents=True)
+        config = GitSourceConfig(repo=repo.as_posix(), ref="main")
+
+        with pytest.raises(RuntimeError, match=r"git clone .* failed"):
+            sync_git_source(config, mount_id="remote", app_root=tmp_path / "app")
+
     def test_registry_syncs_git_mount_and_exports_commit_provenance(self, tmp_path: Path) -> None:
         repo, commit = _make_git_docs_repo(tmp_path)
         app_root = tmp_path / "app"
@@ -221,7 +264,9 @@ mounts:
             encoding="utf-8",
         )
 
-        registry = CatalogRegistry.from_config(mounts_yaml, repo_root=tmp_path, app_root=app_root, autodoc=False)
+        registry = CatalogRegistry.from_config(
+            mounts_yaml, repo_root=tmp_path, app_root=app_root, autodoc=False
+        )
 
         node = registry.get_by_slug("guide", mount="remote")
         assert node is not None
@@ -230,7 +275,10 @@ mounts:
         assert node.meta["source_repo"] == repo.as_posix()
         assert node.meta["source_ref"] == commit
         assert node.meta["source_url"].startswith(repo.resolve().as_uri())
-        assert registry.mounts[0].content_root == app_root / ".docs-cache" / "sources" / "remote" / "repo" / "docs"
+        assert (
+            registry.mounts[0].content_root
+            == app_root / ".docs-cache" / "sources" / "remote" / "repo" / "docs"
+        )
 
         payload = catalog_graph(registry, schema_version=3)
         page = payload["pages"][0]
@@ -765,21 +813,17 @@ class TestRstAdapter:
         assert by_construct["RST directive '.. tabs::'"].line == 5
         assert by_construct["RST role ':py:class:'"].severity == "warning"
         assert by_construct["RST role ':py:class:'"].line == 8
-        assert "not resolved through Furatena inventories" in by_construct["RST role ':py:class:'"].behavior
+        assert (
+            "not resolved through Furatena inventories"
+            in by_construct["RST role ':py:class:'"].behavior
+        )
 
     def test_extracts_rst_structure(self) -> None:
         pytest = __import__("pytest")
         docutils = pytest.importorskip("docutils")
         _ = docutils
         adapter = get_content_adapter("docutils-rst")
-        source = (
-            "Title\n"
-            "=====\n\n"
-            "`Other </docs/other/>`_\n\n"
-            "Section\n"
-            "-------\n\n"
-            "Body text.\n"
-        )
+        source = "Title\n=====\n\n`Other </docs/other/>`_\n\nSection\n-------\n\nBody text.\n"
         _doc, content_ir = adapter.parse(source)
         assert content_ir is not None
         assert content_ir.headings
@@ -807,7 +851,7 @@ class TestMdxAdapter:
         from furatena.catalog.directives.registry import create_directive_registry
         from furatena.catalog.format_compat import mdx_compatibility_findings
 
-        source = "# MDX\n\n<Cards columns=\"2\">Body</Cards>\n\n<ApiTable endpoint=\"/v1\" />\n"
+        source = '# MDX\n\n<Cards columns="2">Body</Cards>\n\n<ApiTable endpoint="/v1" />\n'
         findings = mdx_compatibility_findings(
             source,
             source_path="docs/page.mdx",
@@ -816,15 +860,21 @@ class TestMdxAdapter:
         by_construct = {finding.construct: finding for finding in findings}
         assert by_construct["MDX JSX component <Cards>"].severity == "info"
         assert by_construct["MDX JSX component <Cards>"].line == 3
-        assert "mapped to Patitas directive 'cards'" in by_construct["MDX JSX component <Cards>"].behavior
+        assert (
+            "mapped to Patitas directive 'cards'"
+            in by_construct["MDX JSX component <Cards>"].behavior
+        )
         assert by_construct["MDX JSX component <ApiTable>"].severity == "warning"
         assert by_construct["MDX JSX component <ApiTable>"].line == 5
-        assert "unregistered Patitas directive" in by_construct["MDX JSX component <ApiTable>"].behavior
+        assert (
+            "unregistered Patitas directive"
+            in by_construct["MDX JSX component <ApiTable>"].behavior
+        )
 
     def test_lowers_jsx_to_markdown_extensions(self) -> None:
         from furatena.catalog.sources.adapters.mdx import mdx_to_markdown
 
-        source = "# Title\n\n<Callout tone=\"info\">Hello</Callout>\n"
+        source = '# Title\n\n<Callout tone="info">Hello</Callout>\n'
         lowered = mdx_to_markdown(source)
         assert ":::callout" in lowered
         assert "Hello" in lowered
@@ -849,7 +899,7 @@ class TestMdxAdapter:
         docs = tmp_path / "docs"
         docs.mkdir()
         (docs / "page.mdx").write_text(
-            "---\ntitle: MDX Page\n---\n\n# MDX Page\n\n<ApiTable endpoint=\"/v1\" />\n",
+            '---\ntitle: MDX Page\n---\n\n# MDX Page\n\n<ApiTable endpoint="/v1" />\n',
             encoding="utf-8",
         )
         config = MountSourceConfig.from_mount_dict({"extensions": [".mdx"]})
@@ -857,7 +907,9 @@ class TestMdxAdapter:
         errors, warnings = check_catalog(catalog)
 
         assert errors == []
-        assert any("docs/page.mdx:3: MDX JSX component <ApiTable>" in warning for warning in warnings)
+        assert any(
+            "docs/page.mdx:3: MDX JSX component <ApiTable>" in warning for warning in warnings
+        )
 
 
 class TestMystAdapter:
@@ -954,5 +1006,7 @@ class TestMystAdapter:
         errors, warnings = check_catalog(catalog)
 
         assert errors == []
-        assert any("docs/guide.myst:3: MyST directive '{unknown-panel}'" in warning for warning in warnings)
+        assert any(
+            "docs/guide.myst:3: MyST directive '{unknown-panel}'" in warning for warning in warnings
+        )
         assert any("docs/guide.myst:7: MyST role '{term}'" in warning for warning in warnings)

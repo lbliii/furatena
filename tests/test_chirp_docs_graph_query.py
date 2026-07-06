@@ -7,6 +7,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
 
@@ -48,7 +50,9 @@ def _write_query_fixture(tmp_path: Path) -> tuple[Path, Path]:
     return app_root, content
 
 
-def _client_for_app(app_root: Path, *, repo_root: Path, serve: ServeConfig | None = None) -> TestClient:
+def _client_for_app(
+    app_root: Path, *, repo_root: Path, serve: ServeConfig | None = None
+) -> TestClient:
     docs = DocsApp.from_paths(
         app_root / "docs.yaml",
         repo_root=repo_root,
@@ -167,6 +171,35 @@ def test_graph_query_endpoint_filters_by_locale(tmp_path: Path) -> None:
     assert payload["pages"][0]["lang"] == "es"
 
 
+@pytest.mark.parametrize(
+    ("query", "invalid_key", "invalid_value"),
+    (
+        ("unknown_filter=value", "unknown", ["unknown_filter"]),
+        ("edge_kind=not-a-real-edge", "edge_kind", "not-a-real-edge"),
+    ),
+)
+def test_graph_query_endpoint_rejects_invalid_filters(
+    tmp_path: Path,
+    query: str,
+    invalid_key: str,
+    invalid_value: object,
+) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    async def _fetch():
+        return await client.get(f"/catalog/query.json?{query}")
+
+    response = asyncio.run(_fetch())
+    payload = json.loads(response.text)
+
+    assert response.status == 400
+    assert payload["error"] == "invalid catalog query filters"
+    assert payload["invalid_filters"][invalid_key] == invalid_value
+    assert "edge_kind" in payload["allowed_filters"]
+    assert "link" in payload["allowed_edge_kinds"]
+
+
 def test_graph_query_endpoint_uses_frozen_catalog(tmp_path: Path) -> None:
     app_root, _content = _write_query_fixture(tmp_path)
     config = load_docs_config(app_root / "docs.yaml")
@@ -193,9 +226,7 @@ def test_graph_query_endpoint_uses_frozen_catalog(tmp_path: Path) -> None:
         json.dumps(
             {
                 "schema_version": 1,
-                "mounts": [
-                    {"id": "chirp", "label": "Test", "url_prefix": "/", "default": True}
-                ],
+                "mounts": [{"id": "chirp", "label": "Test", "url_prefix": "/", "default": True}],
             }
         ),
         encoding="utf-8",
