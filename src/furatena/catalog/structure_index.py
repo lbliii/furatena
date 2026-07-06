@@ -21,7 +21,7 @@ def build_structure_index(catalog, *, include_private: bool = False) -> dict[str
         include_private=include_private,
     )
     for node in nodes:
-        if node.meta.get("draft"):
+        if node.meta.get("draft") and not include_private:
             continue
         content = content_ir_record(node.content_ir)
         if content is None:

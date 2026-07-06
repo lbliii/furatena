@@ -7,6 +7,7 @@ import os
 import re
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 from chirp import ConfigurationError
@@ -641,6 +642,43 @@ def test_agent_lint_reports_missing_mcp_parameter_description(tmp_path: Path) ->
     assert not warnings
 
 
+def test_agent_manifest_lint_reports_advertised_url_drift(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    from furatena.catalog import export as export_module
+    from furatena.catalog.agent_lint import check_agent_manifest_alignment
+
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+    )
+    original = export_module.tools_manifest
+
+    assert check_agent_manifest_alignment(
+        FuraMCPServer(docs, base_url="https://docs.example.com/reference")
+    ) == []
+
+    def drifted_tools_manifest(*args, **kwargs):
+        payload = original(*args, **kwargs)
+        payload["catalog_url"] = "/missing-catalog.json"
+        return payload
+
+    monkeypatch.setattr(export_module, "tools_manifest", drifted_tools_manifest)
+
+    findings = check_agent_manifest_alignment(FuraMCPServer(docs))
+
+    assert any(
+        finding.rule_id == "fura.agent.manifest_alignment"
+        and "/missing-catalog.json" in finding.message
+        for finding in findings
+    )
+
+
 def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 
@@ -783,6 +821,22 @@ def test_freeze_and_export_json_report_outputs(tmp_path: Path, capsys) -> None:
     assert public_channels["mode"] == "static"
     assert {item["id"] for item in public_channels["channels"]} >= {"static", "agent", "pdf"}
     assert public_channels["channels"][3]["status"] == "planned"
+    for root, manifest in (
+        (app_root / "frozen", frozen_channels),
+        (app_root / "public", public_channels),
+    ):
+        agent = next(channel for channel in manifest["channels"] if channel["id"] == "agent")
+        base_path = urlsplit(manifest["base_url"]).path.strip("/")
+        advertised = [
+            urlsplit(output["url"]).path.lstrip("/")
+            for output in agent["outputs"]
+            if output.get("url")
+        ]
+        if base_path:
+            advertised = [path.removeprefix(f"{base_path}/") for path in advertised]
+        assert advertised
+        missing = [path for path in advertised if not (root / path).is_file()]
+        assert missing == []
 
 
 def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) -> None:
@@ -1210,6 +1264,10 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
         llms_full_private = await client.get("/llms-full.txt?include_private=1")
         tools_public = await client.get("/tools.json")
         tools_private = await client.get("/tools.json?include_private=1")
+        semantic_public = await client.get("/semantic.json")
+        semantic_private = await client.get("/semantic.json?include_private=1")
+        structure_public = await client.get("/structure.json")
+        structure_private = await client.get("/structure.json?include_private=1")
         sitemap_public = await client.get("/sitemap.xml")
         sitemap_private = await client.get("/sitemap.xml?include_private=1")
         meta_public = await client.get("/meta.json")
@@ -1229,6 +1287,10 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
             "llms_full_private": llms_full_private.text,
             "tools_public": json_body(tools_public.text),
             "tools_private": json_body(tools_private.text),
+            "semantic_public": json_body(semantic_public.text),
+            "semantic_private": json_body(semantic_private.text),
+            "structure_public": json_body(structure_public.text),
+            "structure_private": json_body(structure_private.text),
             "sitemap_public": sitemap_public.text,
             "sitemap_private": sitemap_private.text,
             "meta_public": json_body(meta_public.text),
@@ -1271,6 +1333,10 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
     assert "Secret" not in payload["llms_full_public"]
     assert "Secret" in payload["llms_full_private"]
     assert payload["tools_private"]["page_count"] == payload["tools_public"]["page_count"] + 1
+    assert "Secret" not in json.dumps(payload["semantic_public"])
+    assert "Secret" in json.dumps(payload["semantic_private"])
+    assert "Secret" not in json.dumps(payload["structure_public"])
+    assert "Secret" in json.dumps(payload["structure_private"])
     assert "/docs/secret/" not in payload["sitemap_public"]
     assert "/docs/secret/" in payload["sitemap_private"]
     assert all(page["title"] != "Secret" for page in payload["meta_public"]["pages"])

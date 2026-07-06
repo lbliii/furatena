@@ -149,7 +149,11 @@ def deployment_profiles_manifest(*, base_url: str = "") -> dict[str, Any]:
         },
         "links": {
             "self": f"{origin}/deployment-profiles.json" if origin else "/deployment-profiles.json",
-            "docs": f"{origin}/docs/operations/deployment-profiles/" if origin else "/docs/operations/deployment-profiles/",
+            "docs": (
+                f"{origin}/develop/deployment-profiles/"
+                if origin
+                else "/develop/deployment-profiles/"
+            ),
             "channels": f"{origin}/channels.json" if origin else "/channels.json",
         },
     }

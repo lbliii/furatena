@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +59,279 @@ def check_agent_contracts(server: Any) -> tuple[list[AgentLintFinding], list[Age
 
     warnings.extend(_lint_llms_descriptions(server.catalog))
     errors.extend(_lint_milo_surface(server, resources, tools))
+    errors.extend(check_agent_manifest_alignment(server))
     return sorted(errors, key=_finding_key), sorted(warnings, key=_finding_key)
+
+
+def check_agent_manifest_alignment(server: Any) -> list[AgentLintFinding]:
+    """Cross-check public identities, URLs, versions, and access across agent outputs."""
+    from furatena.catalog.channel_manifest import channel_manifest
+    from furatena.catalog.deployment_profiles import deployment_profiles_manifest
+    from furatena.catalog.export import (
+        catalog_graph,
+        llms_txt,
+        meta_json,
+        search_json,
+        tools_manifest,
+    )
+    from furatena.catalog.mcp import SERVER_NAME
+
+    catalog = server.catalog
+    config = getattr(server.docs_app, "config", None)
+    site_name = str(getattr(getattr(config, "site", None), "name", "Furatena"))
+    base_url = str(getattr(server, "base_url", "") or "").rstrip("/")
+    base_path = urlsplit(base_url).path.rstrip("/")
+    catalog_payload = catalog_graph(catalog, include_private=False)
+    search_payload = search_json(catalog, base_url=base_url, include_private=False)
+    meta_payload = meta_json(catalog, include_private=False)
+    tools_payload = tools_manifest(
+        catalog,
+        base_url=base_url,
+        site_name=site_name,
+        include_private=False,
+    )
+    channels_payload = channel_manifest(
+        catalog,
+        config=config,
+        base_url=base_url,
+        mode="live",
+    )
+    profiles_payload = deployment_profiles_manifest(base_url=base_url)
+    initialize = server.handle_request(
+        {"jsonrpc": "2.0", "id": "manifest-lint", "method": "initialize", "params": {}}
+    )
+
+    findings: list[AgentLintFinding] = []
+    version_fields = {
+        "catalog.json": catalog_payload.get("schema_version"),
+        "search.json": search_payload.get("version"),
+        "meta.json": meta_payload.get("schema_version"),
+        "tools.json": tools_payload.get("schema_version"),
+        "channels.json": channels_payload.get("schema_version"),
+        "deployment-profiles.json": profiles_payload.get("schema_version"),
+    }
+    for surface, version in version_fields.items():
+        if not isinstance(version, int) or version < 1:
+            findings.append(
+                _manifest_finding(
+                    f"{surface} has no positive integer schema version",
+                    surface,
+                    "Publish an explicit positive schema/version field for compatibility checks.",
+                )
+            )
+
+    initialize_result = initialize.get("result", {}) if isinstance(initialize, dict) else {}
+    server_info = initialize_result.get("serverInfo", {})
+    if server_info.get("name") != SERVER_NAME or not str(server_info.get("version") or "").strip():
+        findings.append(
+            _manifest_finding(
+                "MCP initialize identity or package version does not match the Furatena server",
+                "mcp:initialize",
+                "Return the stable MCP server name and installed package version.",
+            )
+        )
+    if not str(initialize_result.get("protocolVersion") or "").strip():
+        findings.append(
+            _manifest_finding(
+                "MCP initialize response has no protocol version",
+                "mcp:initialize",
+                "Advertise the negotiated MCP protocol version.",
+            )
+        )
+
+    expected_tool_name = "-".join(part for part in site_name.lower().split() if part) or "furatena"
+    if tools_payload.get("name") != f"{expected_tool_name}-docs":
+        findings.append(
+            _manifest_finding(
+                "tools.json identity does not match the configured site name",
+                "tools.json:name",
+                "Derive the tool manifest identity from site.name.",
+            )
+        )
+    if channels_payload.get("site", {}).get("name") != site_name:
+        findings.append(
+            _manifest_finding(
+                "channels.json site identity does not match the configured site name",
+                "channels.json:site",
+                "Publish the configured site identity in the channel manifest.",
+            )
+        )
+
+    catalog_nodes = _manifest_node_index(catalog_payload.get("pages"))
+    doc_nodes = {str(node.node_id): _manifest_path(str(node.url)) for node in server._doc_nodes()}
+    meta_nodes = _manifest_node_index(meta_payload.get("pages"))
+    search_nodes = _manifest_node_index(search_payload.get("entries"), base_path=base_path)
+    llms_urls = {_manifest_path(url) for url in re.findall(r"\]\(([^)]+)\)", llms_txt(catalog))}
+    mcp_node_ids = {
+        unquote(str(resource.get("uri") or "").removeprefix("fura://catalog/nodes/"))
+        for resource in server.list_resources()
+        if str(resource.get("uri") or "").startswith("fura://catalog/nodes/")
+    }
+
+    findings.extend(
+        _manifest_set_findings(
+            "meta.json",
+            expected=set(catalog_nodes),
+            actual=set(meta_nodes),
+        )
+    )
+    findings.extend(
+        _manifest_set_findings(
+            "search.json",
+            expected=set(doc_nodes),
+            actual=set(search_nodes),
+        )
+    )
+    findings.extend(
+        _manifest_set_findings(
+            "llms.txt",
+            expected=set(doc_nodes.values()),
+            actual=llms_urls,
+        )
+    )
+    findings.extend(
+        _manifest_set_findings(
+            "MCP node resources",
+            expected=set(doc_nodes),
+            actual=mcp_node_ids,
+        )
+    )
+
+    counts = {
+        "catalog.json": (catalog_payload.get("page_count"), len(catalog_nodes)),
+        "search.json": (search_payload.get("page_count"), len(doc_nodes)),
+        "meta.json": (meta_payload.get("page_count"), len(catalog_nodes)),
+        "tools.json": (tools_payload.get("page_count"), len(catalog_nodes)),
+        "channels.json": (channels_payload.get("page_count"), len(catalog_nodes)),
+        "MCP node resources": (len(mcp_node_ids), len(doc_nodes)),
+    }
+    for surface, (count, expected_count) in counts.items():
+        if count != expected_count:
+            findings.append(
+                _manifest_finding(
+                    f"{surface} reports {count!r} public pages; expected {expected_count}",
+                    f"{surface}:page_count",
+                    "Apply the same public export filtering and page identity rules to every agent surface.",
+                )
+            )
+
+    agent_channel = next(
+        (
+            channel
+            for channel in channels_payload.get("channels", [])
+            if channel.get("id") == "agent"
+        ),
+        {},
+    )
+    outputs = list(agent_channel.get("outputs") or [])
+    advertised_urls = {
+        _manifest_path(str(output.get("url") or ""), base_path=base_path)
+        for output in outputs
+        if output.get("url")
+    }
+    tool_urls = {
+        _manifest_path(str(value), base_path=base_path)
+        for key, value in tools_payload.items()
+        if key.endswith("_url") and value
+    }
+    findings.extend(
+        _manifest_set_findings(
+            "channels.json agent URLs",
+            expected=tool_urls,
+            actual=advertised_urls,
+            allow_extra=True,
+        )
+    )
+    profile_sidecar_urls = {
+        _manifest_path(
+            str(profiles_payload.get("links", {}).get(key) or ""),
+            base_path=base_path,
+        )
+        for key in ("self", "channels")
+    }
+    findings.extend(
+        _manifest_set_findings(
+            "deployment profile sidecar URLs",
+            expected=profile_sidecar_urls,
+            actual=advertised_urls,
+            allow_extra=True,
+        )
+    )
+    from furatena.catalog.route_manifest import route_manifest_entries
+
+    available_routes = {
+        entry.path
+        for entry in route_manifest_entries(server.docs_app.create_app(), catalog=catalog)
+        if "GET" in entry.methods
+    }
+    profile_urls = {
+        _manifest_path(str(value), base_path=base_path)
+        for value in profiles_payload.get("links", {}).values()
+        if value
+    }
+    for path in sorted(advertised_urls | profile_urls):
+        if not any(_manifest_route_matches(route, path) for route in available_routes):
+            findings.append(
+                _manifest_finding(
+                    f"Advertised agent URL has no GET route in the live delivery profile: {path}",
+                    path,
+                    "Register the route or remove the stale URL from agent and deployment manifests.",
+                )
+            )
+
+    for output in outputs:
+        output_id = str(output.get("id") or "<missing-id>")
+        for field in ("label", "format", "media_type", "visibility"):
+            if not str(output.get(field) or "").strip():
+                findings.append(
+                    _manifest_finding(
+                        f"Agent output {output_id} is missing {field}",
+                        f"channels.json:{output_id}",
+                        "Describe every output's identity, representation, media type, and visibility.",
+                    )
+                )
+        if output.get("visibility") != "public":
+            findings.append(
+                _manifest_finding(
+                    f"Agent output {output_id} is not marked public",
+                    f"channels.json:{output_id}",
+                    "Keep public channel outputs explicitly public and filter protected content upstream.",
+                )
+            )
+
+    access = tools_payload.get("access", {})
+    if access != {"visibility": "public", "include_private": False}:
+        findings.append(
+            _manifest_finding(
+                "tools.json does not declare the public access-filtering contract",
+                "tools.json:access",
+                "Declare public visibility with include_private=false for published tools metadata.",
+            )
+        )
+    if bool(getattr(server, "include_private", False)):
+        findings.append(
+            _manifest_finding(
+                "Public manifest lint received an include-private MCP server",
+                "mcp:access",
+                "Run public manifest validation with include_private disabled.",
+            )
+        )
+
+    declared_modes = set(profiles_payload.get("agent_modes", {}))
+    referenced_modes = {
+        str(mode)
+        for profile in profiles_payload.get("profiles", [])
+        for mode in profile.get("agent_modes", [])
+    }
+    findings.extend(
+        _manifest_set_findings(
+            "deployment profile agent modes",
+            expected=referenced_modes,
+            actual=declared_modes,
+            allow_extra=True,
+        )
+    )
+    return sorted(findings, key=_finding_key)
 
 
 def check_agent_safety(
@@ -480,6 +754,73 @@ def _duplicate_findings(
         )
         for value in sorted(duplicates)
     ]
+
+
+def _manifest_node_index(records: Any, *, base_path: str = "") -> dict[str, str]:
+    if not isinstance(records, list):
+        return {}
+    return {
+        str(record.get("node_id")): _manifest_path(
+            str(record.get("url") or ""),
+            base_path=base_path,
+        )
+        for record in records
+        if isinstance(record, dict) and record.get("node_id") and record.get("url")
+    }
+
+
+def _manifest_path(value: str, *, base_path: str = "") -> str:
+    path = urlsplit(value).path or value
+    if base_path and (path == base_path or path.startswith(f"{base_path}/")):
+        path = path.removeprefix(base_path) or "/"
+    return path if path.startswith("/") else f"/{path}"
+
+
+def _manifest_route_matches(route: str, path: str) -> bool:
+    parts = re.split(r"(\{[^}]+\})", route)
+    pattern = "".join(r"[^/]+" if part.startswith("{") else re.escape(part) for part in parts)
+    return re.fullmatch(pattern, path) is not None
+
+
+def _manifest_set_findings(
+    surface: str,
+    *,
+    expected: set[str],
+    actual: set[str],
+    allow_extra: bool = False,
+) -> list[AgentLintFinding]:
+    findings: list[AgentLintFinding] = []
+    missing = sorted(expected - actual)
+    unexpected = [] if allow_extra else sorted(actual - expected)
+    if missing:
+        findings.append(
+            _manifest_finding(
+                f"{surface} is missing {len(missing)} expected identity or URL value(s): "
+                f"{', '.join(missing[:3])}",
+                surface,
+                "Generate every agent surface from the same public catalog and URL registry.",
+            )
+        )
+    if unexpected:
+        findings.append(
+            _manifest_finding(
+                f"{surface} has {len(unexpected)} unexpected identity or URL value(s): "
+                f"{', '.join(unexpected[:3])}",
+                surface,
+                "Remove stale or access-ineligible entries from the agent surface.",
+            )
+        )
+    return findings
+
+
+def _manifest_finding(message: str, target: str, next_action: str) -> AgentLintFinding:
+    return _finding(
+        "error",
+        "fura.agent.manifest_alignment",
+        message,
+        target,
+        next_action,
+    )
 
 
 def _finding(

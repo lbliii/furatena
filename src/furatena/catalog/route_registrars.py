@@ -37,8 +37,9 @@ from furatena.catalog.export import (
 from furatena.catalog.graph_schema import EdgeKind
 from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.runtime import ServeMode
-from furatena.catalog.semantic import retrieve_node, semantic_search_json
+from furatena.catalog.semantic import retrieve_node, semantic_index_json, semantic_search_json
 from furatena.catalog.sitemap import sitemap_xml
+from furatena.catalog.structure_index import build_structure_index
 from furatena.cli.authoring import (
     author_new,
     author_read_source,
@@ -528,6 +529,25 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = api_operations_json(
             self.catalog,
             base_url=self._site_base(request),
+            include_private=self._include_private_output(request),
+        )
+        return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
+
+    @app.route("/semantic.json", referenced=True)
+    def semantic_json_route(request: Request):
+        self._ensure_catalog()
+        body = semantic_index_json(
+            self.catalog,
+            self.embedding_index,
+            include_private=self._include_private_output(request),
+        )
+        return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
+
+    @app.route("/structure.json", referenced=True)
+    def structure_json_route(request: Request):
+        self._ensure_catalog()
+        body = build_structure_index(
+            self.catalog,
             include_private=self._include_private_output(request),
         )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")

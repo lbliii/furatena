@@ -40,6 +40,31 @@ class HybridSearchResult:
     semantic_hits: tuple[SemanticHit, ...]
 
 
+def semantic_index_json(
+    catalog: CatalogLike,
+    index: EmbeddingIndex,
+    *,
+    include_private: bool = False,
+) -> dict[str, Any]:
+    """Return the persisted semantic index shape with catalog access filtering."""
+    nodes = accessible_nodes(
+        catalog,
+        catalog.doc_nodes(),
+        permission=AccessPermission.SEARCH,
+        include_private=include_private,
+    )
+    allowed_node_ids = {node.node_id for node in nodes}
+    payload = index.to_json()
+    chunks = [
+        chunk
+        for chunk in payload.get("chunks", [])
+        if isinstance(chunk, dict) and chunk.get("node_id") in allowed_node_ids
+    ]
+    payload["chunks"] = chunks
+    payload["chunk_count"] = len(chunks)
+    return payload
+
+
 def _node_matches_filters(
     node: DocNode,
     *,

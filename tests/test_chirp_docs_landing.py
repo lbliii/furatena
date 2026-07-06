@@ -135,6 +135,7 @@ class TestDevelopExports:
         assert payload["default_profile"] == "local-author"
         assert {"local-author", "static-pages", "cloud-live", "self-hosted-enterprise"} <= profile_ids
         assert payload["agent_modes"]["local_mcp"]
+        assert payload["links"]["docs"].endswith("/develop/deployment-profiles/")
         local = next(item for item in payload["profiles"] if item["id"] == "local-author")
         assert local["default"] is True
         assert "local_mcp" in local["agent_modes"]
