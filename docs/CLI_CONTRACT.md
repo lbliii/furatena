@@ -7,7 +7,7 @@ Fura commands that support `--json` emit one stable JSON object:
   "ok": true,
   "command": "check",
   "exit_code": 0,
-  "summary": "check completed with 0 error(s) and 0 warning(s)",
+  "summary": "check completed with 0 error(s), 0 warning(s), and 0 info finding(s)",
   "diagnostics": [],
   "data": {}
 }
@@ -38,6 +38,16 @@ Diagnostics are structured for CI and agents:
 ```
 
 Fields such as `source_path`, `line`, `mount`, `node_id`, `rule_id`, and `next_action` are present when Fura can determine them. Commands must not require screen scraping of human text when `--json` is used.
+
+Normal `fura check` runs compose Chirp's structured hypermedia findings into
+this same diagnostic array. Chirp categories use stable `chirp.<category>` rule
+ids, template or route origins populate `source_path`, and Chirp details (or a
+category-specific fallback) populate `next_action`. `data` reports total and
+Chirp-specific error, warning, and info counts plus routes/templates checked.
+Info findings never fail the command; warnings fail when the configured
+warning threshold applies, including `--warnings-as-errors` and Chirp's deploy
+posture. Terminal, JSON, and CI report formats render this one composed result,
+so no finding is counted or printed twice.
 
 ## Current JSON commands
 

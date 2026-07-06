@@ -25,7 +25,13 @@ def render_report(result: CommandResult, report_format: str) -> str:
 def _github_annotations(diagnostics: Iterable[Diagnostic]) -> str:
     lines = []
     for item in diagnostics:
-        level = "error" if item.severity == "error" else "warning"
+        level = (
+            "error"
+            if item.severity == "error"
+            else "warning"
+            if item.severity == "warning"
+            else "notice"
+        )
         props = []
         if item.source_path:
             props.append(f"file={_gha_prop(item.source_path)}")
@@ -58,7 +64,7 @@ def _junit(result: CommandResult, diagnostics: tuple[Diagnostic, ...]) -> str:
             lines.append(
                 f'    <failure message="{escape(item.message)}">{escape(_diagnostic_detail(item))}</failure>'
             )
-        elif item.severity == "warning":
+        elif item.severity in {"warning", "info"}:
             lines.append(f'    <system-out>{escape(_diagnostic_detail(item))}</system-out>')
         lines.append("  </testcase>")
     lines.append("</testsuite>")
@@ -73,7 +79,7 @@ def _checkstyle(diagnostics: tuple[Diagnostic, ...]) -> str:
     for source, items in sorted(by_file.items()):
         lines.append(f'  <file name="{escape(source)}">')
         for item in items:
-            severity = "error" if item.severity == "error" else "warning"
+            severity = item.severity if item.severity in {"error", "warning", "info"} else "info"
             line = item.line or 1
             source_name = escape(item.rule_id or "fura")
             lines.append(
