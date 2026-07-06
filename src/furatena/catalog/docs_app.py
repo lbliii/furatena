@@ -43,7 +43,6 @@ from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
-from furatena.catalog.delivery import resolve_delivery_for_node
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.dev_reload import (
     browser_reload_dirs,
@@ -53,7 +52,7 @@ from furatena.catalog.dev_reload import (
     stop_dev_server,
     write_dev_server_record,
 )
-from furatena.catalog.develop_exports import DEVELOP_EXPORTS, DevelopExport
+from furatena.catalog.develop_exports import DevelopExport
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.error_experience import build_error_context
 from furatena.catalog.export import (
@@ -71,7 +70,6 @@ from furatena.catalog.export import (
 from furatena.catalog.i18n import (
     LocaleResolutionService,
     LocalizedNodeMatch,
-    active_language_override,
     supported_app_locales,
 )
 from furatena.catalog.identity import scoped_frozen_dir
@@ -79,6 +77,7 @@ from furatena.catalog.incremental import is_partial_reload
 from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
 from furatena.catalog.registry import CatalogRegistry
+from furatena.catalog.render_context import RenderContextService
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.search_experience import (
     build_search_workspace_context,
@@ -89,13 +88,7 @@ from furatena.catalog.search_experience import (
     search_nav_attrs,
 )
 from furatena.catalog.seo import (
-    canonical_url as build_canonical_url,
-)
-from furatena.catalog.seo import (
     docs_base_url,
-    json_ld_article,
-    json_ld_script,
-    og_image_url,
 )
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_items
@@ -204,6 +197,13 @@ class DocsApp:
             catalog_nav=config.catalog,
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
+        )
+        self.render_context = RenderContextService(
+            config,
+            self.catalog,
+            self.views,
+            self.locale_service,
+            self.theme,
         )
         semantic_root = scoped_frozen_dir(
             frozen or config.root / "frozen", config.identity.to_meta()
@@ -318,11 +318,7 @@ class DocsApp:
         self.catalog.refresh_if_stale()
 
     def _request_language(self, request: Request | None, *, node=None) -> str:
-        return self.locale_service.request_language(
-            path=request.path if request is not None else "",
-            node=node,
-            override=active_language_override(),
-        )
+        return self.render_context.request_language(request, node=node)
 
     def _locale_template_context(
         self,
@@ -333,18 +329,15 @@ class DocsApp:
     ) -> dict[str, Any]:
         active_lang = (
             locale_match.requested_lang
-            if locale_match
+            if locale_match is not None
             else self._request_language(request, node=node)
         )
         if self.config.i18n.enabled:
             set_locale(active_lang)
-        return self.locale_service.template_context(
-            self.catalog,
-            path=request.path if request is not None else "",
+        return self.render_context.locale_context(
+            request=request,
             node=node,
             locale_match=locale_match,
-            override=active_lang,
-            base_url=self._site_base(request) if request is not None else "",
         )
 
     @staticmethod
@@ -595,136 +588,10 @@ class DocsApp:
         )
 
     def _author_dashboard_context(self, request: Request) -> dict[str, Any]:
-        errors, warnings = check_catalog(
-            self.catalog,
-            views=getattr(self, "views", None),
-            docs=getattr(self, "config", None),
-            theme=getattr(self, "theme", None),
-            inventory_store=self.catalog.inventory_store,
+        return self.render_context.author_dashboard_context(
+            request,
+            source_info=self._author_source_info,
         )
-        source_to_node = {
-            str(getattr(node, "source_path", "") or ""): node
-            for node in self.catalog.nodes
-            if getattr(node, "source_path", "")
-        }
-        source_to_mount = {
-            source: getattr(node, "mount", "") for source, node in source_to_node.items()
-        }
-        diagnostics = [
-            *(
-                _author_dashboard_diagnostic(message, "error", source_to_node, source_to_mount)
-                for message in errors
-            ),
-            *(
-                _author_dashboard_diagnostic(message, "warning", source_to_node, source_to_mount)
-                for message in warnings
-            ),
-        ]
-        diagnostics_by_mount: dict[str, list[dict[str, Any]]] = {}
-        for diagnostic in diagnostics:
-            diagnostics_by_mount.setdefault(str(diagnostic["mount"]), []).append(diagnostic)
-
-        stale_entries = self.catalog.author_stale_entries()
-        stale_by_mount: dict[str, list[dict[str, Any]]] = {}
-        for entry in stale_entries:
-            stale_by_mount.setdefault(str(entry.get("mount") or "<catalog>"), []).append(
-                dict(entry)
-            )
-
-        health_by_mount = {
-            item["id"]: item
-            for item in self.catalog.source_health().get("mounts", [])
-            if isinstance(item, dict) and item.get("id")
-        }
-        mount_cards: list[dict[str, Any]] = []
-        dirty_page_total = 0
-        doc_nodes = self.catalog.doc_nodes()
-        for mount in self.catalog.mounts:
-            nodes = [node for node in doc_nodes if node.mount == mount.id]
-            format_counts: dict[str, int] = {}
-            dirty_pages: list[dict[str, str]] = []
-            for node in nodes:
-                content_format = str(getattr(node, "content_format", "") or "unknown")
-                format_counts[content_format] = format_counts.get(content_format, 0) + 1
-                source = self._author_source_info(node)
-                if source["dirty"]:
-                    dirty_pages.append(
-                        {
-                            "title": node.title,
-                            "slug": node.slug,
-                            "url": node.url,
-                            "source_path": str(getattr(node, "source_path", "") or ""),
-                        }
-                    )
-            dirty_page_total += len(dirty_pages)
-            mount_diagnostics = diagnostics_by_mount.get(mount.id, [])
-            mount_errors = [item for item in mount_diagnostics if item["severity"] == "error"]
-            mount_warnings = [item for item in mount_diagnostics if item["severity"] == "warning"]
-            mount_stale = stale_by_mount.get(mount.id, [])
-            source_health = health_by_mount.get(mount.id, {})
-            if mount_errors:
-                status = "blocked"
-            elif source_health.get("status") not in {None, "healthy"}:
-                status = "degraded"
-            elif dirty_pages or mount_stale:
-                status = "stale"
-            elif mount_warnings:
-                status = "review"
-            else:
-                status = "clean"
-            mount_cards.append(
-                {
-                    "id": mount.id,
-                    "label": mount.label,
-                    "default": mount.default,
-                    "url_prefix": mount.url_prefix or "/",
-                    "source_root": str(mount.content_root),
-                    "provider": source_health.get("provider") or mount.source.provider,
-                    "status": status,
-                    "health": source_health,
-                    "page_count": len(nodes),
-                    "formats": [
-                        {"format": key, "count": count}
-                        for key, count in sorted(format_counts.items())
-                    ],
-                    "dirty_pages": dirty_pages,
-                    "dirty_count": len(dirty_pages),
-                    "stale_entries": mount_stale,
-                    "stale_count": len(mount_stale),
-                    "error_count": len(mount_errors),
-                    "warning_count": len(mount_warnings),
-                    "diagnostics": mount_diagnostics[:6],
-                }
-            )
-
-        blocking = [item for item in diagnostics if item["severity"] == "error"]
-        ctx = {
-            **self._shell_context(request=request),
-            "app_surface": "author-dashboard",
-            "app_page_cls": "chirp-theme-author-dashboard",
-            "chirp_docs_surface": "author-dashboard",
-            "catalog_title": "Author dashboard",
-            "catalog_subtitle": "Import, freshness, and lint status",
-            "breadcrumb_items": [{"label": "Author dashboard", "href": "/docs/_author/dashboard"}],
-            "author_dashboard": {
-                "mounts": mount_cards,
-                "diagnostics": diagnostics,
-                "blocking": blocking[:12],
-                "stale_entries": stale_entries,
-                "summary": {
-                    "mount_count": len(mount_cards),
-                    "page_count": sum(item["page_count"] for item in mount_cards),
-                    "error_count": len(blocking),
-                    "warning_count": len(
-                        [item for item in diagnostics if item["severity"] == "warning"]
-                    ),
-                    "dirty_page_count": dirty_page_total,
-                    "stale_entry_count": len(stale_entries),
-                    "freshness_count": dirty_page_total + len(stale_entries),
-                },
-            },
-        }
-        return ctx
 
     def _author_source_info(self, node) -> dict[str, Any]:
         source_path = str(getattr(node, "source_path", "") or "")
@@ -909,25 +776,10 @@ class DocsApp:
         self.catalog._finalize_federated()
 
     def _theme_effects_context(self) -> dict[str, str]:
-        effects = self.config.theme.effects
-        return {
-            "fura_effects_code": effects.code,
-            "fura_effects_cards": effects.cards,
-            "fura_effects_hero": effects.hero,
-        }
+        return self.render_context.theme_effects_context()
 
     def _site_context(self) -> dict[str, Any]:
-        site = self.config.site
-        return {
-            "site": site,
-            "site_name": site.name,
-            "site_tagline": site.tagline,
-            "site_description": site.description,
-            "site_mark": site.mark,
-            "site_home": site.home,
-            "site_nav": site.navigation,
-            "develop_exports": DEVELOP_EXPORTS,
-        }
+        return self.render_context.site_context()
 
     def _page_context(
         self,
@@ -937,114 +789,31 @@ class DocsApp:
         request: Request | None = None,
         locale_match: LocalizedNodeMatch | None = None,
     ) -> dict[str, Any]:
-        self._ensure_catalog()
-        if locale_match is None:
-            page_lang = self._request_language(request, node=node)
-            locale_match = LocalizedNodeMatch(
-                node=node,
-                requested_lang=page_lang,
-                fallback=False,
-                requested_url=node.url,
-            )
-        page_lang = locale_match.requested_lang
-        active_url = locale_match.requested_url if locale_match.fallback else node.url
-        prev_node, next_node = self.catalog.prev_next(node)
-        base = self._site_base(request)
-        page_url = build_canonical_url(base, active_url)
-        view_name = self.views.resolve(node, self.catalog)
-        surface = self.views.surface(view_name)
-        child_count = self.catalog.direct_child_count(node.slug, lang=page_lang, mount=node.mount)
-        llm_txt_url = f"{page_url.rstrip('/')}/index.txt"
-        nav_items = (
-            self.catalog.docs_section_nav(active_url=active_url, lang=page_lang)
-            if surface == "catalog"
-            else self.catalog.nav_tree(active_url=active_url, lang=page_lang)
+        active_lang = (
+            locale_match.requested_lang
+            if locale_match is not None
+            else self._request_language(request, node=node)
         )
-        delivery = resolve_delivery_for_node(self.config, node)
-        ctx: dict[str, Any] = {
-            "node": node,
-            "delivery": delivery,
-            "rendering_head": delivery.head,
-            "resolved_theme": delivery,
-            "active_view": view_name,
-            "chirp_docs_surface": surface,
-            "nav_items": nav_items,
-            "catalog_rail_items": self.catalog.catalog_rail_items(
-                active_url=active_url, lang=page_lang
-            ),
-            "child_page_count": child_count,
-            "llm_txt_url": llm_txt_url,
-            "breadcrumb_items": self.catalog.trail(node),
-            "prev_page": prev_node,
-            "next_page": next_node,
-            "search_query": query,
-            "page_count": len(self.catalog.doc_nodes(lang=page_lang)),
-            "backlinks": self.catalog.backlinks_for(node),
-            "canonical_url": page_url,
-            "og_image_url": og_image_url(base, node),
-            "json_ld": json_ld_script(
-                json_ld_article(node=node, page_url=page_url, site_name=self.config.site.name)
-            ),
-            **self._site_context(),
-            **channel_context(self.catalog.channels_for(node.mount), self.catalog.active_channel),
-            **self._locale_template_context(request=request, node=node, locale_match=locale_match),
-            **self.locale_service.fallback_context(locale_match),
-            **self._theme_effects_context(),
-        }
+        if self.config.i18n.enabled:
+            set_locale(active_lang)
+        author_chrome = None
         if self._is_author_mode() and self.catalog.can_access_node(
             node,
             self._browser_author_subject(),
             permission=AccessPermission.AUTHOR,
         ):
-            ctx["author_chrome"] = self._author_page_chrome(node)
-        ctx.update(self.views.compose(node, self.catalog))
-        ctx.update(self._view_chrome_context(view_name, node, ctx))
-        return ctx
+            author_chrome = self._author_page_chrome(node)
+        return self.render_context.page_context(
+            node,
+            query=query,
+            request=request,
+            locale_match=locale_match,
+            author_chrome=author_chrome,
+        )
 
     @staticmethod
     def _view_chrome_context(view_name: str, node, ctx: dict[str, Any]) -> dict[str, Any]:
-        """Layout variables for theme block layouts (catalog + app surfaces)."""
-        if view_name in {"views/doc.html", "views/changelog.html"}:
-            toc_len = len(getattr(node, "toc", ()) or ())
-            return {
-                "catalog_surface": "doc",
-                "catalog_with_toc": toc_len > 0,
-                "catalog_layout_extra": "",
-            }
-        if view_name == "views/api_reference.html":
-            toc_len = len(getattr(node, "toc", ()) or ())
-            return {
-                "catalog_surface": "api-reference",
-                "catalog_with_toc": toc_len > 0,
-                "catalog_layout_extra": "",
-            }
-        if view_name == "views/doc_list.html":
-            toc_len = len(getattr(node, "toc", ()) or ())
-            return {
-                "catalog_surface": "doc-list",
-                "catalog_with_toc": toc_len > 0,
-                "catalog_layout_extra": "",
-            }
-        if view_name == "views/collection.html":
-            sections = ctx.get("collection_sections") or ()
-            collection = ctx.get("collection")
-            subtitle = getattr(node, "description", "") or (
-                collection.title if collection is not None else ""
-            )
-            return {
-                "catalog_surface": "collection",
-                "catalog_with_toc": len(sections) > 0,
-                "catalog_layout_extra": "chirp-theme-track-layout",
-                "catalog_title": getattr(node, "title", ""),
-                "catalog_subtitle": subtitle,
-            }
-        if view_name == "views/home.html":
-            return {"app_surface": "home", "app_page_cls": "chirp-theme-home"}
-        if view_name == "views/portal.html":
-            return {"app_surface": "portal", "app_page_cls": "fura-page"}
-        if view_name == "views/page.html":
-            return {"app_surface": "page", "app_page_cls": "chirp-theme-home"}
-        return {}
+        return RenderContextService.view_chrome_context(view_name, node, ctx)
 
     def _search_hits(
         self,
@@ -1134,30 +903,10 @@ class DocsApp:
         }
 
     def _shell_context(self, *, query: str = "", request: Request | None = None) -> dict[str, Any]:
-        self._ensure_catalog()
-        page_lang = self._request_language(request)
-        return {
-            "nav_items": self.catalog.nav_tree(lang=page_lang),
-            "chirp_docs_surface": "app",
-            "breadcrumb_items": [{"label": "Search", "href": "/search"}],
-            "search_query": query,
-            "search_section": "",
-            "search_sections": [],
-            "search_facet_links": [],
-            "search_global_expand_url": "",
-            "search_global_expand_nav_attrs": {},
-            "search_reset_nav_attrs": search_nav_attrs("/search"),
-            "search_popular_links": [],
-            "search_aside_links": [],
-            "search_discovery_sections": [],
-            "search_result_section_links": [],
-            "page_count": len(self.catalog.doc_nodes(lang=page_lang)),
-            "node": None,
-            **channel_context(self.catalog.channels, self.catalog.active_channel),
-            **self._site_context(),
-            **self._locale_template_context(request=request),
-            **self._theme_effects_context(),
-        }
+        active_lang = self._request_language(request)
+        if self.config.i18n.enabled:
+            set_locale(active_lang)
+        return self.render_context.shell_context(query=query, request=request)
 
     def _is_author_reload(self, request: Request) -> bool:
         return self.serve.auto_reload and bool(request.headers.get("HX-Docs-Author-Reload"))

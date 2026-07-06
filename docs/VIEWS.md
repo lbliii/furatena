@@ -1,5 +1,11 @@
 # Furatena views
 
+`RenderContextService` is the app-independent boundary for page, shell,
+author-dashboard, head/meta, template-selection, and view-chrome context.
+`DocsApp` supplies request/session-specific author data, then delegates context
+assembly to the service. Fixture catalogs can exercise the same rendering
+contracts without route registration or app startup.
+
 Furatena is **data-driven**: markdown files become catalog nodes, and **views**
 are the page-level templates that decide how each node renders inside the shell.
 
