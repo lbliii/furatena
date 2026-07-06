@@ -156,6 +156,7 @@ def _make_git_docs_repo(tmp_path: Path) -> tuple[Path, str]:
     _git("init", cwd=repo)
     _git("config", "user.email", "tests@example.com", cwd=repo)
     _git("config", "user.name", "Tests", cwd=repo)
+    _git("config", "commit.gpgsign", "false", cwd=repo)
     docs = repo / "docs"
     docs.mkdir()
     (docs / "guide.md").write_text(
