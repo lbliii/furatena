@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -45,6 +46,9 @@ class AuthorOperationResult:
     diff: str | None = None
     next_actions: tuple[str, ...] = ()
     publication_impact: dict[str, Any] | None = None
+    source_revision: str | None = None
+    expected_revision: str | None = None
+    current_revision: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload = {
@@ -70,6 +74,9 @@ class AuthorOperationResult:
             "confirmed": self.confirmed,
             "diff": self.diff,
             "next_actions": list(self.next_actions),
+            "source_revision": self.source_revision,
+            "expected_revision": self.expected_revision,
+            "current_revision": self.current_revision,
         }
         if self.publication_impact is not None:
             payload["publication_impact"] = self.publication_impact
@@ -94,7 +101,8 @@ def author_status(
     resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id)
     if isinstance(resolved, AuthorOperationResult):
         return resolved
-    meta, _body = _read_source(resolved)
+    source = resolved.path.read_text(encoding="utf-8")
+    meta, _body = parse_source_text(source, content_format=resolved.source_format)
     denied = _authorize_existing("status", resolved, mounts=mounts, meta=meta, subject=subject)
     if denied is not None:
         return denied
@@ -106,6 +114,7 @@ def author_status(
         mount=resolved.mount_id,
         previous_visibility=visibility_state(meta),
         resulting_visibility=visibility_state(meta),
+        source_revision=_source_revision(source),
         next_actions=(
             "Run fura author draft|publish|unpublish|archive to change lifecycle state.",
         ),
@@ -165,6 +174,7 @@ def author_validate(
         previous_visibility=visibility,
         resulting_visibility=visibility,
         diagnostics=diagnostics,
+        source_revision=_source_revision(source),
         next_actions=(
             ("Fix the reported validation errors and rerun fura author validate.",)
             if not ok
@@ -183,7 +193,8 @@ def author_read_source(
     resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation="read")
     if isinstance(resolved, AuthorOperationResult):
         return resolved, None
-    meta, _body = _read_source(resolved)
+    source = resolved.path.read_text(encoding="utf-8")
+    meta, _body = parse_source_text(source, content_format=resolved.source_format)
     denied = _authorize_existing("read", resolved, mounts=mounts, meta=meta, subject=subject)
     if denied is not None:
         return denied, None
@@ -195,9 +206,10 @@ def author_read_source(
         mount=resolved.mount_id,
         previous_visibility=visibility_state(meta),
         resulting_visibility=visibility_state(meta),
+        source_revision=_source_revision(source),
         next_actions=("Use author_propose_edit before applying a source edit.",),
     )
-    return result, resolved.path.read_text(encoding="utf-8")
+    return result, source
 
 
 def author_new(
@@ -256,7 +268,7 @@ def author_new(
     )
     diff = _diff("", new_body, fromfile="/dev/null", tofile=str(target))
     changed = () if dry_run else (target,)
-    if not dry_run:
+    if not dry_run and confirmed:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(new_body, encoding="utf-8")
 
@@ -276,6 +288,7 @@ def author_new(
             "Preview locally with fura serve --author.",
             "Run fura author publish when the page is ready for public output.",
         ),
+        source_revision=_source_revision(new_body),
     )
 
 
@@ -286,6 +299,7 @@ def author_apply_edit(
     subject: AccessSubject,
     old_text: str,
     new_text: str,
+    expected_revision: str | None = None,
     mount_id: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
@@ -305,6 +319,15 @@ def author_apply_edit(
     if denied is not None:
         return denied
     old_source = resolved.path.read_text(encoding="utf-8")
+    if not dry_run and confirmed:
+        conflict = _revision_precondition(
+            operation,
+            resolved,
+            expected_revision=expected_revision,
+            previous_visibility=visibility_state(meta),
+        )
+        if conflict is not None:
+            return conflict
     if not old_text:
         return _failed(
             operation,
@@ -334,6 +357,8 @@ def author_apply_edit(
             confirmed=confirmed,
             diff="",
             next_actions=("No source changes were needed.",),
+            source_revision=_source_revision(old_source),
+            expected_revision=expected_revision,
         )
     if old_source.count(old_text) != 1:
         return _failed(
@@ -347,7 +372,15 @@ def author_apply_edit(
     diff = _diff(old_source, new_source, fromfile=str(resolved.path), tofile=str(resolved.path))
     if not dry_run and not confirmed:
         return _confirmation_required(operation, target_path=resolved.path, mount=resolved.mount_id)
-    if not dry_run:
+    if not dry_run and confirmed:
+        conflict = _revision_precondition(
+            operation,
+            resolved,
+            expected_revision=expected_revision,
+            previous_visibility=visibility_state(meta),
+        )
+        if conflict is not None:
+            return conflict
         resolved.path.write_text(new_source, encoding="utf-8")
     return AuthorOperationResult(
         operation_id=_operation_id(operation),
@@ -365,6 +398,8 @@ def author_apply_edit(
             "Run fura author status on the edited target.",
             "Run fura check --content-only --json before publishing.",
         ),
+        source_revision=_source_revision(new_source if not dry_run else old_source),
+        expected_revision=expected_revision,
     )
 
 
@@ -374,6 +409,7 @@ def author_save_source(
     mounts: tuple[Any, ...],
     subject: AccessSubject,
     source_text: str,
+    expected_revision: str | None = None,
     mount_id: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
@@ -393,6 +429,15 @@ def author_save_source(
     )
     if denied is not None:
         return denied
+    if not dry_run and confirmed:
+        conflict = _revision_precondition(
+            operation,
+            resolved,
+            expected_revision=expected_revision,
+            previous_visibility=visibility_state(old_meta),
+        )
+        if conflict is not None:
+            return conflict
     meta, _body = _validate_source_text(
         source_text,
         content_format=resolved.source_format,
@@ -415,11 +460,21 @@ def author_save_source(
             confirmed=confirmed,
             diff="",
             next_actions=("No source changes were needed.",),
+            source_revision=_source_revision(old_source),
+            expected_revision=expected_revision,
         )
     diff = _diff(old_source, source_text, fromfile=str(resolved.path), tofile=str(resolved.path))
     if not dry_run and not confirmed:
         return _confirmation_required(operation, target_path=resolved.path, mount=resolved.mount_id)
     if not dry_run:
+        conflict = _revision_precondition(
+            operation,
+            resolved,
+            expected_revision=expected_revision,
+            previous_visibility=visibility_state(old_meta),
+        )
+        if conflict is not None:
+            return conflict
         resolved.path.write_text(source_text, encoding="utf-8")
     return AuthorOperationResult(
         operation_id=_operation_id(operation),
@@ -437,6 +492,8 @@ def author_save_source(
             "Preview locally with fura serve --author.",
             "Run fura check --content-only --json before publishing.",
         ),
+        source_revision=_source_revision(source_text if not dry_run else old_source),
+        expected_revision=expected_revision,
     )
 
 
@@ -446,6 +503,7 @@ def author_transition(
     *,
     mounts: tuple[Any, ...],
     subject: AccessSubject,
+    expected_revision: str | None = None,
     mount_id: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
@@ -505,6 +563,15 @@ def author_transition(
     )
 
     if not changed:
+        if not dry_run:
+            conflict = _revision_precondition(
+                operation,
+                resolved,
+                expected_revision=expected_revision,
+                previous_visibility=previous_visibility,
+            )
+            if conflict is not None:
+                return conflict
         return AuthorOperationResult(
             operation_id=_operation_id(operation),
             operation=operation,
@@ -518,10 +585,20 @@ def author_transition(
             diff="",
             next_actions=("No source changes were needed.",),
             publication_impact=publication_impact,
+            source_revision=_source_revision(old_source),
+            expected_revision=expected_revision,
         )
     if not dry_run and not confirmed:
         return _confirmation_required(operation, target_path=resolved.path, mount=resolved.mount_id)
     if not dry_run:
+        conflict = _revision_precondition(
+            operation,
+            resolved,
+            expected_revision=expected_revision,
+            previous_visibility=previous_visibility,
+        )
+        if conflict is not None:
+            return conflict
         resolved.path.write_text(new_source, encoding="utf-8")
 
     return AuthorOperationResult(
@@ -538,6 +615,8 @@ def author_transition(
         diff=diff,
         next_actions=_next_actions_for(operation),
         publication_impact=publication_impact,
+        source_revision=_source_revision(new_source if not dry_run else old_source),
+        expected_revision=expected_revision,
     )
 
 
@@ -641,6 +720,40 @@ def _candidate_paths(content_root: Path, slug: str) -> list[Path]:
 def _read_source(target: ResolvedAuthorTarget) -> tuple[dict[str, Any], str]:
     source = target.path.read_text(encoding="utf-8")
     return parse_source_text(source, content_format=target.source_format)
+
+
+def _source_revision(source: str) -> str:
+    return f"sha256:{hashlib.sha256(source.encode('utf-8')).hexdigest()}"
+
+
+def _revision_precondition(
+    operation: str,
+    target: ResolvedAuthorTarget,
+    *,
+    expected_revision: str | None,
+    previous_visibility: str | None,
+) -> AuthorOperationResult | None:
+    current_source = target.path.read_text(encoding="utf-8")
+    current_revision = _source_revision(current_source)
+    if expected_revision and expected_revision == current_revision:
+        return None
+    message = (
+        "source revision is required before replacing existing source"
+        if not expected_revision
+        else "source changed after it was read; refusing to overwrite a newer revision"
+    )
+    return _failed(
+        operation,
+        message,
+        target_path=target.path,
+        mount=target.mount_id,
+        previous_visibility=previous_visibility,
+        rule_id="fura.author.conflict",
+        source_revision=current_revision,
+        expected_revision=expected_revision,
+        current_revision=current_revision,
+        next_action="Reread the current source, merge the changes, and retry with its revision.",
+    )
 
 
 def _authorize_mount(
@@ -876,6 +989,9 @@ def _failed(
     mount: str | None = None,
     previous_visibility: str | None = None,
     rule_id: str = "fura.author",
+    source_revision: str | None = None,
+    expected_revision: str | None = None,
+    current_revision: str | None = None,
     next_action: str | None = None,
 ) -> AuthorOperationResult:
     diagnostic = AuthorDiagnostic(
@@ -895,6 +1011,9 @@ def _failed(
         resulting_visibility=None,
         diagnostics=(diagnostic,),
         next_actions=tuple(item for item in (next_action,) if item),
+        source_revision=source_revision,
+        expected_revision=expected_revision,
+        current_revision=current_revision,
     )
 
 

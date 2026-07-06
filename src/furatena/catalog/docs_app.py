@@ -592,6 +592,7 @@ class DocsApp:
             "validation": validation,
             "last_indexed_at": source["last_indexed_at"],
             "source_modified_at": source["modified_at"],
+            "source_revision": source["revision"],
             "export_impact": {
                 "included": export_included,
                 "label": "Included in public output" if export_included else "Excluded from public output",
@@ -754,6 +755,11 @@ class DocsApp:
         path = (mount.content_root / source_path).resolve() if mount is not None and source_path else None
         indexed_mtime = self._author_indexed_mtime(node, path)
         current_mtime = path.stat().st_mtime if path is not None and path.is_file() else None
+        revision = (
+            f"sha256:{hashlib.sha256(path.read_text(encoding='utf-8').encode('utf-8')).hexdigest()}"
+            if path is not None and path.is_file()
+            else None
+        )
         return {
             "path": str(path) if path is not None else source_path,
             "exists": bool(path is not None and path.is_file()),
@@ -766,6 +772,7 @@ class DocsApp:
             ),
             "last_indexed_at": _iso_from_mtime(indexed_mtime),
             "modified_at": _iso_from_mtime(current_mtime),
+            "revision": revision,
         }
 
     def _author_indexed_mtime(self, node, path: Path | None) -> float | None:
@@ -881,6 +888,7 @@ class DocsApp:
                     "slug": slug,
                     "title": page_title,
                     "source_text": source_text or "",
+                    "source_revision": read_result.source_revision if node is not None else None,
                     "source_path": source_path,
                     "source_regions": _source_heading_regions(source_text or ""),
                     "has_ast": bool(getattr(node, "ast_json", None)) if node is not None else False,
@@ -1445,6 +1453,7 @@ class DocsApp:
             form = await request.form()
             slug = str(form.get("slug") or request.query.get("slug") or "").strip().strip("/")
             source_text = str(form.get("source") or "")
+            expected_revision = str(form.get("source_revision") or "").strip() or None
             title = str(form.get("title") or "").strip() or None
             create = str(form.get("mode") or "").strip() == "create"
             result = None
@@ -1466,6 +1475,7 @@ class DocsApp:
                         mounts=tuple(self.catalog.mounts),
                         subject=subject,
                         source_text=source_text,
+                        expected_revision=result.source_revision,
                         mount_id=result.mount,
                         dry_run=False,
                         confirmed=True,
@@ -1478,6 +1488,7 @@ class DocsApp:
                     mounts=tuple(self.catalog.mounts),
                     subject=subject,
                     source_text=source_text,
+                    expected_revision=expected_revision,
                     mount_id=mount_id,
                     dry_run=False,
                     confirmed=True,
@@ -1496,7 +1507,7 @@ class DocsApp:
                 title=title,
                 saved=bool(result.ok),
             )
-            status = 200 if result.ok else 422
+            status = 200 if result.ok else 409 if _author_conflict(result) else 422
             if request.is_htmx:
                 # htmx does not swap 4xx responses by default, but author save
                 # diagnostics need to render inline in the studio workspace.
@@ -1585,6 +1596,7 @@ class DocsApp:
                     status=404,
                 )
             operation = str(form.get("operation") or "").strip()
+            expected_revision = str(form.get("source_revision") or "").strip() or None
             if operation not in {"draft", "publish", "unpublish", "archive"}:
                 return _json_response(
                     {
@@ -1604,12 +1616,19 @@ class DocsApp:
                 node.slug,
                 mounts=tuple(self.catalog.mounts),
                 subject=self._browser_author_subject(),
+                expected_revision=expected_revision,
                 mount_id=node.mount,
                 dry_run=_form_bool(form, "dry_run", default=True),
                 confirmed=_form_bool(form, "confirmed", default=False),
             )
             if not result.ok:
-                status = 403 if _author_authorization_denied(result) else 422
+                status = (
+                    403
+                    if _author_authorization_denied(result)
+                    else 409
+                    if _author_conflict(result)
+                    else 422
+                )
                 return _json_response({"ok": False, "data": result.to_dict()}, status=status)
             self._reindex_author_result(result)
             refreshed = self.catalog.get_by_slug(node.slug, mount=node.mount) or node
@@ -2175,6 +2194,13 @@ def _form_bool(form: Any, key: str, *, default: bool = False) -> bool:
 def _author_authorization_denied(result: Any) -> bool:
     return any(
         getattr(diagnostic, "rule_id", "") == "fura.author.authorization"
+        for diagnostic in getattr(result, "diagnostics", ())
+    )
+
+
+def _author_conflict(result: Any) -> bool:
+    return any(
+        getattr(diagnostic, "rule_id", "") == "fura.author.conflict"
         for diagnostic in getattr(result, "diagnostics", ())
     )
 

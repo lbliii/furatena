@@ -95,6 +95,20 @@ session, and submitted form fields cannot select an actor or role. See
 [RBAC.md](RBAC.md#author-mutation-matrix) for the shared browser, CLI, and MCP
 matrix.
 
+## Source Revision Preconditions
+
+Source reads and status responses return a strong `sha256:<hex>`
+`source_revision`. Every write to an existing source file must send that value:
+the browser studio and lifecycle forms do this automatically, CLI edit and
+lifecycle commands use `--source-revision`, and MCP edit/lifecycle tools use
+`source_revision` from `author_read_source`.
+
+Furatena rereads the file immediately before replacement. A missing or stale
+revision returns `fura.author.conflict`, includes the current revision, and
+leaves the newer source unchanged. Reread the source, merge both the intended
+span and any unrelated concurrent edits, then retry with the current revision.
+Dry runs remain non-mutating and return the revision to use for a later write.
+
 Successful lifecycle forms use Chirp `FormAction` semantics: htmx receives the
 updated author-chrome fragment, and a browser without JavaScript receives a
 `303` redirect to the affected page. GET requests to the transition endpoint

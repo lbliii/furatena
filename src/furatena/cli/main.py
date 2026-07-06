@@ -1110,6 +1110,7 @@ def _run_author(args: argparse.Namespace) -> None:
             mount_id=mount_id,
             old_text=args.old_text,
             new_text=args.new_text,
+            expected_revision=args.source_revision,
             dry_run=args.dry_run,
             confirmed=args.yes,
         )
@@ -1119,6 +1120,7 @@ def _run_author(args: argparse.Namespace) -> None:
             args.target,
             mounts=mounts,
             subject=subject,
+            expected_revision=args.source_revision,
             mount_id=mount_id,
             dry_run=args.dry_run,
             confirmed=args.yes,
@@ -1128,6 +1130,8 @@ def _run_author(args: argparse.Namespace) -> None:
     exit_code = (
         ExitCode.SUCCESS
         if result.ok
+        else ExitCode.SOURCE_ERROR
+        if any(diagnostic.rule_id == "fura.author.conflict" for diagnostic in result.diagnostics)
         else ExitCode.VALIDATION_ERROR
         if command == "validate" and result.target_path is not None
         else ExitCode.CONFIG_ERROR
@@ -1983,6 +1987,7 @@ def _run_init(args: argparse.Namespace) -> None:
                   <input type="hidden" name="slug" value="{{ author_studio.slug }}">
                   <input type="hidden" name="mode" value="{{ author_studio.mode }}">
                   <input type="hidden" name="title" value="{{ author_studio.title }}">
+                  <input type="hidden" name="source_revision" value="{{ author_studio.source_revision | default('') }}">
                   <label for="author-studio-source">Source</label>
                   <textarea id="author-studio-source"
                             name="source"
@@ -2453,6 +2458,11 @@ def _build_parser() -> argparse.ArgumentParser:
     author_edit_cmd.add_argument("target", help="Source path or page slug")
     author_edit_cmd.add_argument("--old-text", required=True, help="Exact source span to replace")
     author_edit_cmd.add_argument("--new-text", required=True, help="Replacement source text")
+    author_edit_cmd.add_argument(
+        "--source-revision",
+        default=None,
+        help="SHA-256 revision returned by author status/read",
+    )
     author_edit_cmd.add_argument("--mount", default=None, help="Mount id from mounts.yaml")
     author_edit_cmd.add_argument("--dry-run", action="store_true", help="Preview without writing")
     author_edit_cmd.add_argument("--yes", action="store_true", help="Confirm source mutation")
@@ -2468,6 +2478,11 @@ def _build_parser() -> argparse.ArgumentParser:
         item = author_sub.add_parser(lifecycle_command, help=help_text)
         item.add_argument("target", help="Source path or page slug")
         item.add_argument("--mount", default=None, help="Mount id from mounts.yaml")
+        item.add_argument(
+            "--source-revision",
+            default=None,
+            help="SHA-256 revision returned by author status/read",
+        )
         item.add_argument("--dry-run", action="store_true", help="Preview without writing")
         item.add_argument("--yes", action="store_true", help="Confirm source mutation")
         item.add_argument("--json", action="store_true", help="Emit the standard command result JSON")

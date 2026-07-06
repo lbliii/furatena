@@ -67,6 +67,7 @@
       <input type="hidden" name="slug" value="{{ author_studio.slug }}">
       <input type="hidden" name="mode" value="{{ author_studio.mode }}">
       <input type="hidden" name="title" value="{{ author_studio.title }}">
+      <input type="hidden" name="source_revision" value="{{ author_studio.source_revision | default('') }}">
       <label for="author-studio-source">Source</label>
       <textarea
         id="author-studio-source"

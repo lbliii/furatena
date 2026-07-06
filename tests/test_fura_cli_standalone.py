@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -35,6 +36,16 @@ def _csrf_headers(token: str, cookie: str, *, htmx: bool = False) -> dict[str, s
     if htmx:
         headers["HX-Request"] = "true"
     return headers
+
+
+def _source_revision_context(response) -> str:
+    match = re.search(r'name="source_revision" value="([^"]+)"', response.text)
+    assert match is not None, "expected rendered source revision"
+    return match.group(1)
+
+
+def _source_revision(path: Path) -> str:
+    return f"sha256:{hashlib.sha256(path.read_bytes()).hexdigest()}"
 
 
 def _assert_author_json_envelope(
@@ -1161,6 +1172,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     status_payload = parse_json(author_payload["status"])
     private_payload = parse_json(author_payload["private_status"])
     csrf_token, session_cookie = _csrf_context(author_payload["page"])
+    private_revision = _source_revision_context(author_payload["private_page"])
 
     assert author_payload["page"].status == 200
     assert 'data-fura-author-chrome' in author_payload["page"].text
@@ -1213,6 +1225,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
                 "operation": "draft",
                 "dry_run": "0",
                 "confirmed": "1",
+                "source_revision": private_revision,
             },
         )
     )
@@ -1229,6 +1242,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
                 "operation": "draft",
                 "dry_run": "0",
                 "confirmed": "1",
+                "source_revision": private_revision,
             },
         )
     )
@@ -1245,6 +1259,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
                 "operation": "draft",
                 "dry_run": "0",
                 "confirmed": "1",
+                "source_revision": private_revision,
             },
         )
     )
@@ -1252,6 +1267,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert 'id="fura-author-chrome"' in draft_response.text
     assert 'data-author-state="draft"' in draft_response.text
     assert '"ok":' not in draft_response.text
+    draft_revision = _source_revision_context(draft_response)
 
     archive_response = asyncio.run(
         author_client.post(
@@ -1262,6 +1278,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
                 "operation": "archive",
                 "dry_run": "0",
                 "confirmed": "1",
+                "source_revision": draft_revision,
             },
         )
     )
@@ -1454,6 +1471,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     async def _exercise_author() -> dict[str, object]:
         studio = await author_client.get("/docs/_author/studio?slug=docs/get-started")
         csrf_token, session_cookie = _csrf_context(studio)
+        source_revision = _source_revision_context(studio)
         missing_csrf = await author_client.post(
             "/docs/_author/studio/save",
             headers={"HX-Request": "true"},
@@ -1462,6 +1480,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
                 "mode": "edit",
                 "title": "Get started",
                 "source": edited,
+                "source_revision": source_revision,
             },
         )
         saved = await author_client.post(
@@ -1472,8 +1491,10 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
                 "mode": "edit",
                 "title": "Get started",
                 "source": edited,
+                "source_revision": source_revision,
             },
         )
+        saved_revision = _source_revision_context(saved)
         page = await author_client.get("/docs/get-started/")
         invalid = await author_client.post(
             "/docs/_author/studio/save",
@@ -1483,6 +1504,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
                 "mode": "edit",
                 "title": "Get started",
                 "source": "",
+                "source_revision": saved_revision,
             },
         )
         create = await author_client.post(
@@ -1687,6 +1709,8 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
         "author",
         "publish",
         "docs/release-notes",
+        "--source-revision",
+        _source_revision(target),
         "--yes",
         "--json",
     ])
@@ -1766,7 +1790,17 @@ def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, caps
     capsys.readouterr()
     target = app_root / "content" / "docs" / "get-started.md"
 
-    main(["--app-root", str(app_root), "author", "archive", "docs/get-started", "--yes", "--json"])
+    main([
+        "--app-root",
+        str(app_root),
+        "author",
+        "archive",
+        "docs/get-started",
+        "--source-revision",
+        _source_revision(target),
+        "--yes",
+        "--json",
+    ])
     archive_payload = json.loads(capsys.readouterr().out)
     archive_data = _assert_author_json_envelope(
         archive_payload,
@@ -1795,7 +1829,17 @@ def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, caps
     assert "-archived_at:" in preview_data["diff"]
     assert "archived_at:" in target.read_text(encoding="utf-8")
 
-    main(["--app-root", str(app_root), "author", "publish", "docs/get-started", "--yes", "--json"])
+    main([
+        "--app-root",
+        str(app_root),
+        "author",
+        "publish",
+        "docs/get-started",
+        "--source-revision",
+        _source_revision(target),
+        "--yes",
+        "--json",
+    ])
     publish_payload = json.loads(capsys.readouterr().out)
     _assert_author_json_envelope(
         publish_payload,
@@ -1932,6 +1976,8 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
         old_text,
         "--new-text",
         new_text,
+        "--source-revision",
+        _source_revision(target),
         "--yes",
         "--json",
     ])
@@ -2785,6 +2831,7 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     read = call(private_server, "author_read_source", {"target": "docs/mcp-draft"})
     assert read["isError"] is False
     assert "# MCP Draft" in read["structuredContent"]["source"]
+    current_revision = read["structuredContent"]["source_revision"]
 
     propose = call(
         private_server,
@@ -2822,9 +2869,11 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
             "new_text": "# MCP Draft\n\nDraft body.\n",
             "dry_run": False,
             "confirmed": True,
+            "source_revision": current_revision,
         },
     )
     assert edit["isError"] is False
+    current_revision = edit["structuredContent"]["source_revision"]
     assert "Draft body" in target.read_text(encoding="utf-8")
 
     unsafe_publish = call(
@@ -2856,9 +2905,15 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     publish = call(
         private_server,
         "author_publish",
-        {"target": "docs/mcp-draft", "dry_run": False, "confirmed": True},
+        {
+            "target": "docs/mcp-draft",
+            "dry_run": False,
+            "confirmed": True,
+            "source_revision": current_revision,
+        },
     )
     assert publish["isError"] is False
+    current_revision = publish["structuredContent"]["source_revision"]
     assert publish["structuredContent"]["audit"]["previous_state"] == "draft"
     assert publish["structuredContent"]["audit"]["resulting_state"] == "public"
     assert "visibility: public" in target.read_text(encoding="utf-8")
@@ -2888,9 +2943,15 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     unpublish = call(
         private_server,
         "author_unpublish",
-        {"target": "docs/mcp-draft", "dry_run": False, "confirmed": True},
+        {
+            "target": "docs/mcp-draft",
+            "dry_run": False,
+            "confirmed": True,
+            "source_revision": current_revision,
+        },
     )
     assert unpublish["isError"] is False
+    current_revision = unpublish["structuredContent"]["source_revision"]
     assert unpublish["structuredContent"]["audit"]["previous_state"] == "public"
     assert unpublish["structuredContent"]["audit"]["resulting_state"] == "draft"
     assert "visibility: draft" in target.read_text(encoding="utf-8")
@@ -2921,7 +2982,12 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     archive = call(
         private_server,
         "author_archive",
-        {"target": "docs/mcp-draft", "dry_run": False, "confirmed": True},
+        {
+            "target": "docs/mcp-draft",
+            "dry_run": False,
+            "confirmed": True,
+            "source_revision": current_revision,
+        },
     )
     assert archive["isError"] is False
     assert archive["structuredContent"]["audit"]["previous_state"] == "draft"
