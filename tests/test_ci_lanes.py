@@ -89,5 +89,6 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     assert browser_steps["Browser full lane"]["if"] == "github.event_name != 'pull_request'"
     diagnostics = browser_steps["Upload browser diagnostics"]
     assert diagnostics["if"] == "always()"
+    assert diagnostics["with"]["path"] == "browser-results/*.xml"
     assert diagnostics["with"]["retention-days"] == 14
     assert all("--reruns" not in str(step.get("run") or "") for step in jobs["browser"]["steps"])

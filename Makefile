@@ -22,7 +22,7 @@ CORE_COVERAGE_TESTS = \
 	tests/test_chirp_docs_reference_resolution.py \
 	tests/test_chirp_docs_link_and_inventory_contracts.py
 BROWSER_TESTS = tests/test_author_sse_browser.py
-BROWSER_RESULTS ?= .browser-artifacts
+BROWSER_RESULTS ?= browser-results
 
 help:
 	@echo "Furatena"
