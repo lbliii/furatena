@@ -1663,37 +1663,33 @@ class DocsApp:
                 global_search=global_search,
                 partial=partial,
             )
-            if request.headers.get("HX-Request"):
+            if request.headers.get("HX-Request") and target == "search-results-panel":
                 ctx["search_oob"] = True
-                if request.is_boosted and target != "search-results-panel":
-                    return Template("search.html", **ctx)
                 main = Fragment("search.html", "search_results", **ctx)
-                if target == "search-results-panel":
-                    return OOB(
-                        main,
-                        Fragment(
-                            "partials/search_mount_rail_oob.html",
-                            "search_mount_rail_oob",
-                            **ctx,
-                        ),
-                        Fragment(
-                            "partials/search_scope_rail_oob.html",
-                            "search_scope_rail_oob",
-                            **ctx,
-                        ),
-                        Fragment(
-                            "partials/search_spotlight_oob.html",
-                            "search_spotlight_oob",
-                            **ctx,
-                        ),
-                        Fragment(
-                            "partials/search_discovery_oob.html",
-                            "search_discovery_oob",
-                            **ctx,
-                        ),
-                    )
-                return main
-            return Template("search.html", **ctx)
+                return OOB(
+                    main,
+                    Fragment(
+                        "partials/search_mount_rail_oob.html",
+                        "search_mount_rail_oob",
+                        **ctx,
+                    ),
+                    Fragment(
+                        "partials/search_scope_rail_oob.html",
+                        "search_scope_rail_oob",
+                        **ctx,
+                    ),
+                    Fragment(
+                        "partials/search_spotlight_oob.html",
+                        "search_spotlight_oob",
+                        **ctx,
+                    ),
+                    Fragment(
+                        "partials/search_discovery_oob.html",
+                        "search_discovery_oob",
+                        **ctx,
+                    ),
+                )
+            return Page.mounted("search.html", **ctx)
 
         @app.route("/errors/suggest")
         def error_suggest(request: Request):
