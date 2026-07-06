@@ -70,6 +70,7 @@ runtime line is pinned in `pyproject.toml` (`>=0.8.2,<0.9.0`) so a fresh
 - [Dual IR](docs/DUAL_IR.md)
 - [Views](docs/VIEWS.md)
 - [Authoring lifecycle](docs/AUTHORING.md)
+- [Author mutation threat model](docs/AUTHOR_MUTATION_THREAT_MODEL.md)
 - [Agent workflows](docs/AGENT_WORKFLOWS.md)
 - [CLI contract](docs/CLI_CONTRACT.md)
 - [Roadmap](docs/ROADMAP.md)
