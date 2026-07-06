@@ -19,7 +19,7 @@ def _write_valid_artifact(root: Path) -> None:
 <html><head>
 <link rel="canonical" href="https://example.github.io/furatena/">
 <link rel="stylesheet" href="/furatena/static/app.css">
-</head><body><a href="/furatena/docs/guide/">Guide</a></body></html>
+</head><body><a href="/furatena/docs/guide/" hx-push-url="true">Guide</a></body></html>
 """,
         encoding="utf-8",
     )
