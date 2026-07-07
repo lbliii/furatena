@@ -119,6 +119,7 @@ ci-fast:
 		tests/test_catalog_nav.py \
 		tests/test_access_isolation.py \
 		tests/test_support_policy.py \
+		tests/test_release_publishing.py \
 		tests/test_benchmark_harness.py \
 		tests/test_chirp_docs_incremental.py \
 		tests/test_docs_core.py \
