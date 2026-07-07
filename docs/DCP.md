@@ -378,6 +378,13 @@ the configured `path`, and records the resolved commit SHA plus browser/source
 URL in page provenance and frozen mount status. Filesystem mounts without a
 `source.provider: git` block keep their existing local `content_root` behavior.
 
+Git sync uses a staged snapshot and atomic swap, so failure never replaces the
+active last-known-good repository. Durable state under
+`.docs-cache/source-sync-state/` records attempt/error/retry/quarantine/reconciled
+history, exponential backoff, sanitized errors, repair actions, and the last
+reconciled ref/path. `/catalog/source-health.json` exposes this as
+`source.sync_state`; retry and quarantine remain degraded until reconciliation.
+
 Ingestion follows: **scan → adapt → graph**.
 
 ```

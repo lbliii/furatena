@@ -38,6 +38,7 @@ from furatena.catalog.models import DocNode
 from furatena.catalog.record_types import EdgeRecord, NamespaceRecord
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.search import SearchHit, search_nodes
+from furatena.catalog.source_sync_state import SourceSyncStateStore
 from furatena.catalog.sources.git import sync_git_source
 from furatena.catalog.sources.types import MountSourceConfig
 from furatena.catalog.versions import DocChannel, active_channel_id
@@ -56,6 +57,23 @@ class MountConfig:
     default: bool = False
     source: MountSourceConfig = field(default_factory=MountSourceConfig)
     access: AccessPolicy = field(default_factory=AccessPolicy)
+
+
+def _last_known_good_mount(mount: MountConfig, state: dict[str, Any]) -> MountConfig:
+    last_known_good = state.get("last_known_good") or {}
+    content_root = Path(str(last_known_good.get("content_root") or ""))
+    resolved_ref = str(last_known_good.get("resolved_ref") or "") or None
+    if not content_root.is_dir() or resolved_ref is None:
+        return mount
+    source_url = str(last_known_good.get("source_url") or "") or None
+    return replace(
+        mount,
+        content_root=content_root,
+        source=mount.source.with_git_sync_state(
+            resolved_ref=resolved_ref,
+            source_url=source_url,
+        ),
+    )
 
 
 def _normalize_prefix(prefix: str) -> str:
@@ -170,6 +188,7 @@ class CatalogRegistry:
         catalog_nav: CatalogNavConfig | None = None,
         site_mark: str = "𐂛",
         catalog_identity: dict[str, str] | None = None,
+        source_sync_state: SourceSyncStateStore | None = None,
     ) -> None:
         self.repo_root = repo_root
         self.app_root = app_root or repo_root
@@ -183,6 +202,11 @@ class CatalogRegistry:
         self.catalog_nav = catalog_nav
         self.site_mark = site_mark
         self.catalog_identity = normalize_identity(catalog_identity)
+        state_root = self.app_root / ".docs-cache" / "source-sync-state"
+        namespace = self.identity_cache_namespace()
+        self.source_sync_state = source_sync_state or SourceSyncStateStore(
+            state_root / namespace if namespace else state_root
+        )
         self.frozen_dir = frozen_dir
         self.scoped_frozen_dir = (
             scoped_frozen_dir(frozen_dir, self.catalog_identity) if frozen_dir is not None else None
@@ -190,6 +214,8 @@ class CatalogRegistry:
         self.lazy_html = lazy_html
         self.serve_mode = serve_mode
         self.include_private = include_private
+        self._workers = resolve_workers(workers)
+        self._federated_slug_urls: dict[str, str] = {}
         self._source_sync_status: dict[str, dict[str, Any]] = {}
         self._shard_status: dict[str, dict[str, Any]] = {}
         self.mounts = (
@@ -204,7 +230,6 @@ class CatalogRegistry:
         self._translation_index: dict[str, dict[str, str]] | None = None
         self._inventory_store = None
         self._watcher: SourceWatcher | None = None
-        self._workers = resolve_workers(workers)
         from furatena.catalog.rewrites import load_rewrite_table, set_rewrite_table
 
         set_rewrite_table(load_rewrite_table(rewrites_path))
@@ -219,27 +244,64 @@ class CatalogRegistry:
         for mount in mounts:
             if mount.source.git is None:
                 self._record_source_sync(
-                    mount, "ok", stage="source", provider=mount.source.provider
+                    mount,
+                    "ok",
+                    stage="source",
+                    provider=mount.source.provider,
                 )
                 resolved.append(mount)
                 continue
+            can_attempt, blocked_reason = self.source_sync_state.can_attempt(mount.id)
+            if not can_attempt:
+                sync_state = self.source_sync_state.load(mount.id) or {}
+                self._record_source_sync(
+                    mount,
+                    "quarantined" if blocked_reason == "quarantined" else "retry_wait",
+                    stage="sync",
+                    provider="git",
+                    sync_state=sync_state,
+                )
+                resolved.append(_last_known_good_mount(mount, sync_state))
+                continue
+            self.source_sync_state.begin(
+                mount.id,
+                provider="git",
+                source_repo=mount.source.git.repo,
+                requested_ref=mount.source.git.ref,
+            )
             try:
                 sync = sync_git_source(
                     mount.source.git,
                     mount_id=mount.id,
                     app_root=self.app_root,
                     cache_namespace=self.identity_cache_namespace(),
+                    validate=lambda content_root, candidate=mount: self._validate_sync_candidate(
+                        candidate,
+                        content_root,
+                    ),
                 )
             except Exception as exc:
+                sync_state = self.source_sync_state.record_failure(
+                    mount.id,
+                    _exception_record(exc),
+                )
                 self._record_source_sync(
                     mount,
                     "failed",
                     stage="sync",
                     provider="git",
                     error=exc,
+                    sync_state=sync_state,
                 )
-                resolved.append(mount)
+                resolved.append(_last_known_good_mount(mount, sync_state))
                 continue
+            sync_state = self.source_sync_state.reconcile(
+                mount.id,
+                provider="git",
+                resolved_ref=sync.resolved_ref,
+                content_root=sync.content_root,
+                source_url=sync.source_url,
+            )
             self._record_source_sync(
                 mount,
                 "ok",
@@ -247,6 +309,7 @@ class CatalogRegistry:
                 provider="git",
                 resolved_ref=sync.resolved_ref,
                 source_url=sync.source_url,
+                sync_state=sync_state,
             )
             resolved.append(
                 replace(
@@ -260,6 +323,10 @@ class CatalogRegistry:
             )
         return tuple(resolved)
 
+    def _validate_sync_candidate(self, mount: MountConfig, content_root: Path) -> None:
+        """Build a staged shard completely before promoting a synced snapshot."""
+        self._build_live_shard(replace(mount, content_root=content_root), cached_autodoc=None)
+
     def _record_source_sync(
         self,
         mount: MountConfig,
@@ -270,6 +337,7 @@ class CatalogRegistry:
         resolved_ref: str | None = None,
         source_url: str | None = None,
         error: Exception | None = None,
+        sync_state: dict[str, Any] | None = None,
     ) -> None:
         git = mount.source.git
         payload: dict[str, Any] = {
@@ -279,6 +347,8 @@ class CatalogRegistry:
             "source_repo": git.repo if git is not None else None,
             "source_ref": resolved_ref or (git.ref if git is not None else None),
             "source_url": source_url or (git.source_url if git is not None else None),
+            "sync_state": sync_state,
+            "repair_actions": list((sync_state or {}).get("repair_actions") or []),
         }
         if error is not None:
             payload["error"] = _exception_record(error)
@@ -511,7 +581,7 @@ class CatalogRegistry:
             has_error = "error" in sync or "error" in index
             if not loaded:
                 status = "unavailable"
-            elif has_error or sync.get("status") == "failed" or index.get("status") == "failed":
+            elif has_error or sync.get("status") != "ok" or index.get("status") == "failed":
                 status = "degraded"
             else:
                 status = "healthy"
@@ -540,6 +610,8 @@ class CatalogRegistry:
                         "repo": sync.get("source_repo"),
                         "ref": sync.get("source_ref"),
                         "url": sync.get("source_url"),
+                        "sync_state": sync.get("sync_state"),
+                        "repair_actions": sync.get("repair_actions", []),
                         **({"error": sync["error"]} if "error" in sync else {}),
                     },
                     "index": {

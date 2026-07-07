@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
+import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -26,33 +30,62 @@ def sync_git_source(
     mount_id: str,
     app_root: Path,
     cache_namespace: str = "",
+    validate: Callable[[Path], None] | None = None,
 ) -> GitSyncResult:
     """Clone/fetch a git source and return the local content root."""
     base = _sync_base(config, app_root)
     if cache_namespace:
         base = base / cache_namespace
-    repo_root = base / mount_id / "repo"
-    repo_root.parent.mkdir(parents=True, exist_ok=True)
-
-    if not (repo_root / ".git").is_dir():
-        _run_git("clone", config.repo, str(repo_root), mount_id=mount_id)
-    else:
+    mount_root = base / mount_id
+    repo_root = mount_root / "repo"
+    mount_root.mkdir(parents=True, exist_ok=True)
+    staging = mount_root / f".repo-sync-{uuid.uuid4().hex}"
+    backup = mount_root / f".repo-backup-{uuid.uuid4().hex}"
+    try:
+        if (repo_root / ".git").is_dir():
+            _run_git("clone", "--no-hardlinks", str(repo_root), str(staging), mount_id=mount_id)
+            _run_git(
+                "-C",
+                str(staging),
+                "remote",
+                "set-url",
+                "origin",
+                config.repo,
+                mount_id=mount_id,
+            )
+        else:
+            _run_git("clone", config.repo, str(staging), mount_id=mount_id)
         _run_git(
-            "-C", str(repo_root), "fetch", "--all", "--tags", "--prune", mount_id=mount_id
+            "-C", str(staging), "fetch", "--all", "--tags", "--prune", mount_id=mount_id
         )
-
-    _run_git("-C", str(repo_root), "checkout", "--force", config.ref, mount_id=mount_id)
-    resolved_ref = _run_git(
-        "-C", str(repo_root), "rev-parse", "HEAD", mount_id=mount_id
-    ).strip()
+        _run_git("-C", str(staging), "checkout", "--force", config.ref, mount_id=mount_id)
+        resolved_ref = _run_git(
+            "-C", str(staging), "rev-parse", "HEAD", mount_id=mount_id
+        ).strip()
+        staged_content = (staging / config.path).resolve() if config.path else staging.resolve()
+        if not staged_content.is_dir():
+            raise SourceSyncError(
+                f"git source path for mount {mount_id!r} does not exist: {config.path or '.'}",
+                path=staged_content,
+                mount=mount_id,
+                operation="resolve_path",
+            )
+        if validate is not None:
+            validate(staged_content)
+        if repo_root.exists():
+            os.replace(repo_root, backup)
+        try:
+            os.replace(staging, repo_root)
+        except BaseException:
+            if backup.exists() and not repo_root.exists():
+                os.replace(backup, repo_root)
+            raise
+        shutil.rmtree(backup, ignore_errors=True)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+        if backup.exists() and repo_root.exists():
+            shutil.rmtree(backup, ignore_errors=True)
     content_root = (repo_root / config.path).resolve() if config.path else repo_root.resolve()
-    if not content_root.is_dir():
-        raise SourceSyncError(
-            f"git source path for mount {mount_id!r} does not exist: {config.path or '.'}",
-            path=content_root,
-            mount=mount_id,
-            operation="resolve_path",
-        )
     return GitSyncResult(
         content_root=content_root,
         repo_root=repo_root.resolve(),

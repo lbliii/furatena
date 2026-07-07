@@ -752,7 +752,7 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     )
     assert payload["data"]["known_answer_dataset"] == {
         "id": "furatena-known-answers",
-        "version": "1.1.6",
+        "version": "1.1.7",
         "case_count": 8,
         "corpora": ["furatena-dogfood", "access-boundary-fixture"],
         "query_classes": [
