@@ -39,6 +39,7 @@ from furatena.catalog.access import (
     author_permission_for,
     evaluate_author_access,
 )
+from furatena.catalog.author_store import AuthorMutationStore, FilesystemAuthorMutationStore
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
 from furatena.catalog.config import DocsConfig, load_docs_config
@@ -164,6 +165,7 @@ class DocsApp:
         lazy_html: bool = False,
         workers: int | None = None,
         author_subject: AccessSubject | None = None,
+        author_store: AuthorMutationStore | None = None,
     ) -> None:
         self.config = config
         self.locale_service = LocaleResolutionService(config.i18n)
@@ -174,6 +176,7 @@ class DocsApp:
             if self.serve.mode == ServeMode.AUTHOR
             else AccessSubject.anonymous()
         )
+        self.author_store = author_store or FilesystemAuthorMutationStore()
         frozen = self.serve.frozen_dir or frozen_dir
         self.theme = DocsTheme.from_docs_config(
             config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None
@@ -686,6 +689,7 @@ class DocsApp:
                 mounts=tuple(self.catalog.mounts),
                 subject=self._browser_author_subject(),
                 mount_id=node.mount,
+                store=self.author_store,
             )
             if result is None and not read_result.ok:
                 result = read_result
@@ -1168,6 +1172,7 @@ class DocsApp:
         lazy_html: bool = False,
         workers: int | None = None,
         author_subject: AccessSubject | None = None,
+        author_store: AuthorMutationStore | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
         if autodoc is None:
@@ -1182,6 +1187,7 @@ class DocsApp:
             lazy_html=lazy_html,
             workers=workers,
             author_subject=author_subject,
+            author_store=author_store,
         )
 
     def create_app(self) -> App:

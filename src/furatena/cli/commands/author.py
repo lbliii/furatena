@@ -37,6 +37,7 @@ def _run_author(args: argparse.Namespace) -> None:
     _ensure_pythonpath()
     sys.path.insert(0, str(_app_root(args)))
     from furatena.catalog.access import AccessSubject
+    from furatena.catalog.author_store import FilesystemAuthorMutationStore
     from furatena.catalog.config import load_docs_config
     from furatena.catalog.registry import load_mounts
     from furatena.cli.authoring import (
@@ -57,15 +58,19 @@ def _run_author(args: argparse.Namespace) -> None:
         actor=f"local:{getpass.getuser()}",
         roles=["admin"],
     )
+    store = FilesystemAuthorMutationStore()
 
     if command == "status":
-        result = author_status(args.target, mounts=mounts, subject=subject, mount_id=mount_id)
+        result = author_status(
+            args.target, mounts=mounts, subject=subject, mount_id=mount_id, store=store
+        )
     elif command == "validate":
         result = author_validate(
             args.target,
             mounts=mounts,
             subject=subject,
             mount_id=mount_id,
+            store=store,
         )
         if result.ok:
             errors, warnings = _run_docs_content_check(args=args)
@@ -76,6 +81,7 @@ def _run_author(args: argparse.Namespace) -> None:
                 mount_id=mount_id,
                 validation_errors=tuple(errors),
                 validation_warnings=tuple(warnings),
+                store=store,
             )
     elif command == "new":
         result = author_new(
@@ -86,6 +92,7 @@ def _run_author(args: argparse.Namespace) -> None:
             title=args.title,
             dry_run=args.dry_run,
             confirmed=args.yes,
+            store=store,
         )
     elif command == "edit":
         result = author_apply_edit(
@@ -98,6 +105,7 @@ def _run_author(args: argparse.Namespace) -> None:
             expected_revision=args.source_revision,
             dry_run=args.dry_run,
             confirmed=args.yes,
+            store=store,
         )
     else:
         result = author_transition(
@@ -109,6 +117,7 @@ def _run_author(args: argparse.Namespace) -> None:
             mount_id=mount_id,
             dry_run=args.dry_run,
             confirmed=args.yes,
+            store=store,
         )
 
     diagnostics = _author_diagnostics(result)

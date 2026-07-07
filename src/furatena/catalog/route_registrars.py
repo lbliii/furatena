@@ -234,6 +234,7 @@ def register_author_routes(docs: Any, app: App) -> None:
                 title=title,
                 dry_run=False,
                 confirmed=True,
+                store=self.author_store,
             )
             if result.ok:
                 result = author_save_source(
@@ -245,6 +246,7 @@ def register_author_routes(docs: Any, app: App) -> None:
                     mount_id=result.mount,
                     dry_run=False,
                     confirmed=True,
+                    store=self.author_store,
                 )
         else:
             node = self.catalog.get_by_slug(slug)
@@ -258,6 +260,7 @@ def register_author_routes(docs: Any, app: App) -> None:
                 mount_id=mount_id,
                 dry_run=False,
                 confirmed=True,
+                store=self.author_store,
             )
 
         if _author_authorization_denied(result):
@@ -314,6 +317,7 @@ def register_author_routes(docs: Any, app: App) -> None:
             mounts=tuple(self.catalog.mounts),
             subject=self._browser_author_subject(),
             mount_id=node.mount,
+            store=self.author_store,
         )
         if _author_authorization_denied(result):
             return _json_response({"ok": False, "data": result.to_dict()}, status=403)
@@ -383,6 +387,7 @@ def register_author_routes(docs: Any, app: App) -> None:
             mount_id=node.mount,
             dry_run=_form_bool(form, "dry_run", default=True),
             confirmed=_form_bool(form, "confirmed", default=False),
+            store=self.author_store,
         )
         if not result.ok:
             status = (
