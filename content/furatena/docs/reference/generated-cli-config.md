@@ -184,6 +184,17 @@ Command parser contract.
 | `--output` | no | — | — | — | Write the plain inventory JSON to this path |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
+### `fura docs-quality`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--docs-root` | no | — | — | — | Documentation root |
+| `--exemptions` | no | — | — | — | Reasoned exemption JSON path |
+| `--inventory-baseline` | no | — | — | — | Prior inventory used to detect stale public-feature coverage |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
 ### `fura docs-reference`
 
 Command parser contract.
