@@ -1,0 +1,150 @@
+name: Publish tagged release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_GIL: "0"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate tagged commit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Require a commit reachable from main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: release-validate
+      - name: Install
+        run: uv sync --group dev
+      - name: Validate tag, version, and runtime
+        run: uv run python scripts/prepare_release.py --tag "$GITHUB_REF_NAME" --validate-only
+      - name: Fast and contract gates
+        run: |
+          make ci-fast
+          make ci-contract
+          make ci-agent
+
+  build:
+    name: Build isolated distributions
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: release-build
+      - name: Install
+        run: uv sync --group dev
+      - name: Build and verify wheel and sdist
+        run: make ci-release
+      - name: Generate checksums and release manifest
+        run: >-
+          uv run python scripts/prepare_release.py
+          --tag "$GITHUB_REF_NAME"
+          --commit "$GITHUB_SHA"
+          --dist-dir dist
+          --output-dir release
+      - name: Upload immutable release bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ github.ref_name }}
+          path: |
+            dist/
+            release/
+          if-no-files-found: error
+          retention-days: 30
+
+  attest:
+    name: Attest release provenance
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ github.ref_name }}
+          path: release-bundle
+      - name: Verify downloaded checksums
+        working-directory: release-bundle/dist
+        run: shasum -a 256 -c ../release/SHA256SUMS
+      - name: Generate GitHub build-provenance attestation
+        uses: actions/attest@v4
+        with:
+          subject-checksums: release-bundle/release/SHA256SUMS
+
+  publish-pypi:
+    name: Publish distributions to PyPI
+    needs: [build, attest]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/furatena
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ github.ref_name }}
+          path: release-bundle
+      - name: Publish with PyPI Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: release-bundle/dist/
+          attestations: true
+          print-hash: true
+
+  github-release:
+    name: Publish GitHub release
+    needs: [build, publish-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-${{ github.ref_name }}
+          path: release-bundle
+      - name: Verify release assets
+        working-directory: release-bundle/dist
+        run: shasum -a 256 -c ../release/SHA256SUMS
+      - name: Create release with generated notes and integrity assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          release-bundle/dist/*
+          release-bundle/release/*
+          --verify-tag
+          --generate-notes
+          --fail-on-no-commits

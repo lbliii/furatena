@@ -64,6 +64,15 @@ artifact and public referrer. Export also derives unique canaries for every
 draft, private, protected, and archived source, then scans all generated files
 (including extracted PDF text and inventory payloads) for policy leaks.
 
+Version tags use the separate `release.yml` workflow. It accepts only an exact
+`vMAJOR.MINOR.PATCH` matching package metadata on a commit reachable from
+`main`. Unprivileged jobs rerun the fast, contract, agent, and isolated release
+lanes and produce checksums. Separate jobs then generate GitHub provenance,
+publish through PyPI OIDC, and create the GitHub release with generated notes;
+project code never runs in the PyPI credential-bearing job. See
+[RELEASING.md](RELEASING.md) for setup, verification, rollback, and compromise
+procedures.
+
 ## Core coverage ratchets
 
 `make ci-coverage` records branch coverage in `.coverage-core.json`, prints the
