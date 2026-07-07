@@ -65,7 +65,7 @@ def search_nodes(
     if not terms:
         terms = [needle]
 
-    hits: list[SearchHit] = []
+    ranked: list[tuple[DocNode, int]] = []
     for node in nodes:
         document = None
         if documents is not None:
@@ -84,7 +84,7 @@ def search_nodes(
         ).lower()
         tag_l = " ".join(sorted(node.tags)).lower()
         meta_l = _metadata_text(node).lower()
-        body_l = plain_text(node, document).lower()
+        body_l = (node.body_text or plain_text(node, document)).lower()
         toc_l = " ".join(entry.text for entry in node.toc).lower()
 
         score = 0
@@ -111,16 +111,24 @@ def search_nodes(
                 score += 6
 
         if score:
-            hits.append(
-                SearchHit(
-                    node=node,
-                    score=score,
-                    snippet=_snippet(node, needle, terms, document=document),
-                )
-            )
+            ranked.append((node, score))
 
-    hits.sort(key=lambda h: (-h.score, h.node.weight, h.node.title.lower()))
-    return hits[:limit]
+    ranked.sort(key=lambda item: (-item[1], item[0].weight, item[0].title.lower()))
+    return [
+        SearchHit(
+            node=node,
+            score=score,
+            snippet=_snippet(
+                node,
+                needle,
+                terms,
+                document=(documents.get(node.node_id) or documents.get(node.slug))
+                if documents is not None
+                else None,
+            ),
+        )
+        for node, score in ranked[:limit]
+    ]
 
 
 def _metadata_text(node: DocNode) -> str:

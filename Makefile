@@ -115,6 +115,7 @@ ci-fast:
 		tests/test_docs_core.py \
 		tests/test_domain_errors.py \
 		tests/test_record_types.py \
+		tests/test_search_hot_paths.py \
 		tests/test_site_config.py \
 		tests/test_theme_lint.py \
 		tests/test_theme_pack.py \
