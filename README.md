@@ -76,5 +76,6 @@ runtime line is pinned in `pyproject.toml` (`>=0.8.2,<0.9.0`) so a fresh
 - [Author mutation threat model](docs/AUTHOR_MUTATION_THREAT_MODEL.md)
 - [Agent workflows](docs/AGENT_WORKFLOWS.md)
 - [CLI contract](docs/CLI_CONTRACT.md)
+- [Compatibility and support policy](docs/COMPATIBILITY.md)
 - [CI lanes](docs/CI.md)
 - [Roadmap](docs/ROADMAP.md)

@@ -7,7 +7,7 @@ name = "furatena"
 version = "0.1.0"
 description = "Hypermedia documentation catalog for Chirp — live graph, dual IR, fura CLI"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.14,<3.15"
 license = "MIT"
 authors = [{ name = "Bengal Contributors", email = "lbeezr@icloud.com" }]
 keywords = [

@@ -14,6 +14,7 @@ from furatena.catalog.sources.registry import (
 from furatena.catalog.sources.scanner import FilesystemScanner, file_to_url
 from furatena.catalog.sources.types import (
     AdaptedContent,
+    ContentAdapter,
     GitSourceConfig,
     MountSourceConfig,
     PageSource,
@@ -24,6 +25,7 @@ from furatena.catalog.sources.types import (
 
 __all__ = [
     "AdaptedContent",
+    "ContentAdapter",
     "FilesystemScanner",
     "FilesystemSourceProvider",
     "GitSourceConfig",
