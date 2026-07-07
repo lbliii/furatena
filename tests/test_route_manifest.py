@@ -25,7 +25,7 @@ def _docs() -> DocsApp:
         APP_ROOT / "docs.yaml",
         repo_root=REPO,
         autodoc=False,
-        serve=ServeConfig(ServeMode.PREVIEW, APP_ROOT / "frozen", True, False),
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
     )
 
 
