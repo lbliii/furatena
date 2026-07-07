@@ -138,6 +138,7 @@ Exact rule-id index:
 - `fura.impact.stale_public_output`, `fura.lifecycle`, `fura.mcp`, `fura.mcp.author`, `fura.mcp.privileged_token`, `fura.mcp.rate_limit`
 - `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.report`
 - `fura.pdf`, `fura.recipes`, `fura.visibility_leak`
+- `fura.catalog`, `fura.config`, `fura.source_sync`, `fura.content_parse`, `fura.access`, `fura.access_denied`, `fura.catalog_load`, `fura.export`
 
 ## Lifecycle, roles, teams, and export filtering
 

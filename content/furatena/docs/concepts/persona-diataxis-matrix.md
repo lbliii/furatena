@@ -33,7 +33,7 @@ Owners are durable workstreams rather than individual people: `docs-product`,
 | Configuration | `config_field` | 236 fields; all identifier-linked |
 | MCP | `mcp_tool`, `mcp_resource` | 16 tools and 10 stable resources; all identifier-linked |
 | Sidecars | `sidecar` | 25 machine-readable/live outputs; all identifier-linked |
-| Diagnostics | `diagnostic` | 48 rule ids/families; all identifier-linked |
+| Diagnostics | `diagnostic` | 56 rule ids/families; all identifier-linked |
 | Deployment | `deployment_profile` | Four supported profiles; all identifier-linked |
 
 Identifier linkage is evidence that a surface is mentioned, not proof that all

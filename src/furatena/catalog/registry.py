@@ -58,11 +58,26 @@ def _normalize_prefix(prefix: str) -> str:
     return prefix if prefix.endswith("/") else f"{prefix}/"
 
 
-def _exception_record(exc: Exception) -> dict[str, str]:
-    return {
-        "type": exc.__class__.__name__,
-        "message": str(exc),
-    }
+def _exception_record(exc: Exception) -> dict[str, Any]:
+    from furatena.catalog.exceptions import CatalogError
+
+    if isinstance(exc, CatalogError):
+        legacy_type = next(
+            (
+                item.__name__
+                for item in (FileNotFoundError, PermissionError, ValueError, RuntimeError)
+                if isinstance(exc, item)
+            ),
+            "Exception",
+        )
+        return {
+            "type": legacy_type,
+            "message": str(exc),
+            "domain_type": exc.__class__.__name__,
+            "code": exc.code,
+            "context": exc.context,
+        }
+    return {"type": exc.__class__.__name__, "message": str(exc)}
 
 
 def _count_source_files(root: Path, extensions: tuple[str, ...]) -> int:

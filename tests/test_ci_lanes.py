@@ -42,6 +42,7 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "$(UV_RUN) fura docs-quality" in makefile
     assert "tests/test_docs_quality.py" in makefile
     assert "tests/test_integrator_operations_reference.py" in makefile
+    assert "tests/test_domain_errors.py" in makefile
     assert "uv build --clear --no-sources" in makefile
     assert "scripts/check_distributions.py --dist-dir dist" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile

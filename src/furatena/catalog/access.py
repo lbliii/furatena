@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from furatena.catalog.exceptions import AccessPolicyError
+
 
 class AccessRole(StrEnum):
     """Built-in roles ordered from least to most privileged."""
@@ -312,7 +314,10 @@ def author_permission_for(operation: str) -> AccessPermission:
     try:
         return _AUTHOR_OPERATION_PERMISSION[normalized]
     except KeyError as exc:
-        raise ValueError(f"unknown author operation: {operation}") from exc
+        raise AccessPolicyError(
+            f"unknown author operation: {operation}",
+            operation=normalized,
+        ) from exc
 
 
 def evaluate_author_access(

@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from furatena.catalog.docs_app import DocsApp
 
 from furatena.catalog.channel_manifest import channel_manifest
+from furatena.catalog.exceptions import ExportError
 from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.packaging import (
     PackagingLifecycleError,
@@ -603,7 +604,12 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                     continue
                 response = await client.get(url_path)
                 if response.status != 200:
-                    raise RuntimeError(f"Export failed for {url_path}: HTTP {response.status}")
+                    raise ExportError(
+                        f"Export failed for {url_path}: HTTP {response.status}",
+                        path=output_dir / rel,
+                        slug=url_path,
+                        operation="export_page",
+                    )
                 content_type = _response_header(response.headers, "content-type", "text/html")
                 if _maybe_skip_existing(
                     output_dir,
@@ -641,8 +647,11 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                     continue
                 response = await client.get(url_path)
                 if response.status != 200:
-                    raise RuntimeError(
-                        f"Sidecar export failed for {url_path}: HTTP {response.status}"
+                    raise ExportError(
+                        f"Sidecar export failed for {url_path}: HTTP {response.status}",
+                        path=output_dir / rel,
+                        slug=url_path,
+                        operation="export_sidecar",
                     )
                 content_type = _response_header(
                     response.headers,

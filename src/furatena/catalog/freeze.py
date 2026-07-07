@@ -20,6 +20,7 @@ from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.embeddings import EmbeddingIndex
+from furatena.catalog.exceptions import ExportError
 from furatena.catalog.export import (
     api_operations_json,
     catalog_graph,
@@ -367,7 +368,11 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
         if dcp_errors:
             preview = "\n".join(f"  - {line}" for line in dcp_errors[:8])
             extra = f"\n  ... and {len(dcp_errors) - 8} more" if len(dcp_errors) > 8 else ""
-            raise RuntimeError(f"catalog.json failed DCP v3 validation:\n{preview}{extra}")
+            raise ExportError(
+                f"catalog.json failed DCP v3 validation:\n{preview}{extra}",
+                path=out_dir / "catalog.json",
+                operation="freeze_catalog",
+            )
         (out_dir / "catalog.json").write_text(
             json.dumps(merged_graph, indent=2) + "\n", encoding="utf-8"
         )
@@ -474,7 +479,12 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             renderer_changed=renderer_changed,
         )
         formatted = ", ".join(f"{mount}: {error}" for mount, error in sorted(failed_mounts.items()))
-        raise RuntimeError(f"freeze failed for mount(s): {formatted}")
+        raise ExportError(
+            f"freeze failed for mount(s): {formatted}",
+            path=out_dir,
+            mount=",".join(sorted(failed_mounts)),
+            operation="freeze_mounts",
+        )
 
     if options.autodoc_config is not None:
         write_autodoc_fingerprint(

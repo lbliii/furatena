@@ -402,6 +402,9 @@ mounts:
         assert health["loaded_from"].startswith("frozen")
         assert health["source"]["status"] == "failed"
         assert health["source"]["error"]["type"] == "RuntimeError"
+        assert health["source"]["error"]["domain_type"] == "SourceSyncError"
+        assert health["source"]["error"]["code"] == "fura.source_sync"
+        assert health["source"]["error"]["context"]["mount"] == "remote"
         freeze_status = mount_source_statuses(
             registry,
             frozen,

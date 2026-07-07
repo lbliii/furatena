@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from furatena.catalog.exceptions import ExportError
+
 
 @dataclass(frozen=True, slots=True)
 class VisibilityCanary:
@@ -49,12 +51,14 @@ class VisibilityAuditReport:
         return not self.findings
 
 
-class StaticExportVisibilityError(RuntimeError):
+class StaticExportVisibilityError(ExportError):
     """Raised when protected source content appears in public artifacts."""
 
     def __init__(self, report: VisibilityAuditReport) -> None:
         super().__init__(
-            f"public artifact visibility audit found {len(report.findings)} leak(s)"
+            f"public artifact visibility audit found {len(report.findings)} leak(s)",
+            path=report.output_dir,
+            operation="visibility_audit",
         )
         self.report = report
 

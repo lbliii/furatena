@@ -122,6 +122,16 @@ regeneration action when they differ.
 
 `fura impact --json` emits a CI-friendly stale-content impact report without requiring an MCP session. The payload includes stale entries, affected chunks, graph context, changed graph edges touching each DCP node, provenance, owner/source/channel groupings, recommended remediation, and GitHub-issue-ready `repair_tasks` plus `task_markdown`. It combines live author invalidations with frozen public-output freshness checks so local, static, and deployed workflows can route repair work from the same structured contract.
 
+Recoverable domain failures use `CatalogError` subclasses and the same JSON
+diagnostic envelope. The base code is `fura.catalog`; specialized codes are
+`fura.config`, `fura.source_sync`,
+`fura.content_parse`, `fura.access`, `fura.access_denied`, `fura.catalog_load`,
+and `fura.export`. `data.error.context` carries available `path`, `mount`, `slug`,
+and `operation` fields. Compatibility is preserved: configuration/content/access
+policy errors remain `ValueError` subclasses, missing frozen catalogs remain a
+`FileNotFoundError`, denied access remains a `PermissionError`, and source/export
+failures remain `RuntimeError` subclasses.
+
 `fura evals --json` runs deterministic, fixture-style agent evaluations through the Milo MCP adapter. The lightweight suite covers prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, tool selection, and author workflows without paid model calls. Use `--include-private --category author_workflows` to exercise draft dry-run, publish preview, validation-error repair, failed-publish remediation, and a reversible publish/unpublish retrieval-boundary check.
 
 See [AGENT_WORKFLOWS.md](AGENT_WORKFLOWS.md) for stable command sequences over these JSON-capable commands.

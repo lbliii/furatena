@@ -80,7 +80,11 @@ class FilesystemScanner:
             source = path.read_text(encoding="utf-8")
             content_format = self._config.content_format_for(path)
             try:
-                meta, body = parse_source_text(source, content_format=content_format)
+                meta, body = parse_source_text(
+                    source,
+                    content_format=content_format,
+                    path=str(path),
+                )
             except Exception:
                 continue
             if not include_private and not is_public_meta(meta):

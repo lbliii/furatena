@@ -1061,7 +1061,14 @@ class DocCatalog:
         graph_path = frozen_dir / "catalog.json"
         pages_dir = frozen_dir / "pages"
         if not graph_path.is_file():
-            raise FileNotFoundError(f"Missing frozen catalog: {graph_path}")
+            from furatena.catalog.exceptions import CatalogLoadError
+
+            raise CatalogLoadError(
+                f"Missing frozen catalog: {graph_path}",
+                path=graph_path,
+                mount=mount,
+                operation="load_frozen",
+            )
 
         import json
 
