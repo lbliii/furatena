@@ -112,3 +112,47 @@ def test_content_pages_expose_markdown_aliases(
     assert response.content_type.startswith("text/markdown")
     assert heading in response.text
     assert "<!DOCTYPE html>" not in response.text
+
+
+@pytest.mark.parametrize(
+    ("accept", "content_type"),
+    (
+        ("text/markdown", "text/markdown"),
+        ("text/markdown, text/html;q=0.5", "text/markdown"),
+        ("text/html, text/markdown;q=0.5", "text/html"),
+        ("text/markdown;q=0", "text/html"),
+        ("text/*", "text/html"),
+        ("*/*", "text/html"),
+    ),
+)
+def test_content_pages_negotiate_markdown_when_explicitly_preferred(
+    docs_client: TestClient,
+    accept: str,
+    content_type: str,
+) -> None:
+    async def _fetch():
+        return await docs_client.get(
+            "/docs/get-started/installation/",
+            headers={"Accept": accept},
+        )
+
+    response = asyncio.run(_fetch())
+    assert response.status == 200
+    assert response.content_type.startswith(content_type)
+    if content_type == "text/markdown":
+        assert response.header("Vary") == "Accept"
+        assert response.text.startswith("# Installation")
+        assert "<!DOCTYPE html>" not in response.text
+    else:
+        assert "<!DOCTYPE html>" in response.text
+
+
+def test_home_page_supports_markdown_content_negotiation(docs_client: TestClient) -> None:
+    async def _fetch():
+        return await docs_client.get("/", headers={"Accept": "text/markdown"})
+
+    response = asyncio.run(_fetch())
+    assert response.status == 200
+    assert response.content_type.startswith("text/markdown")
+    assert response.header("Vary") == "Accept"
+    assert response.text.startswith("# Publish polished docs from Markdown")
