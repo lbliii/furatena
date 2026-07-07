@@ -87,6 +87,7 @@ class MCPAccessPolicy:
     site: str | None = None
     allow_private: bool = False
     roles: frozenset[AccessRole] = field(default_factory=frozenset)
+    teams: frozenset[str] = field(default_factory=frozenset)
     privileged_tokens: frozenset[str] = field(default_factory=frozenset)
     rate_limit_per_minute: int = 120
     timeout_seconds: float = 15.0
@@ -111,7 +112,7 @@ class MCPAccessPolicy:
         roles: object = self.roles
         if not roles:
             roles = [AccessRole.ANONYMOUS] if self.remote else [AccessRole.ADMIN]
-        return AccessSubject.from_values(actor=self.actor, roles=roles)
+        return AccessSubject.from_values(actor=self.actor, roles=roles, teams=self.teams)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -121,6 +122,7 @@ class MCPAccessPolicy:
             "site": self.site,
             "allow_private": self.allow_private,
             "roles": sorted(role.value for role in self.subject.roles),
+            "teams": sorted(self.subject.teams),
             "requires_privileged_token": self.requires_privileged_token,
             "rate_limit_per_minute": self.rate_limit_per_minute,
             "timeout_seconds": self.timeout_seconds,
@@ -156,6 +158,9 @@ class FuraMCPServer:
         self.base_url = base_url.rstrip("/")
         self.policy = policy or MCPAccessPolicy(allow_private=include_private)
         self.include_private = include_private and self.policy.allow_private
+        self.access_subject = (
+            self.policy.subject if self.include_private else AccessSubject.anonymous()
+        )
         self.retrieval_feedback = (
             retrieval_feedback
             or getattr(docs_app, "retrieval_feedback", None)
@@ -1033,12 +1038,12 @@ class FuraMCPServer:
         if uri == "fura://catalog/graph":
             return cast(
                 dict[str, Any],
-                catalog_graph(self.catalog, include_private=self.include_private),
+                catalog_graph(self.catalog, subject=self.access_subject),
             )
         if uri == "fura://catalog/api-operations":
             return self._api_operations()
         if uri == "fura://catalog/structure":
-            return build_structure_index(self.catalog, include_private=self.include_private)
+            return build_structure_index(self.catalog, subject=self.access_subject)
         if uri == "fura://catalog/inventories":
             return inventories_json(self.catalog, base_url=self.base_url)
         if uri == "fura://catalog/sources":
@@ -1073,7 +1078,8 @@ class FuraMCPServer:
             edition=_optional_str(arguments.get("edition")),
             tag=_optional_str(arguments.get("tag")),
             url_prefix=_optional_str(arguments.get("url_prefix")),
-            include_private=self.include_private,
+            include_private=False,
+            subject=self.access_subject,
         )
         hits = [
             {
@@ -1124,10 +1130,6 @@ class FuraMCPServer:
         return payload
 
     def _query_graph(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        include_private = self.include_private and _bool_arg(
-            arguments.get("include_private"),
-            default=self.include_private,
-        )
         return cast(
             dict[str, Any],
             query_catalog_graph(
@@ -1154,7 +1156,8 @@ class FuraMCPServer:
                     or _optional_str(arguments.get("to"))
                     or _optional_str(arguments.get("linked_to"))
                 ),
-                include_private=include_private,
+                include_private=False,
+                subject=self.access_subject,
             ),
         )
 
@@ -1165,7 +1168,8 @@ class FuraMCPServer:
             self.catalog,
             self.embedding_index,
             node_id,
-            include_private=self.include_private,
+            include_private=False,
+            subject=self.access_subject,
         )
         if payload is None:
             raise MCPError(-32602, f"unknown node_id: {node_id}")
@@ -1239,8 +1243,9 @@ class FuraMCPServer:
         candidates = accessible_nodes(
             self.catalog,
             self.catalog.doc_nodes(lang=node.lang),
+            subject=self.access_subject,
             permission=AccessPermission.RETRIEVE,
-            include_private=self.include_private,
+            include_private=False,
         )
         for candidate in candidates:
             if candidate.node_id == node.node_id or candidate.mount != node.mount:
@@ -1315,16 +1320,18 @@ class FuraMCPServer:
         return accessible_nodes(
             self.catalog,
             self.catalog.nodes,
+            subject=self.access_subject,
             permission=AccessPermission.RETRIEVE,
-            include_private=self.include_private,
+            include_private=False,
         )
 
     def _doc_nodes(self) -> list[Any]:
         return accessible_nodes(
             self.catalog,
             self.catalog.doc_nodes(),
+            subject=self.access_subject,
             permission=AccessPermission.RETRIEVE,
-            include_private=self.include_private,
+            include_private=False,
         )
 
     def _can_retrieve_node(self, node: Any) -> bool:
@@ -1332,8 +1339,9 @@ class FuraMCPServer:
             accessible_nodes(
                 self.catalog,
                 [node],
+                subject=self.access_subject,
                 permission=AccessPermission.RETRIEVE,
-                include_private=self.include_private,
+                include_private=False,
             )
         )
 

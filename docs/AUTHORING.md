@@ -59,7 +59,7 @@ filters are applied.
 
 `fura export` fails when lifecycle errors are present. Use `--allow-lifecycle-errors` only for local debugging or intentionally unsafe previews; publishing workflows should not set it.
 
-Author-mode JSON routes such as `/catalog.json`, `/search.json`, `/catalog/retrieve`, and `/llms.txt` exclude non-public pages by default. Add `include_private=1` only for trusted local authoring tools.
+Author-mode JSON routes such as `/catalog.json`, `/search.json`, `/catalog/retrieve`, and `/llms.txt` exclude non-public pages by default. Add `include_private=1` only for trusted local authoring tools; results remain constrained by the server-signed subject's role, team, and mount policy.
 
 ## CLI Lifecycle Commands
 

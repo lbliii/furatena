@@ -101,6 +101,7 @@ def query_catalog_graph(
     source: str | None = None,
     target: str | None = None,
     include_private: bool = False,
+    subject: Any | None = None,
 ) -> GraphQueryRecord:
     """Filter the DCP catalog graph for headless consumers.
 
@@ -108,7 +109,11 @@ def query_catalog_graph(
     neighborhood and return only participating pages, so callers can traverse
     relationships without downloading the full catalog.
     """
-    graph = catalog_graph(catalog, include_private=include_private)
+    graph = catalog_graph(
+        catalog,
+        include_private=include_private,
+        subject=subject,
+    )
     mount_value = _clean(mount)
     tag_value = _clean_lower(tag)
     format_value = _clean_lower(format)

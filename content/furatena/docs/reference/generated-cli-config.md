@@ -289,6 +289,7 @@ Command parser contract.
 | `--remote` | no | false | — | — | Apply remote MCP auth, audit, and safety policy |
 | `--actor` | no | — | — | — | Actor id recorded in MCP audit events |
 | `--role` | no | — | `anonymous`, `reader`, `contributor`, `publisher`, `admin` | — | Trusted MCP session role; may be repeated (remote defaults to anonymous) |
+| `--team` | no | — | — | — | Trusted MCP session team; may be repeated |
 | `--tenant` | no | — | — | — | Tenant id recorded in MCP audit events |
 | `--site` | no | — | — | — | Site id recorded in MCP audit events |
 | `--privileged-token` | no | — | — | — | Token required by remote MCP clients before sensitive authoring tools can run |
@@ -685,7 +686,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:123` |
 | `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:236` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1212`, `furatena/cli/commands/serve.py:41` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1234`, `furatena/cli/commands/serve.py:41` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:180`, `furatena/catalog/static_export.py:262`, `furatena/catalog/static_export.py:268`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:184`, `furatena/catalog/static_export.py:261`, `furatena/catalog/static_export.py:266`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:43` |

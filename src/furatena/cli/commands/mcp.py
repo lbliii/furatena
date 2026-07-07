@@ -62,6 +62,7 @@ def _run_mcp(args: argparse.Namespace) -> None:
         site=args.site,
         allow_private=allow_private,
         roles=frozenset(AccessRole(role) for role in args.role),
+        teams=frozenset(args.team),
         privileged_tokens=privileged_tokens,
         rate_limit_per_minute=args.rate_limit,
         timeout_seconds=args.timeout,
@@ -137,6 +138,12 @@ def configure(sub: Any) -> None:
         default=[],
         choices=("anonymous", "reader", "contributor", "publisher", "admin"),
         help="Trusted MCP session role; may be repeated (remote defaults to anonymous)",
+    )
+    mcp.add_argument(
+        "--team",
+        action="append",
+        default=[],
+        help="Trusted MCP session team; may be repeated",
     )
     mcp.add_argument("--tenant", default=None, help="Tenant id recorded in MCP audit events")
     mcp.add_argument("--site", default=None, help="Site id recorded in MCP audit events")

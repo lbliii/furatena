@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol
 
-from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.access import AccessPermission, AccessSubject, accessible_nodes
 from furatena.catalog.chunks import chunk_node
 from furatena.catalog.embedding_providers import EmbeddingSearchIndex
 from furatena.catalog.embeddings import SemanticHit
@@ -50,11 +50,13 @@ def semantic_index_json(
     index: EmbeddingSearchIndex,
     *,
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> dict[str, Any]:
     """Return the persisted semantic index shape with catalog access filtering."""
     nodes = accessible_nodes(
         catalog,
         catalog.doc_nodes(),
+        subject=subject,
         permission=AccessPermission.SEARCH,
         include_private=include_private,
     )
@@ -108,6 +110,7 @@ def hybrid_search(
     lang: str | None = None,
     url_prefix: str | None = None,
     include_private: bool = True,
+    subject: AccessSubject | None = None,
     ranking: str = "keyword_guarded",
 ) -> HybridSearchResult:
     """Rank pages with keyword + TF-IDF chunk retrieval (one semantic scan)."""
@@ -120,6 +123,7 @@ def hybrid_search(
     nodes = accessible_nodes(
         catalog,
         catalog.doc_nodes(lang=lang),
+        subject=subject,
         permission=AccessPermission.SEARCH,
         include_private=include_private,
     )
@@ -221,6 +225,7 @@ def retrieve_node(
     node_id: str,
     *,
     include_private: bool = True,
+    subject: AccessSubject | None = None,
 ) -> dict[str, Any] | None:
     node = catalog.get_by_node_id(node_id)
     if node is None or (
@@ -228,6 +233,7 @@ def retrieve_node(
         and node not in accessible_nodes(
             catalog,
             [node],
+            subject=subject,
             permission=AccessPermission.RETRIEVE,
         )
     ):
@@ -260,6 +266,7 @@ def retrieve_node(
             for item in accessible_nodes(
                 catalog,
                 catalog.doc_nodes(),
+                subject=subject,
                 permission=AccessPermission.RETRIEVE,
             )
         }
@@ -298,6 +305,7 @@ def semantic_search_json(
     tag: str | None = None,
     url_prefix: str | None = None,
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> dict[str, Any]:
     result = hybrid_search(
         catalog,
@@ -309,6 +317,7 @@ def semantic_search_json(
         tag=tag,
         url_prefix=url_prefix,
         include_private=include_private,
+        subject=subject,
     )
     hits = result.hits
     return {
