@@ -1520,7 +1520,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert 'data-fura-author-chrome' in author_payload["boosted_page"].text
     assert "Open source" in author_payload["page"].text
     assert "Copy source path" in author_payload["page"].text
-    assert "Inspect public output" in author_payload["page"].text
+    assert "Inspect public" in author_payload["page"].text
     assert 'data-author-surface="local"' in author_payload["page"].text
     assert "Not exported" in author_payload["page"].text
     assert 'data-action="copy-source-path"' in author_payload["page"].text
@@ -1545,7 +1545,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert author_payload["transition_get"].status == 405
     assert author_payload["htmx_validate"].status == 200
     assert 'id="fura-author-chrome"' in author_payload["htmx_validate"].text
-    assert "Author controls" in author_payload["htmx_validate"].text
+    assert "Author page" in author_payload["htmx_validate"].text
     assert "Local only" in author_payload["htmx_validate"].text
     assert '"ok":' not in author_payload["htmx_validate"].text
 

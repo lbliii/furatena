@@ -344,7 +344,8 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
     author_server: tuple[str, Path],
 ) -> None:
     base_url, _page_path = author_server
-    context = await browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)
+    viewport = {"width": 390, "height": 844}
+    context = await browser.new_context(viewport=viewport, is_mobile=True)
     page = await context.new_page()
     try:
         await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
@@ -353,21 +354,32 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         chrome = page.locator("#fura-author-chrome")
         actions = page.locator("[data-chirp-page-actions]").first
         article = page.locator(".chirp-theme-docs-layout__article").first
+        details = chrome.locator(".fura-author-chrome__details")
+        details_panel = chrome.locator(".fura-author-chrome__details-panel")
         await chrome.wait_for()
+
+        assert await chrome.locator(".fura-author-chrome__signal").count() == 3
+        assert await details_panel.is_hidden()
+        await details.locator("summary").click()
+        await details_panel.wait_for(state="visible")
 
         boxes = {
             "chrome": await chrome.bounding_box(),
             "actions": await actions.bounding_box(),
             "article": await article.bounding_box(),
+            "details": await details_panel.bounding_box(),
         }
         assert all(box is not None for box in boxes.values())
         assert boxes["actions"] is not None
         assert boxes["chrome"] is not None
         assert boxes["article"] is not None
-        assert boxes["actions"]["width"] <= 390
-        assert boxes["chrome"]["width"] <= 390
+        assert boxes["details"] is not None
+        assert boxes["actions"]["width"] <= viewport["width"]
+        assert boxes["chrome"]["width"] <= viewport["width"]
+        assert boxes["details"]["width"] <= boxes["chrome"]["width"]
         assert boxes["chrome"]["y"] >= boxes["actions"]["y"] + boxes["actions"]["height"]
         assert boxes["article"]["y"] >= boxes["chrome"]["y"]
+        assert await page.evaluate("document.documentElement.scrollWidth") <= viewport["width"]
         assert await page.locator("#fura-author-sse").count() == 1
         assert await page.evaluate("window.__furaAuthorReloadMode") == "sse"
     finally:

@@ -368,20 +368,19 @@ class TestAuthorStaleRoute:
         assert 'data-chirp-page-actions' in response.text
         assert 'data-action="copy-source-path"' in response.text
         assert 'data-source-path="' in response.text
-        assert "Author controls" in response.text
+        assert "Author page" in response.text
         assert "Local only" in response.text
         assert "Not exported" in response.text
-        assert "fura-author-chrome__meta-icon" in response.text
+        assert "fura-author-chrome__identity" in response.text
         assert "fura-author-chrome__pathline" in response.text
-        assert "fura-author-chrome__meta--signals" in response.text
-        assert "fura-author-chrome__meta--details" in response.text
+        assert "fura-author-chrome__signals" in response.text
+        assert "fura-author-chrome__details-panel" in response.text
         assert 'data-fura-author-output="included"' in response.text
         assert 'data-author-validation="clean"' in response.text
         assert 'data-author-output="included"' in response.text
         assert 'aria-label="Lifecycle actions"' in response.text
-        assert 'aria-label="Source and output actions"' in response.text
-        assert "Lifecycle" in response.text
-        assert "Inspect public output" in response.text
+        assert 'aria-label="Edit and source actions"' in response.text
+        assert "Inspect public" in response.text
         assert "/docs/_author/page.json?slug=docs/page&amp;inspect_public=1" in response.text
         assert 'id="fura-author-chrome"' in response.text
         assert response.text.count("Copy source path") >= 2
@@ -391,27 +390,23 @@ class TestAuthorStaleRoute:
         )
         assert "width: min(22rem, calc(100vw - 1rem));" in css
         assert "grid-template-columns: 1.35rem minmax(0, 1fr);" in css
-        assert ".fura-author-chrome__body" in css
-        assert ".fura-author-chrome__metadata" in css
-        assert ".fura-author-chrome__action-group--primary" in css
-        assert ".fura-author-chrome__meta-icon" in css
+        assert ".fura-author-chrome__identity" in css
+        assert ".fura-author-chrome__workflow" in css
+        assert ".fura-author-chrome__action-group--edit" in css
         assert ".fura-author-chrome__pathline" in css
-        assert ".fura-author-chrome__meta--signals" in css
-        assert ".fura-author-chrome__meta--details" in css
-        assert ".fura-author-chrome__meta-item--signal .fura-author-chrome__meta-value" in css
+        assert ".fura-author-chrome__signals" in css
+        assert ".fura-author-chrome__details-panel" in css
+        assert ".fura-author-chrome__details[open]" in css
         assert '.fura-author-chrome[data-fura-author-output="excluded"]::before' in css
-        assert '.fura-author-chrome__meta-value[data-author-validation="clean"]' in css
-        assert '.fura-author-chrome__meta-value[data-author-output="excluded"]' in css
-        assert "grid-template-columns: minmax(15rem, 0.95fr) minmax(20rem, 1.05fr);" in css
-        assert "grid-template-columns: minmax(0, 1fr);" in css
+        assert '.fura-author-chrome__signal dd[data-author-validation="clean"]' in css
+        assert "grid-template-columns: 2.2rem minmax(11rem, 1fr) auto auto;" in css
+        assert "grid-template-columns: minmax(0, 1fr) auto;" in css
         assert "grid-template-columns: repeat(3, minmax(0, 1fr));" in css
-        assert ".fura-author-chrome__meta--details .fura-author-chrome__meta-item" in css
-        assert "grid-template-columns: auto minmax(0, 1fr);" in css
-        assert "@media (max-width: 760px)" in css
-        assert ".fura-author-chrome__body {\n      grid-template-columns: 1fr;" in css
+        assert ".fura-author-chrome__details-actions" in css
+        assert "@media (max-width: 700px)" in css
+        assert ".fura-author-chrome__workflow {\n      grid-template-columns: 1fr;" in css
         assert "@media (max-width: 480px)" in css
-        assert ".fura-author-chrome__source {\n      grid-template-columns: 1rem minmax(0, 1fr);" in css
-        assert ".fura-author-chrome__action {\n      flex: 1 1 9rem;" in css
+        assert ".fura-author-chrome__signals {\n      display: grid;" in css
 
     def test_author_reload_after_source_edit_updates_dom_and_clears_hints(self, tmp_path: Path) -> None:
         import asyncio
