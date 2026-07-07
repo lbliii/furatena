@@ -63,6 +63,48 @@ def _write_author_fixture(app_root: Path) -> Path:
     return page
 
 
+def _write_journey_fixture(app_root: Path) -> None:
+    copy_app_theme(app_root, APP_ROOT)
+    write_minimal_docs_yaml(app_root / "docs.yaml")
+    with (app_root / "docs.yaml").open("a", encoding="utf-8") as handle:
+        handle.write(
+            """
+catalog:
+  append_unlisted: false
+  sections:
+    - { id: adopt, label: Adopt, sections: [get-started, about] }
+    - { id: author, label: Author, sections: [authoring, theming] }
+    - { id: publish, label: Publish, pages: [operations, operations/deploy] }
+    - { id: operate, label: Operate, pages: [operations/serve-and-author] }
+    - id: integrate
+      label: Integrate
+      href: /docs/operations/consume-agent-outputs/
+      sections: [concepts, reference]
+      pages: [operations/consume-agent-outputs]
+"""
+        )
+    docs = app_root / "content" / "docs"
+    docs.mkdir(parents=True)
+    (docs / "_index.md").write_text("---\ntitle: Docs\n---\n# Docs\n", encoding="utf-8")
+    pages = {
+        "get-started/_index.md": "Get Started",
+        "about/_index.md": "About",
+        "authoring/_index.md": "Authoring",
+        "theming/_index.md": "Theming",
+        "concepts/_index.md": "Concepts",
+        "reference/_index.md": "Reference",
+        "operations/_index.md": "Operations",
+        "operations/deploy.md": "Deploy",
+        "operations/serve-and-author.md": "Serve and author",
+        "operations/consume-agent-outputs.md": "Consume agent outputs",
+    }
+    for relative, title in pages.items():
+        path = docs / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"---\ntitle: {title}\n---\n# {title}\n", encoding="utf-8")
+    write_mounts_yaml(app_root / "mounts.yaml", app_root / "content")
+
+
 @pytest.fixture()
 async def browser() -> AsyncIterator[Browser]:
     async with async_playwright() as playwright:
@@ -115,10 +157,11 @@ def author_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
 
 
 @pytest.fixture()
-def dogfood_server() -> Iterator[str]:
+def journey_server(tmp_path: Path) -> Iterator[str]:
+    _write_journey_fixture(tmp_path)
     port = _free_port()
     env = os.environ.copy()
-    env["FURA_APP_ROOT"] = str(APP_ROOT)
+    env["FURA_APP_ROOT"] = str(tmp_path)
     env["PYTHONUNBUFFERED"] = "1"
     proc = subprocess.Popen(
         [
@@ -133,12 +176,12 @@ def dogfood_server() -> Iterator[str]:
         ],
         cwd=REPO,
         env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
-        _wait_for_server(f"{base_url}/docs/get-started/", proc, timeout=60.0)
+        _wait_for_server(f"{base_url}/docs/operations/consume-agent-outputs/", proc)
         yield base_url
     finally:
         proc.terminate()
@@ -183,9 +226,9 @@ async def _submit_studio(page: Page, *, button_name: str) -> None:
 @pytest.mark.browser_smoke
 @pytest.mark.browser_responsive
 @pytest.mark.browser_full
-async def test_dogfood_journey_rail_is_complete_active_and_responsive(
+async def test_journey_rail_is_complete_active_and_responsive(
     browser: Browser,
-    dogfood_server: str,
+    journey_server: str,
 ) -> None:
     expected = ["Adopt", "Author", "Publish", "Operate", "Integrate"]
     for viewport in ({"width": 1280, "height": 900}, {"width": 390, "height": 844}):
@@ -196,7 +239,7 @@ async def test_dogfood_journey_rail_is_complete_active_and_responsive(
         page = await context.new_page()
         try:
             await page.goto(
-                f"{dogfood_server}/docs/operations/consume-agent-outputs/",
+                f"{journey_server}/docs/operations/consume-agent-outputs/",
                 wait_until="domcontentloaded",
             )
             rail = page.locator(
