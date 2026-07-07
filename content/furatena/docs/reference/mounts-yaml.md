@@ -47,7 +47,8 @@ mounts:
 | `format_map` | no | Map extension → content adapter id |
 
 Built-in format ids include `patitas-markdown`, `myst-markdown`, `mdx`,
-`docutils-rst`, and `html`. Use `.myst` for MyST files, or map `.md` to
+`docutils-rst`, and `html`. Install `furatena[formats]` before enabling RST.
+Use `.myst` for MyST files, or map `.md` to
 `myst-markdown` when importing an existing MyST markdown corpus:
 
 ```yaml

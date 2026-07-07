@@ -17,26 +17,37 @@ def _require_docutils():
         import docutils  # noqa: F401
         from docutils import nodes
         from docutils.core import publish_parts
+        from docutils.frontend import get_default_settings
         from docutils.parsers.rst import Parser
         from docutils.utils import new_document
     except ImportError as exc:  # pragma: no cover - optional dep
         raise ImportError(
-            "docutils is required for .rst ingestion. Install with: pip install docutils"
+            "docutils is required for .rst ingestion. "
+            "Install with: pip install 'furatena[formats]'"
         ) from exc
-    return nodes, publish_parts, Parser, new_document
+    return nodes, publish_parts, get_default_settings, Parser, new_document
+
+
+def _parse_rst_document(source: str):
+    _nodes, _publish_parts, get_default_settings, Parser, new_document = _require_docutils()
+    parser = Parser()
+    document = new_document(
+        "<furatena-rst>",
+        settings=get_default_settings(Parser),
+    )
+    parser.parse(source, document)
+    return document
 
 
 def extract_rst_content_ir(source: str) -> ContentIR:
-    nodes, _publish_parts, Parser, new_document = _require_docutils()
-    parser = Parser()
-    document = new_document(source, settings=None)
-    parser.parse(source, document)
+    nodes, _publish_parts, _get_default_settings, _Parser, _new_document = _require_docutils()
+    document = _parse_rst_document(source)
 
     headings: list[ContentHeading] = []
     links: list[ContentLink] = []
     extensions: list[ContentDirective] = []
 
-    for section in document.traverse(nodes.section):
+    for section in document.findall(nodes.section):
         if not section.children:
             continue
         title_node = section.children[0]
@@ -60,8 +71,8 @@ def extract_rst_content_ir(source: str) -> ContentIR:
             )
         )
 
-    for node in document.traverse(nodes.reference):
-        refuri = getattr(node, "refuri", None)
+    for node in document.findall(nodes.reference):
+        refuri = node.get("refuri")
         if not refuri:
             continue
         links.append(
@@ -72,7 +83,7 @@ def extract_rst_content_ir(source: str) -> ContentIR:
             )
         )
 
-    for node in document.traverse(nodes.Admonition):
+    for node in document.findall(nodes.Admonition):
         classes = list(getattr(node, "attributes", {}).get("classes") or ())
         name = classes[0] if classes else node.tagname
         extensions.append(
@@ -91,7 +102,7 @@ def extract_rst_content_ir(source: str) -> ContentIR:
 
 
 def render_rst_html(source: str) -> str:
-    _nodes, publish_parts, _Parser, _new_document = _require_docutils()
+    _nodes, publish_parts, _get_default_settings, _Parser, _new_document = _require_docutils()
     parts = publish_parts(
         source,
         writer_name="html",
@@ -109,11 +120,7 @@ def render_rst_html(source: str) -> str:
 
 
 def rst_body_text(source: str) -> str:
-    _nodes, _publish_parts, Parser, new_document = _require_docutils()
-    parser = Parser()
-    document = new_document(source, settings=None)
-    parser.parse(source, document)
-    return document.astext().strip()
+    return _parse_rst_document(source).astext().strip()
 
 
 class RstAdapter:

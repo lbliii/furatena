@@ -39,7 +39,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+formats = [
+    "docutils>=0.21",
+]
 dev = [
+    "docutils>=0.21",
     "pytest>=9.0",
     "pytest-asyncio>=0.23",
     "pytest-timeout>=2.3",

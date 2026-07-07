@@ -416,7 +416,7 @@ Implementing a new format requires:
 
 | Format | Python package |
 |--------|----------------|
-| `.rst` | `docutils` (`pip install docutils`) |
+| `.rst` | `docutils` (`pip install 'furatena[formats]'`) |
 | `.md`, `.mdx` | `patitas[syntax]` (already required for Furatena) |
 
 No changes to graph export, search, or agent endpoints are required.

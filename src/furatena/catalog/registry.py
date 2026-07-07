@@ -147,7 +147,8 @@ def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...
         else:
             content_root = Path(content_raw)
         if not content_root.is_absolute():
-            content_root = (config_path.parent / content_root).resolve()
+            content_root = config_path.parent / content_root
+        content_root = content_root.resolve()
         mounts.append(
             MountConfig(
                 id=mount_id,
