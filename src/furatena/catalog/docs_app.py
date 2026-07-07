@@ -69,6 +69,10 @@ from furatena.catalog.export import (
 from furatena.catalog.export import (
     llms_txt as llms_index_txt,
 )
+from furatena.catalog.gateway_identity import (
+    GatewayIdentityError,
+    identity_from_trusted_session,
+)
 from furatena.catalog.i18n import (
     LocaleResolutionService,
     LocalizedNodeMatch,
@@ -471,6 +475,14 @@ class DocsApp:
         """Resolve the server-owned subject from the signed browser session."""
         session = get_session()
         raw = session.get("fura_author_subject")
+        if isinstance(raw, dict) and raw.get("source") == "trusted_gateway":
+            try:
+                return identity_from_trusted_session(
+                    raw,
+                    expected_identity=self.config.identity.to_meta(),
+                ).subject
+            except GatewayIdentityError:
+                return AccessSubject.anonymous()
         if not isinstance(raw, dict):
             raw = {
                 "actor": self.author_subject.actor,
