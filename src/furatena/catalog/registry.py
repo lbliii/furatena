@@ -5,7 +5,10 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from patitas.nodes import Document
 
 import yaml
 
@@ -30,6 +33,7 @@ from furatena.catalog.identity import (
 )
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
+from furatena.catalog.record_types import EdgeRecord, NamespaceRecord
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.sources.git import sync_git_source
@@ -192,8 +196,8 @@ class CatalogRegistry:
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
         self._mount_for_url: list[tuple[str, MountConfig]] = []
-        self._edges: list[dict[str, Any]] | None = None
-        self._namespaces: list[dict[str, Any]] | None = None
+        self._edges: list[EdgeRecord] | None = None
+        self._namespaces: list[NamespaceRecord] | None = None
         self._federated_backlinks: dict[str, list[dict[str, str]]] = {}
         self._translation_index: dict[str, dict[str, str]] | None = None
         self._inventory_store = None
@@ -323,6 +327,7 @@ class CatalogRegistry:
             identity_meta=self.catalog_identity,
         )
         if cached_autodoc is not None and mount.default and self.frozen_dir is not None:
+            assert self.frozen_root is not None
             shard._frozen_shard_dir = self.frozen_root / "mounts" / mount.id
         shard._federated_slug_urls = self._federated_slug_urls
         return shard
@@ -1087,14 +1092,14 @@ class CatalogRegistry:
         )
         return search_nodes(nodes, query, limit=limit, documents=self.ast_documents())
 
-    def graph_edges(self) -> list[dict[str, Any]]:
+    def graph_edges(self) -> list[EdgeRecord]:
         if self._edges is not None:
             return self._edges
         from furatena.catalog.graph_schema import build_translation_edges, edge_record
 
         url_index = {node.url: node.node_id for node in self.nodes}
         nodes_by_id = {node.node_id: node for node in self.nodes}
-        edges: list[dict[str, Any]] = []
+        edges: list[EdgeRecord] = []
         for shard in self._shards.values():
             if not shard.auto_reload and getattr(shard, "_frozen_edges", None) is not None:
                 edges.extend(shard.graph_edges())
@@ -1112,12 +1117,12 @@ class CatalogRegistry:
         self._edges = edges
         return edges
 
-    def namespaces(self) -> list[dict[str, Any]]:
+    def namespaces(self) -> list[NamespaceRecord]:
         if self._namespaces is not None:
             return self._namespaces
         from furatena.catalog.graph_schema import namespace_record
 
-        records: list[dict[str, Any]] = []
+        records: list[NamespaceRecord] = []
         for mount in self.mounts:
             shard = self._shards.get(mount.id)
             if shard is None:
@@ -1136,9 +1141,9 @@ class CatalogRegistry:
         self._namespaces = records
         return records
 
-    def ast_documents(self) -> dict[str, object]:
+    def ast_documents(self) -> dict[str, Document]:
         """Merge live Patitas AST documents from all mount shards."""
-        documents: dict[str, object] = {}
+        documents: dict[str, Document] = {}
         for shard in self._shards.values():
             documents.update(shard.ast_documents())
         return documents

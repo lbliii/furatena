@@ -45,6 +45,12 @@ Bundled compatibility fixtures live under `furatena.catalog/fixtures/dcp/`. Ever
 supported version covers edges, Content IR, inventories, and namespaces. DCP v3
 fixtures additionally cover typed non-page `graph_nodes` such as API schemas.
 
+Python producers use the `TypedDict` contracts in
+`furatena.catalog.record_types` at export, graph-query, search-index, and MCP
+payload boundaries. These annotations are checked in the fast CI lane; golden-byte
+tests prevent the typing layer from changing serialized `catalog.json` or
+`search.json` output.
+
 ## Three tiers
 
 ### Tier 1 — Catalog graph (required)

@@ -7,7 +7,10 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from patitas.nodes import Document
 
 from furatena.catalog.ast_store import document_from_json
 from furatena.catalog.autodoc import generate_autodoc_nodes
@@ -27,6 +30,7 @@ from furatena.catalog.i18n import (
 )
 from furatena.catalog.incremental import htmx_swap_hints, needs_graph_rebuild
 from furatena.catalog.models import DocNode, SectionChunk, TocEntry
+from furatena.catalog.record_types import EdgeRecord, NamespaceRecord
 from furatena.catalog.render import DocsRenderer
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.sources import (
@@ -51,7 +55,6 @@ def _normalize_url(url: str) -> str:
     if url == "/":
         return url
     return url if url.endswith("/") else f"{url}/"
-
 
 
 def _is_docs_tree_slug(slug: str, config: DocsI18nConfig) -> bool:
@@ -144,7 +147,7 @@ class DocCatalog:
         self.channels: tuple[DocChannel, ...] = infer_release_channels(content_root)
         self._frozen_pages_dir: Path | None = None
         self._frozen_shard_dir: Path | None = None
-        self._frozen_edges: list[dict[str, Any]] | None = None
+        self._frozen_edges: list[EdgeRecord] | None = None
         self._html_cache: dict[str, str] = {}
         self._nodes: list[DocNode] = []
         self._nodes_by_url: dict[str, DocNode] = {}
@@ -166,7 +169,7 @@ class DocCatalog:
         self._federated_slug_urls = federated_slug_urls or {}
         self._watcher = None
         self._cached_autodoc_nodes = cached_autodoc_nodes
-        self._ast_documents: dict[str, object] = {}
+        self._ast_documents: dict[str, Document] = {}
         self._body_by_slug: dict[str, str] = {}
         self._last_invalidations: dict[str, tuple[str, ...]] = {}
         self._workers = resolve_workers(workers)
@@ -350,20 +353,26 @@ class DocCatalog:
             slug = page["slug"]
             source = scanned_by_slug.get(slug)
             if source is not None:
-                provenance_meta = self._source_provider.provenance(source, mount=self.mount).to_meta()
+                provenance_meta = self._source_provider.provenance(
+                    source, mount=self.mount
+                ).to_meta()
                 for key, value in provenance_meta.items():
                     if key == "provenance":
-                        existing = meta.get("provenance") if isinstance(meta.get("provenance"), dict) else {}
+                        existing = (
+                            meta.get("provenance")
+                            if isinstance(meta.get("provenance"), dict)
+                            else {}
+                        )
                         meta["provenance"] = {**value, **existing}
                     elif value not in (None, ""):
                         meta.setdefault(key, value)
-                meta.setdefault("source_fingerprint", self._source_provider.fingerprint(source).value)
+                meta.setdefault(
+                    "source_fingerprint", self._source_provider.fingerprint(source).value
+                )
             stubs[slug] = NodeStub(
                 slug=slug,
                 url=page["url"],
-                title=str(
-                    meta.get("title") or slug.rsplit("/", 1)[-1].replace("-", " ").title()
-                ),
+                title=str(meta.get("title") or slug.rsplit("/", 1)[-1].replace("-", " ").title()),
                 description=str(meta.get("description") or ""),
                 weight=int(meta.get("weight") or 100),
                 page_type=str(meta.get("type") or meta.get("layout") or "page"),
@@ -465,7 +474,7 @@ class DocCatalog:
         )
         document = adapted.native_document
         if document is not None:
-            self._ast_documents[slug] = document
+            self._ast_documents[slug] = cast("Document", document)
         self._body_by_slug[slug] = body
         doc_version = meta.get("doc_version") or meta.get("version")
         if doc_version is not None:
@@ -592,7 +601,7 @@ class DocCatalog:
                 new_document = self._ast_documents.get(slug)
                 content_format = str(page.get("content_format") or "patitas-markdown")
                 adapter = get_content_adapter(content_format, renderer=self._renderer)
-                regions = adapter.invalidation_regions(old_document, new_document)
+                regions = frozenset(adapter.invalidation_regions(old_document, new_document))
                 self._last_invalidations[slug] = htmx_swap_hints(regions)
                 if needs_graph_rebuild(regions):
                     graph_dirty = True
@@ -810,11 +819,7 @@ class DocCatalog:
                 if not child_items:
                     continue
                 href = index_node.url if index_node else child_items[0]["href"]
-                title = (
-                    index_node.title
-                    if index_node
-                    else segment.replace("-", " ").title()
-                )
+                title = index_node.title if index_node else segment.replace("-", " ").title()
                 entry = {
                     "title": title,
                     "href": href,
@@ -828,7 +833,9 @@ class DocCatalog:
 
         return items_for_parent(section_slug)
 
-    def nav_tree(self, active_url: str | None = None, *, lang: str | None = None) -> list[dict[str, Any]]:
+    def nav_tree(
+        self, active_url: str | None = None, *, lang: str | None = None
+    ) -> list[dict[str, Any]]:
         """Build chirp-ui nav_tree items from the docs hierarchy."""
         effective_lang = lang
         if effective_lang is None and self.i18n_config.enabled:
@@ -864,8 +871,7 @@ class DocCatalog:
             section_href = index_node.url if index_node else pages[0].url
             section_urls = {section_href, *(p.url for p in pages)}
             section_active = active_url in section_urls or (
-                active_url is not None
-                and active_url.startswith(section_href.rstrip("/") + "/")
+                active_url is not None and active_url.startswith(section_href.rstrip("/") + "/")
             )
             children = self._section_nav_children(
                 index_slug,
@@ -911,10 +917,7 @@ class DocCatalog:
                 return [item]
         for item in tree:
             href = item.get("href") or ""
-            if href and (
-                active_url == href
-                or active_url.startswith(href.rstrip("/") + "/")
-            ):
+            if href and (active_url == href or active_url.startswith(href.rstrip("/") + "/")):
                 scoped = dict(item)
                 scoped["open"] = True
                 return [scoped]
@@ -994,8 +997,7 @@ class DocCatalog:
                     "active": bool(
                         active_url == href
                         or (
-                            active_url is not None
-                            and active_url.startswith(href.rstrip("/") + "/")
+                            active_url is not None and active_url.startswith(href.rstrip("/") + "/")
                         )
                     ),
                 }
@@ -1010,9 +1012,9 @@ class DocCatalog:
         )
         return items
 
-    def ast_documents(self) -> dict[str, object]:
+    def ast_documents(self) -> dict[str, Document]:
         """Live Patitas AST documents keyed by catalog ``node_id``."""
-        documents: dict[str, object] = {}
+        documents: dict[str, Document] = {}
         for slug, document in self._ast_documents.items():
             node = self._nodes_by_slug.get(slug)
             if node is not None:
@@ -1025,14 +1027,14 @@ class DocCatalog:
     def search_hits(self, query: str, *, limit: int = 12) -> list[SearchHit]:
         return search_nodes(self.doc_nodes(), query, limit=limit, documents=self.ast_documents())
 
-    def graph_edges(self) -> list[dict[str, Any]]:
+    def graph_edges(self) -> list[EdgeRecord]:
         if not self.auto_reload and self._frozen_edges is not None:
             return self._frozen_edges
         from furatena.catalog.graph_schema import build_graph_edges, edge_record
 
         return [edge_record(edge) for edge in build_graph_edges(self)]
 
-    def namespaces(self) -> list[dict[str, Any]]:
+    def namespaces(self) -> list[NamespaceRecord]:
         from furatena.catalog.graph_schema import namespace_record
 
         return [
@@ -1082,15 +1084,15 @@ class DocCatalog:
         catalog.mount = mount
         catalog.url_prefix = ""
         catalog.lazy_html = lazy_html
-        catalog.active_channel = str(raw.get("channel") or raw.get("edition") or active_channel_id())
+        catalog.active_channel = str(
+            raw.get("channel") or raw.get("edition") or active_channel_id()
+        )
         catalog.channels = infer_release_channels(catalog.content_root)
         catalog._frozen_pages_dir = pages_dir
         catalog._frozen_shard_dir = frozen_dir
-        catalog._frozen_edges = [
-            edge
-            for edge in raw.get("edges", [])
-            if isinstance(edge, dict)
-        ]
+        catalog._frozen_edges = cast(
+            list[EdgeRecord], [edge for edge in raw.get("edges", []) if isinstance(edge, dict)]
+        )
         catalog._html_cache = {}
         catalog._nodes = []
         catalog._nodes_by_url = {}

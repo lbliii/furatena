@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from furatena.catalog.models import ContentIR, SectionChunk, TocEntry
 
@@ -52,7 +52,8 @@ class GitSourceConfig:
             return None
         return cls(
             repo=repo,
-            ref=str(raw.get("ref") or raw.get("branch") or raw.get("commit") or "HEAD").strip() or "HEAD",
+            ref=str(raw.get("ref") or raw.get("branch") or raw.get("commit") or "HEAD").strip()
+            or "HEAD",
             path=_normalize_git_path(str(raw.get("path") or raw.get("sparse_path") or "").strip()),
             sync_root=str(raw.get("sync_root") or "").strip() or None,
         )
@@ -93,12 +94,31 @@ class MountSourceConfig:
     @classmethod
     def from_mount_dict(cls, item: dict[str, Any]) -> MountSourceConfig:
         source_raw = item.get("source") if isinstance(item.get("source"), dict) else {}
-        source = dict(source_raw)
-        for key in ("provider", "repo", "repository", "url", "source_url", "ref", "branch", "commit", "path", "sparse_path", "sync_root"):
+        source = cast(dict[str, Any], source_raw).copy()
+        for key in (
+            "provider",
+            "repo",
+            "repository",
+            "url",
+            "source_url",
+            "ref",
+            "branch",
+            "commit",
+            "path",
+            "sparse_path",
+            "sync_root",
+        ):
             if key in item and key not in source:
                 source[key] = item[key]
-        provider = str(source.get("provider") or item.get("source_provider") or "filesystem").strip() or "filesystem"
-        git = GitSourceConfig.from_mapping(source) if provider == "git" or source.get("repo") else None
+        provider = (
+            str(source.get("provider") or item.get("source_provider") or "filesystem").strip()
+            or "filesystem"
+        )
+        git = (
+            GitSourceConfig.from_mapping(source)
+            if provider == "git" or source.get("repo")
+            else None
+        )
         if git is not None:
             provider = "git"
         extensions_raw = item.get("extensions") or [".md"]
@@ -108,9 +128,7 @@ class MountSourceConfig:
         index_defaults: list[str] = ["_index.md"]
         for ext in extensions:
             index_defaults.extend(_DEFAULT_INDEX_FILES.get(ext, ()))
-        index_files = frozenset(
-            str(name) for name in (item.get("index_files") or index_defaults)
-        )
+        index_files = frozenset(str(name) for name in (item.get("index_files") or index_defaults))
         format_map_raw = item.get("format_map") or {}
         format_map = {
             (key if str(key).startswith(".") else f".{key}"): str(value)
@@ -119,8 +137,7 @@ class MountSourceConfig:
         default_format = str(item.get("default_format") or "patitas-markdown")
         if not format_map:
             format_map = {
-                ext: _DEFAULT_FORMAT_BY_EXTENSION.get(ext, default_format)
-                for ext in extensions
+                ext: _DEFAULT_FORMAT_BY_EXTENSION.get(ext, default_format) for ext in extensions
             }
         return cls(
             extensions=extensions,
@@ -275,6 +292,7 @@ class ContentAdapter(Protocol):
         include_stack: set[str] | None = None,
         include_depth: int = 0,
         document: object | None = None,
+        mount: str = "",
     ) -> AdaptedContent: ...
 
     def parse(self, body: str) -> tuple[object | None, ContentIR | None]: ...
