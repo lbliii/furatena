@@ -1,0 +1,4102 @@
+{
+  "documentation_file_count": 61,
+  "missing": [
+    "config_field:catalog.sections",
+    "config_field:delivery.head",
+    "config_field:delivery.mounts",
+    "config_field:delivery.theme",
+    "config_field:delivery.theme.id",
+    "config_field:delivery.theme.use",
+    "config_field:i18n.default_language",
+    "config_field:i18n.fallback_to_default",
+    "config_field:i18n.languages",
+    "config_field:i18n.locale_content_dir",
+    "config_field:identity.site",
+    "config_field:identity.tenant",
+    "config_field:identity.workspace",
+    "config_field:mounts[].id",
+    "config_field:site.description",
+    "config_field:site.home.aria_label",
+    "config_field:site.home.brand",
+    "config_field:site.home.cta",
+    "config_field:site.home.cta_primary",
+    "config_field:site.home.cta_primary.href",
+    "config_field:site.home.cta_primary.label",
+    "config_field:site.home.cta_secondary",
+    "config_field:site.home.cta_secondary.href",
+    "config_field:site.home.cta_secondary.label",
+    "config_field:site.home.deployments",
+    "config_field:site.home.explore",
+    "config_field:site.home.exports",
+    "config_field:site.home.hero_points",
+    "config_field:site.home.ideas",
+    "config_field:site.home.metrics",
+    "config_field:site.home.metrics_head",
+    "config_field:site.home.pipeline",
+    "config_field:site.home.quick_start",
+    "config_field:site.home.sources",
+    "config_field:site.home.stack",
+    "config_field:site.home.visual",
+    "config_field:site.home.visual.aria_label",
+    "config_field:site.home.visual.cta_href",
+    "config_field:site.home.visual.cta_label",
+    "config_field:site.home.visual.description",
+    "config_field:site.home.visual.eyebrow",
+    "config_field:site.home.visual.feature_body",
+    "config_field:site.home.visual.feature_title",
+    "config_field:site.home.visual.proof_tags",
+    "config_field:site.home.visual.title",
+    "config_field:site.home.workflows",
+    "config_field:site.mark",
+    "config_field:site.tagline",
+    "config_field:theme.effects.cards",
+    "config_field:theme.effects.hero",
+    "config_field:theme.fonts",
+    "config_field:theme.fonts.display",
+    "config_field:theme.fonts.sans",
+    "config_field:theme.measure",
+    "config_field:theme.measure.container",
+    "config_field:theme.measure.docs",
+    "config_field:theme.measure.prose",
+    "config_field:theme.measure.reading",
+    "config_field:theme.overrides",
+    "config_field:theme.overrides.directives",
+    "config_field:theme.overrides.fonts",
+    "config_field:theme.overrides.js",
+    "config_field:theme.overrides.styles",
+    "config_field:theme.overrides.templates",
+    "config_field:theme.overrides.tokens",
+    "config_field:theme.styles",
+    "config_field:theme.tokens",
+    "diagnostic:chirp.*",
+    "diagnostic:chirp.templating",
+    "diagnostic:fura.agent.action_boundary",
+    "diagnostic:fura.agent.breaking_change",
+    "diagnostic:fura.agent.contract_diff",
+    "diagnostic:fura.agent.description",
+    "diagnostic:fura.agent.duplicate",
+    "diagnostic:fura.agent.input_schema",
+    "diagnostic:fura.agent.llms_description",
+    "diagnostic:fura.agent.manifest_alignment",
+    "diagnostic:fura.agent.milo",
+    "diagnostic:fura.agent.mutation_boundary",
+    "diagnostic:fura.agent.output_schema",
+    "diagnostic:fura.agent.parameter_description",
+    "diagnostic:fura.agent.permission_note",
+    "diagnostic:fura.agent.resource_metadata",
+    "diagnostic:fura.agent.tool_description",
+    "diagnostic:fura.agent_safety.private_leak",
+    "diagnostic:fura.agent_safety.stale_context",
+    "diagnostic:fura.api",
+    "diagnostic:fura.author.authorization",
+    "diagnostic:fura.author.csrf",
+    "diagnostic:fura.author.method",
+    "diagnostic:fura.author.target",
+    "diagnostic:fura.check",
+    "diagnostic:fura.dcp",
+    "diagnostic:fura.evals.*",
+    "diagnostic:fura.impact.stale_public_output",
+    "diagnostic:fura.lifecycle",
+    "diagnostic:fura.mcp",
+    "diagnostic:fura.mcp.author",
+    "diagnostic:fura.mcp.privileged_token",
+    "diagnostic:fura.mcp.rate_limit",
+    "diagnostic:fura.migrate",
+    "diagnostic:fura.migrate.unmigrated_component",
+    "diagnostic:fura.migration.compat.mdx",
+    "diagnostic:fura.migration.compat.myst",
+    "diagnostic:fura.migration.compat.rst",
+    "diagnostic:fura.migration.report",
+    "diagnostic:fura.pdf",
+    "diagnostic:fura.recipes",
+    "diagnostic:fura.visibility_leak",
+    "mcp_resource:fura://catalog/api-operations",
+    "mcp_resource:fura://catalog/sources",
+    "mcp_resource:fura://reports/stale-impact",
+    "route:GET /develop/{export_id}/",
+    "route:GET /docs/_author/page.json",
+    "route:GET /docs/_author/source",
+    "route:GET /docs/{slug:path}",
+    "route:GET /index.txt",
+    "route:GET /inventories/{inventory_id}/objects.inv",
+    "route:GET /og/{name}",
+    "route:GET /releases/",
+    "route:GET /releases/{slug:path}",
+    "route:GET /shared/{slug:path}",
+    "route:GET /structure.json"
+  ],
+  "schema_version": 1,
+  "stale": [],
+  "summary": {
+    "by_kind": {
+      "cli_command": {
+        "documented": 31,
+        "missing": 0,
+        "stale": 0,
+        "total": 31
+      },
+      "config_field": {
+        "documented": 29,
+        "missing": 67,
+        "stale": 0,
+        "total": 96
+      },
+      "deployment_profile": {
+        "documented": 4,
+        "missing": 0,
+        "stale": 0,
+        "total": 4
+      },
+      "diagnostic": {
+        "documented": 3,
+        "missing": 42,
+        "stale": 0,
+        "total": 45
+      },
+      "mcp_resource": {
+        "documented": 7,
+        "missing": 3,
+        "stale": 0,
+        "total": 10
+      },
+      "mcp_tool": {
+        "documented": 16,
+        "missing": 0,
+        "stale": 0,
+        "total": 16
+      },
+      "route": {
+        "documented": 35,
+        "missing": 11,
+        "stale": 0,
+        "total": 46
+      },
+      "sidecar": {
+        "documented": 25,
+        "missing": 0,
+        "stale": 0,
+        "total": 25
+      }
+    },
+    "documented": 150,
+    "missing": 123,
+    "stale": 0
+  },
+  "surface_count": 273,
+  "surfaces": [
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b71aa36dc68a9715",
+      "id": "cli_command:agent-diff",
+      "implementation": "furatena.cli:fura agent-diff",
+      "implementation_fingerprint": "fe347b369cd9965c",
+      "kind": "cli_command",
+      "name": "agent-diff"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "d680ba795219f5ef",
+      "id": "cli_command:api-diff",
+      "implementation": "furatena.cli:fura api-diff",
+      "implementation_fingerprint": "97982d641c698205",
+      "kind": "cli_command",
+      "name": "api-diff"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b42c601d56b21146",
+      "id": "cli_command:author",
+      "implementation": "furatena.cli:fura author",
+      "implementation_fingerprint": "82bb6b3e9c00dcea",
+      "kind": "cli_command",
+      "name": "author"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "4fa6750fb71cb9c8",
+      "id": "cli_command:author archive",
+      "implementation": "furatena.cli:fura author archive",
+      "implementation_fingerprint": "621d7d340427558d",
+      "kind": "cli_command",
+      "name": "author archive"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "be3f2d40ac38c080",
+      "id": "cli_command:author draft",
+      "implementation": "furatena.cli:fura author draft",
+      "implementation_fingerprint": "621d7d340427558d",
+      "kind": "cli_command",
+      "name": "author draft"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "ff35f4bada9d231a",
+      "id": "cli_command:author edit",
+      "implementation": "furatena.cli:fura author edit",
+      "implementation_fingerprint": "caf0bf309c1ffa5a",
+      "kind": "cli_command",
+      "name": "author edit"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b42c601d56b21146",
+      "id": "cli_command:author new",
+      "implementation": "furatena.cli:fura author new",
+      "implementation_fingerprint": "54f7622373c4dc7e",
+      "kind": "cli_command",
+      "name": "author new"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "4fa6750fb71cb9c8",
+      "id": "cli_command:author publish",
+      "implementation": "furatena.cli:fura author publish",
+      "implementation_fingerprint": "621d7d340427558d",
+      "kind": "cli_command",
+      "name": "author publish"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "4fa6750fb71cb9c8",
+      "id": "cli_command:author status",
+      "implementation": "furatena.cli:fura author status",
+      "implementation_fingerprint": "9e8d53d6106d06e2",
+      "kind": "cli_command",
+      "name": "author status"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "fdc28af176c3e45b",
+      "id": "cli_command:author unpublish",
+      "implementation": "furatena.cli:fura author unpublish",
+      "implementation_fingerprint": "621d7d340427558d",
+      "kind": "cli_command",
+      "name": "author unpublish"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "fdc28af176c3e45b",
+      "id": "cli_command:author validate",
+      "implementation": "furatena.cli:fura author validate",
+      "implementation_fingerprint": "9e8d53d6106d06e2",
+      "kind": "cli_command",
+      "name": "author validate"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/collections.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/concepts/hypermedia-model.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/_index.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "1cd853ee5d5f5c9b",
+      "id": "cli_command:check",
+      "implementation": "furatena.cli:fura check",
+      "implementation_fingerprint": "3ad5099f1afc3e6d",
+      "kind": "cli_command",
+      "name": "check"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "6b20c6c97dffa81c",
+      "id": "cli_command:docs-inventory",
+      "implementation": "furatena.cli:fura docs-inventory",
+      "implementation_fingerprint": "2e6b1a2f19ab4231",
+      "kind": "cli_command",
+      "name": "docs-inventory"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b71aa36dc68a9715",
+      "id": "cli_command:evals",
+      "implementation": "furatena.cli:fura evals",
+      "implementation_fingerprint": "7da052d6c11dbddb",
+      "kind": "cli_command",
+      "name": "evals"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/operations/_index.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "61088c50fbe7f8e6",
+      "id": "cli_command:export",
+      "implementation": "furatena.cli:fura export",
+      "implementation_fingerprint": "e87ec5ff9d40ce20",
+      "kind": "cli_command",
+      "name": "export"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/operations/_index.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "f23f1fb4412a423b",
+      "id": "cli_command:freeze",
+      "implementation": "furatena.cli:fura freeze",
+      "implementation_fingerprint": "a2c2e06705ddefaa",
+      "kind": "cli_command",
+      "name": "freeze"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b71aa36dc68a9715",
+      "id": "cli_command:impact",
+      "implementation": "furatena.cli:fura impact",
+      "implementation_fingerprint": "7ed5cef97eae87d8",
+      "kind": "cli_command",
+      "name": "impact"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/reference/cli.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b9461bdb1f9d5177",
+      "id": "cli_command:init",
+      "implementation": "furatena.cli:fura init",
+      "implementation_fingerprint": "7279578ced9ca441",
+      "kind": "cli_command",
+      "name": "init"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "19d63143e7704c7d",
+      "id": "cli_command:mcp",
+      "implementation": "furatena.cli:fura mcp",
+      "implementation_fingerprint": "c05a4ef4e7180ff6",
+      "kind": "cli_command",
+      "name": "mcp"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/cli.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/ROADMAP.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "f6183430601a389d",
+      "id": "cli_command:migrate",
+      "implementation": "furatena.cli:fura migrate",
+      "implementation_fingerprint": "00adf29fc2526217",
+      "kind": "cli_command",
+      "name": "migrate"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/cli.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "f2c40d91e4ad68dd",
+      "id": "cli_command:pdf",
+      "implementation": "furatena.cli:fura pdf",
+      "implementation_fingerprint": "e2b83f7ef1afcaa9",
+      "kind": "cli_command",
+      "name": "pdf"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/cli.md",
+        "docs/APP-README.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "575d22995de40abe",
+      "id": "cli_command:query",
+      "implementation": "furatena.cli:fura query",
+      "implementation_fingerprint": "9507f987d51894fe",
+      "kind": "cli_command",
+      "name": "query"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b71aa36dc68a9715",
+      "id": "cli_command:recipes",
+      "implementation": "furatena.cli:fura recipes",
+      "implementation_fingerprint": "a3ea08bc48f74870",
+      "kind": "cli_command",
+      "name": "recipes"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/_index.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/_index.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/glossary.md",
+        "docs/APP-README.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "fb5e9b94de774cc8",
+      "id": "cli_command:serve",
+      "implementation": "furatena.cli:fura serve",
+      "implementation_fingerprint": "1de7e0bb190e016a",
+      "kind": "cli_command",
+      "name": "serve"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "1cedd7259bb84fb3",
+      "id": "cli_command:stop",
+      "implementation": "furatena.cli:fura stop",
+      "implementation_fingerprint": "e4e543f84b864417",
+      "kind": "cli_command",
+      "name": "stop"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/get-started/installation.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "6bb4b292d4941b09",
+      "id": "cli_command:theme",
+      "implementation": "furatena.cli:fura theme",
+      "implementation_fingerprint": "82bb6b3e9c00dcea",
+      "kind": "cli_command",
+      "name": "theme"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "890202fd686a3a33",
+      "id": "cli_command:theme diff",
+      "implementation": "furatena.cli:fura theme diff",
+      "implementation_fingerprint": "c227d834f73d0ed3",
+      "kind": "cli_command",
+      "name": "theme diff"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "99c27f5fbeff5087",
+      "id": "cli_command:theme eject",
+      "implementation": "furatena.cli:fura theme eject",
+      "implementation_fingerprint": "260fed43c48c0673",
+      "kind": "cli_command",
+      "name": "theme eject"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "1343c67d8cd04f1c",
+      "id": "cli_command:theme init",
+      "implementation": "furatena.cli:fura theme init",
+      "implementation_fingerprint": "8e95261b8be8436b",
+      "kind": "cli_command",
+      "name": "theme init"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "99c27f5fbeff5087",
+      "id": "cli_command:theme inspect",
+      "implementation": "furatena.cli:fura theme inspect",
+      "implementation_fingerprint": "e441c6678f103698",
+      "kind": "cli_command",
+      "name": "theme inspect"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/get-started/installation.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/_index.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "08f2512a41afe969",
+      "id": "cli_command:theme list",
+      "implementation": "furatena.cli:fura theme list",
+      "implementation_fingerprint": "6fcc0321412cb8cd",
+      "kind": "cli_command",
+      "name": "theme list"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/formats/html-bridge.html",
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/_index.md",
+        "content/furatena/docs/authoring/collections.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/_index.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/dual-ir.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/_index.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/I18N.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/ROUTES.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "81695e7786236de7",
+      "id": "config_field:catalog",
+      "implementation": "furatena.catalog.config:DocsConfig.catalog",
+      "implementation_fingerprint": "06f7135fcec81610",
+      "kind": "config_field",
+      "name": "catalog"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:catalog.sections",
+      "implementation": "furatena.catalog.catalog_nav:CatalogNavConfig.sections",
+      "implementation_fingerprint": "fa09c4a57106a22f",
+      "kind": "config_field",
+      "name": "catalog.sections"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/collections.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/ROUTES.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "5e90d3059b128c99",
+      "id": "config_field:compose",
+      "implementation": "furatena.catalog.config:DocsConfig.compose",
+      "implementation_fingerprint": "95e430645bc6e30e",
+      "kind": "config_field",
+      "name": "compose"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/RBAC.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "2c8af69b5c0681f5",
+      "id": "config_field:delivery",
+      "implementation": "furatena.catalog.config:DocsConfig.delivery",
+      "implementation_fingerprint": "bee81b0b70f12dce",
+      "kind": "config_field",
+      "name": "delivery"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:delivery.head",
+      "implementation": "furatena.catalog.config:DeliveryConfig.head",
+      "implementation_fingerprint": "6479ec1940699434",
+      "kind": "config_field",
+      "name": "delivery.head"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:delivery.mounts",
+      "implementation": "furatena.catalog.config:DeliveryConfig.mounts",
+      "implementation_fingerprint": "05af3a4919ca5f30",
+      "kind": "config_field",
+      "name": "delivery.mounts"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:delivery.theme",
+      "implementation": "furatena.catalog.config:DeliveryConfig.theme",
+      "implementation_fingerprint": "4dc0179651cb63a5",
+      "kind": "config_field",
+      "name": "delivery.theme"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:delivery.theme.id",
+      "implementation": "furatena.catalog.config:DeliveryThemeConfig.id",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "delivery.theme.id"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:delivery.theme.use",
+      "implementation": "furatena.catalog.config:DeliveryThemeConfig.use",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "delivery.theme.use"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "docs/DCP.md",
+        "docs/I18N.md"
+      ],
+      "documentation_fingerprint": "c502ea9d1d9f9d56",
+      "id": "config_field:i18n",
+      "implementation": "furatena.catalog.config:DocsConfig.i18n",
+      "implementation_fingerprint": "07f2bbac5eff62a7",
+      "kind": "config_field",
+      "name": "i18n"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:i18n.default_language",
+      "implementation": "furatena.catalog.i18n:DocsI18nConfig.default_language",
+      "implementation_fingerprint": "11ccfce7591e42ba",
+      "kind": "config_field",
+      "name": "i18n.default_language"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:i18n.fallback_to_default",
+      "implementation": "furatena.catalog.i18n:DocsI18nConfig.fallback_to_default",
+      "implementation_fingerprint": "b79d431fde8bc2b2",
+      "kind": "config_field",
+      "name": "i18n.fallback_to_default"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:i18n.languages",
+      "implementation": "furatena.catalog.i18n:DocsI18nConfig.languages",
+      "implementation_fingerprint": "6c4be8bfa00aa6f9",
+      "kind": "config_field",
+      "name": "i18n.languages"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:i18n.locale_content_dir",
+      "implementation": "furatena.catalog.i18n:DocsI18nConfig.locale_content_dir",
+      "implementation_fingerprint": "7da25b80d8b9fecc",
+      "kind": "config_field",
+      "name": "i18n.locale_content_dir"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/I18N.md"
+      ],
+      "documentation_fingerprint": "0d7648f509f23be3",
+      "id": "config_field:i18n.strategy",
+      "implementation": "furatena.catalog.i18n:DocsI18nConfig.strategy",
+      "implementation_fingerprint": "a09b16212bf1bf8f",
+      "kind": "config_field",
+      "name": "i18n.strategy"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/RBAC.md"
+      ],
+      "documentation_fingerprint": "b78cc3b9c50cdf0d",
+      "id": "config_field:identity",
+      "implementation": "furatena.catalog.config:DocsConfig.identity",
+      "implementation_fingerprint": "08fba0c440205f07",
+      "kind": "config_field",
+      "name": "identity"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:identity.site",
+      "implementation": "furatena.catalog.config:CatalogIdentityConfig.site",
+      "implementation_fingerprint": "3fb42d9e099c4492",
+      "kind": "config_field",
+      "name": "identity.site"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:identity.tenant",
+      "implementation": "furatena.catalog.config:CatalogIdentityConfig.tenant",
+      "implementation_fingerprint": "3fb42d9e099c4492",
+      "kind": "config_field",
+      "name": "identity.tenant"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:identity.workspace",
+      "implementation": "furatena.catalog.config:CatalogIdentityConfig.workspace",
+      "implementation_fingerprint": "3fb42d9e099c4492",
+      "kind": "config_field",
+      "name": "identity.workspace"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/_index.md",
+        "app/content/shared/formats/html-bridge.html",
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "content/furatena/docs/theming/branding.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/DCP.md",
+        "docs/ROADMAP.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "92e4abb17410a9ea",
+      "id": "config_field:inventories",
+      "implementation": "furatena.catalog.config:DocsConfig.inventories_path",
+      "implementation_fingerprint": "b0ea46cc8d5c0f48",
+      "kind": "config_field",
+      "name": "inventories"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/reference/docs-yaml.md",
+        "docs/I18N.md"
+      ],
+      "documentation_fingerprint": "7a228b7a322a4f4a",
+      "id": "config_field:locales_dir",
+      "implementation": "furatena.catalog.config:DocsConfig.locales_dir",
+      "implementation_fingerprint": "b0ea46cc8d5c0f48",
+      "kind": "config_field",
+      "name": "locales_dir"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/_index.md",
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/_index.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/federation.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/APP-README.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/VIEWS.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "f29f07036b74c8b7",
+      "id": "config_field:mounts",
+      "implementation": "furatena.catalog.config:DocsConfig.mounts_path",
+      "implementation_fingerprint": "b0ea46cc8d5c0f48",
+      "kind": "config_field",
+      "name": "mounts"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CI.md",
+        "docs/DCP.md",
+        "docs/RBAC.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "593f14e159644b8f",
+      "id": "config_field:mounts[].access",
+      "implementation": "furatena.catalog.registry:MountConfig.access",
+      "implementation_fingerprint": "4bfcc4cf12ba2b22",
+      "kind": "config_field",
+      "name": "mounts[].access"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/federation.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "docs/DCP.md",
+        "docs/I18N.md",
+        "docs/RBAC.md"
+      ],
+      "documentation_fingerprint": "b7d819c5fa9a2939",
+      "id": "config_field:mounts[].content_root",
+      "implementation": "furatena.catalog.registry:MountConfig.content_root",
+      "implementation_fingerprint": "90f562bcca1c8364",
+      "kind": "config_field",
+      "name": "mounts[].content_root"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/federation.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/installation.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/branding.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/I18N.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "7198a6896baa5fee",
+      "id": "config_field:mounts[].default",
+      "implementation": "furatena.catalog.registry:MountConfig.default",
+      "implementation_fingerprint": "60217e474ad3cb9a",
+      "kind": "config_field",
+      "name": "mounts[].default"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:mounts[].id",
+      "implementation": "furatena.catalog.registry:MountConfig.id",
+      "implementation_fingerprint": "568caff3f98b24ee",
+      "kind": "config_field",
+      "name": "mounts[].id"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/concepts/federation.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "content/furatena/docs/theming/branding.md",
+        "docs/DCP.md",
+        "docs/I18N.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "06ab636ed2e266cf",
+      "id": "config_field:mounts[].label",
+      "implementation": "furatena.catalog.registry:MountConfig.label",
+      "implementation_fingerprint": "568caff3f98b24ee",
+      "kind": "config_field",
+      "name": "mounts[].label"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/_index.md",
+        "app/content/shared/formats/html-bridge.html",
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/installation.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/ROUTES.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "007c14fd26be243d",
+      "id": "config_field:mounts[].source",
+      "implementation": "furatena.catalog.registry:MountConfig.source",
+      "implementation_fingerprint": "7fa551f573e461d6",
+      "kind": "config_field",
+      "name": "mounts[].source"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/federation.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "docs/DCP.md",
+        "docs/RBAC.md"
+      ],
+      "documentation_fingerprint": "d3dd880ea92832d1",
+      "id": "config_field:mounts[].url_prefix",
+      "implementation": "furatena.catalog.registry:MountConfig.url_prefix",
+      "implementation_fingerprint": "b040197f1dbd7023",
+      "kind": "config_field",
+      "name": "mounts[].url_prefix"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/CI.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "9b30309856b31088",
+      "id": "config_field:overrides",
+      "implementation": "furatena.catalog.config:DocsConfig.overrides",
+      "implementation_fingerprint": "86969a317f1eaa4d",
+      "kind": "config_field",
+      "name": "overrides"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/ROADMAP.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "fa192cedc9d55a50",
+      "id": "config_field:rewrites",
+      "implementation": "furatena.catalog.config:DocsConfig.rewrites_path",
+      "implementation_fingerprint": "b0ea46cc8d5c0f48",
+      "kind": "config_field",
+      "name": "rewrites"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/concepts/_index.md",
+        "content/furatena/docs/concepts/hypermedia-model.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/theming/branding.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "19065bd18792f206",
+      "id": "config_field:shell",
+      "implementation": "furatena.catalog.config:DocsConfig.shell",
+      "implementation_fingerprint": "24a870e10d64f265",
+      "kind": "config_field",
+      "name": "shell"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/_index.md",
+        "content/furatena/docs/_index.md",
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/_index.md",
+        "content/furatena/docs/authoring/collections.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/installation.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/_index.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/branding.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/I18N.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "7356d9f34a70adf7",
+      "id": "config_field:site",
+      "implementation": "furatena.catalog.config:DocsConfig.site",
+      "implementation_fingerprint": "2b295024cd4c486a",
+      "kind": "config_field",
+      "name": "site"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.description",
+      "implementation": "furatena.catalog.config:SiteConfig.description",
+      "implementation_fingerprint": "c044fdcee1c02144",
+      "kind": "config_field",
+      "name": "site.description"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/theming/branding.md"
+      ],
+      "documentation_fingerprint": "595e57d9157ba077",
+      "id": "config_field:site.home",
+      "implementation": "furatena.catalog.config:SiteConfig.home",
+      "implementation_fingerprint": "39539dcf41eded3b",
+      "kind": "config_field",
+      "name": "site.home"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.aria_label",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.aria_label",
+      "implementation_fingerprint": "2e5de7e91c24aa6c",
+      "kind": "config_field",
+      "name": "site.home.aria_label"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.brand",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.brand",
+      "implementation_fingerprint": "1c9cb761cbf7d4a7",
+      "kind": "config_field",
+      "name": "site.home.brand"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.cta",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.cta",
+      "implementation_fingerprint": "adbba132367f2499",
+      "kind": "config_field",
+      "name": "site.home.cta"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.cta_primary",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.cta_primary",
+      "implementation_fingerprint": "9ba4c5cf9c8af1fe",
+      "kind": "config_field",
+      "name": "site.home.cta_primary"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.cta_primary.href",
+      "implementation": "furatena.catalog.config:SiteCtaConfig.href",
+      "implementation_fingerprint": "88732ef9eff28820",
+      "kind": "config_field",
+      "name": "site.home.cta_primary.href"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.cta_primary.label",
+      "implementation": "furatena.catalog.config:SiteCtaConfig.label",
+      "implementation_fingerprint": "2f5ec21b7b6d73c3",
+      "kind": "config_field",
+      "name": "site.home.cta_primary.label"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.cta_secondary",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.cta_secondary",
+      "implementation_fingerprint": "33c47b3cf428db67",
+      "kind": "config_field",
+      "name": "site.home.cta_secondary"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.cta_secondary.href",
+      "implementation": "furatena.catalog.config:SiteCtaConfig.href",
+      "implementation_fingerprint": "2fe5c9754e08ef2f",
+      "kind": "config_field",
+      "name": "site.home.cta_secondary.href"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.cta_secondary.label",
+      "implementation": "furatena.catalog.config:SiteCtaConfig.label",
+      "implementation_fingerprint": "a4d9012a74a3f443",
+      "kind": "config_field",
+      "name": "site.home.cta_secondary.label"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.deployments",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.deployments",
+      "implementation_fingerprint": "c41073ab3fb0434c",
+      "kind": "config_field",
+      "name": "site.home.deployments"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.explore",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.explore",
+      "implementation_fingerprint": "a2f4cbd972a95ab4",
+      "kind": "config_field",
+      "name": "site.home.explore"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.exports",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.exports",
+      "implementation_fingerprint": "49ccd9923deb72b4",
+      "kind": "config_field",
+      "name": "site.home.exports"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.hero_points",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.hero_points",
+      "implementation_fingerprint": "7a0a1d73e63299c0",
+      "kind": "config_field",
+      "name": "site.home.hero_points"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.ideas",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.ideas",
+      "implementation_fingerprint": "8831bb499fb13f8b",
+      "kind": "config_field",
+      "name": "site.home.ideas"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.metrics",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.metrics",
+      "implementation_fingerprint": "62d1e96be1da5669",
+      "kind": "config_field",
+      "name": "site.home.metrics"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.metrics_head",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.metrics_head",
+      "implementation_fingerprint": "fbd9b70d372f880b",
+      "kind": "config_field",
+      "name": "site.home.metrics_head"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.pipeline",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.pipeline",
+      "implementation_fingerprint": "969878fb2a86ec35",
+      "kind": "config_field",
+      "name": "site.home.pipeline"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.quick_start",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.quick_start",
+      "implementation_fingerprint": "b05d118b672d102b",
+      "kind": "config_field",
+      "name": "site.home.quick_start"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.sources",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.sources",
+      "implementation_fingerprint": "4b1d55a93bc9b479",
+      "kind": "config_field",
+      "name": "site.home.sources"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.stack",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.stack",
+      "implementation_fingerprint": "a871a688c0ac3edc",
+      "kind": "config_field",
+      "name": "site.home.stack"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.visual",
+      "implementation_fingerprint": "1768bcae465c4a6a",
+      "kind": "config_field",
+      "name": "site.home.visual"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.aria_label",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.aria_label",
+      "implementation_fingerprint": "da48d06f1642e184",
+      "kind": "config_field",
+      "name": "site.home.visual.aria_label"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.cta_href",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.cta_href",
+      "implementation_fingerprint": "88732ef9eff28820",
+      "kind": "config_field",
+      "name": "site.home.visual.cta_href"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.cta_label",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.cta_label",
+      "implementation_fingerprint": "a638645c065fcc7a",
+      "kind": "config_field",
+      "name": "site.home.visual.cta_label"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.description",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.description",
+      "implementation_fingerprint": "d7c9582b14132c45",
+      "kind": "config_field",
+      "name": "site.home.visual.description"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.eyebrow",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.eyebrow",
+      "implementation_fingerprint": "9889c6acc3d6f6c8",
+      "kind": "config_field",
+      "name": "site.home.visual.eyebrow"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.feature_body",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.feature_body",
+      "implementation_fingerprint": "6c90aa08fb28a8cf",
+      "kind": "config_field",
+      "name": "site.home.visual.feature_body"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.feature_title",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.feature_title",
+      "implementation_fingerprint": "3e96155b0b106117",
+      "kind": "config_field",
+      "name": "site.home.visual.feature_title"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.proof_tags",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.proof_tags",
+      "implementation_fingerprint": "e72a3893de8db325",
+      "kind": "config_field",
+      "name": "site.home.visual.proof_tags"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.visual.title",
+      "implementation": "furatena.catalog.config:SiteHomeVisualConfig.title",
+      "implementation_fingerprint": "db545abd65790349",
+      "kind": "config_field",
+      "name": "site.home.visual.title"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.home.workflows",
+      "implementation": "furatena.catalog.config:SiteHomeConfig.workflows",
+      "implementation_fingerprint": "1c7d5a7bde5b5454",
+      "kind": "config_field",
+      "name": "site.home.workflows"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.mark",
+      "implementation": "furatena.catalog.config:SiteConfig.mark",
+      "implementation_fingerprint": "95d3364cae0aaf66",
+      "kind": "config_field",
+      "name": "site.mark"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/branding.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "828ff7c0afdc8eac",
+      "id": "config_field:site.name",
+      "implementation": "furatena.catalog.config:SiteConfig.name",
+      "implementation_fingerprint": "c6756fa61efa0f87",
+      "kind": "config_field",
+      "name": "site.name"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/reference/docs-yaml.md"
+      ],
+      "documentation_fingerprint": "906d341dc98a5c2c",
+      "id": "config_field:site.navigation",
+      "implementation": "furatena.catalog.config:SiteConfig.navigation",
+      "implementation_fingerprint": "dba5654ed13f7638",
+      "kind": "config_field",
+      "name": "site.navigation"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:site.tagline",
+      "implementation": "furatena.catalog.config:SiteConfig.tagline",
+      "implementation_fingerprint": "810f67e512867e45",
+      "kind": "config_field",
+      "name": "site.tagline"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/collections.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/hypermedia-model.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/installation.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/_index.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/branding.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/I18N.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "4bcd8bc1d9d14e29",
+      "id": "config_field:theme",
+      "implementation": "furatena.catalog.config:DocsConfig.theme",
+      "implementation_fingerprint": "ac8d6cdf5c775183",
+      "kind": "config_field",
+      "name": "theme"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "8e822ead2fb554d1",
+      "id": "config_field:theme.effects",
+      "implementation": "furatena.catalog.config:ThemeConfig.effects",
+      "implementation_fingerprint": "ba7be6bc37da9142",
+      "kind": "config_field",
+      "name": "theme.effects"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.effects.cards",
+      "implementation": "furatena.catalog.config:ThemeEffectsConfig.cards",
+      "implementation_fingerprint": "124533ca0d83619a",
+      "kind": "config_field",
+      "name": "theme.effects.cards"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "3e683a8217349261",
+      "id": "config_field:theme.effects.code",
+      "implementation": "furatena.catalog.config:ThemeEffectsConfig.code",
+      "implementation_fingerprint": "124533ca0d83619a",
+      "kind": "config_field",
+      "name": "theme.effects.code"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.effects.hero",
+      "implementation": "furatena.catalog.config:ThemeEffectsConfig.hero",
+      "implementation_fingerprint": "8fd843faab3b4e44",
+      "kind": "config_field",
+      "name": "theme.effects.hero"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.fonts",
+      "implementation": "furatena.catalog.config:ThemeConfig.fonts",
+      "implementation_fingerprint": "3caf8cbdadd0d662",
+      "kind": "config_field",
+      "name": "theme.fonts"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.fonts.display",
+      "implementation": "furatena.catalog.config:ThemeFontsConfig.display",
+      "implementation_fingerprint": "a3d3472655a5c946",
+      "kind": "config_field",
+      "name": "theme.fonts.display"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.fonts.sans",
+      "implementation": "furatena.catalog.config:ThemeFontsConfig.sans",
+      "implementation_fingerprint": "a3d3472655a5c946",
+      "kind": "config_field",
+      "name": "theme.fonts.sans"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "f09597b06d9b78ab",
+      "id": "config_field:theme.id",
+      "implementation": "furatena.catalog.config:ThemeConfig.id",
+      "implementation_fingerprint": "7e8070c11359f489",
+      "kind": "config_field",
+      "name": "theme.id"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.measure",
+      "implementation": "furatena.catalog.config:ThemeConfig.measure",
+      "implementation_fingerprint": "07904e88bf8845c9",
+      "kind": "config_field",
+      "name": "theme.measure"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.measure.container",
+      "implementation": "furatena.catalog.config:ThemeMeasureConfig.container",
+      "implementation_fingerprint": "f54f242d75281939",
+      "kind": "config_field",
+      "name": "theme.measure.container"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.measure.docs",
+      "implementation": "furatena.catalog.config:ThemeMeasureConfig.docs",
+      "implementation_fingerprint": "a83956e93b838e51",
+      "kind": "config_field",
+      "name": "theme.measure.docs"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.measure.prose",
+      "implementation": "furatena.catalog.config:ThemeMeasureConfig.prose",
+      "implementation_fingerprint": "a83956e93b838e51",
+      "kind": "config_field",
+      "name": "theme.measure.prose"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.measure.reading",
+      "implementation": "furatena.catalog.config:ThemeMeasureConfig.reading",
+      "implementation_fingerprint": "53838978ab8c7638",
+      "kind": "config_field",
+      "name": "theme.measure.reading"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.overrides",
+      "implementation": "furatena.catalog.config:ThemeConfig.overrides",
+      "implementation_fingerprint": "f09e3fc98493ddb3",
+      "kind": "config_field",
+      "name": "theme.overrides"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.overrides.directives",
+      "implementation": "furatena.catalog.config:ThemeOverridesConfig.directives",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "theme.overrides.directives"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.overrides.fonts",
+      "implementation": "furatena.catalog.config:ThemeOverridesConfig.fonts",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "theme.overrides.fonts"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.overrides.js",
+      "implementation": "furatena.catalog.config:ThemeOverridesConfig.js",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "theme.overrides.js"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.overrides.styles",
+      "implementation": "furatena.catalog.config:ThemeOverridesConfig.styles",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "theme.overrides.styles"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.overrides.templates",
+      "implementation": "furatena.catalog.config:ThemeOverridesConfig.templates",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "theme.overrides.templates"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.overrides.tokens",
+      "implementation": "furatena.catalog.config:ThemeOverridesConfig.tokens",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "theme.overrides.tokens"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.styles",
+      "implementation": "furatena.catalog.config:ThemeConfig.styles",
+      "implementation_fingerprint": "5e5860ea7af5b28b",
+      "kind": "config_field",
+      "name": "theme.styles"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "4c817837d8b67bbe",
+      "id": "config_field:theme.templates",
+      "implementation": "furatena.catalog.config:ThemeConfig.templates",
+      "implementation_fingerprint": "167ed33e8239c26f",
+      "kind": "config_field",
+      "name": "theme.templates"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "config_field:theme.tokens",
+      "implementation": "furatena.catalog.config:ThemeConfig.tokens",
+      "implementation_fingerprint": "29d2df4ec4ca39f9",
+      "kind": "config_field",
+      "name": "theme.tokens"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "1e7ffc4ae74aa23f",
+      "id": "config_field:theme.use",
+      "implementation": "furatena.catalog.config:ThemeConfig.use",
+      "implementation_fingerprint": "94f295c20e215f09",
+      "kind": "config_field",
+      "name": "theme.use"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/_index.md",
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/collections.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/_index.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/dual-ir.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/branding.md",
+        "content/furatena/docs/theming/customization-cli.md",
+        "content/furatena/docs/theming/tokens-and-skin.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "119432061c83081d",
+      "id": "config_field:views",
+      "implementation": "furatena.catalog.config:DocsConfig.views",
+      "implementation_fingerprint": "86969a317f1eaa4d",
+      "kind": "config_field",
+      "name": "views"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deployment-profiles.md"
+      ],
+      "documentation_fingerprint": "f88535f4346a68cc",
+      "id": "deployment_profile:cloud-live",
+      "implementation": "furatena.catalog.deployment_profiles:DEPLOYMENT_PROFILES",
+      "implementation_fingerprint": "a198824473576610",
+      "kind": "deployment_profile",
+      "name": "cloud-live"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "420ab6a128e3e1be",
+      "id": "deployment_profile:local-author",
+      "implementation": "furatena.catalog.deployment_profiles:DEPLOYMENT_PROFILES",
+      "implementation_fingerprint": "ae15a0e4a015aa30",
+      "kind": "deployment_profile",
+      "name": "local-author"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deployment-profiles.md"
+      ],
+      "documentation_fingerprint": "495e754e57a53859",
+      "id": "deployment_profile:self-hosted-enterprise",
+      "implementation": "furatena.catalog.deployment_profiles:DEPLOYMENT_PROFILES",
+      "implementation_fingerprint": "1ae8d7ea1288b7c5",
+      "kind": "deployment_profile",
+      "name": "self-hosted-enterprise"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deployment-profiles.md"
+      ],
+      "documentation_fingerprint": "495e754e57a53859",
+      "id": "deployment_profile:static-pages",
+      "implementation": "furatena.catalog.deployment_profiles:DEPLOYMENT_PROFILES",
+      "implementation_fingerprint": "ecbd866c301b705d",
+      "kind": "deployment_profile",
+      "name": "static-pages"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:chirp.*",
+      "implementation": "furatena/cli/commands/check.py:154",
+      "implementation_fingerprint": "d4d9a8fff017248c",
+      "kind": "diagnostic",
+      "name": "chirp.*"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:chirp.templating",
+      "implementation": "furatena/catalog/template_env.py:117",
+      "implementation_fingerprint": "3df82a561d0d6880",
+      "kind": "diagnostic",
+      "name": "chirp.templating"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.action_boundary",
+      "implementation": "furatena/catalog/agent_lint.py:503",
+      "implementation_fingerprint": "b9dc972ea6a1db5e",
+      "kind": "diagnostic",
+      "name": "fura.agent.action_boundary"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.breaking_change",
+      "implementation": "furatena/cli/commands/agent_diff.py:54",
+      "implementation_fingerprint": "9867468661d0c090",
+      "kind": "diagnostic",
+      "name": "fura.agent.breaking_change"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.contract_diff",
+      "implementation": "furatena/cli/commands/agent_diff.py:34",
+      "implementation_fingerprint": "c9a763cef131b48c",
+      "kind": "diagnostic",
+      "name": "fura.agent.contract_diff"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.description",
+      "implementation": "furatena/catalog/agent_lint.py:421,furatena/catalog/agent_lint.py:692,furatena/catalog/agent_lint.py:702,furatena/catalog/agent_lint.py:712,furatena/catalog/agent_lint.py:723",
+      "implementation_fingerprint": "6f9087437b18e1c4",
+      "kind": "diagnostic",
+      "name": "fura.agent.description"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.duplicate",
+      "implementation": "furatena/catalog/agent_lint.py:750",
+      "implementation_fingerprint": "b02503c4a3e0cc43",
+      "kind": "diagnostic",
+      "name": "fura.agent.duplicate"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.input_schema",
+      "implementation": "furatena/catalog/agent_lint.py:455,furatena/catalog/agent_lint.py:537,furatena/catalog/agent_lint.py:548,furatena/catalog/agent_lint.py:560,furatena/catalog/agent_lint.py:571,furatena/catalog/agent_lint.py:582",
+      "implementation_fingerprint": "757ac3ca57415a62",
+      "kind": "diagnostic",
+      "name": "fura.agent.input_schema"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.llms_description",
+      "implementation": "furatena/catalog/agent_lint.py:612,furatena/catalog/agent_lint.py:622",
+      "implementation_fingerprint": "9de46b982caa4545",
+      "kind": "diagnostic",
+      "name": "fura.agent.llms_description"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.manifest_alignment",
+      "implementation": "furatena/catalog/agent_lint.py:819",
+      "implementation_fingerprint": "9870bd3771fb1ee9",
+      "kind": "diagnostic",
+      "name": "fura.agent.manifest_alignment"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.milo",
+      "implementation": "furatena/catalog/agent_lint.py:644,furatena/catalog/agent_lint.py:665,furatena/catalog/agent_lint.py:676",
+      "implementation_fingerprint": "698984a884e32cc4",
+      "kind": "diagnostic",
+      "name": "fura.agent.milo"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.mutation_boundary",
+      "implementation": "furatena/catalog/agent_lint.py:492",
+      "implementation_fingerprint": "c3abd53179de8835",
+      "kind": "diagnostic",
+      "name": "fura.agent.mutation_boundary"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.output_schema",
+      "implementation": "furatena/catalog/agent_lint.py:469,furatena/catalog/agent_lint.py:479",
+      "implementation_fingerprint": "1fda4f502645463b",
+      "kind": "diagnostic",
+      "name": "fura.agent.output_schema"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.parameter_description",
+      "implementation": "furatena/catalog/agent_lint.py:592",
+      "implementation_fingerprint": "3af9dfd3a4bf6f76",
+      "kind": "diagnostic",
+      "name": "fura.agent.parameter_description"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.permission_note",
+      "implementation": "furatena/catalog/agent_lint.py:519",
+      "implementation_fingerprint": "d008700f88126e00",
+      "kind": "diagnostic",
+      "name": "fura.agent.permission_note"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.resource_metadata",
+      "implementation": "furatena/catalog/agent_lint.py:410",
+      "implementation_fingerprint": "551087e02493df3e",
+      "kind": "diagnostic",
+      "name": "fura.agent.resource_metadata"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent.tool_description",
+      "implementation": "furatena/catalog/agent_lint.py:441",
+      "implementation_fingerprint": "1c31151dc6e61579",
+      "kind": "diagnostic",
+      "name": "fura.agent.tool_description"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent_safety.private_leak",
+      "implementation": "furatena/catalog/agent_lint.py:377",
+      "implementation_fingerprint": "19eb64c97ff21f48",
+      "kind": "diagnostic",
+      "name": "fura.agent_safety.private_leak"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.agent_safety.stale_context",
+      "implementation": "furatena/catalog/agent_lint.py:391",
+      "implementation_fingerprint": "0b6f83a51794a626",
+      "kind": "diagnostic",
+      "name": "fura.agent_safety.stale_context"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.api",
+      "implementation": "furatena/cli/commands/api_diff.py:30,furatena/cli/commands/check.py:94",
+      "implementation_fingerprint": "c3081c3d32af55cd",
+      "kind": "diagnostic",
+      "name": "fura.api"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "fdc28af176c3e45b",
+      "id": "diagnostic:fura.author",
+      "implementation": "furatena/catalog/route_registrars.py:371,furatena/cli/authoring.py:28,furatena/cli/authoring.py:991",
+      "implementation_fingerprint": "50a0f3b76d9731ea",
+      "kind": "diagnostic",
+      "name": "fura.author"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.author.authorization",
+      "implementation": "furatena/catalog/docs_app.py:1228,furatena/catalog/docs_app.py:498,furatena/catalog/docs_app.py:523,furatena/catalog/mcp.py:850,furatena/catalog/route_registrars.py:334,furatena/cli/authoring.py:843",
+      "implementation_fingerprint": "a17bac970683094e",
+      "kind": "diagnostic",
+      "name": "fura.author.authorization"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "fdc28af176c3e45b",
+      "id": "diagnostic:fura.author.conflict",
+      "implementation": "furatena/catalog/docs_app.py:1235,furatena/cli/authoring.py:751,furatena/cli/commands/author.py:119",
+      "implementation_fingerprint": "f86a80999ee0a68d",
+      "kind": "diagnostic",
+      "name": "fura.author.conflict"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.author.csrf",
+      "implementation": "furatena/catalog/route_registrars.py:828",
+      "implementation_fingerprint": "240bde66e8ddd073",
+      "kind": "diagnostic",
+      "name": "fura.author.csrf"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.author.method",
+      "implementation": "furatena/catalog/route_registrars.py:847",
+      "implementation_fingerprint": "8b9bdf11dc789135",
+      "kind": "diagnostic",
+      "name": "fura.author.method"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.author.target",
+      "implementation": "furatena/catalog/route_registrars.py:355",
+      "implementation_fingerprint": "4d01f1890563c8e2",
+      "kind": "diagnostic",
+      "name": "fura.author.target"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.check",
+      "implementation": "furatena/catalog/migrate/report.py:155",
+      "implementation_fingerprint": "e7fc89d64eb0b8ca",
+      "kind": "diagnostic",
+      "name": "fura.check"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "1cedd7259bb84fb3",
+      "id": "diagnostic:fura.content",
+      "implementation": "furatena/cli/authoring.py:1066,furatena/cli/commands/check.py:108",
+      "implementation_fingerprint": "b46e03594cbc73c9",
+      "kind": "diagnostic",
+      "name": "fura.content"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.dcp",
+      "implementation": "furatena/cli/commands/check.py:87",
+      "implementation_fingerprint": "d51029b24c587e37",
+      "kind": "diagnostic",
+      "name": "fura.dcp"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.evals.*",
+      "implementation": "furatena/cli/commands/evals.py:50",
+      "implementation_fingerprint": "bb4075682c43f5d7",
+      "kind": "diagnostic",
+      "name": "fura.evals.*"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.impact.stale_public_output",
+      "implementation": "furatena/cli/commands/impact.py:55",
+      "implementation_fingerprint": "52b4f52d62cf65ec",
+      "kind": "diagnostic",
+      "name": "fura.impact.stale_public_output"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.lifecycle",
+      "implementation": "furatena/catalog/migrate/report.py:181,furatena/cli/commands/check.py:107,furatena/cli/commands/export.py:82",
+      "implementation_fingerprint": "3c145c23cdd45b73",
+      "kind": "diagnostic",
+      "name": "fura.lifecycle"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.mcp",
+      "implementation": "furatena/catalog/mcp.py:543",
+      "implementation_fingerprint": "1c7ed776380402bc",
+      "kind": "diagnostic",
+      "name": "fura.mcp"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.mcp.author",
+      "implementation": "furatena/catalog/mcp.py:829",
+      "implementation_fingerprint": "c503fcbb12dfa459",
+      "kind": "diagnostic",
+      "name": "fura.mcp.author"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.mcp.privileged_token",
+      "implementation": "furatena/catalog/mcp.py:626",
+      "implementation_fingerprint": "0b0ea00b862bdea5",
+      "kind": "diagnostic",
+      "name": "fura.mcp.privileged_token"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.mcp.rate_limit",
+      "implementation": "furatena/catalog/mcp.py:608",
+      "implementation_fingerprint": "25dad78064c58d2c",
+      "kind": "diagnostic",
+      "name": "fura.mcp.rate_limit"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.migrate",
+      "implementation": "furatena/cli/commands/migrate.py:106,furatena/cli/commands/migrate.py:142",
+      "implementation_fingerprint": "bc709ef192b93898",
+      "kind": "diagnostic",
+      "name": "fura.migrate"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.migrate.unmigrated_component",
+      "implementation": "furatena/cli/commands/migrate.py:130",
+      "implementation_fingerprint": "3622682d694a3bf5",
+      "kind": "diagnostic",
+      "name": "fura.migrate.unmigrated_component"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.migration.compat.mdx",
+      "implementation": "furatena/catalog/migrate/report.py:106",
+      "implementation_fingerprint": "957e268224edabc7",
+      "kind": "diagnostic",
+      "name": "fura.migration.compat.mdx"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.migration.compat.myst",
+      "implementation": "furatena/catalog/migrate/report.py:126",
+      "implementation_fingerprint": "180294ea9061c228",
+      "kind": "diagnostic",
+      "name": "fura.migration.compat.myst"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.migration.compat.rst",
+      "implementation": "furatena/catalog/migrate/report.py:118",
+      "implementation_fingerprint": "7e9951ca201cc9a9",
+      "kind": "diagnostic",
+      "name": "fura.migration.compat.rst"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.migration.report",
+      "implementation": "furatena/cli/commands/migrate.py:232",
+      "implementation_fingerprint": "8c235b1d46cd3f0c",
+      "kind": "diagnostic",
+      "name": "fura.migration.report"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.pdf",
+      "implementation": "furatena/cli/commands/pdf.py:60",
+      "implementation_fingerprint": "297cec09d95d0a7c",
+      "kind": "diagnostic",
+      "name": "fura.pdf"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.recipes",
+      "implementation": "furatena/cli/commands/recipes.py:21",
+      "implementation_fingerprint": "5a403a840cdad58a",
+      "kind": "diagnostic",
+      "name": "fura.recipes"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "diagnostic:fura.visibility_leak",
+      "implementation": "furatena/cli/commands/export.py:112",
+      "implementation_fingerprint": "9a5c757cc7157116",
+      "kind": "diagnostic",
+      "name": "fura.visibility_leak"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "mcp_resource:fura://catalog/api-operations",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "b57bddd4aee03daa",
+      "kind": "mcp_resource",
+      "name": "fura://catalog/api-operations"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_resource:fura://catalog/channels",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "f571f7bcc7131ba6",
+      "kind": "mcp_resource",
+      "name": "fura://catalog/channels"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/formats/html-bridge.html",
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/_index.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/dual-ir.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/glossary.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/I18N.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "d918e0f82c530566",
+      "id": "mcp_resource:fura://catalog/graph",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "9ee852293f94c025",
+      "kind": "mcp_resource",
+      "name": "fura://catalog/graph"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/_index.md",
+        "app/content/shared/formats/html-bridge.html",
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "00938ba327102e41",
+      "id": "mcp_resource:fura://catalog/inventories",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "696aa5531568e4a3",
+      "kind": "mcp_resource",
+      "name": "fura://catalog/inventories"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/collections.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "a53fbca219e4c5f1",
+      "id": "mcp_resource:fura://catalog/nodes",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "56cbd8de3449b5fe",
+      "kind": "mcp_resource",
+      "name": "fura://catalog/nodes"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "mcp_resource:fura://catalog/sources",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "3daa2587aa5fafae",
+      "kind": "mcp_resource",
+      "name": "fura://catalog/sources"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "8741e27bd2677e2e",
+      "id": "mcp_resource:fura://catalog/structure",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "40a389239e8ef8d0",
+      "kind": "mcp_resource",
+      "name": "fura://catalog/structure"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/CLI_CONTRACT.md"
+      ],
+      "documentation_fingerprint": "b71aa36dc68a9715",
+      "id": "mcp_resource:fura://reports/audit",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "4dcf92d49c0a0229",
+      "kind": "mcp_resource",
+      "name": "fura://reports/audit"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "mcp_resource:fura://reports/stale-impact",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "40b20a30594575a8",
+      "kind": "mcp_resource",
+      "name": "fura://reports/stale-impact"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_resource:fura://reports/validation",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
+      "implementation_fingerprint": "5e00860c39d3fec7",
+      "kind": "mcp_resource",
+      "name": "fura://reports/validation"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "ff35f4bada9d231a",
+      "id": "mcp_tool:author_apply_edit",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "ddce0a4d9d35312e",
+      "kind": "mcp_tool",
+      "name": "author_apply_edit"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "ff35f4bada9d231a",
+      "id": "mcp_tool:author_archive",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "47287f75890eac78",
+      "kind": "mcp_tool",
+      "name": "author_archive"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "ff35f4bada9d231a",
+      "id": "mcp_tool:author_create_draft",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "75c0bf0c3aa8ec62",
+      "kind": "mcp_tool",
+      "name": "author_create_draft"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "4fa6750fb71cb9c8",
+      "id": "mcp_tool:author_inspect_publication_impact",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "2c7de849d2de40c1",
+      "kind": "mcp_tool",
+      "name": "author_inspect_publication_impact"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "4fa6750fb71cb9c8",
+      "id": "mcp_tool:author_propose_edit",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "f9616ee37c58f17c",
+      "kind": "mcp_tool",
+      "name": "author_propose_edit"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "ff35f4bada9d231a",
+      "id": "mcp_tool:author_publish",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "695146952f4e684d",
+      "kind": "mcp_tool",
+      "name": "author_publish"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "ff35f4bada9d231a",
+      "id": "mcp_tool:author_read_source",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "7090a920904dc8f5",
+      "kind": "mcp_tool",
+      "name": "author_read_source"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "ff35f4bada9d231a",
+      "id": "mcp_tool:author_unpublish",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "44ae7cacf7939741",
+      "kind": "mcp_tool",
+      "name": "author_unpublish"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md"
+      ],
+      "documentation_fingerprint": "4fa6750fb71cb9c8",
+      "id": "mcp_tool:author_validate",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "33a9489749894320",
+      "kind": "mcp_tool",
+      "name": "author_validate"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_tool:explain_stale_impact",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "fd9fc1a662e3396c",
+      "kind": "mcp_tool",
+      "name": "explain_stale_impact"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_tool:inspect_source_health",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "b984b7ef3f16dd48",
+      "kind": "mcp_tool",
+      "name": "inspect_source_health"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_tool:query_graph",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "f25ee759492e6dd8",
+      "kind": "mcp_tool",
+      "name": "query_graph"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_tool:retrieve_node",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "be767a039d8f0db5",
+      "kind": "mcp_tool",
+      "name": "retrieve_node"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_tool:run_checks",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "898b39e8856d6909",
+      "kind": "mcp_tool",
+      "name": "run_checks"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "f1dad5b97e0a3b86",
+      "id": "mcp_tool:semantic_search",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "8b5af9939af1f6de",
+      "kind": "mcp_tool",
+      "name": "semantic_search"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md"
+      ],
+      "documentation_fingerprint": "1de03f5e0db6cf57",
+      "id": "mcp_tool:traverse_graph",
+      "implementation": "furatena.catalog.mcp:FuraMCPServer.list_tools",
+      "implementation_fingerprint": "bd5b165f9111ea4b",
+      "kind": "mcp_tool",
+      "name": "traverse_graph"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/_index.md",
+        "content/furatena/docs/authoring/_index.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/theming/branding.md",
+        "docs/I18N.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "bbc365a62507a5c0",
+      "id": "route:GET /",
+      "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.home",
+      "implementation_fingerprint": "58eeb3372baea707",
+      "kind": "route",
+      "name": "GET /"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "a5e06715531cde08",
+      "id": "route:GET /catalog.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_json",
+      "implementation_fingerprint": "337010603ca8f086",
+      "kind": "route",
+      "name": "GET /catalog.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/APP-README.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "d2afbef925facf52",
+      "id": "route:GET /catalog/api-operations.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_api_operations_json",
+      "implementation_fingerprint": "b8b437f4eda24f13",
+      "kind": "route",
+      "name": "GET /catalog/api-operations.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "c1e6289a9f9d72bd",
+      "id": "route:GET /catalog/query.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_query_json",
+      "implementation_fingerprint": "f77217af2f647bea",
+      "kind": "route",
+      "name": "GET /catalog/query.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/DCP.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "938c9e69a3429a54",
+      "id": "route:GET /catalog/retrieve",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_retrieve",
+      "implementation_fingerprint": "50d5a3db3d72ace2",
+      "kind": "route",
+      "name": "GET /catalog/retrieve"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "23a55cf1eec513b6",
+      "id": "route:GET /catalog/source-health.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_source_health_json",
+      "implementation_fingerprint": "d284766a5a31c207",
+      "kind": "route",
+      "name": "GET /catalog/source-health.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/cli.md"
+      ],
+      "documentation_fingerprint": "9673cae9c29c0c2a",
+      "id": "route:GET /channels.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.channels_json_route",
+      "implementation_fingerprint": "0e9ff34499da81eb",
+      "kind": "route",
+      "name": "GET /channels.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md"
+      ],
+      "documentation_fingerprint": "22621d694696320d",
+      "id": "route:GET /deployment-profiles.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.deployment_profiles_json_route",
+      "implementation_fingerprint": "075dc18d9ac75baf",
+      "kind": "route",
+      "name": "GET /deployment-profiles.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "8e822ead2fb554d1",
+      "id": "route:GET /develop/",
+      "implementation": "furatena.catalog.route_registrars:register_public_routes.<locals>.develop_index",
+      "implementation_fingerprint": "fc9d0caaa4c201e3",
+      "kind": "route",
+      "name": "GET /develop/"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /develop/{export_id}/",
+      "implementation": "furatena.catalog.route_registrars:register_public_routes.<locals>.develop_export_preview",
+      "implementation_fingerprint": "79933553a98eca9d",
+      "kind": "route",
+      "name": "GET /develop/{export_id}/"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/_index.md",
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/_index.md",
+        "content/furatena/docs/about/chirp-relationship.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/directives.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/dual-ir.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/get-started/quickstart.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/branding.md",
+        "content/furatena/docs/theming/views-overrides.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/I18N.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "491ebc8d88cee5ed",
+      "id": "route:GET /docs/",
+      "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.default_mount_section",
+      "implementation_fingerprint": "00056e6227a0376d",
+      "kind": "route",
+      "name": "GET /docs/"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/serve-and-author.md"
+      ],
+      "documentation_fingerprint": "df9c3206e27fbfe8",
+      "id": "route:GET /docs/_author/dashboard",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_dashboard",
+      "implementation_fingerprint": "f8a490e4e47bbe7b",
+      "kind": "route",
+      "name": "GET /docs/_author/dashboard"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "475ce490f55d45fe",
+      "id": "route:GET /docs/_author/events",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_events",
+      "implementation_fingerprint": "4b5454637ff22a9f",
+      "kind": "route",
+      "name": "GET /docs/_author/events"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /docs/_author/page.json",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_page_status",
+      "implementation_fingerprint": "5516201ce8c09325",
+      "kind": "route",
+      "name": "GET /docs/_author/page.json"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /docs/_author/source",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_page_source",
+      "implementation_fingerprint": "2b727faa9369111a",
+      "kind": "route",
+      "name": "GET /docs/_author/source"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/serve-and-author.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "6bffe00433e062e0",
+      "id": "route:GET /docs/_author/stale",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_stale",
+      "implementation_fingerprint": "02c8a83632120e86",
+      "kind": "route",
+      "name": "GET /docs/_author/stale"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "02485c0888ed3fdc",
+      "id": "route:GET /docs/_author/studio",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_studio",
+      "implementation_fingerprint": "28701341dcaa5d6f",
+      "kind": "route",
+      "name": "GET /docs/_author/studio"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /docs/{slug:path}",
+      "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.default_mount_section",
+      "implementation_fingerprint": "17d05fd57f3d226c",
+      "kind": "route",
+      "name": "GET /docs/{slug:path}"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "8e822ead2fb554d1",
+      "id": "route:GET /errors/suggest",
+      "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.error_suggest",
+      "implementation_fingerprint": "a1e13ba30ad2384c",
+      "kind": "route",
+      "name": "GET /errors/suggest"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/get-started/project-layout.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/branding.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "3c7df89e320a0b6f",
+      "id": "route:GET /favicon.ico",
+      "implementation": "furatena.catalog.route_registrars:register_error_routes.<locals>.favicon",
+      "implementation_fingerprint": "cef9785c31de075c",
+      "kind": "route",
+      "name": "GET /favicon.ico"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "23a55cf1eec513b6",
+      "id": "route:GET /graph/query.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_query_json",
+      "implementation_fingerprint": "3a8670d65cfe7163",
+      "kind": "route",
+      "name": "GET /graph/query.json"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /index.txt",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.home_index_txt",
+      "implementation_fingerprint": "b6109dd0caa36501",
+      "kind": "route",
+      "name": "GET /index.txt"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "0d567f424dd35bb0",
+      "id": "route:GET /inventories.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventories_json_route",
+      "implementation_fingerprint": "85236ca2701ef180",
+      "kind": "route",
+      "name": "GET /inventories.json"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /inventories/{inventory_id}/objects.inv",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventory_inv",
+      "implementation_fingerprint": "4d3207c95d7f5cee",
+      "kind": "route",
+      "name": "GET /inventories/{inventory_id}/objects.inv"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/platform-proof.md"
+      ],
+      "documentation_fingerprint": "a272ec609fea7cf4",
+      "id": "route:GET /llms-full.txt",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.llms_full",
+      "implementation_fingerprint": "9279a51da67e028e",
+      "kind": "route",
+      "name": "GET /llms-full.txt"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/_index.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "19c7e5a008757118",
+      "id": "route:GET /llms.txt",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.llms_txt",
+      "implementation_fingerprint": "4025085c39fc19c2",
+      "kind": "route",
+      "name": "GET /llms.txt"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "23a55cf1eec513b6",
+      "id": "route:GET /meta.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.meta_json_route",
+      "implementation_fingerprint": "b446108901e4cbb8",
+      "kind": "route",
+      "name": "GET /meta.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deploy.md",
+        "docs/ROADMAP.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "b6967ad849e83a3c",
+      "id": "route:GET /objects.inv",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventory_inv",
+      "implementation_fingerprint": "44c9eb8abe8ee47b",
+      "kind": "route",
+      "name": "GET /objects.inv"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /og/{name}",
+      "implementation": "furatena.catalog.route_registrars:og_image",
+      "implementation_fingerprint": "9a79678edf265c28",
+      "kind": "route",
+      "name": "GET /og/{name}"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/federation.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "docs/APP-README.md",
+        "docs/ROADMAP.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "ba95c07f8890abae",
+      "id": "route:GET /portal/",
+      "implementation": "furatena.catalog.route_registrars:register_public_routes.<locals>.portal",
+      "implementation_fingerprint": "11738ebc9653cfd0",
+      "kind": "route",
+      "name": "GET /portal/"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /releases/",
+      "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.default_mount_section",
+      "implementation_fingerprint": "ad03b3b883fd1ae1",
+      "kind": "route",
+      "name": "GET /releases/"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /releases/{slug:path}",
+      "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.default_mount_section",
+      "implementation_fingerprint": "924d4f8ec6a87b83",
+      "kind": "route",
+      "name": "GET /releases/{slug:path}"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/APP-README.md",
+        "docs/ROUTES.md"
+      ],
+      "documentation_fingerprint": "63aa16365be81cc7",
+      "id": "route:GET /routes.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.routes_json_route",
+      "implementation_fingerprint": "a68caefda9342bb7",
+      "kind": "route",
+      "name": "GET /routes.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/_index.md",
+        "content/furatena/docs/_index.md",
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/authoring/markdown.md",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/_index.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/dual-ir.md",
+        "content/furatena/docs/concepts/hypermedia-model.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/concepts/views-and-shell.md",
+        "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/standalone-site.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/docs-yaml.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/theming/_index.md",
+        "content/furatena/docs/theming/branding.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/I18N.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/ROUTES.md",
+        "docs/THEMING.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "5dfe3a6280b7be43",
+      "id": "route:GET /search",
+      "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.search",
+      "implementation_fingerprint": "479b7d6a3e7d7680",
+      "kind": "route",
+      "name": "GET /search"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/_index.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/DCP.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "9123b217b0d93214",
+      "id": "route:GET /search.json",
+      "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.search_json_route",
+      "implementation_fingerprint": "c7f63b56c1d88c01",
+      "kind": "route",
+      "name": "GET /search.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/philosophy.md",
+        "docs/APP-README.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "5a8b7237c39e13d5",
+      "id": "route:GET /search/semantic",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.search_semantic",
+      "implementation_fingerprint": "e648f90b191200e8",
+      "kind": "route",
+      "name": "GET /search/semantic"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/APP-README.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "4a8ffc3890d946e3",
+      "id": "route:GET /search/suggest",
+      "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.search_suggest",
+      "implementation_fingerprint": "0575657b462e7b6e",
+      "kind": "route",
+      "name": "GET /search/suggest"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/public-surface-inventory.md"
+      ],
+      "documentation_fingerprint": "32ed8f47fbee057f",
+      "id": "route:GET /semantic.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.semantic_json_route",
+      "implementation_fingerprint": "6f3ddcce19e954b5",
+      "kind": "route",
+      "name": "GET /semantic.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/_index.md",
+        "app/content/shared/formats/html-bridge.html",
+        "content/furatena/docs/authoring/navigation.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/federation.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/mounts-yaml.md",
+        "docs/ROADMAP.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "c086f91b00919704",
+      "id": "route:GET /shared/",
+      "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.prefixed_mount",
+      "implementation_fingerprint": "06322e58db6a5e41",
+      "kind": "route",
+      "name": "GET /shared/"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /shared/{slug:path}",
+      "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.prefixed_mount",
+      "implementation_fingerprint": "ed6a96ae0b3bd377",
+      "kind": "route",
+      "name": "GET /shared/{slug:path}"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "docs/APP-README.md",
+        "docs/CI.md",
+        "docs/I18N.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "3adffbcae38b07c5",
+      "id": "route:GET /sitemap.xml",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.sitemap",
+      "implementation_fingerprint": "b064bf8d7be78f75",
+      "kind": "route",
+      "name": "GET /sitemap.xml"
+    },
+    {
+      "coverage": "missing",
+      "documentation": [],
+      "documentation_fingerprint": "44136fa355b3678a",
+      "id": "route:GET /structure.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.structure_json_route",
+      "implementation_fingerprint": "23a79eca7f8c379d",
+      "kind": "route",
+      "name": "GET /structure.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/reference/public-surface-inventory.md"
+      ],
+      "documentation_fingerprint": "66184b4c58378a15",
+      "id": "route:GET /surface.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.surface_json_route",
+      "implementation_fingerprint": "ae05b3c7bad74fc0",
+      "kind": "route",
+      "name": "GET /surface.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/_index.md",
+        "docs/APP-README.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "565a030a22199ee0",
+      "id": "route:GET /tools.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.tools_json",
+      "implementation_fingerprint": "f3089d3741f00881",
+      "kind": "route",
+      "name": "GET /tools.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "02485c0888ed3fdc",
+      "id": "route:POST /docs/_author/studio/save",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_studio_save",
+      "implementation_fingerprint": "aa1ce6e4e7afa7e0",
+      "kind": "route",
+      "name": "POST /docs/_author/studio/save"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md"
+      ],
+      "documentation_fingerprint": "02485c0888ed3fdc",
+      "id": "route:POST /docs/_author/transition",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_page_transition",
+      "implementation_fingerprint": "9e82fc5c3ab32513",
+      "kind": "route",
+      "name": "POST /docs/_author/transition"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/_index.md",
+        "content/furatena/docs/reference/glossary.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "2a123b0ae5009c65",
+      "id": "sidecar:/catalog.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_json",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/catalog.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/APP-README.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "d2afbef925facf52",
+      "id": "sidecar:/catalog/api-operations.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_api_operations_json",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/catalog/api-operations.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "c1e6289a9f9d72bd",
+      "id": "sidecar:/catalog/query.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_query_json",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/catalog/query.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/DCP.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "cb677b71332bebcd",
+      "id": "sidecar:/catalog/retrieve",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_retrieve",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/catalog/retrieve"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "23a55cf1eec513b6",
+      "id": "sidecar:/catalog/source-health.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_source_health_json",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/catalog/source-health.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md",
+        "content/furatena/docs/reference/cli.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "375163bb54846157",
+      "id": "sidecar:/channels.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.channels_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/channels.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/deployment-profiles.md"
+      ],
+      "documentation_fingerprint": "22621d694696320d",
+      "id": "sidecar:/deployment-profiles.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.deployment_profiles_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/deployment-profiles.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "c6ade632d4ef993f",
+      "id": "sidecar:/docs/_author/events",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_events",
+      "implementation_fingerprint": "35527eb700c55de2",
+      "kind": "sidecar",
+      "name": "/docs/_author/events"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/serve-and-author.md",
+        "content/furatena/docs/reference/cli.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CI.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "363356b38c66fe46",
+      "id": "sidecar:/docs/_author/stale",
+      "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_stale",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/docs/_author/stale"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/DCP.md"
+      ],
+      "documentation_fingerprint": "c1e6289a9f9d72bd",
+      "id": "sidecar:/graph/query.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_query_json",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/graph/query.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/authoring/markdown.md",
+        "docs/I18N.md",
+        "docs/RBAC.md"
+      ],
+      "documentation_fingerprint": "ca8740ac440e3068",
+      "id": "sidecar:/index.txt",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.home_index_txt",
+      "implementation_fingerprint": "6319303fd774263d",
+      "kind": "sidecar",
+      "name": "/index.txt"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "0d567f424dd35bb0",
+      "id": "sidecar:/inventories.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventories_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/inventories.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "docs/ROADMAP.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "4ec7cb70fc0ac6fd",
+      "id": "sidecar:/inventories/{inventory_id}/objects.inv",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventory_inv",
+      "implementation_fingerprint": "2f4dbf6cf243546a",
+      "kind": "sidecar",
+      "name": "/inventories/{inventory_id}/objects.inv"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/concepts/platform-proof.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "cd2a6312464056a2",
+      "id": "sidecar:/llms-full.txt",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.llms_full",
+      "implementation_fingerprint": "6319303fd774263d",
+      "kind": "sidecar",
+      "name": "/llms-full.txt"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/_index.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/AUTHOR_MUTATION_THREAT_MODEL.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md"
+      ],
+      "documentation_fingerprint": "c48cd52dbd9a7fd0",
+      "id": "sidecar:/llms.txt",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.llms_txt",
+      "implementation_fingerprint": "6319303fd774263d",
+      "kind": "sidecar",
+      "name": "/llms.txt"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "docs/DCP.md",
+        "docs/RBAC.md"
+      ],
+      "documentation_fingerprint": "86f0dbb11e15f0f1",
+      "id": "sidecar:/meta.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.meta_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/meta.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "app/content/shared/reference/reference-inventories.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "docs/ROADMAP.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "4ec7cb70fc0ac6fd",
+      "id": "sidecar:/objects.inv",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventory_inv",
+      "implementation_fingerprint": "2f4dbf6cf243546a",
+      "kind": "sidecar",
+      "name": "/objects.inv"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/APP-README.md",
+        "docs/ROUTES.md"
+      ],
+      "documentation_fingerprint": "63aa16365be81cc7",
+      "id": "sidecar:/routes.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.routes_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/routes.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/reference/_index.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/I18N.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "e07e8ee5367a84ff",
+      "id": "sidecar:/search.json",
+      "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.search_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/search.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/about/roadmap.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/AGENT_WORKFLOWS.md",
+        "docs/APP-README.md",
+        "docs/AUTHORING.md",
+        "docs/DCP.md",
+        "docs/DUAL_IR.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md",
+        "docs/THEMING.md",
+        "docs/WAVE_E.md"
+      ],
+      "documentation_fingerprint": "6184fc64f7a1e82e",
+      "id": "sidecar:/search/semantic",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.search_semantic",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/search/semantic"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/APP-README.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "6cafe6ced06d5df7",
+      "id": "sidecar:/semantic.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.semantic_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/semantic.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/deploy.md",
+        "docs/APP-README.md",
+        "docs/I18N.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "c70cfa1c48b0c203",
+      "id": "sidecar:/sitemap.xml",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.sitemap",
+      "implementation_fingerprint": "fceb5e9890515f34",
+      "kind": "sidecar",
+      "name": "/sitemap.xml"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/operations/check-and-lint.md",
+        "content/furatena/docs/operations/freeze-and-export.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "f54cc2871aab9f53",
+      "id": "sidecar:/structure.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.structure_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/structure.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/reference/public-surface-inventory.md",
+        "docs/DCP.md",
+        "docs/VIEWS.md"
+      ],
+      "documentation_fingerprint": "9570e8caf0c450a7",
+      "id": "sidecar:/surface.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.surface_json_route",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/surface.json"
+    },
+    {
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/docs/about/_index.md",
+        "content/furatena/docs/about/philosophy.md",
+        "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/concepts/catalog-graph.md",
+        "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/operations/deploy.md",
+        "content/furatena/docs/operations/migrate-from-js-docs.md",
+        "content/furatena/docs/reference/_index.md",
+        "docs/APP-README.md",
+        "docs/CLI_CONTRACT.md",
+        "docs/DCP.md",
+        "docs/RBAC.md",
+        "docs/ROADMAP.md"
+      ],
+      "documentation_fingerprint": "5f52984a9826ac6a",
+      "id": "sidecar:/tools.json",
+      "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.tools_json",
+      "implementation_fingerprint": "02861148dc96bf1c",
+      "kind": "sidecar",
+      "name": "/tools.json"
+    }
+  ]
+}

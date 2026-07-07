@@ -74,6 +74,7 @@ exit codes in both terminal and JSON modes.
 - `fura stop --json`
 - `fura check --json`
 - `fura check --agent --json`
+- `fura docs-inventory --json`
 - `fura api-diff OLD.yaml NEW.yaml --json`
 - `fura agent-diff OLD.json NEW.json --json [--decision TEXT]`
 - `fura query --json`
@@ -92,6 +93,13 @@ exit codes in both terminal and JSON modes.
 - `fura theme init --json`
 
 `fura migrate --report --json` is read-only and emits `data.migration_report` with `summary`, `groups`, and `findings`. The groups cover severity, source path, construct, and next action; findings compose `fura check` diagnostics with format compatibility findings for embedded MDX JSX, RST directives/roles, and MyST directives/roles.
+
+`fura docs-inventory --json` derives public CLI commands, routes, config fields,
+MCP tools/resources, sidecars, diagnostic rule ids, and deployment profiles from
+runtime metadata. Records link stable identifiers to matching documentation and
+include implementation/documentation fingerprints. A prior `--baseline`, or an
+existing `--output` file, marks implementation changes with unchanged docs as
+stale; missing and stale ids are emitted as explicit machine-readable lists.
 
 `fura mcp` without `--describe` runs an MCP stdio server on Milo's MCP runtime. Its `tools/call` responses include `structuredContent` alongside text content so agents do not need to parse prose. `fura mcp --describe --json` includes `policy`, `resources`, and `tools`; the resources include `fura://reports/audit` for sanitized tool-call audit events. API operation resources include a `try_it` contract that separates static render-only, local mock/sample, and authenticated live-proxy behavior while keeping token references server-only. Public exports mirror that structure through `/catalog/api-operations.json`, API-aware `search.json` entries, API hints in `llms.txt`, and `tools.json` metadata for `list_api_operations`. Authoring MCP tools require `--author --include-private`, default mutating operations to dry-run, and include audit metadata for actor, command, target path, state transition, diagnostics, dry-run state, and confirmation state. Author lifecycle transition responses include `publication_impact` with affected navigation, search, export, and agent surfaces. Stale-impact responses include owner, source, mount, tenant, workspace, site, and output-channel groupings so reports can route repair work without scraping page records. Remote sessions should use `--remote` with actor/tenant/site metadata, rate/output bounds, and a `--privileged-token` before sensitive authoring tools or private content are exposed.
 

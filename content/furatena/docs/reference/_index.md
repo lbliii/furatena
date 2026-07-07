@@ -21,6 +21,7 @@ Lookup tables for the **`fura`** CLI and YAML configuration.
 | [[docs/reference/cli|CLI reference]] | Subcommands and flags |
 | [[docs/reference/docs-yaml|docs.yaml]] | App, theme, site, views |
 | [[docs/reference/mounts-yaml|mounts.yaml]] | Content mounts and federation |
+| [[docs/reference/public-surface-inventory|Public surface inventory]] | Machine-readable documentation coverage |
 | [[docs/reference/glossary|Glossary]] | Furatena vocabulary |
 
 ## Machine-readable exports

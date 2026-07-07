@@ -61,7 +61,13 @@ public site. The default output is `app/public/pdf/`; successful runs also refre
 ```bash
 fura check [--content-only] [--strict-edition-links]
 fura query --directive tabs
+fura docs-inventory --output docs/public-surface-inventory.json
 ```
+
+`fura docs-inventory` derives CLI, route, configuration, MCP, sidecar,
+diagnostic, and deployment-profile coverage from implementation metadata. It
+links stable identifiers to existing docs and emits explicit missing/stale lists.
+An existing output file is used as the default prior baseline for stale detection.
 
 ## Migrate
 
