@@ -21,6 +21,7 @@ from furatena.catalog.references.context import (
 from furatena.catalog.roles.registry import create_role_registry
 
 if TYPE_CHECKING:
+    from patitas.directives.registry import DirectiveRegistry
     from patitas.nodes import Document
 
 
@@ -46,7 +47,7 @@ class DocsRenderer:
         self._inventory_store = inventory_store
 
     @property
-    def directive_registry(self):
+    def directive_registry(self) -> DirectiveRegistry:
         return self._directive_registry
 
     def parse(self, source: str) -> tuple[Document, ContentIR]:

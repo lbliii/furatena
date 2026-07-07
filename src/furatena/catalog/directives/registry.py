@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from patitas import DirectiveRegistryBuilder
+from patitas.directives.registry import DirectiveRegistry
 
 from furatena.catalog.directives.admonition import AdmonitionHandler
 from furatena.catalog.directives.cards import CardHandler, CardsHandler
@@ -19,7 +20,7 @@ from furatena.catalog.directives.tabs import TabItemHandler, TabSetHandler
 from furatena.catalog.directives.versioning import DeprecatedHandler, RelatedHandler, SinceHandler
 
 
-def create_directive_registry():
+def create_directive_registry() -> DirectiveRegistry:
     """Return a registry of chirp-ui native directive handlers."""
     builder = DirectiveRegistryBuilder()
     builder.register(AdmonitionHandler())

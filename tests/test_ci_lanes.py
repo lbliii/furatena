@@ -1,5 +1,6 @@
 """Local CI commands remain in parity with documented lane names."""
 
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -52,6 +53,19 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "FURA_BASE_PATH=/furatena" in makefile
     assert "FURA_WORKERS=8" in makefile
     assert "python -m furatena.catalog.artifact_audit app/public" in makefile
+
+
+def test_dead_spikes_are_removed_and_public_returns_are_linted() -> None:
+    config = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+
+    assert "ANN201" in config["tool"]["ruff"]["lint"]["select"]
+    for relative_path in (
+        "app/spike_threading.py",
+        "app/export_catalog.py",
+        "app/freeze_catalog.py",
+        "src/furatena/catalog/directives/templates.py",
+    ):
+        assert not (REPO / relative_path).exists()
 
 
 def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:

@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from patitas.nodes import Document
 
+    from furatena.catalog.inventories import InventoryStore
+
 import yaml
 
 from furatena.catalog.access import (
@@ -38,7 +40,7 @@ from furatena.catalog.runtime import ServeMode
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.sources.git import sync_git_source
 from furatena.catalog.sources.types import MountSourceConfig
-from furatena.catalog.versions import active_channel_id
+from furatena.catalog.versions import DocChannel, active_channel_id
 from furatena.catalog.watch import SourceWatcher
 from furatena.catalog.workers import resolve_workers
 
@@ -741,7 +743,7 @@ class CatalogRegistry:
             )
 
     @property
-    def inventory_store(self):
+    def inventory_store(self) -> InventoryStore | None:
         return self._inventory_store
 
     def inventories_metadata(self) -> list[dict[str, Any]]:
@@ -835,10 +837,10 @@ class CatalogRegistry:
         return next((m for m in self.mounts if m.default), self.mounts[0])
 
     @property
-    def channels(self):
+    def channels(self) -> tuple[DocChannel, ...]:
         return self.channels_for(self.default_mount.id)
 
-    def channels_for(self, mount_id: str | None = None):
+    def channels_for(self, mount_id: str | None = None) -> tuple[DocChannel, ...]:
         """Release/version channels for one mount shard."""
         if mount_id and mount_id in self._shards:
             return self._shards[mount_id].channels
