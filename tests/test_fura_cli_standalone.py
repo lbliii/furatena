@@ -752,7 +752,7 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     )
     assert payload["data"]["known_answer_dataset"] == {
         "id": "furatena-known-answers",
-        "version": "1.1.2",
+        "version": "1.1.3",
         "case_count": 8,
         "corpora": ["furatena-dogfood", "access-boundary-fixture"],
         "query_classes": [
@@ -2586,10 +2586,24 @@ def test_unknown_recipe_returns_config_error_in_process() -> None:
 
 def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
+    audit_path = tmp_path / "audit" / "events.jsonl"
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
-    main(["--app-root", str(app_root), "mcp", "--describe", "--json", "--no-autodoc"])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "mcp",
+            "--describe",
+            "--json",
+            "--no-autodoc",
+            "--audit-store",
+            str(audit_path),
+            "--audit-retention-days",
+            "30",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
     resource_uris = {resource["uri"] for resource in payload["data"]["resources"]}
     tool_names = {tool["name"] for tool in payload["data"]["tools"]}
@@ -2598,6 +2612,14 @@ def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -
     assert payload["command"] == "mcp"
     assert payload["data"]["transport"] == "milo-stdio"
     assert payload["data"]["policy"]["transport"] == "local"
+    assert payload["data"]["audit"] == {
+        "schema_version": 1,
+        "backend": "jsonl",
+        "retention_days": 30,
+        "path": str(audit_path),
+        "count": 0,
+        "entries": [],
+    }
     assert "fura://catalog/nodes" in resource_uris
     assert "fura://catalog/graph" in resource_uris
     assert "fura://catalog/api-operations" in resource_uris
@@ -2857,6 +2879,7 @@ def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path)
 def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> None:
     from milo.testing import MCPClient
 
+    from furatena.catalog.audit_store import JsonLinesAuditStore
     from furatena.catalog.mcp import build_milo_cli
 
     app_root = tmp_path / "docs-site"
@@ -2879,7 +2902,13 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
         rate_limit_per_minute=10,
         max_output_chars=200_000,
     )
-    server = FuraMCPServer(docs, include_private=True, policy=policy)
+    audit_path = tmp_path / "audit" / "events.jsonl"
+    server = FuraMCPServer(
+        docs,
+        include_private=True,
+        policy=policy,
+        audit_store=JsonLinesAuditStore(audit_path),
+    )
 
     def call(name: str, arguments: dict[str, object]) -> dict[str, object]:
         response = server.handle_request(
@@ -2902,6 +2931,7 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
     )
     audit = json.loads(server.read_resource("fura://reports/audit")["text"])
     audit_json = json.dumps(audit)
+    restarted_audit = JsonLinesAuditStore(audit_path).export()
 
     assert denied["isError"] is True
     assert denied["structuredContent"]["diagnostics"][0]["rule_id"] == "fura.mcp.privileged_token"
@@ -2911,14 +2941,18 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
     assert milo_allowed.is_error is False
     assert "# Get started" in milo_allowed.structured["source"]
     assert audit["policy"]["transport"] == "remote"
+    assert audit["backend"] == "jsonl"
     assert audit["count"] == 4
+    assert restarted_audit["entries"] == audit["entries"]
     assert {entry["tool"] for entry in audit["entries"]} == {"author_read_source", "semantic_search"}
     assert audit["entries"][0]["actor"] == "agent-ci"
     assert audit["entries"][0]["tenant"] == "acme"
     assert audit["entries"][0]["site"] == "docs"
     assert audit["entries"][0]["status"] == "denied"
     assert audit["entries"][-1]["inputs"]["privileged_token"] == "<redacted>"
+    assert audit["entries"][1]["inputs"]["query"] == "<redacted:content>"
     assert "secret" not in audit_json
+    assert "Get started" not in audit_json
 
 
 def test_mcp_remote_policy_rate_limits_tools(tmp_path: Path) -> None:

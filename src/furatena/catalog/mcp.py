@@ -22,6 +22,7 @@ from furatena.catalog.access import (
     accessible_nodes,
     evaluate_author_access,
 )
+from furatena.catalog.audit_store import AuditStore, InMemoryAuditStore
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
 from furatena.catalog.export import catalog_graph, provenance_record
@@ -151,6 +152,7 @@ class FuraMCPServer:
         include_private: bool = False,
         policy: MCPAccessPolicy | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
+        audit_store: AuditStore | None = None,
     ) -> None:
         self.docs_app = docs_app
         self.catalog = docs_app.catalog
@@ -166,7 +168,7 @@ class FuraMCPServer:
             or getattr(docs_app, "retrieval_feedback", None)
             or RetrievalFeedbackCollector.disabled()
         )
-        self.audit_log: list[dict[str, Any]] = []
+        self.audit_store = audit_store or InMemoryAuditStore()
         self._rate_window_started = time.monotonic()
         self._rate_count = 0
 
@@ -650,12 +652,12 @@ class FuraMCPServer:
         )
 
     def audit_report(self) -> dict[str, Any]:
-        return {
-            "schema_version": 1,
-            "policy": self.policy.to_dict(),
-            "count": len(self.audit_log),
-            "entries": list(self.audit_log),
-        }
+        return {**self.audit_store.export(), "policy": self.policy.to_dict()}
+
+    @property
+    def audit_log(self) -> list[dict[str, Any]]:
+        """Return retained audit events for compatibility with in-process callers."""
+        return self.audit_store.query()
 
     def _apply_rate_limit(self, name: str, arguments: dict[str, Any]) -> None:
         now = time.monotonic()
@@ -714,16 +716,27 @@ class FuraMCPServer:
         payload: dict[str, Any],
         duration_ms: float | None = None,
     ) -> None:
-        self.audit_log.append(
+        audit_payload = payload.get("audit")
+        operation_id = (
+            _optional_str(payload.get("operation_id"))
+            or (
+                _optional_str(audit_payload.get("operation_id"))
+                if isinstance(audit_payload, dict)
+                else None
+            )
+        )
+        self.audit_store.append(
             {
                 "timestamp": round(time.time(), 3),
+                "correlation_id": operation_id,
                 "actor": self.policy.actor,
                 "tenant": self.policy.tenant,
                 "site": self.policy.site,
                 "transport": self.policy.transport,
+                "action": name,
                 "tool": name,
-                "command": _optional_str(payload.get("audit", {}).get("command"))
-                if isinstance(payload.get("audit"), dict)
+                "command": _optional_str(audit_payload.get("command"))
+                if isinstance(audit_payload, dict)
                 else name,
                 "target": _optional_str(arguments.get("target"))
                 or _optional_str(arguments.get("slug")),
@@ -738,6 +751,7 @@ class FuraMCPServer:
                 if "confirmed" in payload
                 else _bool_arg(arguments.get("confirmed"), default=False),
                 "inputs": _sanitize_inputs(arguments),
+                "outcome": status,
                 "status": status,
                 "is_error": is_error,
                 "result_status": _result_status(payload),

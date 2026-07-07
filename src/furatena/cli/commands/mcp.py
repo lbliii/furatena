@@ -24,6 +24,7 @@ def _run_mcp(args: argparse.Namespace) -> None:
     _ensure_pythonpath()
     sys.path.insert(0, str(_app_root(args)))
     from furatena.catalog.access import AccessRole
+    from furatena.catalog.audit_store import InMemoryAuditStore, JsonLinesAuditStore
     from furatena.catalog.docs_app import DocsApp
     from furatena.catalog.mcp import FuraMCPServer, MCPAccessPolicy, run_milo_stdio
     from furatena.catalog.runtime import ServeConfig, ServeMode
@@ -68,11 +69,20 @@ def _run_mcp(args: argparse.Namespace) -> None:
         timeout_seconds=args.timeout,
         max_output_chars=args.max_output_chars,
     )
+    audit_store = (
+        JsonLinesAuditStore(
+            Path(args.audit_store),
+            retention_days=args.audit_retention_days,
+        )
+        if args.audit_store
+        else InMemoryAuditStore(retention_days=args.audit_retention_days)
+    )
     server = FuraMCPServer(
         docs,
         base_url=args.base_url or "",
         include_private=serve.mode == ServeMode.AUTHOR and args.include_private,
         policy=policy,
+        audit_store=audit_store,
     )
 
     if args.describe:
@@ -80,6 +90,7 @@ def _run_mcp(args: argparse.Namespace) -> None:
             "protocol_version": "2025-06-18",
             "transport": "milo-stdio",
             "policy": server.policy.to_dict(),
+            "audit": server.audit_store.export(),
             "resources": server.list_resources(),
             "tools": server.list_tools(),
         }
@@ -147,6 +158,17 @@ def configure(sub: Any) -> None:
     )
     mcp.add_argument("--tenant", default=None, help="Tenant id recorded in MCP audit events")
     mcp.add_argument("--site", default=None, help="Site id recorded in MCP audit events")
+    mcp.add_argument(
+        "--audit-store",
+        default=None,
+        help="Persist sanitized MCP audit events to this JSONL path",
+    )
+    mcp.add_argument(
+        "--audit-retention-days",
+        type=int,
+        default=90,
+        help="Retain MCP audit events for this many days (default 90)",
+    )
     mcp.add_argument(
         "--privileged-token",
         default="",

@@ -70,7 +70,26 @@ All stable resources return `application/json`. Node-specific resources use
 | `fura://catalog/channels` | Mount channel metadata and active channel. |
 | `fura://reports/validation` | `ok`, `errors`, and `warnings` diagnostic objects. |
 | `fura://reports/stale-impact` | Stale entries, graph/output impact, and repair tasks. |
-| `fura://reports/audit` | Sanitized calls: actor, tenant, site, tool, inputs, status, duration, and author transition fields. Tokens are redacted. |
+| `fura://reports/audit` | Retained sanitized calls plus backend metadata: event/correlation identity, actor, tenant, site, action/tool, target, inputs, outcome/status, duration, and author transition fields. Secrets and authored/query content are redacted. |
+
+### Durable audit storage
+
+Pass `--audit-store PATH` to persist MCP audit events as permission-restricted
+JSONL that survives process restarts. `--audit-retention-days N` defaults to 90;
+expired records are removed before reads and exports. Without `--audit-store`, the
+same contract uses a thread-safe process-local implementation suitable for tests
+and local sessions.
+
+Every persisted event has `event_id`, `timestamp`, `correlation_id`, `actor`,
+`tenant`, `site`, `action`, `target`, and `outcome`. Tool-specific metadata is
+retained, but token, credential, authorization, password, and cookie fields are
+replaced with `<redacted>`. Query, prompt, body, source, diff, patch, and edit-text
+fields are replaced with `<redacted:content>` before either backend receives the
+event. The provider-neutral `AuditStore` boundary supports append, tenant/time
+queries, retention purge, structured export, and writing an export snapshot.
+`fura://reports/audit` exposes the active backend, retention, count, entries, and
+session policy; `fura mcp --describe --json` reports the empty/current store
+metadata before serving.
 
 ## HTTP and static sidecars
 
