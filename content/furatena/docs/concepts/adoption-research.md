@@ -69,6 +69,32 @@ Probe by persona:
 | Agent readiness | MCP eval pass rate and stale/private safety warnings | Zero private leaks, zero agent errors, warnings tied to explicit remediation |
 | Buyer confidence | Deployment-profile fit and approval blockers | User can choose local/static/cloud/self-hosted profile and name remaining approval risks in one session |
 
+## Repeatable activation protocol
+
+Activation measurements are explicit and local. Start a separate session for a
+new site or imported repository, mark the milestones, then aggregate only the
+sanitized duration report:
+
+```bash
+fura activation start --journey new-site --session /tmp/new-site.json --consent --json
+fura activation mark --session /tmp/new-site.json --event first-edit --json
+fura activation mark --session /tmp/new-site.json --event first-publish --automated-seconds 30 --manual-seconds 90 --json
+fura activation report --session /tmp/new-site.json --output activation-report.json --json
+```
+
+Imported-repository sessions use `--journey imported-site` and also mark
+`clean-migration`. The report keeps new and imported paths separate, reports
+median and P95 milestone durations, and totals automated versus manual
+remediation time. The first-edit readiness targets remain 10 minutes for new
+sites and 30 minutes for imports. First-publish and clean-migration times are
+measured without inventing a target before pilot evidence exists.
+
+Collection is opt-in: omitting `--consent` fails without writing a session.
+Sessions stay on the local filesystem and the shareable report contains no
+source content, source paths, actor/host identity, wall-clock timestamps, or
+session identifiers. Furatena performs no network transmission for this
+protocol.
+
 ## Positioning
 
 Lead with **repo-owned docs that become many surfaces**. Hosted platforms win on

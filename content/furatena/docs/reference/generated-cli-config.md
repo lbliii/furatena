@@ -29,6 +29,48 @@ Fura — CLI for Furatena (hypermedia docs catalog)
 | `--config` | no | — | — | — | Path to docs.yaml (default: APP_ROOT/docs.yaml) |
 | `--autodoc-config` | no | — | — | — | Path to autodoc.yaml (default: REPO/config/autodoc.yaml when present) |
 
+### `fura activation`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+
+### `fura activation mark`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--session` | yes | — | — | — | Local session JSON path |
+| `--event` | yes | — | `clean-migration`, `first-edit`, `first-publish` | — | — |
+| `--automated-seconds` | no | `0.0` | — | `float` | — |
+| `--manual-seconds` | no | `0.0` | — | `float` | — |
+| `--replace` | no | false | — | — | Replace an existing milestone |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura activation report`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--session` | yes | — | — | — | Session JSON path |
+| `--output` | no | — | — | — | Write the sanitized report JSON |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura activation start`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--journey` | yes | — | `imported-site`, `new-site` | — | — |
+| `--session` | yes | — | — | — | Local session JSON path |
+| `--consent` | no | false | — | — | Explicitly consent to local duration-only measurement |
+| `--replace` | no | false | — | — | Replace an existing session file |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
 ### `fura agent-diff`
 
 Command parser contract.
