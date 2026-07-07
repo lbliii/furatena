@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
@@ -15,6 +15,7 @@ from furatena.catalog.assets import (
     copy_tree_files,
     write_assets_manifest,
 )
+from furatena.catalog.atomic_directory import AtomicDirectoryTransaction
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
@@ -41,6 +42,11 @@ from furatena.catalog.freeze_incremental import (
 )
 from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.inventories.sphinx import write_objects_inv_bytes
+from furatena.catalog.operation_lease import (
+    OperationLease,
+    operation_lease_seconds,
+    operation_timeout_seconds,
+)
 from furatena.catalog.packaging import prune_stale_files, validate_packaging_lifecycle
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.renderer_fingerprint import (
@@ -271,6 +277,31 @@ def _write_registry_manifest(
 
 def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     """Write frozen catalog files for a docs app."""
+    with OperationLease(
+        options.app_root / ".docs-cache" / "operation-leases",
+        "deployment",
+        resource=str(options.output_dir.resolve()),
+        timeout_seconds=operation_timeout_seconds(),
+        lease_seconds=operation_lease_seconds(),
+    ):
+        target = options.output_dir.resolve()
+        transaction = AtomicDirectoryTransaction(target, operation="freeze")
+        staging = transaction.prepare()
+        try:
+            try:
+                staged_result = _freeze_catalog_locked(replace(options, output_dir=staging))
+            except ExportError:
+                if not target.exists():
+                    transaction.commit()
+                raise
+            relative_output = staged_result.output_dir.relative_to(staging)
+            transaction.commit()
+            return replace(staged_result, output_dir=target / relative_output)
+        finally:
+            transaction.cleanup()
+
+
+def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     base_out_dir = options.output_dir.resolve()
     base_out_dir.mkdir(parents=True, exist_ok=True)
     worker_count = resolve_workers(options.workers)

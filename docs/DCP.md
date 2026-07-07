@@ -385,6 +385,12 @@ history, exponential backoff, sanitized errors, repair actions, and the last
 reconciled ref/path. `/catalog/source-health.json` exposes this as
 `source.sync_state`; retry and quarantine remain degraded until reconciliation.
 
+Cross-process filesystem leases serialize each mount sync and the shared
+freeze/export deployment boundary. Active workers renew their leases; crashed
+workers become reclaimable only after `FURA_OPERATION_LEASE_SECONDS`. Completed
+freeze/export trees and manifests are promoted atomically, while restart
+reconciliation restores orphaned backups and discards partial pending output.
+
 Ingestion follows: **scan → adapt → graph**.
 
 ```

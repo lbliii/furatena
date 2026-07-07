@@ -19,6 +19,8 @@ this module so future durable manifest backends do not leak into producers.
 from __future__ import annotations
 
 import json
+import os
+import uuid
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -176,7 +178,15 @@ def read_deployment_manifest(
 def write_deployment_manifest(path: Path, manifest: DeploymentManifest) -> None:
     """Write a deployment manifest with deterministic JSON formatting."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(manifest.to_dict(), indent=2) + "\n", encoding="utf-8")
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(manifest.to_dict(), indent=2) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def collect_deployment_artifacts(

@@ -11,6 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from furatena.catalog.exceptions import SourceSyncError
+from furatena.catalog.operation_lease import (
+    OperationLease,
+    operation_lease_seconds,
+    operation_timeout_seconds,
+)
 from furatena.catalog.sources.types import GitSourceConfig
 
 
@@ -33,6 +38,34 @@ def sync_git_source(
     validate: Callable[[Path], None] | None = None,
 ) -> GitSyncResult:
     """Clone/fetch a git source and return the local content root."""
+    base = _sync_base(config, app_root)
+    if cache_namespace:
+        base = base / cache_namespace
+    mount_root = base / mount_id
+    with OperationLease(
+        mount_root / ".operation-leases",
+        "source-sync",
+        resource=mount_id,
+        timeout_seconds=operation_timeout_seconds(),
+        lease_seconds=operation_lease_seconds(),
+    ):
+        return _sync_git_source_locked(
+            config,
+            mount_id=mount_id,
+            app_root=app_root,
+            cache_namespace=cache_namespace,
+            validate=validate,
+        )
+
+
+def _sync_git_source_locked(
+    config: GitSourceConfig,
+    *,
+    mount_id: str,
+    app_root: Path,
+    cache_namespace: str,
+    validate: Callable[[Path], None] | None,
+) -> GitSyncResult:
     base = _sync_base(config, app_root)
     if cache_namespace:
         base = base / cache_namespace
