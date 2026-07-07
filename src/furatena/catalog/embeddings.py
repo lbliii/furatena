@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -24,8 +25,14 @@ class SemanticHit:
 class EmbeddingIndex:
     """Deterministic bag-of-words index with cosine similarity (no ML deps)."""
 
-    def __init__(self, chunks: tuple[DocChunk, ...]) -> None:
+    def __init__(
+        self,
+        chunks: tuple[DocChunk, ...],
+        *,
+        provider: dict[str, Any] | None = None,
+    ) -> None:
         self.chunks = chunks
+        self.provider = dict(provider or _local_provider_metadata())
         self._chunk_map = {chunk.chunk_id: chunk for chunk in chunks}
         self._vectors: list[dict[str, float]] = []
         self._idf: dict[str, float] = {}
@@ -111,8 +118,15 @@ class EmbeddingIndex:
 
     def to_json(self) -> dict[str, Any]:
         return {
-            "version": 1,
+            "schema_version": 2,
+            "version": 2,
             "backend": "tfidf",
+            "provider": dict(self.provider),
+            "provenance": {
+                "interface_version": 1,
+                "index_fingerprint": self.fingerprint(),
+                "chunk_count": len(self.chunks),
+            },
             "chunk_count": len(self.chunks),
             "chunks": [
                 {
@@ -145,7 +159,8 @@ class EmbeddingIndex:
             for item in payload.get("chunks", [])
             if isinstance(item, dict)
         )
-        return cls(chunks)
+        provider = payload.get("provider")
+        return cls(chunks, provider=provider if isinstance(provider, dict) else None)
 
     @classmethod
     def from_nodes(
@@ -165,3 +180,40 @@ class EmbeddingIndex:
             return None
         payload = json.loads(path.read_text(encoding="utf-8"))
         return cls.from_json(payload)
+
+    def fingerprint(self) -> str:
+        """Return a stable content fingerprint for compatibility diagnostics."""
+        digest = hashlib.sha256()
+        for chunk in self.chunks:
+            digest.update(
+                "\0".join(
+                    (
+                        chunk.chunk_id,
+                        chunk.node_id,
+                        chunk.url,
+                        chunk.title,
+                        chunk.heading,
+                        chunk.text,
+                        chunk.mount,
+                        chunk.edition,
+                    )
+                ).encode("utf-8")
+            )
+            digest.update(b"\n")
+        return digest.hexdigest()
+
+    def with_provider(self, provider: dict[str, Any]) -> EmbeddingIndex:
+        """Return an equivalent index carrying explicit provider provenance."""
+        return EmbeddingIndex(self.chunks, provider=provider)
+
+
+def _local_provider_metadata() -> dict[str, Any]:
+    return {
+        "interface_version": 1,
+        "id": "furatena-local-tfidf",
+        "version": "1",
+        "kind": "local",
+        "model": "tfidf",
+        "deterministic": True,
+        "external": False,
+    }

@@ -20,7 +20,7 @@ from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.deployment_manifest import DeploymentManifest, write_deployment_manifest
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
-from furatena.catalog.embeddings import EmbeddingIndex
+from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.exceptions import ExportError
 from furatena.catalog.export import (
     api_operations_json,
@@ -423,7 +423,7 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             json.dumps(deployment_profiles_manifest(base_url=base), indent=2) + "\n",
             encoding="utf-8",
         )
-        semantic = EmbeddingIndex.from_nodes(
+        semantic = build_embedding_index(
             accessible_nodes(
                 registry,
                 registry.nodes,
