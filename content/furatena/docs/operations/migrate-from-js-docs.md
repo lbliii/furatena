@@ -96,3 +96,69 @@ fura serve --author
 The goal is not one-shot magic. The goal is to make the first conversion mechanical,
 surface the small set of JSX components that still need decisions, and immediately get a
 live docs app with static and agent exports from the same corpus.
+
+## Mixed MDX, MyST, and RST workflow
+
+Do not bulk-rewrite the entire corpus first. Mount the original extensions, produce
+the read-only readiness report, and group findings by construct and owner:
+
+```bash
+fura migrate --report --json
+fura check --content-only --json
+```
+
+Then handle each format deliberately:
+
+1. **MDX:** run `fura migrate PATH --dry-run --keep-mdx --json`, review mapped
+   directive options and `fura.migrate.unmigrated_component` warnings, then rerun
+   without `--dry-run` only for the approved files.
+2. **MyST:** keep registered directive fences and supported ref/doc roles; repair
+   unsupported roles from the compatibility report before changing extensions.
+3. **RST:** preserve supported admonitions and inventory-backed references; assign
+   unresolved roles/directives to a manual mapping or source rewrite.
+4. Rerun the report after each batch. A falling warning count is migration progress;
+   hiding warnings with a renderer-only fallback is not.
+
+Use source control for the rollback boundary. Keep generated `.md` siblings in a
+reviewable commit separate from later navigation or visual changes.
+
+## OpenAPI workflow
+
+Keep OpenAPI as a generated source, not hand-copied prose. Add it to
+`config/autodoc.yaml`:
+
+```yaml
+autodoc:
+  python:
+    enabled: false
+  openapi:
+    enabled: true
+    output_prefix: api/rest
+    display_name: REST API
+    specs:
+      - specs/openapi.yaml
+```
+
+Run:
+
+```bash
+fura check --content-only --warnings-as-errors
+fura api-diff previous-openapi.yaml specs/openapi.yaml --json
+fura freeze
+fura export
+```
+
+The check blocks invalid specs, missing operation metadata, broken examples,
+unresolved schema references, and unsafe try-it contracts. Verify generated
+operations in `/catalog/api-operations.json`, `/tools.json`, search, and the MCP
+`list_api_operations` tool. Keep authenticated live proxy tokens server-only;
+static output must retain mock/static fallbacks and never publish credentials.
+
+## Completion checklist
+
+- No blocking migration or content diagnostics remain.
+- Every unsupported construct has an owner and explicit manual/deferred decision.
+- Internal and cross-mount links resolve after the final file moves.
+- OpenAPI operations have stable ids, summaries, responses, and valid examples.
+- Freeze/export and public agent outputs contain the migrated content once, at the
+  intended visibility.
