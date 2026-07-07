@@ -335,6 +335,8 @@ Command parser contract.
 | `--team` | no | — | — | — | Trusted MCP session team; may be repeated |
 | `--tenant` | no | — | — | — | Tenant id recorded in MCP audit events |
 | `--site` | no | — | — | — | Site id recorded in MCP audit events |
+| `--audit-store` | no | — | — | — | Persist sanitized MCP audit events to this JSONL path |
+| `--audit-retention-days` | no | `90` | — | `int` | Retain MCP audit events for this many days (default 90) |
 | `--privileged-token` | no | — | — | — | Token required by remote MCP clients before sensitive authoring tools can run |
 | `--rate-limit` | no | `120` | — | `int` | Maximum MCP tool calls per minute for this server session |
 | `--timeout` | no | `15.0` | — | `float` | Declared MCP tool timeout in seconds for audit and client policy metadata |

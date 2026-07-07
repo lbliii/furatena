@@ -111,6 +111,7 @@ ci-fast:
 		src/furatena/catalog/query.py \
 		src/furatena/catalog/retrieval_dataset.py \
 		src/furatena/catalog/retrieval_metrics.py \
+		src/furatena/catalog/audit_store.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
@@ -122,6 +123,7 @@ ci-fast:
 		tests/test_release_publishing.py \
 		tests/test_activation_measurement.py \
 		tests/test_adoption_scorecard.py \
+		tests/test_audit_store.py \
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \
