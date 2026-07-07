@@ -202,7 +202,7 @@ def url_path_to_output_file(url_path: str) -> Path:
     path = path.rstrip("/")
     if not path:
         return Path("index.html")
-    if path.endswith((".txt", ".xml", ".json")):
+    if path.endswith((".txt", ".xml", ".json", ".md")):
         return Path(path.lstrip("/"))
     return Path(path.lstrip("/")) / "index.html"
 
@@ -299,6 +299,7 @@ def _default_content_type(url_path: str) -> str:
     return {
         ".html": "text/html",
         ".json": "application/json",
+        ".md": "text/markdown",
         ".txt": "text/plain",
         ".xml": "application/xml",
     }.get(suffix, "application/octet-stream")
@@ -336,7 +337,9 @@ def _prepare_body(
         return _finalize_static_html(body, base_path)
     if "json" in content_type:
         return prefix_root_paths(body, base_path)
-    if "text/plain" in content_type and rel.suffix == ".txt":
+    if (
+        "text/plain" in content_type and rel.suffix == ".txt"
+    ) or "text/markdown" in content_type:
         return prefix_markdown_links(body, base_path)
     return body
 
@@ -542,6 +545,38 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
     return routes
 
 
+def _markdown_routes(docs_app: DocsApp) -> list[str]:
+    """Public extension and adjacent markdown aliases for every content page."""
+    from furatena.catalog.access import AccessPermission, accessible_nodes
+
+    routes: set[str] = set()
+    public_nodes = accessible_nodes(
+        docs_app.catalog,
+        docs_app.catalog.nodes,
+        permission=AccessPermission.EXPORT,
+    )
+    public_urls = {node.url for node in public_nodes}
+
+    def add_aliases(url: str) -> None:
+        base = url.rstrip("/")
+        if not base:
+            routes.add(docs_app.catalog.scoped_url("/index.md"))
+            return
+        routes.add(docs_app.catalog.scoped_url(f"{base}.md"))
+        routes.add(docs_app.catalog.scoped_url(f"{base}/index.md"))
+
+    for node in public_nodes:
+        add_aliases(node.url)
+    i18n = docs_app.config.i18n
+    if i18n.enabled and i18n.fallback_to_default:
+        from furatena.catalog.i18n import collect_i18n_export_routes
+
+        for url in collect_i18n_export_routes(docs_app.catalog, i18n):
+            if url in public_urls:
+                add_aliases(url)
+    return sorted(routes)
+
+
 def _effective_frozen_dir(docs_app: DocsApp, frozen_dir: Path | None) -> Path | None:
     if frozen_dir is None:
         return None
@@ -732,6 +767,66 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                     )
                     written_paths.add(target.relative_to(output_dir))
                     sidecar_count += 1
+
+            for url_path in _markdown_routes(docs_app):
+                if url_path.endswith("/index.md"):
+                    doc_path = f"{url_path[: -len('index.md')].rstrip('/')}/"
+                else:
+                    doc_path = f"{url_path[:-len('.md')].rstrip('/')}/"
+                node = docs_app.catalog.get_path(doc_path)
+                fp = (
+                    _node_source_fingerprint(
+                        node,
+                        renderer_fp=renderer_fp,
+                        frozen_dir=frozen_dir,
+                    )
+                    + "|markdown"
+                    if node is not None
+                    else hashlib.sha256(f"markdown|{url_path}".encode()).hexdigest()[:16]
+                )
+                route_fps[url_path] = fp
+                rel = url_path_to_output_file(url_path)
+                if (
+                    options.incremental
+                    and manifest_fps.get(url_path) == fp
+                    and (output_dir / rel).is_file()
+                ):
+                    skipped_count += 1
+                    written_paths.add(rel)
+                    continue
+                response = await client.get(url_path)
+                if response.status != 200:
+                    raise ExportError(
+                        f"Markdown export failed for {url_path}: HTTP {response.status}",
+                        path=output_dir / rel,
+                        slug=url_path,
+                        operation="export_markdown",
+                    )
+                content_type = _response_header(
+                    response.headers,
+                    "content-type",
+                    "text/markdown; charset=utf-8",
+                )
+                if _maybe_skip_existing(
+                    output_dir,
+                    url_path,
+                    body=response.text,
+                    content_type=content_type,
+                    base_path=base_path,
+                    incremental=options.incremental,
+                ):
+                    skipped_count += 1
+                    written_paths.add(rel)
+                    continue
+                target = _write_response(
+                    output_dir,
+                    url_path,
+                    body=response.text,
+                    content_type=content_type,
+                    base_path=base_path,
+                )
+                written_paths.add(target.relative_to(output_dir))
+                sidecar_count += 1
 
         for frozen_sidecar in ("semantic.json", "structure.json"):
             if _copy_frozen_sidecar(frozen_dir, frozen_sidecar, output_dir, base_path):

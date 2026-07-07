@@ -167,6 +167,7 @@ ci-contract:
 		tests/test_integrator_operations_reference.py \
 		tests/test_chirp_docs_content_lint.py \
 		tests/test_chirp_docs_response_conformance.py \
+		tests/test_route_manifest.py \
 		tests/test_chirp_docs_template_stack.py \
 		tests/test_chirp_docs_view_lint.py \
 		tests/test_csp.py \

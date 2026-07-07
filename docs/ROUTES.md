@@ -20,3 +20,12 @@ author, search, catalog/export, media, and error surfaces. `DocsApp` composes
 those registrars with its dynamic mount and localized routes before app freeze.
 Handlers that require direct source inspection, such as the Open Graph image
 route, are module-level functions.
+
+Dynamic content routes also expose stable machine-readable aliases without
+duplicating registrations in the structural manifest. A page at `/docs/page/`
+is available as markdown at both `/docs/page.md` and `/docs/page/index.md`;
+static export writes the same aliases alongside `index.html`. Behavioral
+contracts cover those aliases and their `text/markdown` response type.
+The dogfood manifest includes the concrete top-level aliases `GET /docs.md`,
+`GET /releases.md`, and `GET /shared.md`; nested content is served through the
+same mount handlers at both extension and adjacent `index.md` forms.

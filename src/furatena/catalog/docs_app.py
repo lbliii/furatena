@@ -355,8 +355,8 @@ class DocsApp:
         )
 
     @staticmethod
-    def _plaintext_node_response(node) -> Response:
-        body = "\n".join(
+    def _node_markdown(node) -> str:
+        return "\n".join(
             part
             for part in (
                 f"# {node.title}",
@@ -367,7 +367,16 @@ class DocsApp:
             )
             if part is not None
         )
+
+    @classmethod
+    def _plaintext_node_response(cls, node) -> Response:
+        body = cls._node_markdown(node)
         return Response(body, content_type="text/plain; charset=utf-8")
+
+    @classmethod
+    def _markdown_node_response(cls, node) -> Response:
+        body = cls._node_markdown(node)
+        return Response(body, content_type="text/markdown; charset=utf-8")
 
     def _resolve_page_from_path(
         self,
@@ -402,6 +411,19 @@ class DocsApp:
             ):
                 raise NotFound("Page not found.")
             return self._plaintext_node_response(match.node)
+        if path.endswith("/index.md") or path.endswith(".md"):
+            if path.endswith("/index.md"):
+                doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
+            else:
+                doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+            match = self._resolve_page_from_path(doc_path, requested_lang=requested_lang)
+            if not self.catalog.can_access_node(
+                match.node,
+                self._output_access_subject(request),
+                permission=AccessPermission.READ,
+            ):
+                raise NotFound("Page not found.")
+            return self._markdown_node_response(match.node)
         match = self._resolve_page_from_path(path, requested_lang=requested_lang)
         subject = (
             self._browser_author_subject()
@@ -429,6 +451,7 @@ class DocsApp:
                     raise NotFound("Home page not found.")
                 return self._render_node(node, request)
 
+            @app.route(f"{tenant_prefix}.md", referenced=True)
             @app.route(f"{tenant_prefix}/{{slug:path}}", referenced=True)
             def tenant_catalog_page(request: Request, slug: str = ""):
                 return self._render_catalog_page(request)
@@ -441,12 +464,25 @@ class DocsApp:
                 raise NotFound("Home page not found.")
             return self._render_node(node, request)
 
+        @app.route("/index.md", referenced=True)
+        def home_markdown(request: Request):
+            self._ensure_catalog()
+            node = self.catalog.get("/")
+            if node is None or not self.catalog.can_access_node(
+                node,
+                self._output_access_subject(request),
+                permission=AccessPermission.READ,
+            ):
+                raise NotFound("Page not found.")
+            return self._markdown_node_response(node)
+
         for mount in self.catalog.mounts:
             prefix = (mount.url_prefix or "").rstrip("/")
             if prefix:
                 mount_id = mount.id
                 mount_prefix = prefix
 
+                @app.route(f"{mount_prefix}.md", referenced=True)
                 @app.route(f"{mount_prefix}/")
                 @app.route(f"{mount_prefix}/{{slug:path}}", referenced=True)
                 def prefixed_mount(request: Request, slug: str = "", _mount_id=mount_id):
@@ -470,6 +506,7 @@ class DocsApp:
                 if section_name in locale_sections:
                     continue
 
+                @app.route(f"/{section_name}.md", referenced=True)
                 @app.route(f"/{section_name}/")
                 @app.route(f"/{section_name}/{{slug:path}}", referenced=True)
                 def default_mount_section(request: Request, slug: str = "", _section=section_name):

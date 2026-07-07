@@ -88,3 +88,27 @@ def test_response_shape_matrix(
         assert marker in response.text
     for marker in forbidden:
         assert marker not in response.text
+
+
+@pytest.mark.parametrize(
+    ("url", "heading"),
+    (
+        ("/index.md", "# Publish polished docs from Markdown"),
+        ("/docs.md", "# Documentation"),
+        ("/docs/get-started/installation.md", "# Installation"),
+        ("/docs/get-started/installation/index.md", "# Installation"),
+    ),
+)
+def test_content_pages_expose_markdown_aliases(
+    docs_client: TestClient,
+    url: str,
+    heading: str,
+) -> None:
+    async def _fetch():
+        return await docs_client.get(url)
+
+    response = asyncio.run(_fetch())
+    assert response.status == 200
+    assert response.content_type.startswith("text/markdown")
+    assert heading in response.text
+    assert "<!DOCTYPE html>" not in response.text

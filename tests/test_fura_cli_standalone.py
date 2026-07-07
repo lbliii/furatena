@@ -1158,6 +1158,8 @@ def test_export_excludes_unlinked_draft_pages(tmp_path: Path, capsys) -> None:
     assert payload["data"]["visibility_scanned_artifacts"] > 0
     assert not (app_root / "public" / "docs" / "secret" / "index.html").exists()
     assert not (app_root / "public" / "docs" / "secret" / "index.txt").exists()
+    assert not (app_root / "public" / "docs" / "secret.md").exists()
+    assert not (app_root / "public" / "docs" / "secret" / "index.md").exists()
     catalog_payload = json.loads((app_root / "public" / "catalog.json").read_text(encoding="utf-8"))
     search_payload = json.loads((app_root / "public" / "search.json").read_text(encoding="utf-8"))
     assert all(not entry["title"].startswith("Canary ") for entry in search_payload["entries"])
