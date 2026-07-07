@@ -114,7 +114,10 @@ class TestDevelopExports:
 
         payload = asyncio.run(_fetch())
         channels = {item["id"]: item for item in payload["channels"]}
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 3
+        assert payload["manifest_type"] == "furatena.deployment"
+        assert payload["target"] == "channels"
+        assert payload["sync"]["sources"] == payload["sources"]
         assert {"live", "static", "agent", "pdf"} <= set(channels)
         assert channels["agent"]["status"] == "available"
         assert channels["pdf"]["status"] == "planned"
