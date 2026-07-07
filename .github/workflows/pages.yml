@@ -89,8 +89,8 @@ jobs:
 
   browser:
     name: Author browser flows
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.0
       - uses: astral-sh/setup-uv@v8.2.0
@@ -103,8 +103,20 @@ jobs:
         run: uv sync --group dev
       - name: Install browser runtime
         run: uv run playwright install --with-deps chromium
-      - name: Browser lane
-        run: make ci-browser
+      - name: Browser smoke lane
+        if: github.event_name == 'pull_request'
+        run: make ci-browser-smoke
+      - name: Browser full lane
+        if: github.event_name != 'pull_request'
+        run: make ci-browser-full
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-results-${{ github.event_name }}-${{ github.sha }}
+          path: browser-results/*.xml
+          if-no-files-found: error
+          retention-days: 14
 
   agent:
     name: Agent and MCP contracts

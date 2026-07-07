@@ -28,10 +28,14 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert 'FURA_TEST_FROZEN_DIR="$$(mktemp -d)/frozen"' in makefile
     assert "scripts/check_core_coverage.py" in makefile
     assert "$(MAKE) pages-build" in makefile
-    assert '$(PYTEST) -m "browser and browser_smoke" $(BROWSER_TESTS)' in makefile
-    assert '$(PYTEST) -m "browser and browser_authoring" $(BROWSER_TESTS)' in makefile
-    assert '$(PYTEST) -m "browser and browser_responsive" $(BROWSER_TESTS)' in makefile
-    assert '$(PYTEST) -m "browser and browser_full" $(BROWSER_TESTS)' in makefile
+    assert '--junitxml=$(BROWSER_RESULTS)/smoke.xml' in makefile
+    assert '-m "browser and browser_smoke" $(BROWSER_TESTS)' in makefile
+    assert '--junitxml=$(BROWSER_RESULTS)/authoring.xml' in makefile
+    assert '-m "browser and browser_authoring" $(BROWSER_TESTS)' in makefile
+    assert '--junitxml=$(BROWSER_RESULTS)/responsive.xml' in makefile
+    assert '-m "browser and browser_responsive" $(BROWSER_TESTS)' in makefile
+    assert '--junitxml=$(BROWSER_RESULTS)/full.xml' in makefile
+    assert '-m "browser and browser_full" $(BROWSER_TESTS)' in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
     assert "uv build" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile
@@ -51,17 +55,22 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     for lane in LANES:
         job = jobs[lane]
         commands = [step.get("run") for step in job["steps"] if "run" in step]
-        assert f"make ci-{lane}" in commands
+        if lane == "browser":
+            assert {"make ci-browser-smoke", "make ci-browser-full"} <= set(commands)
+        else:
+            assert f"make ci-{lane}" in commands
         setup = next(
             step for step in job["steps"] if step.get("uses") == "astral-sh/setup-uv@v8.2.0"
         )
         assert setup["with"]["cache-suffix"] == "${{ github.job }}"
         assert any(step.get("uses") == "actions/checkout@v7.0.0" for step in job["steps"])
 
-    for lane in ("export", "browser", "agent", "release"):
+    for lane in ("export", "agent", "release"):
         assert jobs[lane]["if"] == "github.event_name != 'pull_request'"
     assert "if" not in jobs["fast"]
     assert "if" not in jobs["contract"]
+    assert "if" not in jobs["browser"]
+    assert jobs["browser"]["timeout-minutes"] == 10
     assert set(jobs["deploy"]["needs"]) == set(LANES)
     export_lane = next(
         step for step in jobs["export"]["steps"] if step.get("name") == "Export lane"
@@ -70,5 +79,16 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
 
     export_uses = {step.get("uses") for step in jobs["export"]["steps"]}
     release_uses = {step.get("uses") for step in jobs["release"]["steps"]}
+    browser_uses = {step.get("uses") for step in jobs["browser"]["steps"]}
     assert "actions/upload-pages-artifact@v3" in export_uses
     assert "actions/upload-artifact@v4" in release_uses
+    assert "actions/upload-artifact@v4" in browser_uses
+
+    browser_steps = {step.get("name"): step for step in jobs["browser"]["steps"]}
+    assert browser_steps["Browser smoke lane"]["if"] == "github.event_name == 'pull_request'"
+    assert browser_steps["Browser full lane"]["if"] == "github.event_name != 'pull_request'"
+    diagnostics = browser_steps["Upload browser diagnostics"]
+    assert diagnostics["if"] == "always()"
+    assert diagnostics["with"]["path"] == "browser-results/*.xml"
+    assert diagnostics["with"]["retention-days"] == 14
+    assert all("--reruns" not in str(step.get("run") or "") for step in jobs["browser"]["steps"])

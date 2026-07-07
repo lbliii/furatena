@@ -22,6 +22,7 @@ CORE_COVERAGE_TESTS = \
 	tests/test_chirp_docs_reference_resolution.py \
 	tests/test_chirp_docs_link_and_inventory_contracts.py
 BROWSER_TESTS = tests/test_author_sse_browser.py
+BROWSER_RESULTS ?= browser-results
 
 help:
 	@echo "Furatena"
@@ -138,16 +139,24 @@ ci-browser:
 	$(MAKE) ci-browser-full
 
 ci-browser-smoke:
-	$(PYTEST) -m "browser and browser_smoke" $(BROWSER_TESTS)
+	mkdir -p $(BROWSER_RESULTS)
+	$(PYTEST) --junitxml=$(BROWSER_RESULTS)/smoke.xml \
+		-m "browser and browser_smoke" $(BROWSER_TESTS)
 
 ci-browser-authoring:
-	$(PYTEST) -m "browser and browser_authoring" $(BROWSER_TESTS)
+	mkdir -p $(BROWSER_RESULTS)
+	$(PYTEST) --junitxml=$(BROWSER_RESULTS)/authoring.xml \
+		-m "browser and browser_authoring" $(BROWSER_TESTS)
 
 ci-browser-responsive:
-	$(PYTEST) -m "browser and browser_responsive" $(BROWSER_TESTS)
+	mkdir -p $(BROWSER_RESULTS)
+	$(PYTEST) --junitxml=$(BROWSER_RESULTS)/responsive.xml \
+		-m "browser and browser_responsive" $(BROWSER_TESTS)
 
 ci-browser-full:
-	$(PYTEST) -m "browser and browser_full" $(BROWSER_TESTS)
+	mkdir -p $(BROWSER_RESULTS)
+	$(PYTEST) --junitxml=$(BROWSER_RESULTS)/full.xml \
+		-m "browser and browser_full" $(BROWSER_TESTS)
 
 ci-agent:
 	$(UV_RUN) fura check --agent-only --json

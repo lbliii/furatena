@@ -25,15 +25,18 @@ the final local fallback when a change crosses multiple surfaces.
 
 ## Branch gates and artifacts
 
-Pull requests run the `fast`, `contract`, and `coverage` jobs for early lint,
-unit, hypermedia/diagnostic, and core coverage feedback. Pushes to `main` and
-manual runs add the `export`, `browser`, `agent`, and `release` safety jobs.
+Pull requests run the `fast`, `contract`, `coverage`, and browser-smoke jobs for
+early lint, unit, hypermedia/diagnostic, core coverage, and critical real-browser
+feedback. Pushes to `main` and manual runs replace browser smoke with the full
+browser tier and add the `export`, `agent`, and `release` safety jobs.
 GitHub Pages deploys only after all seven jobs pass.
 
 Each job scopes the uv cache with its GitHub job name, so a cache or install
 failure identifies one owning lane. The export job alone uploads the Pages
 artifact, while the release job uploads a commit-named wheel/sdist artifact;
-the remaining jobs keep their diagnostics in their named job logs.
+the browser job retains JUnit XML for 14 days, and the remaining jobs keep their
+diagnostics in their named job logs. Browser tests have zero automatic retries:
+a flaky failure remains visible and blocks the owning PR or main run.
 
 Every Make lane runs Python with `PYTHON_GIL=0`, matching the workflow's
 free-threaded CPython 3.14t runtime. The export lane clears deployment
@@ -78,7 +81,7 @@ enforces that contract so new browser tests cannot silently bypass tiered runs.
 
 | Tier | Marker | Command | Intended use |
 | --- | --- | --- | --- |
-| Smoke | `browser_smoke` | `make ci-browser-smoke` | Smallest critical search, navigation, and author live-reload paths |
+| Smoke | `browser_smoke` | `make ci-browser-smoke` | PR gate for the smallest critical search, navigation, and author live-reload paths |
 | Authoring | `browser_authoring` | `make ci-browser-authoring` | Preview reload, studio save, and draft creation workflows |
 | Responsive | `browser_responsive` | `make ci-browser-responsive` | Mobile and responsive layout/interaction checks |
 | Full | `browser_full` | `make ci-browser-full` or `make ci-browser` | Complete browser regression set used by main CI |
