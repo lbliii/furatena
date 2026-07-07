@@ -1,6 +1,8 @@
 {% if node is defined and node %}
 <meta id="chirpui-doc-description" name="description" content="{{ node.description or node.title }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
 <link id="chirpui-doc-canonical" rel="canonical" href="{{ canonical_url }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+<link id="fura-llms-index" rel="alternate" type="text/markdown" href="{{ llms_url }}" title="{{ site_name }} documentation index"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
+<link id="fura-page-markdown" rel="alternate" type="text/markdown" href="{{ markdown_url }}" title="{{ node.title }} in Markdown"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
 <meta id="chirpui-doc-og-title" property="og:title" content="{{ node.title }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
 <meta id="chirpui-doc-og-description" property="og:description" content="{{ node.description or node.title }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
 <meta id="chirpui-doc-og-type" property="og:type" content="article"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>

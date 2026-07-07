@@ -409,6 +409,12 @@ class DocsApp:
                 "",
                 node.description,
                 "",
+                (
+                    "> For AI agents: the complete documentation index is available at "
+                    "[llms.txt](/llms.txt). Markdown versions are available at each "
+                    "page's `.md` URL."
+                ),
+                "",
                 node.body_md.strip(),
             )
             if part is not None

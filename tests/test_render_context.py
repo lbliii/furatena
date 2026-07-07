@@ -52,8 +52,11 @@ def test_render_context_service_builds_page_and_shell_from_fixture_catalog(
     assert page["node"] is guide
     assert page["active_view"] == "views/doc.html"
     assert page["canonical_url"].endswith("/guide/")
+    assert page["markdown_url"].endswith("/guide.md")
+    assert page["llms_url"] == "/llms.txt"
     assert page["rendering_head"].id == "live-shell"
     assert page["html_lang"] == "en"
     assert shell["node"] is None
     assert shell["page_count"] == 2
+    assert shell["llms_url"] == "/llms.txt"
     assert shell["html_lang"] == "en"

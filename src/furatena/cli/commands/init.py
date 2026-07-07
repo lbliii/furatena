@@ -391,6 +391,7 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
             {% for href in docs_stylesheets() %}
             <link rel="stylesheet" href="{{ href }}">
             {% end %}
+            {% include "partials/head_meta.html" %}
             {% end %}
 
             {% block content %}

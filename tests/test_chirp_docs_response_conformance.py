@@ -156,3 +156,27 @@ def test_home_page_supports_markdown_content_negotiation(docs_client: TestClient
     assert response.content_type.startswith("text/markdown")
     assert response.header("Vary") == "Accept"
     assert response.text.startswith("# Publish polished docs from Markdown")
+
+
+def test_content_pages_advertise_agent_discovery_resources(docs_client: TestClient) -> None:
+    async def _fetch():
+        return await docs_client.get("/docs/get-started/installation/")
+
+    response = asyncio.run(_fetch())
+    assert response.status == 200
+    assert 'id="fura-llms-index"' in response.text
+    assert 'href="/llms.txt"' in response.text
+    assert 'id="fura-page-markdown"' in response.text
+    assert "/docs/get-started/installation.md" in response.text
+    assert 'id="fura-agent-discovery"' in response.text
+    assert "For AI agents: a complete documentation index" in response.text
+
+
+def test_markdown_pages_include_agent_discovery_directive(docs_client: TestClient) -> None:
+    async def _fetch():
+        return await docs_client.get("/docs/get-started/installation.md")
+
+    response = asyncio.run(_fetch())
+    assert response.status == 200
+    assert response.content_type.startswith("text/markdown")
+    assert "complete documentation index is available at [llms.txt](/llms.txt)" in response.text

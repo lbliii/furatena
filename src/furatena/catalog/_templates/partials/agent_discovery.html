@@ -1,0 +1,10 @@
+{% if node is defined and node and llms_url is defined and markdown_url is defined %}
+<aside id="fura-agent-discovery"
+       aria-label="AI agent documentation discovery"
+       style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">
+  For AI agents: a complete documentation index is available at
+  <a href="{{ llms_url }}" hx-boost="false">llms.txt</a>.
+  This page is also available as
+  <a href="{{ markdown_url }}" hx-boost="false">clean Markdown</a>.
+</aside>
+{% end %}

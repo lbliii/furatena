@@ -27,6 +27,13 @@ from furatena.catalog.seo import (
 from furatena.catalog.versions import channel_context
 
 
+def markdown_page_url(base: str, page_url: str) -> str:
+    """Return the canonical extension alias for a content page."""
+    path = page_url.rstrip("/")
+    alias = f"{path}.md" if path else "/index.md"
+    return build_canonical_url(base, alias)
+
+
 @dataclass(frozen=True, slots=True)
 class RenderContextService:
     """Produce render-ready dictionaries without route registration or app startup."""
@@ -79,6 +86,7 @@ class RenderContextService:
             "site_mark": site.mark,
             "site_home": site.home,
             "site_nav": site.navigation,
+            "llms_url": "/llms.txt",
             "develop_exports": DEVELOP_EXPORTS,
         }
 
@@ -143,6 +151,7 @@ class RenderContextService:
             "page_count": len(self.catalog.doc_nodes(lang=page_lang)),
             "backlinks": self.catalog.backlinks_for(node),
             "canonical_url": page_url,
+            "markdown_url": markdown_page_url(base, active_url),
             "og_image_url": og_image_url(base, node),
             "json_ld": json_ld_script(
                 json_ld_article(node=node, page_url=page_url, site_name=self.config.site.name)

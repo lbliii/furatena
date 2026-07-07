@@ -3,6 +3,7 @@
 
 {% block page_root %}
 <div id="page-root" class="chirpui-page-fill" data-fura-surface="{{ chirp_docs_surface | default('app') }}">
+{% include "partials/agent_discovery.html" %}
 {% if fura_author_mode() and node is defined and node %}
 <div id="fura-author-sse"
      hidden
