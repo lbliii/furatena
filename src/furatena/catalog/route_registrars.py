@@ -580,6 +580,8 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         query = (request.query.get("q") or "").strip()
         mount = (request.query.get("mount") or "").strip() or None
         edition = (request.query.get("edition") or "").strip() or None
+        tag = (request.query.get("tag") or "").strip() or None
+        url_prefix = (request.query.get("url_prefix") or "").strip() or None
         include_private = self._include_private_output(request)
         if not query:
             body = {"schema_version": 1, "query": "", "count": 0, "results": []}
@@ -591,6 +593,8 @@ def register_catalog_routes(docs: Any, app: App) -> None:
                 base_url=base,
                 mount=mount,
                 edition=edition,
+                tag=tag,
+                url_prefix=url_prefix,
                 include_private=include_private,
             )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")

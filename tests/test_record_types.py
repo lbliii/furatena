@@ -97,5 +97,5 @@ def test_catalog_and_search_serialization_match_golden_bytes() -> None:
         "a92e35731157d69a6be08b058b9f3951d8132bd74cfbc73d3a720bc9d9b26591"
     )
     assert hashlib.sha256(search_bytes).hexdigest() == (
-        "98b74ddf7f2f2df10714caf3e6e2c1df841cdb0e72280776daff5c49d903d8ac"
+        "77e8ccbde81eeda5fa9b4d9fbf1792461f4d7c01726c0605d15f436e56fd3d03"
     )

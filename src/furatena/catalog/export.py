@@ -267,6 +267,18 @@ def _provenance_record(
     }
 
 
+def provenance_record(
+    catalog: CatalogExport | DocCatalog,
+    node: Any,
+) -> ProvenanceRecord:
+    """Return the shared provenance shape used by retrieval surfaces."""
+    return _provenance_record(
+        catalog,
+        node,
+        source_kind=node.meta.get("source", "markdown"),
+    )
+
+
 def meta_json(
     catalog: CatalogExport | DocCatalog,
     *,
@@ -625,8 +637,11 @@ def search_json(
             "description": node.description,
             "section": node.section,
             "snippet": body_text[:240],
+            "mount": node.mount,
+            "edition": node.edition,
             "tags": sorted(node.tags),
             "lang": getattr(node, "lang", "en"),
+            "provenance": provenance_record(catalog, node),
         }
         if getattr(node, "translation_key", None):
             entry["translation_key"] = node.translation_key
@@ -686,6 +701,10 @@ def search_json_for_query(
                 "section": hit.node.section,
                 "snippet": hit.snippet,
                 "score": hit.score,
+                "mount": hit.node.mount,
+                "edition": hit.node.edition,
+                "tags": sorted(hit.node.tags),
+                "provenance": provenance_record(catalog, hit.node),
                 **(
                     {"api_operation": api_operation}
                     if (
