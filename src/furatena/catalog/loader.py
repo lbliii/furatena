@@ -1225,6 +1225,10 @@ class DocCatalog:
                     value = provenance.get(source_key)
                     if value not in (None, ""):
                         meta[target_key] = value
+            for key in ("api_operation", "api_try_it"):
+                value = page.get(key)
+                if isinstance(value, dict):
+                    meta[key] = value
             node = DocNode(
                 url=page["url"],
                 slug=slug,

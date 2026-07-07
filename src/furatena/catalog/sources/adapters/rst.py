@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from furatena.catalog.content_ir import content_ir_to_toc, slugify_heading
 from furatena.catalog.models import ContentDirective, ContentHeading, ContentIR, ContentLink
@@ -39,6 +40,16 @@ def _parse_rst_document(source: str):
     return document
 
 
+def _rst_line(node: Any) -> int:
+    current = node
+    while current is not None:
+        line = getattr(current, "line", None)
+        if isinstance(line, int) and line > 0:
+            return line
+        current = getattr(current, "parent", None)
+    return 1
+
+
 def extract_rst_content_ir(source: str) -> ContentIR:
     nodes, _publish_parts, _get_default_settings, _Parser, _new_document = _require_docutils()
     document = _parse_rst_document(source)
@@ -67,7 +78,7 @@ def extract_rst_content_ir(source: str) -> ContentIR:
                 level=min(depth, 6),
                 text=text,
                 anchor=slugify_heading(text),
-                line=getattr(section, "line", None),
+                line=_rst_line(section),
             )
         )
 
@@ -79,7 +90,7 @@ def extract_rst_content_ir(source: str) -> ContentIR:
             ContentLink(
                 href=str(refuri),
                 text=node.astext().strip(),
-                line=getattr(node, "line", None),
+                line=_rst_line(node),
             )
         )
 
@@ -90,7 +101,7 @@ def extract_rst_content_ir(source: str) -> ContentIR:
             ContentDirective(
                 name=str(name),
                 options={"classes": " ".join(classes)},
-                line=getattr(node, "line", None),
+                line=_rst_line(node),
             )
         )
 

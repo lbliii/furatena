@@ -38,9 +38,9 @@
     },
     "buyer_confidence": {
       "owner": "product",
-      "remediation": "Record a selected deployment profile and named approval blockers for each pilot.",
-      "deployment_profile": null,
-      "approval_blockers_named": null
+      "remediation": "Resolve the named approval blockers in docs/platform-pilots-v1.json before beta promotion.",
+      "deployment_profile": "static-pages",
+      "approval_blockers_named": true
     }
   }
 }

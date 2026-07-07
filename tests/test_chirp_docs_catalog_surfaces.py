@@ -501,6 +501,21 @@ autodoc:
         assert ("api_auth", "auth:apiKey", "apiKey") in graph_nodes
         assert ("api_environment", "environment:prod", "prod") in graph_nodes
 
+        frozen = tmp_path / "frozen"
+        (frozen / "pages").mkdir(parents=True)
+        (frozen / "catalog.json").write_text(
+            json.dumps(payload),
+            encoding="utf-8",
+        )
+        cold = DocCatalog.from_frozen(frozen, mount="catalog-mount")
+        cold_operation = cold.get_by_slug(operation.slug)
+        assert cold_operation is not None
+        assert cold_operation.meta["api_operation"] == api_operation
+        assert cold_operation.meta["api_try_it"] == api_try_it
+        cold_api_operations = api_operations_json(cold)
+        assert cold_api_operations["operation_count"] == 1
+        assert cold_api_operations["operations"][0]["operation_id"] == "createUser"
+
         hits = search_nodes(list(nodes), "create user")
         assert hits and hits[0].node.node_id == operation.node_id
         search_payload = search_json(_Catalog(), base_url="https://docs.example.com")

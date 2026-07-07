@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "decision_date": "2026-07-07",
+  "runtime": {
+    "python": "3.14t",
+    "python_gil": "0"
+  },
+  "pilots": [
+    {
+      "id": "public-openapi-devrel",
+      "repository": "https://github.com/github/rest-api-description",
+      "revision": "dd9fab13b1649066e5a84b1683c5dd839aa3c876",
+      "deployment_profile": "static-pages",
+      "source_operation_count": 1194,
+      "operation_group_count": 47,
+      "operations_with_examples": 959,
+      "operations_with_schemas": 858,
+      "content_check_seconds": 7.44,
+      "governance_errors": 9,
+      "governance_error_kind": "summary-only OpenAPI Example Objects",
+      "freeze_seconds": 18.9,
+      "frozen_page_count": 1198,
+      "static_export_seconds": 50.28,
+      "static_page_count": 1212,
+      "static_sidecar_count": 1213,
+      "agent_api_operation_count": 1194,
+      "static_live_request_count": 0,
+      "release_diff": {
+        "from": "2022-11-28",
+        "to": "2026-03-10",
+        "seconds": 14.44,
+        "added": 0,
+        "removed": 0,
+        "changed": 10,
+        "breaking": 4
+      },
+      "approval_blockers": [
+        "Repair or explicitly accept nine invalid summary-only Example Objects before enforcing governance as a release gate."
+      ]
+    },
+    {
+      "id": "public-git-multi-mount",
+      "repositories": [
+        {
+          "repository": "https://github.com/pallets/flask",
+          "revision": "36e4a824f340fdee7ed50937ba8e7f6bc7d17f81",
+          "public_page_count": 76
+        },
+        {
+          "repository": "https://github.com/pallets/werkzeug",
+          "revision": "1b00618e787f40dfb21eba29caf8f8be7c8e1d93",
+          "public_page_count": 38
+        }
+      ],
+      "deployment_profile": "static-pages",
+      "content_check_seconds": 10.9,
+      "content_error_count": 0,
+      "migration_warning_count": 1633,
+      "freeze_index_seconds": 7.001,
+      "freeze_export_seconds": 3.244,
+      "frozen_public_page_count": 117,
+      "static_export_seconds": 16.6,
+      "static_page_count": 131,
+      "static_sidecar_count": 132,
+      "cross_mount_links_verified": 2,
+      "visibility_canary_count": 1,
+      "private_sentinel_leaks": 0,
+      "approval_blockers": [
+        "Assign or map 1,633 Sphinx-specific roles, directives, and extension warnings before source conversion.",
+        "Keep docutils available through the furatena[formats] extra for RST-backed mounts."
+      ]
+    }
+  ],
+  "product_gaps_fixed": [
+    {
+      "id": "frozen-api-operation-metadata",
+      "priority": "p1",
+      "result": "Frozen catalogs now restore api_operation and api_try_it metadata before static and agent export."
+    },
+    {
+      "id": "rst-content-ir-link-lines",
+      "priority": "p1",
+      "result": "RST links, headings, and directives now export positive source locations required by DCP v3."
+    }
+  ],
+  "privacy": {
+    "public_sources_only": true,
+    "source_content_published": false,
+    "local_paths_published": false,
+    "actor_or_host_identity_published": false
+  }
+}
