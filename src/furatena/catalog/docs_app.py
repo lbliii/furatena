@@ -108,6 +108,52 @@ from furatena.cli.authoring import (
 )
 
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
+
+
+def _accept_quality(accept: str, media_type: str) -> tuple[float, int]:
+    """Return the RFC-style quality and specificity for one representation."""
+    target_type, target_subtype = media_type.split("/", 1)
+    best: tuple[int, float] | None = None
+    for item in accept.split(","):
+        media_range, *parameters = (part.strip() for part in item.split(";"))
+        if "/" not in media_range:
+            continue
+        range_type, range_subtype = media_range.lower().split("/", 1)
+        if range_type not in {"*", target_type}:
+            continue
+        if range_subtype not in {"*", target_subtype}:
+            continue
+
+        quality = 1.0
+        for parameter in parameters:
+            name, separator, value = parameter.partition("=")
+            if separator and name.strip().lower() == "q":
+                try:
+                    quality = float(value.strip())
+                except ValueError:
+                    quality = 0.0
+                quality = min(1.0, max(0.0, quality))
+                break
+
+        specificity = int(range_type != "*") + int(range_subtype != "*")
+        candidate = (specificity, quality)
+        if best is None or candidate > best:
+            best = candidate
+
+    if best is None:
+        return 0.0, -1
+    return best[1], best[0]
+
+
+def _prefers_markdown(accept: str | None) -> bool:
+    """Select markdown only when the client explicitly prefers it to HTML."""
+    if not accept:
+        return False
+    markdown_quality, markdown_specificity = _accept_quality(accept, "text/markdown")
+    html_quality, _ = _accept_quality(accept, "text/html")
+    return markdown_specificity == 2 and markdown_quality > 0 and markdown_quality > html_quality
+
+
 _AUTHOR_SSE_EVENT = "author-invalidate"
 _DEPLOYMENT_ENVS = frozenset({"staging", "production"})
 
@@ -378,6 +424,17 @@ class DocsApp:
         body = cls._node_markdown(node)
         return Response(body, content_type="text/markdown; charset=utf-8")
 
+    def _render_negotiated_node(
+        self,
+        node,
+        request: Request,
+        *,
+        locale_match: LocalizedNodeMatch | None = None,
+    ):
+        if _prefers_markdown(request.headers.get("accept")):
+            return self._markdown_node_response(node).with_vary("Accept")
+        return self._render_node(node, request, locale_match=locale_match)
+
     def _resolve_page_from_path(
         self,
         path: str,
@@ -436,7 +493,7 @@ class DocsApp:
             permission=AccessPermission.READ,
         ):
             raise NotFound("Page not found.")
-        return self._render_node(match.node, request, locale_match=match)
+        return self._render_negotiated_node(match.node, request, locale_match=match)
 
     def _register_mount_routes(self, app: App) -> None:
         """Register URL handlers from mount configuration."""
@@ -449,7 +506,7 @@ class DocsApp:
                 node = self.catalog.get("/")
                 if node is None:
                     raise NotFound("Home page not found.")
-                return self._render_node(node, request)
+                return self._render_negotiated_node(node, request)
 
             @app.route(f"{tenant_prefix}.md", referenced=True)
             @app.route(f"{tenant_prefix}/{{slug:path}}", referenced=True)
@@ -462,7 +519,7 @@ class DocsApp:
             node = self.catalog.get("/")
             if node is None:
                 raise NotFound("Home page not found.")
-            return self._render_node(node, request)
+            return self._render_negotiated_node(node, request)
 
         @app.route("/index.md", referenced=True)
         def home_markdown(request: Request):

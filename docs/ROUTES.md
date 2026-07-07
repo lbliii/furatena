@@ -29,3 +29,7 @@ contracts cover those aliases and their `text/markdown` response type.
 The dogfood manifest includes the concrete top-level aliases `GET /docs.md`,
 `GET /releases.md`, and `GET /shared.md`; nested content is served through the
 same mount handlers at both extension and adjacent `index.md` forms.
+Live page GET routes also negotiate the same representation when an explicit
+`Accept: text/markdown` preference outranks `text/html`. Negotiated markdown
+responses include `Vary: Accept`; absent, wildcard-only, or HTML-preferred
+headers continue to receive the normal HTML page.
