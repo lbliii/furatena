@@ -150,9 +150,12 @@ class SearchEntryRecord(TypedDict, total=False):
     description: str
     section: str
     snippet: str
+    mount: str
+    edition: str
     tags: list[str]
     lang: str
     translation_key: str
+    provenance: ProvenanceRecord
     api_operation: dict[str, Any]
     sections: list[SearchSectionRecord]
 

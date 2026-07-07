@@ -9,6 +9,7 @@ from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.chunks import chunk_node
 from furatena.catalog.embedding_providers import EmbeddingSearchIndex
 from furatena.catalog.embeddings import SemanticHit
+from furatena.catalog.export import provenance_record
 from furatena.catalog.search import search_nodes
 
 if TYPE_CHECKING:
@@ -294,6 +295,8 @@ def semantic_search_json(
     limit: int = 12,
     mount: str | None = None,
     edition: str | None = None,
+    tag: str | None = None,
+    url_prefix: str | None = None,
     include_private: bool = False,
 ) -> dict[str, Any]:
     result = hybrid_search(
@@ -303,6 +306,8 @@ def semantic_search_json(
         limit=limit,
         mount=mount,
         edition=edition,
+        tag=tag,
+        url_prefix=url_prefix,
         include_private=include_private,
     )
     hits = result.hits
@@ -311,6 +316,13 @@ def semantic_search_json(
         "query": query,
         "mode": "hybrid",
         "ranking": result.ranking,
+        "filters": {
+            "mount": mount,
+            "edition": edition,
+            "tag": tag,
+            "url_prefix": url_prefix,
+            "include_private": include_private,
+        },
         "count": len(hits),
         "results": [
             {
@@ -324,6 +336,8 @@ def semantic_search_json(
                 "chunk_id": hit.chunk_id,
                 "mount": hit.node.mount,
                 "edition": hit.node.edition,
+                "tags": sorted(hit.node.tags),
+                "provenance": provenance_record(catalog, hit.node),
             }
             for hit in hits
         ],

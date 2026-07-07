@@ -36,7 +36,7 @@ to `dry_run=true` and require both `dry_run=false` and `confirmed=true`.
 
 | Tool | Required input | Input properties | Required output | Contract |
 |---|---|---|---|---|
-| `semantic_search` | `query` | `edition`, `limit`, `mount`, `query` | `query`, `count`, `results` | Hybrid keyword and semantic retrieval; `limit` is 1–50. |
+| `semantic_search` | `query` | `edition`, `limit`, `mount`, `query`, `tag`, `url_prefix` | `query`, `ranking`, `filters`, `count`, `results` | Hybrid keyword and semantic retrieval; `limit` is 1–50 and filters are echoed in the result. |
 | `retrieve_node` | `node_id` | `node_id` | `node_id`, `chunks`, `backlinks`, `api_operation` | Retrieve one accessible catalog node and its context. |
 | `query_graph` | none | `edge`, `edge_kind`, `format`, `from`, `include_private`, `kind`, `lang`, `link_edge`, `linked_from`, `linked_to`, `locale`, `mount`, `owner`, `source`, `tag`, `target`, `team`, `to` | `query`, `page_count`, `edge_count`, `pages`, `edges`, `graph_nodes` | Filter pages and DCP edges; private inclusion is bounded by session policy. |
 | `traverse_graph` | none | `direction`, `limit`, `node_id`, `url` | `node`, `direction`, `results` | Traverse `neighbors`, `backlinks`, `children`, or `outbound`; limit is 1–100. |

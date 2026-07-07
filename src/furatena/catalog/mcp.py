@@ -24,7 +24,7 @@ from furatena.catalog.access import (
 )
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
-from furatena.catalog.export import catalog_graph
+from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
 from furatena.catalog.query import query_catalog_graph
@@ -280,10 +280,16 @@ class FuraMCPServer:
                         "edition": _string_schema(
                             "Optional edition id used to scope search results."
                         ),
+                        "tag": _string_schema("Optional tag used to scope search results."),
+                        "url_prefix": _string_schema(
+                            "Optional URL prefix used to scope search results."
+                        ),
                     },
                     "required": ["query"],
                 },
-                "outputSchema": _object_schema("query", "count", "results"),
+                "outputSchema": _object_schema(
+                    "query", "ranking", "filters", "count", "results"
+                ),
             },
             {
                 "name": "retrieve_node",
@@ -1050,6 +1056,8 @@ class FuraMCPServer:
             limit=limit,
             mount=_optional_str(arguments.get("mount")),
             edition=_optional_str(arguments.get("edition")),
+            tag=_optional_str(arguments.get("tag")),
+            url_prefix=_optional_str(arguments.get("url_prefix")),
             include_private=self.include_private,
         )
         hits = [
@@ -1064,6 +1072,8 @@ class FuraMCPServer:
                 "chunk_id": hit.chunk_id,
                 "mount": hit.node.mount,
                 "edition": hit.node.edition,
+                "tags": sorted(hit.node.tags),
+                "provenance": provenance_record(self.catalog, hit.node),
             }
             for hit in result.hits
         ]
@@ -1072,6 +1082,13 @@ class FuraMCPServer:
             "query": query,
             "mode": "hybrid",
             "ranking": result.ranking,
+            "filters": {
+                "mount": _optional_str(arguments.get("mount")),
+                "edition": _optional_str(arguments.get("edition")),
+                "tag": _optional_str(arguments.get("tag")),
+                "url_prefix": _optional_str(arguments.get("url_prefix")),
+                "include_private": self.include_private,
+            },
             "count": len(hits),
             "results": hits,
         }
@@ -1337,11 +1354,20 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
         limit: int = 12,
         mount: str = "",
         edition: str = "",
+        tag: str = "",
+        url_prefix: str = "",
     ) -> dict:
         return _milo_tool_payload(
             server,
             "semantic_search",
-            {"query": query, "limit": limit, "mount": mount, "edition": edition},
+            {
+                "query": query,
+                "limit": limit,
+                "mount": mount,
+                "edition": edition,
+                "tag": tag,
+                "url_prefix": url_prefix,
+            },
         )
 
     @cli.command(

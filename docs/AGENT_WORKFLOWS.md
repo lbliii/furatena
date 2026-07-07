@@ -103,6 +103,13 @@ ordering when keyword evidence exists and retains TF-IDF-only candidates as
 fallback; `make retrieval-benchmark` compares it with keyword-only, TF-IDF-only,
 and additive-fusion modes against the versioned known-answer corpus.
 
+Browser search, DCP `catalog.json`, search and semantic sidecars, and MCP search
+share stable node IDs, URLs, mount/edition identities, tags, and provenance.
+Ranked semantic JSON and MCP results also expose the selected ranking, scores,
+chunk IDs, and the effective `mount`, `edition`, `tag`, `url_prefix`, and access
+filters. Free-threaded conformance tests keep those identities aligned and
+verify that private and archived pages remain absent from every public surface.
+
 MCP tools return both text content and `structuredContent` payloads:
 
 - `semantic_search` — hybrid keyword and semantic search over pages and chunks.
