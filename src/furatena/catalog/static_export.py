@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 if TYPE_CHECKING:
@@ -61,6 +62,110 @@ class StaticExportLifecycleError(PackagingLifecycleError):
 
     def __init__(self, errors: list[str], warnings: list[str]) -> None:
         super().__init__("static export", errors, warnings)
+
+
+@dataclass(frozen=True, slots=True)
+class _CapturedResponse:
+    status: int
+    headers: tuple[tuple[str, str], ...]
+    text: str
+
+
+class _ExportClient:
+    """Drive the production ASGI app without importing Chirp's test extras."""
+
+    def __init__(self, app: Any) -> None:
+        self.app = app
+
+    async def __aenter__(self) -> _ExportClient:
+        self.app._ensure_frozen()
+        if self.app._db is not None:
+            await self.app._db.connect()
+            from chirp.data.database import _db_var
+
+            _db_var.set(self.app._db)
+            if self.app._migrations_dir is not None:
+                from chirp.data.migrate import migrate
+
+                await migrate(self.app._db, self.app._migrations_dir)
+        for hook in self.app._startup_hooks:
+            result = hook()
+            if inspect.isawaitable(result):
+                await result
+        await self.app(
+            {"type": "pounce.worker.startup", "worker_id": 0},
+            _lifecycle_receive,
+            _lifecycle_send,
+        )
+        self.app._mutable_state.ready = True
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        self.app._mutable_state.ready = False
+        await self.app(
+            {"type": "pounce.worker.shutdown", "worker_id": 0},
+            _lifecycle_receive,
+            _lifecycle_send,
+        )
+        for hook in self.app._shutdown_hooks:
+            result = hook()
+            if inspect.isawaitable(result):
+                await result
+        if self.app._db is not None:
+            await self.app._db.disconnect()
+
+    async def get(self, path: str) -> _CapturedResponse:
+        path_part, separator, query_string = path.partition("?")
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "method": "GET",
+            "path": path_part,
+            "raw_path": path_part.encode("latin-1"),
+            "query_string": query_string.encode("latin-1") if separator else b"",
+            "root_path": "",
+            "headers": [],
+            "server": ("export", 80),
+            "client": ("127.0.0.1", 0),
+        }
+        body_sent = False
+        status = 500
+        headers: list[tuple[bytes, bytes]] = []
+        body: list[bytes] = []
+
+        async def receive() -> dict[str, Any]:
+            nonlocal body_sent
+            if not body_sent:
+                body_sent = True
+                return {"type": "http.request", "body": b"", "more_body": False}
+            return {"type": "http.disconnect"}
+
+        async def send(message: dict[str, Any]) -> None:
+            nonlocal status, headers
+            if message["type"] == "http.response.start":
+                status = int(message["status"])
+                headers = list(message.get("headers", []))
+            elif message["type"] == "http.response.body":
+                body.append(message.get("body", b""))
+
+        await self.app(scope, receive, send)
+        decoded_headers = tuple(
+            (name.decode("latin-1"), value.decode("latin-1")) for name, value in headers
+        )
+        return _CapturedResponse(
+            status=status,
+            headers=decoded_headers,
+            text=b"".join(body).decode("utf-8"),
+        )
+
+
+async def _lifecycle_receive() -> dict[str, Any]:
+    return {"type": "http.disconnect"}
+
+
+async def _lifecycle_send(message: dict[str, Any]) -> None:
+    del message
 
 
 def docs_base_path() -> str:
@@ -440,8 +545,6 @@ def _effective_frozen_dir(docs_app: DocsApp, frozen_dir: Path | None) -> Path | 
 
 
 async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> StaticExportResult:
-    from chirp.testing.client import TestClient
-
     output_dir = options.output_dir.resolve()
     configured_base_path = docs_base_path() if options.base_path is None else options.base_path
     base_path = normalize_base_path(configured_base_path)
@@ -482,7 +585,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
         renderer_fp = renderer_fingerprint(docs_root)
     route_fps: dict[str, str] = {}
     try:
-        client = TestClient(docs_app.create_app())
+        client = _ExportClient(docs_app.create_app())
         async with client:
             for url_path in _collect_routes(docs_app, options):
                 fp = _route_fingerprint(
