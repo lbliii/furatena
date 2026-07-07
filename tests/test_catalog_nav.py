@@ -48,21 +48,34 @@ class TestParseCatalogNav:
 
     def test_string_and_object_entries(self) -> None:
         raw = {
+            "append_unlisted": False,
             "sections": [
                 "get-started",
-                {"id": "concepts", "label": "Core ideas", "icon": "layers", "mark": "C"},
+                {
+                    "id": "publish",
+                    "label": "Publish",
+                    "icon": "rocket",
+                    "mark": "P",
+                    "sections": ["theming"],
+                    "pages": ["operations/deploy"],
+                    "href": "/docs/operations/deploy/",
+                },
             ]
         }
         config = parse_catalog_nav(raw)
         assert config.sections == (
             CatalogSectionConfig(id="get-started"),
             CatalogSectionConfig(
-                id="concepts",
-                label="Core ideas",
-                icon="layers",
-                mark="C",
+                id="publish",
+                label="Publish",
+                icon="rocket",
+                mark="P",
+                sections=("theming",),
+                pages=("operations/deploy",),
+                href="/docs/operations/deploy/",
             ),
         )
+        assert config.append_unlisted is False
 
 
 class TestResolveDocSections:
@@ -148,14 +161,13 @@ class TestFuratenaCatalogRail:
     def test_docs_yaml_declares_furatena_sections(self, docs_config) -> None:
         section_ids = [item.id for item in docs_config.catalog.sections]
         assert section_ids == [
-            "get-started",
-            "concepts",
-            "authoring",
-            "theming",
-            "operations",
-            "reference",
-            "about",
+            "adopt",
+            "author",
+            "publish",
+            "operate",
+            "integrate",
         ]
+        assert docs_config.catalog.append_unlisted is False
 
     def test_default_mount_rail_includes_furatena_sections(self, docs_config) -> None:
         from furatena.catalog.registry import CatalogRegistry
@@ -176,11 +188,34 @@ class TestFuratenaCatalogRail:
             if item["href"].startswith("/docs/")
         ]
         assert titles == [
-            "Get Started",
-            "Concepts",
-            "Authoring",
-            "Theming",
-            "Operations",
-            "Reference",
-            "About",
+            "Adopt",
+            "Author",
+            "Publish",
+            "Operate",
+            "Integrate",
         ]
+
+    def test_journey_rail_preserves_active_states_for_existing_urls(self, docs_config) -> None:
+        from furatena.catalog.registry import CatalogRegistry
+
+        registry = CatalogRegistry.from_config(
+            docs_config.mounts_path,
+            repo_root=REPO,
+            app_root=APP_ROOT,
+            rewrites_path=docs_config.rewrites_path,
+            inventories_path=docs_config.inventories_path,
+            autodoc=False,
+            catalog_nav=docs_config.catalog,
+        )
+        shard = registry._shards[next(m for m in registry.mounts if m.default).id]
+        expected = {
+            "/docs/about/philosophy/": "Adopt",
+            "/docs/authoring/markdown/": "Author",
+            "/docs/operations/deploy/": "Publish",
+            "/docs/operations/check-and-lint/": "Operate",
+            "/docs/concepts/catalog-graph/": "Integrate",
+            "/docs/reference/cli/": "Integrate",
+        }
+        for url, title in expected.items():
+            active = [item["title"] for item in shard.catalog_rail_items(url) if item["active"]]
+            assert active == [title]

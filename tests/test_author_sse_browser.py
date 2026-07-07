@@ -38,8 +38,8 @@ def _wait_for_server(url: str, proc: subprocess.Popen[bytes], *, timeout: float 
             stdout, stderr = proc.communicate(timeout=1)
             raise RuntimeError(
                 "fura serve exited before browser test could connect\n"
-                f"stdout:\n{stdout.decode(errors='replace')}\n"
-                f"stderr:\n{stderr.decode(errors='replace')}"
+                f"stdout:\n{stdout.decode(errors='replace') if stdout else '(not captured)'}\n"
+                f"stderr:\n{stderr.decode(errors='replace') if stderr else '(not captured)'}"
             )
         try:
             with urllib.request.urlopen(url, timeout=1) as response:
@@ -114,6 +114,41 @@ def author_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
             proc.wait(timeout=10)
 
 
+@pytest.fixture()
+def dogfood_server() -> Iterator[str]:
+    port = _free_port()
+    env = os.environ.copy()
+    env["FURA_APP_ROOT"] = str(APP_ROOT)
+    env["PYTHONUNBUFFERED"] = "1"
+    proc = subprocess.Popen(
+        [
+            str(Path(sys.executable).with_name("fura")),
+            "serve",
+            "--author",
+            "--no-autodoc",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+        ],
+        cwd=REPO,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        _wait_for_server(f"{base_url}/docs/get-started/", proc)
+        yield base_url
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=10)
+
+
 def _dirty_page(page_path: Path, body: str) -> None:
     page_path.write_text(f"---\ntitle: Page\n---\n# Page\n\n{body}\n", encoding="utf-8")
     future = time.time() + 5
@@ -142,6 +177,41 @@ async def _submit_studio(page: Page, *, button_name: str) -> None:
     response = await response_info.value
     assert response.ok, f"studio POST returned {response.status}: {await response.text()}"
     await page.locator('[data-author-studio-saved="true"]').wait_for(timeout=20_000)
+
+
+@pytest.mark.browser
+@pytest.mark.browser_smoke
+@pytest.mark.browser_responsive
+@pytest.mark.browser_full
+async def test_dogfood_journey_rail_is_complete_active_and_responsive(
+    browser: Browser,
+    dogfood_server: str,
+) -> None:
+    expected = ["Adopt", "Author", "Publish", "Operate", "Integrate"]
+    for viewport in ({"width": 1280, "height": 900}, {"width": 390, "height": 844}):
+        context = await browser.new_context(
+            viewport=viewport,
+            is_mobile=viewport["width"] < 500,
+        )
+        page = await context.new_page()
+        try:
+            await page.goto(
+                f"{dogfood_server}/docs/operations/consume-agent-outputs/",
+                wait_until="domcontentloaded",
+            )
+            rail = page.locator(
+                ".chirp-theme-doc-catalog-rail__group--sections "
+                ".chirp-theme-doc-catalog-rail__item"
+            )
+            assert await rail.count() == 5
+            assert await rail.evaluate_all(
+                "items => items.map(item => item.getAttribute('aria-label'))"
+            ) == expected
+            assert await rail.filter(has=page.locator("[aria-hidden='true']")).count() == 5
+            assert await rail.filter(has_text="Integrate").get_attribute("aria-current") == "page"
+            assert await page.evaluate("document.documentElement.scrollWidth") <= viewport["width"]
+        finally:
+            await context.close()
 
 
 @pytest.mark.browser

@@ -677,12 +677,16 @@ Paths use dotted docs.yaml notation; `mounts[]` identifies one mounts.yaml entry
 | `site.navigation.develop.links[].label` | yes | `str` | — | `furatena.catalog.config:SiteNavLinkConfig.label` |
 | `site.navigation.develop.links[].blurb` | yes | `str` | — | `furatena.catalog.config:SiteNavLinkConfig.blurb` |
 | `site.navigation.develop.links[].icon` | no | `str` | `file-text` | `furatena.catalog.config:SiteNavLinkConfig.icon` |
-| `catalog` | no | `CatalogNavConfig` | `CatalogNavConfig(sections=())` | `furatena.catalog.config:DocsConfig.catalog` |
+| `catalog` | no | `CatalogNavConfig` | `CatalogNavConfig(sections=(), append_unlisted=True)` | `furatena.catalog.config:DocsConfig.catalog` |
 | `catalog.sections` | no | `tuple[CatalogSectionConfig, ...]` | — | `furatena.catalog.catalog_nav:CatalogNavConfig.sections` |
 | `catalog.sections[].id` | yes | `str` | — | `furatena.catalog.catalog_nav:CatalogSectionConfig.id` |
 | `catalog.sections[].label` | no | `str \| None` | — | `furatena.catalog.catalog_nav:CatalogSectionConfig.label` |
 | `catalog.sections[].icon` | no | `str \| None` | — | `furatena.catalog.catalog_nav:CatalogSectionConfig.icon` |
 | `catalog.sections[].mark` | no | `str \| None` | — | `furatena.catalog.catalog_nav:CatalogSectionConfig.mark` |
+| `catalog.sections[].sections` | no | `tuple[str, ...]` | — | `furatena.catalog.catalog_nav:CatalogSectionConfig.sections` |
+| `catalog.sections[].pages` | no | `tuple[str, ...]` | — | `furatena.catalog.catalog_nav:CatalogSectionConfig.pages` |
+| `catalog.sections[].href` | no | `str \| None` | — | `furatena.catalog.catalog_nav:CatalogSectionConfig.href` |
+| `catalog.append_unlisted` | no | `bool` | true | `furatena.catalog.catalog_nav:CatalogNavConfig.append_unlisted` |
 | `identity` | no | `CatalogIdentityConfig` | `CatalogIdentityConfig(tenant='default', workspace='default', site='default')` | `furatena.catalog.config:DocsConfig.identity` |
 | `identity.tenant` | no | `str` | `default` | `furatena.catalog.config:CatalogIdentityConfig.tenant` |
 | `identity.workspace` | no | `str` | `default` | `furatena.catalog.config:CatalogIdentityConfig.workspace` |

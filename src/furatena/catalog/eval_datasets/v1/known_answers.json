@@ -10,7 +10,7 @@
       "root": ".",
       "mount": "furatena",
       "url_prefix": "",
-      "revision": "sha256:a14589ad77408e5e37d55e16ba7faf2fefe7cf276893ae1a19b337fe935b1a25",
+      "revision": "sha256:80f62908b24d9c982280a8317e1ca89ccf0c36c6d627d0fd71f6f4a1921de3f2",
       "sources": [
         {
           "path": "content/furatena/docs/get-started/installation.md",
@@ -18,7 +18,7 @@
         },
         {
           "path": "content/furatena/docs/get-started/quickstart.md",
-          "sha256": "2575084764ca99e5809c25eee744c0f97b2562139587dc23644cd83664ff060e"
+          "sha256": "4f0d3bf08aa29a1fd66c10517acc1d6e90f6f0b0595fd7007837bcf29001f91c"
         },
         {
           "path": "content/furatena/docs/get-started/first-github-pages-deploy.md",

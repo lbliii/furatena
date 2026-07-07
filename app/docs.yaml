@@ -26,18 +26,44 @@ compose:
   collection:
     data: ../data/collections.yaml
 
-# Outer catalog icon rail — optional explicit section order and metadata.
-# Omit ``sections`` to auto-detect top-level ``docs/<section>/`` folders from content.
+# Outer catalog icon rail. Logical journeys can own whole physical sections and
+# selected pages, so the information architecture can evolve without changing URLs.
 catalog:
+  append_unlisted: false
   sections:
-    - id: get-started
+    - id: adopt
+      label: Adopt
       icon: book-open
-    - concepts
-    - authoring
-    - theming
-    - operations
-    - reference
-    - about
+      sections: [get-started, about]
+    - id: author
+      label: Author
+      icon: pencil
+      sections: [authoring, theming]
+    - id: publish
+      label: Publish
+      icon: rocket
+      pages:
+        - operations
+        - operations/deploy
+        - operations/deployment-profiles
+        - operations/freeze-and-export
+        - operations/migrate-from-js-docs
+    - id: operate
+      label: Operate
+      icon: check-circle
+      href: /docs/operations/serve-and-author/
+      pages:
+        - operations/serve-and-author
+        - operations/check-and-lint
+        - operations/docs-quality
+        - operations/observability-and-recovery
+    - id: integrate
+      label: Integrate
+      icon: code
+      href: /docs/operations/consume-agent-outputs/
+      sections: [concepts, reference]
+      pages:
+        - operations/consume-agent-outputs
 
 site:
   name: Furatena

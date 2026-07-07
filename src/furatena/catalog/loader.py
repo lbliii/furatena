@@ -55,6 +55,17 @@ _MD_LINK_RE = re.compile(r"\]\((/[^)#]+)\)")
 _FULL_AUTHOR_RELOAD_HINTS = ("page-root", "toc-panel", "head-meta", "docs-sidebar")
 
 
+def _catalog_page_slug(slug_prefix: str, page_slug: str) -> str:
+    """Resolve a configured journey page to its catalog slug."""
+    slug = page_slug.strip("/")
+    if not slug.startswith("docs/"):
+        slug = f"docs/{slug}"
+    prefix = slug_prefix.strip("/")
+    if prefix and not slug.startswith(f"{prefix}/"):
+        slug = f"{prefix}/{slug}"
+    return slug
+
+
 def _normalize_url(url: str) -> str:
     if url == "/":
         return url
@@ -880,21 +891,63 @@ class DocCatalog:
 
         items: list[dict[str, Any]] = []
         for section in resolved_sections:
-            section_id = section.id
-            pages = sections.get(section_id, [])
-            if not pages:
+            member_ids = section.section_ids or (section.id,)
+            member_groups: list[dict[str, Any]] = []
+            section_urls: set[str] = set()
+            for member_id in member_ids:
+                pages = sections.get(member_id, [])
+                if not pages:
+                    continue
+                index_slug = section_index_slug(slug_prefix, member_id)
+                index_node = self.get_by_slug(index_slug)
+                member_href = index_node.url if index_node else pages[0].url
+                member_urls = {member_href, *(page.url for page in pages)}
+                section_urls.update(member_urls)
+                member_active = active_url in member_urls or (
+                    active_url is not None
+                    and active_url.startswith(member_href.rstrip("/") + "/")
+                )
+                member_groups.append(
+                    {
+                        "title": index_node.title if index_node else member_id.replace("-", " ").title(),
+                        "href": member_href,
+                        "open": member_active,
+                        "active": member_href == active_url,
+                        "children": self._section_nav_children(
+                            index_slug,
+                            pages,
+                            active_url=active_url,
+                        ),
+                    }
+                )
+
+            page_items: list[dict[str, Any]] = []
+            for page_slug in section.page_slugs:
+                page_node = self.get_by_slug(_catalog_page_slug(slug_prefix, page_slug))
+                if page_node is None:
+                    continue
+                section_urls.add(page_node.url)
+                page_items.append(
+                    {
+                        "title": page_node.title,
+                        "href": page_node.url,
+                        "active": page_node.url == active_url,
+                    }
+                )
+
+            if not member_groups and not page_items:
                 continue
-            index_slug = section_index_slug(slug_prefix, section_id)
-            index_node = self.get_by_slug(index_slug)
-            section_href = index_node.url if index_node else pages[0].url
-            section_urls = {section_href, *(p.url for p in pages)}
+            section_href = (
+                section.href
+                or (member_groups[0]["href"] if member_groups else page_items[0]["href"])
+            )
             section_active = active_url in section_urls or (
                 active_url is not None and active_url.startswith(section_href.rstrip("/") + "/")
             )
-            children = self._section_nav_children(
-                index_slug,
-                pages,
-                active_url=active_url,
+            children = (
+                member_groups[0]["children"]
+                if len(member_groups) == 1 and not page_items and section.id == member_ids[0]
+                else [*member_groups, *page_items]
             )
             items.append(
                 {
@@ -1000,12 +1053,27 @@ class DocCatalog:
             }
         ]
         for section in resolved_sections:
-            pages = sections.get(section.id, [])
-            if not pages:
+            member_ids = section.section_ids or (section.id,)
+            member_hrefs: list[str] = []
+            active_urls: set[str] = set()
+            for member_id in member_ids:
+                pages = sections.get(member_id, [])
+                if not pages:
+                    continue
+                index_slug = section_index_slug(slug_prefix, member_id)
+                index_node = self.get_by_slug(index_slug)
+                member_href = index_node.url if index_node else pages[0].url
+                member_hrefs.append(member_href)
+                active_urls.update({member_href, *(page.url for page in pages)})
+            page_hrefs: list[str] = []
+            for page_slug in section.page_slugs:
+                page_node = self.get_by_slug(_catalog_page_slug(slug_prefix, page_slug))
+                if page_node is not None:
+                    page_hrefs.append(page_node.url)
+                    active_urls.add(page_node.url)
+            if not member_hrefs and not page_hrefs:
                 continue
-            index_slug = section_index_slug(slug_prefix, section.id)
-            index_node = self.get_by_slug(index_slug)
-            href = index_node.url if index_node else pages[0].url
+            href = section.href or (member_hrefs[0] if member_hrefs else page_hrefs[0])
             items.append(
                 {
                     "title": section.label,
@@ -1013,10 +1081,7 @@ class DocCatalog:
                     "mark": section.mark,
                     "icon": section.icon,
                     "active": bool(
-                        active_url == href
-                        or (
-                            active_url is not None and active_url.startswith(href.rstrip("/") + "/")
-                        )
+                        active_url in active_urls
                     ),
                 }
             )

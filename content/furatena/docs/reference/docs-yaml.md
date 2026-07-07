@@ -21,6 +21,7 @@ category: reference
 | `views` | Map view kind → template path |
 | `overrides` | Per-slug view template overrides |
 | `compose` | Multi-node view data sources |
+| `catalog` | Physical sections or task-oriented journeys in the docs rail |
 | `site` | Product branding — name, home hero, navigation |
 | `theme` | Docs-core id, skin pack, tokens, effects |
 | `mounts` | Path to `mounts.yaml` |
@@ -94,6 +95,37 @@ site:
 Omit `site.navigation` to use sensible defaults derived from `site.name`.
 
 Templates receive: `site_name`, `site_tagline`, `site_description`, `site_mark`, `site_home`, `site_nav`.
+
+## Catalog navigation
+
+By default, `catalog.sections` accepts physical `docs/<section>/` ids and appends
+newly discovered sections. A task-oriented rail can instead group whole sections
+and selected pages into stable logical journeys:
+
+```yaml
+catalog:
+  append_unlisted: false
+  sections:
+    - id: adopt
+      label: Adopt
+      icon: book-open
+      sections: [get-started, about]
+    - id: publish
+      label: Publish
+      icon: rocket
+      href: /docs/operations/
+      pages:
+        - operations
+        - operations/deploy
+        - operations/freeze-and-export
+```
+
+`catalog.append_unlisted` controls whether physical sections not claimed by an
+entry are appended after the configured rail. Each `catalog.sections[]` entry has
+an `id`, with optional `label`, `icon`, and `mark`. `catalog.sections[].sections`
+claims complete physical sections; `catalog.sections[].pages` claims individual
+slugs relative to `/docs/`; and `catalog.sections[].href` selects the journey's
+entry URL. These fields only reorganize discovery—page URLs remain unchanged.
 
 ## Theme
 

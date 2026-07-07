@@ -12,12 +12,15 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class CatalogSectionConfig:
-    """One docs lane in the catalog icon rail."""
+    """One physical section or logical journey in the catalog icon rail."""
 
     id: str
     label: str | None = None
     icon: str | None = None
     mark: str | None = None
+    sections: tuple[str, ...] = ()
+    pages: tuple[str, ...] = ()
+    href: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +28,7 @@ class CatalogNavConfig:
     """Optional catalog navigation overrides from ``docs.yaml``."""
 
     sections: tuple[CatalogSectionConfig, ...] = ()
+    append_unlisted: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +40,9 @@ class ResolvedCatalogSection:
     icon: str | None = None
     mark: str | None = None
     sort_weight: float = 0.0
+    section_ids: tuple[str, ...] = ()
+    page_slugs: tuple[str, ...] = ()
+    href: str | None = None
 
 
 # Hints when front matter does not set ``icon`` / explicit config omits them.
@@ -90,15 +97,24 @@ def parse_catalog_nav(raw: object) -> CatalogNavConfig:
         label_raw = item.get("label")
         icon_raw = item.get("icon")
         mark_raw = item.get("mark")
+        sections_raw = item.get("sections")
+        pages_raw = item.get("pages")
+        href_raw = item.get("href")
         sections.append(
             CatalogSectionConfig(
                 id=section_id,
                 label=str(label_raw).strip() if label_raw else None,
                 icon=str(icon_raw).strip() if icon_raw else None,
                 mark=str(mark_raw).strip() if mark_raw else None,
+                sections=_string_tuple(sections_raw),
+                pages=_string_tuple(pages_raw),
+                href=str(href_raw).strip() if href_raw else None,
             )
         )
-    return CatalogNavConfig(sections=tuple(sections))
+    return CatalogNavConfig(
+        sections=tuple(sections),
+        append_unlisted=raw.get("append_unlisted", True) is not False,
+    )
 
 
 def resolve_doc_sections(
@@ -146,31 +162,46 @@ def resolve_doc_sections(
     seen: set[str] = set()
 
     if config_by_id:
-        for section_id in config_by_id:
-            if section_id in discovered:
-                ordered_ids.append(section_id)
-                seen.add(section_id)
+        for item in config_by_id.values():
+            member_ids = item.sections or (item.id,)
+            available_ids = tuple(sid for sid in member_ids if sid in discovered)
+            if not available_ids and not item.pages:
+                continue
+            ordered_ids.append(item.id)
+            seen.update(available_ids)
 
-    remaining = sorted(
-        (section_id for section_id in discovered if section_id not in seen),
-        key=lambda sid: (discovered[sid].sort_weight, discovered[sid].label.lower()),
-    )
-    ordered_ids.extend(remaining)
+    if nav_config is None or nav_config.append_unlisted:
+        remaining = sorted(
+            (section_id for section_id in discovered if section_id not in seen),
+            key=lambda sid: (discovered[sid].sort_weight, discovered[sid].label.lower()),
+        )
+        ordered_ids.extend(remaining)
 
     resolved: list[ResolvedCatalogSection] = []
     for index, section_id in enumerate(ordered_ids, start=1):
-        base = discovered[section_id]
         override = config_by_id.get(section_id)
-        label = override.label if override and override.label else base.label
+        member_ids = (
+            tuple(sid for sid in override.sections if sid in discovered)
+            if override and override.sections
+            else ((section_id,) if section_id in discovered else ())
+        )
+        base = discovered[member_ids[0]] if member_ids else None
+        label = (
+            override.label
+            if override and override.label
+            else base.label
+            if base is not None
+            else section_id.replace("-", " ").title()
+        )
         icon = (
             override.icon
             if override and override.icon
-            else base.icon
+            else base.icon if base is not None else _DEFAULT_SECTION_ICONS.get(section_id)
         )
         mark = (
             override.mark
             if override and override.mark
-            else base.mark or f"{index:02d}"
+            else (base.mark if base is not None else None) or f"{index:02d}"
         )
         resolved.append(
             ResolvedCatalogSection(
@@ -178,7 +209,10 @@ def resolve_doc_sections(
                 label=label,
                 icon=icon,
                 mark=mark,
-                sort_weight=base.sort_weight,
+                sort_weight=base.sort_weight if base is not None else float(index),
+                section_ids=member_ids,
+                page_slugs=override.pages if override else (),
+                href=override.href if override else None,
             )
         )
     return tuple(resolved)
@@ -205,3 +239,13 @@ def _node_icon(node: DocNode | None) -> str | None:
     if icon:
         return str(icon).strip() or None
     return None
+
+
+def _string_tuple(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    return tuple(
+        text
+        for item in value
+        if (text := str(item).strip())
+    )
