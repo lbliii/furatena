@@ -8,7 +8,12 @@ from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.content_ir import content_ir_record
 
 
-def build_structure_index(catalog, *, include_private: bool = False) -> dict[str, Any]:
+def build_structure_index(
+    catalog,
+    *,
+    include_private: bool = False,
+    subject: Any | None = None,
+) -> dict[str, Any]:
     """Build flat directive and heading indexes from Content IR."""
     directives: list[dict[str, Any]] = []
     headings: list[dict[str, Any]] = []
@@ -17,12 +22,11 @@ def build_structure_index(catalog, *, include_private: bool = False) -> dict[str
     nodes = accessible_nodes(
         catalog,
         catalog.nodes,
+        subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
     for node in nodes:
-        if node.meta.get("draft") and not include_private:
-            continue
         content = content_ir_record(node.content_ir)
         if content is None:
             continue

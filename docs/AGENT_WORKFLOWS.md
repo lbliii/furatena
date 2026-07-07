@@ -49,14 +49,14 @@ Agents that support MCP can connect to the local catalog server over stdio:
 
 ```bash
 fura mcp --author
-fura mcp --author --include-private
+fura mcp --author --include-private --role reader --team platform
 fura mcp --preview --frozen-dir app/frozen
 fura mcp --remote --tenant acme --site docs --privileged-token <TOKEN>
 fura mcp --describe --json
 ```
 
 The server exposes catalog nodes, the DCP catalog graph, API/autodoc operations, structure indexes, inventories, source health, channel manifests, validation reports, and stale-impact reports as JSON resources.
-Draft, private, internal, unlisted, and archived pages are hidden by default; `--include-private` is an explicit author-mode opt-in.
+Draft, private, internal, unlisted, and archived pages are hidden by default; `--include-private` is an explicit author-mode opt-in. Protected MCP results are still filtered by the trusted repeatable `--role` and `--team` subject claims; tool arguments cannot replace or elevate those claims.
 The stdio transport is served through Milo's MCP runtime, while Furatena owns the catalog-specific resource and tool definitions.
 Remote MCP sessions should start with `--remote` and stable `--actor`, `--tenant`, and `--site` metadata. Remote sessions deny sensitive authoring tools unless the request includes a valid `privileged_token`; remote `--include-private` only enables private content when a privileged token is configured.
 The `fura://reports/audit` resource records sanitized tool calls with actor, tenant, site, tool name, redacted inputs, result status, duration, and the configured timeout. Authoring entries also include command, target path, previous/resulting state, diagnostics, dry-run state, and confirmation state for reviewable mutation trails. `--rate-limit`, `--timeout`, and `--max-output-chars` define per-session call limits, timeout metadata, and output truncation bounds for local and remote transports.

@@ -117,6 +117,7 @@ ci-fast:
 		src/furatena/catalog/sources/types.py
 	$(PYTEST) \
 		tests/test_catalog_nav.py \
+		tests/test_access_isolation.py \
 		tests/test_benchmark_harness.py \
 		tests/test_chirp_docs_incremental.py \
 		tests/test_docs_core.py \

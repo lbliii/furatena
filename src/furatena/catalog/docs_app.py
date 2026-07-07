@@ -392,8 +392,25 @@ class DocsApp:
         if path.endswith("/index.txt"):
             doc_path = f"{path[: -len('index.txt')].rstrip('/')}/"
             match = self._resolve_page_from_path(doc_path, requested_lang=requested_lang)
+            if not self.catalog.can_access_node(
+                match.node,
+                self._output_access_subject(request),
+                permission=AccessPermission.READ,
+            ):
+                raise NotFound("Page not found.")
             return self._plaintext_node_response(match.node)
         match = self._resolve_page_from_path(path, requested_lang=requested_lang)
+        subject = (
+            self._browser_author_subject()
+            if self._is_author_mode()
+            else AccessSubject.anonymous()
+        )
+        if not self.catalog.can_access_node(
+            match.node,
+            subject,
+            permission=AccessPermission.READ,
+        ):
+            raise NotFound("Page not found.")
         return self._render_node(match.node, request, locale_match=match)
 
     def _register_mount_routes(self, app: App) -> None:
@@ -467,6 +484,11 @@ class DocsApp:
         if request is None:
             return False
         return (request.query.get("include_private") or "").strip().lower() in {"1", "true", "yes"}
+
+    def _output_access_subject(self, request: Request | None = None) -> AccessSubject:
+        if request is not None and self._include_private_output(request):
+            return self._browser_author_subject()
+        return AccessSubject.anonymous()
 
     def _is_author_mode(self) -> bool:
         return self.serve.mode == ServeMode.AUTHOR

@@ -5,7 +5,7 @@ from __future__ import annotations
 from html import escape
 from typing import TYPE_CHECKING
 
-from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.access import AccessPermission, AccessSubject, accessible_nodes
 
 if TYPE_CHECKING:
     from furatena.catalog.loader import DocCatalog
@@ -27,6 +27,7 @@ def sitemap_xml(
     base_url: str = "",
     *,
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> str:
     """Return sitemap XML for indexed pages, with hreflang alternates when i18n is enabled."""
     base = base_url.rstrip("/")
@@ -42,6 +43,7 @@ def sitemap_xml(
         accessible_nodes(
             catalog,
             raw_nodes,
+            subject=subject,
             permission=AccessPermission.EXPORT,
             include_private=include_private,
         ),

@@ -498,7 +498,7 @@ def register_search_routes(docs: Any, app: App) -> None:
         self._ensure_catalog()
         base = self._site_base(request)
         query = (request.query.get("q") or "").strip()
-        include_private = self._include_private_output(request)
+        subject = self._output_access_subject(request)
         if query:
             from furatena.catalog.export import search_json_for_query
 
@@ -506,10 +506,10 @@ def register_search_routes(docs: Any, app: App) -> None:
                 self.catalog,
                 query,
                 base_url=base,
-                include_private=include_private,
+                subject=subject,
             )
         else:
-            body = search_json(self.catalog, base_url=base, include_private=include_private)
+            body = search_json(self.catalog, base_url=base, subject=subject)
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
 
@@ -524,7 +524,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             self.catalog,
             base_url=self._site_base(request),
             site_name=self.config.site.name,
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
@@ -534,7 +534,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = api_operations_json(
             self.catalog,
             base_url=self._site_base(request),
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
@@ -544,7 +544,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = semantic_index_json(
             self.catalog,
             self.embedding_index,
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
@@ -553,7 +553,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         self._ensure_catalog()
         body = build_structure_index(
             self.catalog,
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
@@ -563,7 +563,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = sitemap_xml(
             self.catalog,
             base_url=self._site_base(request),
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(body, content_type="application/xml; charset=utf-8")
 
@@ -582,7 +582,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         edition = (request.query.get("edition") or "").strip() or None
         tag = (request.query.get("tag") or "").strip() or None
         url_prefix = (request.query.get("url_prefix") or "").strip() or None
-        include_private = self._include_private_output(request)
+        subject = self._output_access_subject(request)
         if not query:
             body = {"schema_version": 1, "query": "", "count": 0, "results": []}
         else:
@@ -595,7 +595,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
                 edition=edition,
                 tag=tag,
                 url_prefix=url_prefix,
-                include_private=include_private,
+                subject=subject,
             )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
@@ -613,7 +613,8 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             self.catalog,
             self.embedding_index,
             node_id,
-            include_private=self._include_private_output(request),
+            include_private=False,
+            subject=self._output_access_subject(request),
         )
         if payload is None:
             return Response(
@@ -631,7 +632,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = json.dumps(
             catalog_graph(
                 self.catalog,
-                include_private=self._include_private_output(request),
+                subject=self._output_access_subject(request),
             ),
             indent=2,
         )
@@ -668,7 +669,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             edge_kind=edge_kind,
             source=source,
             target=target,
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(
             json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"
@@ -719,7 +720,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = llms_index_txt(
             self.catalog,
             site_name=self.config.site.name,
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(body, content_type="text/plain; charset=utf-8")
 
@@ -729,7 +730,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = llms_full_txt(
             self.catalog,
             site_name=self.config.site.name,
-            include_private=self._include_private_output(request),
+            subject=self._output_access_subject(request),
         )
         return Response(body, content_type="text/plain; charset=utf-8")
 
@@ -737,7 +738,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     def meta_json_route(request: Request):
         self._ensure_catalog()
         body = json.dumps(
-            meta_json(self.catalog, include_private=self._include_private_output(request)),
+            meta_json(self.catalog, subject=self._output_access_subject(request)),
             indent=2,
         )
         return Response(body, content_type="application/json; charset=utf-8")

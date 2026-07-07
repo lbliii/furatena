@@ -66,6 +66,13 @@ Use `identity_from_trusted_session` only after the framework has verified the
 session signature. It checks the server-owned marker, canonical fingerprint,
 and configured catalog identity again before returning the subject.
 
+The verified subject is reused across direct browser pages, JSON and text
+exports, search and semantic retrieval, DCP graph queries, and MCP resources
+and tools. An author-mode `include_private=1` request enables protected output
+but does not bypass page or mount role/team policy. If the signed identity is
+missing or inconsistent, these surfaces evaluate the request as anonymous and
+omit protected content.
+
 ## Failure behavior
 
 | Error code | Meaning |

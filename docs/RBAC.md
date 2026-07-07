@@ -68,9 +68,10 @@ also evaluated, so a role alone cannot bypass team or admin-only restrictions.
 Dry runs use the same authorization decision as writes.
 
 The browser subject is server-owned and stored in its signed session. MCP roles
-come from `MCPAccessPolicy` (or the server's repeatable `--role` option), not
-tool arguments. Actor and role fields submitted by a browser form or MCP tool
-cannot elevate the request or change the audit identity. Local CLI author
+and teams come from `MCPAccessPolicy` (or the server's repeatable `--role` and
+`--team` options), not tool arguments. Actor, role, team, and tenant fields
+submitted by a browser form or MCP tool cannot elevate the request or change
+the audit identity. Local CLI author
 commands use an explicit local-OS admin subject; remote author serving is
 loopback-only until a trusted identity integration is configured.
 
@@ -157,7 +158,8 @@ Filtered public surfaces include:
 - MCP node resources, node retrieval, graph traversal children, and semantic
   search results
 
-Author/private mode can still build indexes with `include_private=true` so
-authors can inspect and validate protected pages locally. Public static output,
-GitHub Pages builds, and unauthenticated MCP/browser surfaces do not use that
-escape hatch.
+Author/private mode can build subject-filtered indexes with
+`include_private=true` so authorized authors can inspect and validate protected
+pages locally. The flag enables protected output; it does not bypass role,
+team, or mount policy on browser and MCP surfaces. Public static output, GitHub
+Pages builds, and unauthenticated MCP/browser surfaces remain anonymous.

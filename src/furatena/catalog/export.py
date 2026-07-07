@@ -6,7 +6,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.access import (
+    AccessPermission,
+    AccessRole,
+    AccessSubject,
+    accessible_nodes,
+)
 from furatena.catalog.content_ir import content_ir_record
 from furatena.catalog.graph_schema import graph_node_records
 from furatena.catalog.patitas_bridge import excerpt_text, llm_text, plain_text, section_texts
@@ -43,12 +48,14 @@ def catalog_graph(
     *,
     schema_version: int = 3,
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> CatalogGraphRecord:
     """JSON-serializable view of the documentation graph."""
     pages: list[PageRecord] = []
     nodes = accessible_nodes(
         catalog,
         catalog.nodes,
+        subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
@@ -283,12 +290,14 @@ def meta_json(
     catalog: CatalogExport | DocCatalog,
     *,
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> dict[str, Any]:
     """Compact per-page metadata index for agents and static export."""
     pages: list[dict[str, Any]] = []
     nodes = accessible_nodes(
         catalog,
         catalog.nodes,
+        subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
@@ -440,11 +449,13 @@ def api_operations_json(
     *,
     base_url: str = "",
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> dict[str, Any]:
     """Agent/SDK-friendly API operation inventory."""
     nodes = accessible_nodes(
         catalog,
         catalog.nodes,
+        subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
@@ -467,12 +478,14 @@ def llms_txt(
     *,
     site_name: str = "Furatena",
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> str:
     """Compact LLM-safe page index with API operation hints."""
     lines = [f"# {site_name} Documentation", ""]
     nodes = accessible_nodes(
         catalog,
         catalog.doc_nodes(),
+        subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
@@ -524,6 +537,7 @@ def llms_full_txt(
     *,
     site_name: str = "Furatena",
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> str:
     """Full LLM-safe corpus for agents (Patitas ``render_llm`` when AST is available)."""
     lines = [f"# {site_name} Documentation (full corpus)", ""]
@@ -535,6 +549,7 @@ def llms_full_txt(
     nodes = accessible_nodes(
         catalog,
         catalog.doc_nodes(),
+        subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
@@ -560,6 +575,7 @@ def search_json(
     *,
     base_url: str = "",
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> SearchIndexRecord:
     """Machine-readable search index for tools and agents."""
     entries: list[SearchEntryRecord] = []
@@ -571,6 +587,7 @@ def search_json(
     nodes = accessible_nodes(
         catalog,
         nodes,
+        subject=subject,
         permission=AccessPermission.SEARCH,
         include_private=include_private,
     )
@@ -673,12 +690,14 @@ def search_json_for_query(
     base_url: str = "",
     limit: int = 12,
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> dict[str, Any]:
     """Ranked search results in the same schema as ``search_json`` entries."""
     hits = search_nodes(
         accessible_nodes(
             catalog,
             catalog.doc_nodes(),
+            subject=subject,
             permission=AccessPermission.SEARCH,
             include_private=include_private,
         ),
@@ -729,6 +748,7 @@ def tools_manifest(
     base_url: str = "",
     site_name: str = "Furatena",
     include_private: bool = False,
+    subject: AccessSubject | None = None,
 ) -> dict[str, Any]:
     """Stable MCP-style tool schema over the documentation catalog."""
     origin = base_url.rstrip("/")
@@ -736,6 +756,7 @@ def tools_manifest(
     nodes = accessible_nodes(
         catalog,
         catalog.nodes,
+        subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
@@ -744,6 +765,10 @@ def tools_manifest(
         for node in nodes
         if (operation := _api_agent_operation(catalog, node, base_url=base_url)) is not None
     ]
+    trusted_subject = bool(
+        subject is not None
+        and subject.roles != frozenset({AccessRole.ANONYMOUS})
+    )
     payload: dict[str, Any] = {
         "schema_version": 1,
         "name": f"{tool_slug}-docs",
@@ -765,8 +790,8 @@ def tools_manifest(
         ),
         "page_count": len(nodes),
         "access": {
-            "visibility": "trusted" if include_private else "public",
-            "include_private": include_private,
+            "visibility": "trusted" if include_private or trusted_subject else "public",
+            "include_private": include_private or trusted_subject,
         },
         "api_operation_count": len(api_operations),
         "api_operation_groups": _api_agent_operation_groups(api_operations),
