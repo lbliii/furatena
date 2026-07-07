@@ -20,6 +20,7 @@ Lookup tables for the **`fura`** CLI and YAML configuration.
 |------|--------|
 | [[docs/reference/cli|CLI reference]] | Subcommands and flags |
 | [[docs/reference/generated-cli-config|Generated CLI and configuration reference]] | Every parser option, field, default, and environment control |
+| [[docs/reference/integrator-operations|Integrator and operations reference]] | MCP, sidecars, diagnostics, access, deployment, and source health |
 | [[docs/reference/docs-yaml|docs.yaml]] | App, theme, site, views |
 | [[docs/reference/mounts-yaml|mounts.yaml]] | Content mounts and federation |
 | [[docs/reference/public-surface-inventory|Public surface inventory]] | Machine-readable documentation coverage |

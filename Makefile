@@ -110,6 +110,7 @@ ci-contract:
 		--output content/furatena/docs/reference/generated-cli-config.md --check
 	$(PYTEST) \
 		tests/test_author_authorization.py \
+		tests/test_integrator_operations_reference.py \
 		tests/test_chirp_docs_content_lint.py \
 		tests/test_chirp_docs_response_conformance.py \
 		tests/test_chirp_docs_template_stack.py \
