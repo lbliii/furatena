@@ -288,6 +288,14 @@ failure. Operators should alert on `source.status`, group sync failures by
 `source.stage`, alert separately on `index.status`, and group index failures by
 `index.stage`.
 
+Git mounts additionally expose `source.sync_state` and `source.repair_actions`.
+The durable state lives under `.docs-cache/source-sync-state/` (identity-scoped
+for tenant/workspace/site catalogs) and has a bounded `history` of `attempt`,
+`error`, `retry`, `quarantine`, and `reconciled` transitions. Current state
+includes attempt identity/time, consecutive failures, sanitized last error,
+exponential-backoff `retry.next_at`, quarantine reason/time, and the resolved
+ref/path/URL of `last_known_good`.
+
 | Observed state | Meaning | Required response |
 |---|---|---|
 | `healthy` | Source sync succeeded (or filesystem source is available) and a shard loaded. | No action. Monitor resolved ref and page count. |
@@ -296,6 +304,8 @@ failure. Operators should alert on `source.status`, group sync failures by
 | Filesystem root missing or unreadable | `exists=false`, failed/empty index, or scan/read exception. | Correct `content_root` and permissions, then rerun `fura check` or restart author mode. |
 | Git executable missing | Sync error says `git executable is required for git-backed mounts`. | Install git in the runtime image and retry. |
 | Git clone/fetch/checkout/rev-parse failed | `source.status=failed`, `source.stage=sync`, with the sanitized command failure. | Verify repository URL, credentials/network, requested ref, and checkout permissions. |
+| Retry backoff active | `source.status=retry_wait`; `sync_state.state=retry` and `retry.next_at` is in the future. | Keep serving `last_known_good`; repair the cause and retry at/after the named time. |
+| Mount quarantined | `source.status=quarantined`; the configured consecutive-failure threshold was reached. | Repair source access/configuration, explicitly clear quarantine, retry, and require `reconciled` before promotion. |
 | Git subpath absent | Sync error says the configured source path does not exist. | Correct `source.path`/`sparse_path` or publish that directory at the selected ref. |
 | Parse/front matter/adapter failure | `index.status=failed` at the recorded stage. | Fix the cited source or install the required format adapter, then reindex. |
 | Frozen shard incompatible/corrupt | Index stage is `frozen_load`; live fallback may produce `degraded`, otherwise `unavailable`. | Rebuild `app/frozen` with the current release and redeploy atomically. |
@@ -303,3 +313,12 @@ failure. Operators should alert on `source.status`, group sync failures by
 Do not infer health from HTTP 200 alone: require top-level `ok=true` and every
 required mount to be `healthy`. A degraded cached shard is intentionally visible
 for diagnosis but is not proof that current source was indexed.
+
+Git synchronization builds and validates a staged repository snapshot before an
+atomic directory swap. Clone, fetch, checkout, ref resolution, and configured
+subpath failures therefore leave the active last-known-good snapshot untouched.
+During retry or quarantine the registry points the mount at that recorded
+snapshot and reports degraded health; it never presents partial staged output as
+current. After repair, `SourceSyncStateStore.clear_quarantine(mount)` makes a
+retry eligible, and only a successful sync writes the `reconciled` state and a
+new last-known-good record.

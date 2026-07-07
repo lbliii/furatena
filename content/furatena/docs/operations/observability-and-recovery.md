@@ -130,6 +130,9 @@ read transactionally, and regenerated artifacts match the intended source ref.
 5. For source failure, restore credentials/network access and resync. For index
    failure, rebuild the live shard or restore a verified frozen shard. For stale
    freeze/export, run `fura freeze` then `fura export --fresh`.
+   If `source.sync_state.state` is `retry`, wait until `retry.next_at`; if it is
+   `quarantine`, repair the root cause and explicitly clear quarantine before
+   retrying. Continue serving `last_known_good` until state becomes `reconciled`.
 6. If audit persistence is unavailable, preserve fail-closed controls and restore
    the store. If shared rate limiting is unavailable, keep the default deny
    fallback until atomic counters recover; do not switch to memory fallback on a
