@@ -6,9 +6,10 @@
   "dataset_version": "1.1.0",
   "measured_on": "2026-07-07",
   "runtime": "CPython 3.14t, PYTHON_GIL=0",
+  "platforms": ["darwin-arm64", "linux-x86_64"],
   "overall": {
     "recall_at_3_min": 0.714286,
-    "mrr_min": 0.678571,
+    "mrr_min": 0.671429,
     "no_result_rate_min": 0.0,
     "stale_answer_failures_max": 0,
     "private_leaks_max": 0
@@ -16,7 +17,7 @@
   "corpora": {
     "furatena-dogfood": {
       "recall_at_3_min": 0.666667,
-      "mrr_min": 0.625,
+      "mrr_min": 0.616667,
       "no_result_rate_min": 0.0,
       "stale_answer_failures_max": 0,
       "private_leaks_max": 0
@@ -49,7 +50,7 @@
     },
     "navigational": {
       "recall_at_3_min": 0.0,
-      "mrr_min": 0.125,
+      "mrr_min": 0.1,
       "stale_answer_failures_max": 0,
       "private_leaks_max": 0
     },
