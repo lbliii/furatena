@@ -23,6 +23,7 @@ at parse time — headings, links, and directives become Content IR on each `Doc
 | [[docs/authoring/directives|Directives]] | Cards, tabs, admonitions, code blocks |
 | [[docs/authoring/navigation|Navigation]] | Weight, sections, sidebar scoping |
 | [[docs/authoring/collections|Collections]] | Multi-node pillar pages |
+| [[docs/authoring/lifecycle-workflow|Review and publish an author change]] | Studio, validation, lifecycle, public-output inspection |
 
 ## Quick example
 
