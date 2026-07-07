@@ -73,6 +73,8 @@ where = ["src"]
   "py.typed",
   "schemas/*.json",
   "fixtures/dcp/*.json",
+  "eval_datasets/**/*.json",
+  "eval_datasets/**/*.md",
   "_templates/**/*.html",
   "vendor/*.js",
 ]

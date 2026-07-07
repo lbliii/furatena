@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from furatena.catalog.lifecycle import is_public_node
+from furatena.catalog.retrieval_dataset import load_known_answer_dataset
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +80,7 @@ def run_agent_evaluations(
     active_client = private_client if include_private else public_client
 
     cases = _build_cases(docs_app.catalog)
+    known_answers = load_known_answer_dataset()
     results: list[AgentEvalResult] = []
     for case in cases:
         if selected and case.category not in selected and case.id not in selected:
@@ -120,6 +122,13 @@ def run_agent_evaluations(
         "fail_count": fail_count,
         "skip_count": skip_count,
         "include_private": include_private,
+        "known_answer_dataset": {
+            "id": known_answers.dataset_id,
+            "version": known_answers.version,
+            "case_count": len(known_answers.cases),
+            "corpora": [corpus.id for corpus in known_answers.corpora],
+            "query_classes": sorted({case.query_class for case in known_answers.cases}),
+        },
         "categories": sorted({result.category for result in results}),
         "results": [result.to_dict() for result in results],
     }
