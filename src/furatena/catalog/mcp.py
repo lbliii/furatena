@@ -8,8 +8,11 @@ import time
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, unquote
+
+if TYPE_CHECKING:
+    from milo.commands import CLI
 
 from furatena.catalog.access import (
     AccessPermission,
@@ -1303,7 +1306,7 @@ class FuraMCPServer:
         return {"jsonrpc": "2.0", "id": request_id, "error": error}
 
 
-def build_milo_cli(server: FuraMCPServer):
+def build_milo_cli(server: FuraMCPServer) -> CLI:
     """Build a Milo CLI exposing this catalog as MCP tools/resources."""
     from milo.commands import CLI
 

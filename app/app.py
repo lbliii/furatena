@@ -40,6 +40,8 @@ def _require_deps() -> None:
 
 _require_deps()
 
+from chirp.app import App
+
 from furatena.catalog.dev_banner import format_serve_startup
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.registry import load_mounts
@@ -83,7 +85,7 @@ catalog = _docs.catalog
 embedding_index = _docs.embedding_index
 
 
-def create_app():
+def create_app() -> App:
     """Factory for tests and ``fura serve``."""
     return app
 
