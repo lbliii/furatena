@@ -36,6 +36,8 @@ class TestStaticExportHelpers:
         assert url_path_to_output_file("/docs/foo/") == Path("docs/foo/index.html")
         assert url_path_to_output_file("/search.json") == Path("search.json")
         assert url_path_to_output_file("/docs/foo/index.txt") == Path("docs/foo/index.txt")
+        assert url_path_to_output_file("/docs/foo.md") == Path("docs/foo.md")
+        assert url_path_to_output_file("/docs/foo/index.md") == Path("docs/foo/index.md")
 
     def test_normalize_base_path(self) -> None:
         assert normalize_base_path("") == ""
@@ -79,7 +81,7 @@ class TestMiniStaticExport:
         docs_dir = content / "docs"
         docs_dir.mkdir(parents=True)
         (docs_dir / "hello.md").write_text(
-            "---\ntitle: Hello\n---\n# Hello\n\nBody.\n",
+            "---\ntitle: Hello\n---\n# Hello\n\nBody. [Self](/docs/hello/)\n",
             encoding="utf-8",
         )
         (content / "_index.md").write_text(
@@ -140,6 +142,8 @@ class TestMiniStaticExport:
                 "tags": [],
                 "source_path": node.source_path,
                 "source": "markdown",
+                "body_md": node.body_md,
+                "body_source": node.body_md,
                 "doc_version": None,
                 "mount": node.mount,
                 "edition": node.edition,
@@ -195,6 +199,10 @@ class TestMiniStaticExport:
         assert result.page_count >= 2
         assert (out / "index.html").is_file()
         assert (out / "docs/hello/index.html").is_file()
+        assert (out / "docs/hello.md").is_file()
+        assert (out / "docs/hello/index.md").is_file()
+        assert "# Hello" in (out / "docs/hello.md").read_text(encoding="utf-8")
+        assert "Body." in (out / "docs/hello/index.md").read_text(encoding="utf-8")
         assert (out / "catalog.json").is_file()
         assert (out / "channels.json").is_file()
         assert (out / "deployment-profiles.json").is_file()
@@ -244,8 +252,10 @@ class TestMiniStaticExport:
             ),
         )
         page_html = (pages_out / "docs/hello/index.html").read_text(encoding="utf-8")
+        page_markdown = (pages_out / "docs/hello/index.md").read_text(encoding="utf-8")
         assert "https://example.github.io/chirp/docs/hello/index.txt" in page_html
         assert "https://example.github.io/chirp/chirp/" not in page_html
+        assert "[Self](/chirp/docs/hello/)" in page_markdown
         pages_channels = json.loads((pages_out / "channels.json").read_text(encoding="utf-8"))
         assert pages_channels["base_url"] == "https://example.github.io/chirp"
         assert "https://example.github.io/chirp/chirp/" not in json.dumps(pages_channels)

@@ -106,6 +106,8 @@ def _response_contract(path: str, handler: str) -> str:
         return "xml"
     if suffix == ".txt":
         return "text"
+    if suffix == ".md":
+        return "markdown"
     if suffix == ".inv":
         return "binary"
     return "html-document"
@@ -120,7 +122,10 @@ def _route_mount(path: str, handler: str, catalog: Any | None) -> str:
     if handler == "prefixed_mount":
         for mount in getattr(catalog, "mounts", ()):
             prefix = str(getattr(mount, "url_prefix", "")).rstrip("/")
-            if prefix and (path == f"{prefix}/" or path.startswith(f"{prefix}/")):
+            if prefix and (
+                path in {f"{prefix}/", f"{prefix}.md"}
+                or path.startswith(f"{prefix}/")
+            ):
                 return str(mount.id)
         return "mounted"
     return "application"

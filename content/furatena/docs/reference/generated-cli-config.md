@@ -751,7 +751,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:124` |
 | `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:239` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1238`, `furatena/cli/commands/serve.py:41` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1275`, `furatena/cli/commands/serve.py:41` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:186`, `furatena/catalog/static_export.py:268`, `furatena/catalog/static_export.py:274`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:190`, `furatena/catalog/static_export.py:267`, `furatena/catalog/static_export.py:272`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:43` |
