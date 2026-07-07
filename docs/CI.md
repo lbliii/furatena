@@ -23,6 +23,10 @@ The lanes are intentionally independent so CI jobs can run in parallel and
 retain a clear failure owner. `make test` remains the full pytest suite and is
 the final local fallback when a change crosses multiple surfaces.
 
+The contract lane also runs `fura docs-reference --check`. Parser, default,
+configuration, or environment drift fails until the generated CLI/configuration
+reference is refreshed and reviewed with the implementation change.
+
 ## Branch gates and artifacts
 
 Pull requests run the `fast`, `contract`, `coverage`, `release`, and

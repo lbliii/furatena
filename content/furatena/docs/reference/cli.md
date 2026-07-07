@@ -69,6 +69,11 @@ diagnostic, and deployment-profile coverage from implementation metadata. It
 links stable identifiers to existing docs and emits explicit missing/stale lists.
 An existing output file is used as the default prior baseline for stale detection.
 
+`fura docs-reference --output PATH` generates the exhaustive parser/configuration
+reference. Add `--check` in CI to fail with `fura.docs_reference.drift` when the
+committed page differs from active commands, options, defaults, config fields, or
+environment controls.
+
 ## Migrate
 
 ```bash
