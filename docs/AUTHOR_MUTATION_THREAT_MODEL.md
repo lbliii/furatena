@@ -170,6 +170,8 @@ safe to overwrite or publish.
 - `..`, symlink, ambiguous mount, and out-of-root targets fail.
 - Dry-run leaves source and catalog indexes unchanged.
 - Audit records use trusted actor identity and redact secrets.
+- Gateway and SSO claims follow the fail-closed mapping and signed-session
+  boundary in [Trusted gateway and SSO identity](TRUSTED_GATEWAY_IDENTITY.md).
 - Private canary content is absent from every public output.
 - Recovery guidance covers Git restore, reindex, freeze, and export refresh.
 

@@ -122,6 +122,7 @@ ci-fast:
 		tests/test_docs_core.py \
 		tests/test_domain_errors.py \
 		tests/test_embedding_providers.py \
+		tests/test_gateway_identity.py \
 		tests/test_record_types.py \
 		tests/test_retrieval_dataset.py \
 		tests/test_retrieval_benchmarks.py \
