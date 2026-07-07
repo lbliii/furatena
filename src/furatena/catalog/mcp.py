@@ -740,6 +740,7 @@ class FuraMCPServer:
             title=_optional_str(arguments.get("title")),
             dry_run=_bool_arg(arguments.get("dry_run"), default=True),
             confirmed=_bool_arg(arguments.get("confirmed"), default=False),
+            store=self.docs_app.author_store,
         )
         self._reindex_author_result(result)
         payload = self._author_payload(result, "author_create_draft", arguments)
@@ -754,6 +755,7 @@ class FuraMCPServer:
             mounts=self._author_mounts(),
             subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
+            store=self.docs_app.author_store,
         )
         payload = self._author_payload(result, "author_read_source", arguments)
         payload["source"] = source if result.ok else None
@@ -782,6 +784,7 @@ class FuraMCPServer:
             confirmed=False
             if force_dry_run
             else _bool_arg(arguments.get("confirmed"), default=False),
+            store=self.docs_app.author_store,
         )
         self._reindex_author_result(result)
         payload = self._author_payload(result, command, arguments)
@@ -803,6 +806,7 @@ class FuraMCPServer:
             mount_id=_optional_str(arguments.get("mount")),
             dry_run=_bool_arg(arguments.get("dry_run"), default=True),
             confirmed=_bool_arg(arguments.get("confirmed"), default=False),
+            store=self.docs_app.author_store,
         )
         self._reindex_author_result(result)
         payload = self._author_payload(result, command, arguments)
@@ -822,6 +826,7 @@ class FuraMCPServer:
                 mount_id=_optional_str(arguments.get("mount")),
                 validation_errors=_validation_messages(report, "errors"),
                 validation_warnings=_validation_messages(report, "warnings"),
+                store=self.docs_app.author_store,
             )
             payload = self._author_payload(result, "author_validate", arguments)
             _attach_author_validation_fields(payload, result)
@@ -838,6 +843,7 @@ class FuraMCPServer:
             mounts=self._author_mounts(),
             subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
+            store=self.docs_app.author_store,
         )
         status_payload = self._author_payload(
             status, "author_inspect_publication_impact", arguments
@@ -852,6 +858,7 @@ class FuraMCPServer:
             mount_id=_optional_str(arguments.get("mount")),
             validation_errors=_validation_messages(report, "errors"),
             validation_warnings=_validation_messages(report, "warnings"),
+            store=self.docs_app.author_store,
         )
         validation = self._author_payload(
             validation_result,

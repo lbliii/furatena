@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import difflib
-import hashlib
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -16,6 +15,14 @@ from furatena.catalog.access import (
     AccessPolicy,
     AccessSubject,
     evaluate_author_access,
+)
+from furatena.catalog.author_store import (
+    DEFAULT_AUTHOR_MUTATION_STORE,
+    AuthorMutationStore,
+    AuthorSourceConflict,
+    AuthorSourceNotFound,
+    AuthorSourceSnapshot,
+    source_revision,
 )
 from furatena.catalog.lifecycle import is_public_meta, visibility_state
 from furatena.catalog.sources.parse import parse_source_text
@@ -97,11 +104,18 @@ def author_status(
     mounts: tuple[Any, ...],
     subject: AccessSubject,
     mount_id: str | None = None,
+    store: AuthorMutationStore | None = None,
 ) -> AuthorOperationResult:
-    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id)
+    backend = _author_store(store)
+    resolved = _resolve_existing_target(
+        target, mounts=mounts, mount_id=mount_id, store=backend
+    )
     if isinstance(resolved, AuthorOperationResult):
         return resolved
-    source = resolved.path.read_text(encoding="utf-8")
+    snapshot = _read_snapshot("status", resolved, backend)
+    if isinstance(snapshot, AuthorOperationResult):
+        return snapshot
+    source = snapshot.source
     meta, _body = parse_source_text(source, content_format=resolved.source_format)
     denied = _authorize_existing("status", resolved, mounts=mounts, meta=meta, subject=subject)
     if denied is not None:
@@ -114,7 +128,7 @@ def author_status(
         mount=resolved.mount_id,
         previous_visibility=visibility_state(meta),
         resulting_visibility=visibility_state(meta),
-        source_revision=_source_revision(source),
+        source_revision=snapshot.revision,
         next_actions=(
             "Run fura author draft|publish|unpublish|archive to change lifecycle state.",
         ),
@@ -129,13 +143,22 @@ def author_validate(
     mount_id: str | None = None,
     validation_errors: tuple[str, ...] = (),
     validation_warnings: tuple[str, ...] = (),
+    store: AuthorMutationStore | None = None,
 ) -> AuthorOperationResult:
     operation = "validate"
-    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation=operation)
+    backend = _author_store(store)
+    resolved = _resolve_existing_target(
+        target, mounts=mounts, mount_id=mount_id, operation=operation, store=backend
+    )
     if isinstance(resolved, AuthorOperationResult):
         return resolved
 
-    current_meta, _current_body = _read_source(resolved)
+    snapshot = _read_snapshot(operation, resolved, backend)
+    if isinstance(snapshot, AuthorOperationResult):
+        return snapshot
+    current_meta, _current_body = parse_source_text(
+        snapshot.source, content_format=resolved.source_format
+    )
     denied = _authorize_existing(
         operation,
         resolved,
@@ -146,7 +169,7 @@ def author_validate(
     if denied is not None:
         return denied
 
-    source = resolved.path.read_text(encoding="utf-8")
+    source = snapshot.source
     meta, _body = _validate_source_text(
         source,
         content_format=resolved.source_format,
@@ -174,7 +197,7 @@ def author_validate(
         previous_visibility=visibility,
         resulting_visibility=visibility,
         diagnostics=diagnostics,
-        source_revision=_source_revision(source),
+        source_revision=snapshot.revision,
         next_actions=(
             ("Fix the reported validation errors and rerun fura author validate.",)
             if not ok
@@ -189,11 +212,18 @@ def author_read_source(
     mounts: tuple[Any, ...],
     subject: AccessSubject,
     mount_id: str | None = None,
+    store: AuthorMutationStore | None = None,
 ) -> tuple[AuthorOperationResult, str | None]:
-    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation="read")
+    backend = _author_store(store)
+    resolved = _resolve_existing_target(
+        target, mounts=mounts, mount_id=mount_id, operation="read", store=backend
+    )
     if isinstance(resolved, AuthorOperationResult):
         return resolved, None
-    source = resolved.path.read_text(encoding="utf-8")
+    snapshot = _read_snapshot("read", resolved, backend)
+    if isinstance(snapshot, AuthorOperationResult):
+        return snapshot, None
+    source = snapshot.source
     meta, _body = parse_source_text(source, content_format=resolved.source_format)
     denied = _authorize_existing("read", resolved, mounts=mounts, meta=meta, subject=subject)
     if denied is not None:
@@ -206,7 +236,7 @@ def author_read_source(
         mount=resolved.mount_id,
         previous_visibility=visibility_state(meta),
         resulting_visibility=visibility_state(meta),
-        source_revision=_source_revision(source),
+        source_revision=snapshot.revision,
         next_actions=("Use author_propose_edit before applying a source edit.",),
     )
     return result, source
@@ -221,8 +251,10 @@ def author_new(
     title: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
+    store: AuthorMutationStore | None = None,
 ) -> AuthorOperationResult:
     operation = "new"
+    backend = _author_store(store)
     selected = _select_mount(mounts, mount_id=mount_id)
     if isinstance(selected, AuthorOperationResult):
         return selected
@@ -245,7 +277,7 @@ def author_new(
             mount=selected.id,
             next_action="Use a slug below the selected mount content root.",
         )
-    if target.exists():
+    if backend.exists(target):
         return _failed(
             operation,
             "target already exists",
@@ -269,8 +301,22 @@ def author_new(
     diff = _diff("", new_body, fromfile="/dev/null", tofile=str(target))
     changed = () if dry_run else (target,)
     if not dry_run and confirmed:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(new_body, encoding="utf-8")
+        try:
+            snapshot = backend.create(target, new_body)
+        except AuthorSourceConflict as exc:
+            return _store_conflict(
+                operation,
+                ResolvedAuthorTarget(
+                    path=target,
+                    mount_id=selected.id,
+                    content_root=selected.content_root,
+                    source_format=selected.source.content_format_for(target),
+                ),
+                exc,
+                previous_visibility=None,
+            )
+    else:
+        snapshot = AuthorSourceSnapshot(target, new_body, source_revision(new_body))
 
     return AuthorOperationResult(
         operation_id=_operation_id(operation),
@@ -288,7 +334,7 @@ def author_new(
             "Preview locally with fura serve --author.",
             "Run fura author publish when the page is ready for public output.",
         ),
-        source_revision=_source_revision(new_body),
+        source_revision=snapshot.revision,
     )
 
 
@@ -303,12 +349,19 @@ def author_apply_edit(
     mount_id: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
+    store: AuthorMutationStore | None = None,
 ) -> AuthorOperationResult:
     operation = "apply_edit"
-    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation=operation)
+    backend = _author_store(store)
+    resolved = _resolve_existing_target(
+        target, mounts=mounts, mount_id=mount_id, operation=operation, store=backend
+    )
     if isinstance(resolved, AuthorOperationResult):
         return resolved
-    meta, _body = _read_source(resolved)
+    snapshot = _read_snapshot(operation, resolved, backend)
+    if isinstance(snapshot, AuthorOperationResult):
+        return snapshot
+    meta, _body = parse_source_text(snapshot.source, content_format=resolved.source_format)
     denied = _authorize_existing(
         operation,
         resolved,
@@ -318,11 +371,12 @@ def author_apply_edit(
     )
     if denied is not None:
         return denied
-    old_source = resolved.path.read_text(encoding="utf-8")
+    old_source = snapshot.source
     if not dry_run and confirmed:
         conflict = _revision_precondition(
             operation,
             resolved,
+            snapshot,
             expected_revision=expected_revision,
             previous_visibility=visibility_state(meta),
         )
@@ -357,7 +411,7 @@ def author_apply_edit(
             confirmed=confirmed,
             diff="",
             next_actions=("No source changes were needed.",),
-            source_revision=_source_revision(old_source),
+            source_revision=snapshot.revision,
             expected_revision=expected_revision,
         )
     if old_source.count(old_text) != 1:
@@ -373,15 +427,23 @@ def author_apply_edit(
     if not dry_run and not confirmed:
         return _confirmation_required(operation, target_path=resolved.path, mount=resolved.mount_id)
     if not dry_run and confirmed:
-        conflict = _revision_precondition(
-            operation,
-            resolved,
-            expected_revision=expected_revision,
-            previous_visibility=visibility_state(meta),
-        )
-        if conflict is not None:
-            return conflict
-        resolved.path.write_text(new_source, encoding="utf-8")
+        try:
+            resulting_snapshot = backend.replace(
+                resolved.path,
+                new_source,
+                expected_revision=expected_revision,
+            )
+        except AuthorSourceNotFound:
+            return _store_not_found(operation, resolved)
+        except AuthorSourceConflict as exc:
+            return _store_conflict(
+                operation,
+                resolved,
+                exc,
+                previous_visibility=visibility_state(meta),
+            )
+    else:
+        resulting_snapshot = snapshot
     return AuthorOperationResult(
         operation_id=_operation_id(operation),
         operation=operation,
@@ -398,7 +460,7 @@ def author_apply_edit(
             "Run fura author status on the edited target.",
             "Run fura check --content-only --json before publishing.",
         ),
-        source_revision=_source_revision(new_source if not dry_run else old_source),
+        source_revision=resulting_snapshot.revision,
         expected_revision=expected_revision,
     )
 
@@ -413,13 +475,20 @@ def author_save_source(
     mount_id: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
+    store: AuthorMutationStore | None = None,
 ) -> AuthorOperationResult:
     operation = "save_source"
-    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation=operation)
+    backend = _author_store(store)
+    resolved = _resolve_existing_target(
+        target, mounts=mounts, mount_id=mount_id, operation=operation, store=backend
+    )
     if isinstance(resolved, AuthorOperationResult):
         return resolved
-    old_source = resolved.path.read_text(encoding="utf-8")
-    old_meta, _old_body = _read_source(resolved)
+    snapshot = _read_snapshot(operation, resolved, backend)
+    if isinstance(snapshot, AuthorOperationResult):
+        return snapshot
+    old_source = snapshot.source
+    old_meta, _old_body = parse_source_text(old_source, content_format=resolved.source_format)
     denied = _authorize_existing(
         operation,
         resolved,
@@ -433,6 +502,7 @@ def author_save_source(
         conflict = _revision_precondition(
             operation,
             resolved,
+            snapshot,
             expected_revision=expected_revision,
             previous_visibility=visibility_state(old_meta),
         )
@@ -460,22 +530,30 @@ def author_save_source(
             confirmed=confirmed,
             diff="",
             next_actions=("No source changes were needed.",),
-            source_revision=_source_revision(old_source),
+            source_revision=snapshot.revision,
             expected_revision=expected_revision,
         )
     diff = _diff(old_source, source_text, fromfile=str(resolved.path), tofile=str(resolved.path))
     if not dry_run and not confirmed:
         return _confirmation_required(operation, target_path=resolved.path, mount=resolved.mount_id)
     if not dry_run:
-        conflict = _revision_precondition(
-            operation,
-            resolved,
-            expected_revision=expected_revision,
-            previous_visibility=visibility_state(old_meta),
-        )
-        if conflict is not None:
-            return conflict
-        resolved.path.write_text(source_text, encoding="utf-8")
+        try:
+            resulting_snapshot = backend.replace(
+                resolved.path,
+                source_text,
+                expected_revision=expected_revision,
+            )
+        except AuthorSourceNotFound:
+            return _store_not_found(operation, resolved)
+        except AuthorSourceConflict as exc:
+            return _store_conflict(
+                operation,
+                resolved,
+                exc,
+                previous_visibility=visibility_state(old_meta),
+            )
+    else:
+        resulting_snapshot = snapshot
     return AuthorOperationResult(
         operation_id=_operation_id(operation),
         operation=operation,
@@ -492,7 +570,7 @@ def author_save_source(
             "Preview locally with fura serve --author.",
             "Run fura check --content-only --json before publishing.",
         ),
-        source_revision=_source_revision(source_text if not dry_run else old_source),
+        source_revision=resulting_snapshot.revision,
         expected_revision=expected_revision,
     )
 
@@ -507,11 +585,18 @@ def author_transition(
     mount_id: str | None = None,
     dry_run: bool = False,
     confirmed: bool = False,
+    store: AuthorMutationStore | None = None,
 ) -> AuthorOperationResult:
-    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, operation=operation)
+    backend = _author_store(store)
+    resolved = _resolve_existing_target(
+        target, mounts=mounts, mount_id=mount_id, operation=operation, store=backend
+    )
     if isinstance(resolved, AuthorOperationResult):
         return resolved
-    meta, body = _read_source(resolved)
+    snapshot = _read_snapshot(operation, resolved, backend)
+    if isinstance(snapshot, AuthorOperationResult):
+        return snapshot
+    meta, body = parse_source_text(snapshot.source, content_format=resolved.source_format)
     denied = _authorize_existing(
         operation,
         resolved,
@@ -552,7 +637,7 @@ def author_transition(
         return _failed(operation, f"unknown author operation: {operation}")
 
     new_meta["updated_at"] = _now_iso()
-    old_source = resolved.path.read_text(encoding="utf-8")
+    old_source = snapshot.source
     new_source = _compose_source(new_meta, body)
     changed = old_source != new_source
     diff = _diff(old_source, new_source, fromfile=str(resolved.path), tofile=str(resolved.path))
@@ -567,6 +652,7 @@ def author_transition(
             conflict = _revision_precondition(
                 operation,
                 resolved,
+                snapshot,
                 expected_revision=expected_revision,
                 previous_visibility=previous_visibility,
             )
@@ -585,21 +671,29 @@ def author_transition(
             diff="",
             next_actions=("No source changes were needed.",),
             publication_impact=publication_impact,
-            source_revision=_source_revision(old_source),
+            source_revision=snapshot.revision,
             expected_revision=expected_revision,
         )
     if not dry_run and not confirmed:
         return _confirmation_required(operation, target_path=resolved.path, mount=resolved.mount_id)
     if not dry_run:
-        conflict = _revision_precondition(
-            operation,
-            resolved,
-            expected_revision=expected_revision,
-            previous_visibility=previous_visibility,
-        )
-        if conflict is not None:
-            return conflict
-        resolved.path.write_text(new_source, encoding="utf-8")
+        try:
+            resulting_snapshot = backend.replace(
+                resolved.path,
+                new_source,
+                expected_revision=expected_revision,
+            )
+        except AuthorSourceNotFound:
+            return _store_not_found(operation, resolved)
+        except AuthorSourceConflict as exc:
+            return _store_conflict(
+                operation,
+                resolved,
+                exc,
+                previous_visibility=previous_visibility,
+            )
+    else:
+        resulting_snapshot = snapshot
 
     return AuthorOperationResult(
         operation_id=_operation_id(operation),
@@ -615,7 +709,7 @@ def author_transition(
         diff=diff,
         next_actions=_next_actions_for(operation),
         publication_impact=publication_impact,
-        source_revision=_source_revision(new_source if not dry_run else old_source),
+        source_revision=resulting_snapshot.revision,
         expected_revision=expected_revision,
     )
 
@@ -626,6 +720,7 @@ def _resolve_existing_target(
     mounts: tuple[Any, ...],
     mount_id: str | None = None,
     operation: str = "status",
+    store: AuthorMutationStore,
 ) -> ResolvedAuthorTarget | AuthorOperationResult:
     explicit_path = Path(target).expanduser()
     candidates: list[ResolvedAuthorTarget] = []
@@ -637,7 +732,7 @@ def _resolve_existing_target(
             next_action="Run fura query --json or inspect mounts.yaml for available mount ids.",
         )
 
-    if explicit_path.is_absolute() or explicit_path.exists() or explicit_path.suffix:
+    if explicit_path.is_absolute() or store.exists(explicit_path) or explicit_path.suffix:
         path = explicit_path.resolve()
         for mount in selected_mounts:
             if _is_relative_to(path, mount.content_root):
@@ -653,7 +748,7 @@ def _resolve_existing_target(
         slug = _normalize_slug(target)
         for mount in selected_mounts:
             for candidate in _candidate_paths(mount.content_root, slug):
-                if candidate.is_file():
+                if store.exists(candidate):
                     candidates.append(
                         ResolvedAuthorTarget(
                             path=candidate,
@@ -677,7 +772,7 @@ def _resolve_existing_target(
             next_action="Pass --mount or an explicit source path.",
         )
     resolved = next(iter(unique.values()))
-    if not resolved.path.is_file():
+    if not store.exists(resolved.path):
         return _failed(
             operation,
             f"author target is not a file: {resolved.path}",
@@ -717,24 +812,15 @@ def _candidate_paths(content_root: Path, slug: str) -> list[Path]:
     ]
 
 
-def _read_source(target: ResolvedAuthorTarget) -> tuple[dict[str, Any], str]:
-    source = target.path.read_text(encoding="utf-8")
-    return parse_source_text(source, content_format=target.source_format)
-
-
-def _source_revision(source: str) -> str:
-    return f"sha256:{hashlib.sha256(source.encode('utf-8')).hexdigest()}"
-
-
 def _revision_precondition(
     operation: str,
     target: ResolvedAuthorTarget,
+    snapshot: AuthorSourceSnapshot,
     *,
     expected_revision: str | None,
     previous_visibility: str | None,
 ) -> AuthorOperationResult | None:
-    current_source = target.path.read_text(encoding="utf-8")
-    current_revision = _source_revision(current_source)
+    current_revision = snapshot.revision
     if expected_revision and expected_revision == current_revision:
         return None
     message = (
@@ -752,6 +838,60 @@ def _revision_precondition(
         source_revision=current_revision,
         expected_revision=expected_revision,
         current_revision=current_revision,
+        next_action="Reread the current source, merge the changes, and retry with its revision.",
+    )
+
+
+def _author_store(store: AuthorMutationStore | None) -> AuthorMutationStore:
+    return store or DEFAULT_AUTHOR_MUTATION_STORE
+
+
+def _read_snapshot(
+    operation: str,
+    target: ResolvedAuthorTarget,
+    store: AuthorMutationStore,
+) -> AuthorSourceSnapshot | AuthorOperationResult:
+    try:
+        return store.read(target.path)
+    except AuthorSourceNotFound:
+        return _store_not_found(operation, target)
+
+
+def _store_not_found(
+    operation: str,
+    target: ResolvedAuthorTarget,
+) -> AuthorOperationResult:
+    return _failed(
+        operation,
+        f"author target not found: {target.path}",
+        target_path=target.path,
+        mount=target.mount_id,
+        next_action="Reread the catalog and select an existing author target.",
+    )
+
+
+def _store_conflict(
+    operation: str,
+    target: ResolvedAuthorTarget,
+    conflict: AuthorSourceConflict,
+    *,
+    previous_visibility: str | None,
+) -> AuthorOperationResult:
+    message = (
+        "source revision is required before replacing existing source"
+        if not conflict.expected_revision
+        else "source changed after it was read; refusing to overwrite a newer revision"
+    )
+    return _failed(
+        operation,
+        message,
+        target_path=target.path,
+        mount=target.mount_id,
+        previous_visibility=previous_visibility,
+        rule_id="fura.author.conflict",
+        source_revision=conflict.current_revision,
+        expected_revision=conflict.expected_revision,
+        current_revision=conflict.current_revision,
         next_action="Reread the current source, merge the changes, and retry with its revision.",
     )
 
