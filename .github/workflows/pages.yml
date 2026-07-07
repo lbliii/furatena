@@ -137,7 +137,6 @@ jobs:
 
   release:
     name: Package and CLI smoke
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0

@@ -37,7 +37,8 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert '--junitxml=$(BROWSER_RESULTS)/full.xml' in makefile
     assert '-m "browser and browser_full" $(BROWSER_TESTS)' in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
-    assert "uv build" in makefile
+    assert "uv build --clear --no-sources" in makefile
+    assert "scripts/check_distributions.py --dist-dir dist" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile
     assert "FURA_BASE_URL=https://lbliii.github.io/furatena" in makefile
     assert "FURA_BASE_PATH=/furatena" in makefile
@@ -65,11 +66,12 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
         assert setup["with"]["cache-suffix"] == "${{ github.job }}"
         assert any(step.get("uses") == "actions/checkout@v7.0.0" for step in job["steps"])
 
-    for lane in ("export", "agent", "release"):
+    for lane in ("export", "agent"):
         assert jobs[lane]["if"] == "github.event_name != 'pull_request'"
     assert "if" not in jobs["fast"]
     assert "if" not in jobs["contract"]
     assert "if" not in jobs["browser"]
+    assert "if" not in jobs["release"]
     assert jobs["browser"]["timeout-minutes"] == 10
     assert set(jobs["deploy"]["needs"]) == set(LANES)
     export_lane = next(
