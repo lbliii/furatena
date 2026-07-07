@@ -256,6 +256,11 @@ mounts:
 | `GET /catalog/operational-status.json` | Combined process health, serving readiness, freshness, and artifact-age contract |
 | `GET /healthz` / `GET /readyz` | Distinct liveness (always 200 when responsive) and safe-to-serve readiness (200/503) probes |
 
+Operational observations can emit the same contracts as structured JSON events.
+`FURA_STRUCTURED_LOGS=1` enables logs; `FURA_TELEMETRY=opentelemetry`
+optionally projects them to OpenTelemetry spans and counters without changing
+event identity or requiring a telemetry vendor in the base runtime.
+
 `/catalog/query.json` and `/graph/query.json` accept these filters:
 
 | Query parameter | Description |

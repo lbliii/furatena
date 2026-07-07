@@ -176,6 +176,24 @@ or `fura export --fresh`. Author mode does not require deployment artifacts for
 readiness. Preview and hybrid modes require a valid non-stale freeze because it
 is part of their safe serving path.
 
+### Structured events and optional telemetry
+
+Set `FURA_STRUCTURED_LOGS=1` to emit JSON event envelopes. Set
+`FURA_TELEMETRY=opentelemetry` to project the same events into OpenTelemetry
+spans and the `furatena.operational.events` counter; the OpenTelemetry API and
+your chosen SDK/exporter remain optional deployment dependencies. The default is
+`FURA_TELEMETRY=none`.
+
+Every event has `schema_version`, stable `event_name`, unique `event_id`,
+`correlation_id`, UTC `timestamp`, `severity`, `status`, and redacted
+`attributes`. Stable names are `furatena.service.health`,
+`furatena.service.readiness`, `furatena.content.freshness`,
+`furatena.artifact.status`, `furatena.source.sync`, `furatena.index.status`,
+`furatena.freeze.completed`, `furatena.export.completed`, and
+`furatena.incident.recovery`. The full rollout, rollback, backup, restore, and
+incident procedure is in
+[[docs/operations/observability-and-recovery|Observability and incident recovery]].
+
 ## Diagnostics
 
 Diagnostics use `severity`, `message`, optional `source_path`/`line`, stable

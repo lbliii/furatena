@@ -752,7 +752,7 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     )
     assert payload["data"]["known_answer_dataset"] == {
         "id": "furatena-known-answers",
-        "version": "1.1.5",
+        "version": "1.1.6",
         "case_count": 8,
         "corpora": ["furatena-dogfood", "access-boundary-fixture"],
         "query_classes": [
@@ -2617,6 +2617,8 @@ def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -
     assert payload["command"] == "mcp"
     assert payload["data"]["transport"] == "milo-stdio"
     assert payload["data"]["policy"]["transport"] == "local"
+    assert payload["data"]["policy"]["rate_limit_burst"] == 20
+    assert payload["data"]["policy"]["sensitive_rate_limit_per_minute"] == 30
     assert payload["data"]["audit"] == {
         "schema_version": 1,
         "backend": "jsonl",

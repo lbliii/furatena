@@ -114,6 +114,7 @@ ci-fast:
 		src/furatena/catalog/audit_store.py \
 		src/furatena/catalog/rate_limit.py \
 		src/furatena/catalog/operational_status.py \
+		src/furatena/catalog/observability.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
@@ -128,6 +129,7 @@ ci-fast:
 		tests/test_audit_store.py \
 		tests/test_rate_limit.py \
 		tests/test_operational_status.py \
+		tests/test_observability.py \
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \

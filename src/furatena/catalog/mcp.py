@@ -98,8 +98,8 @@ class MCPAccessPolicy:
     privileged_tokens: frozenset[str] = field(default_factory=frozenset)
     rate_limit_per_minute: int = 120
     tenant_rate_limit_per_minute: int = 600
-    rate_limit_burst: int = 20
-    sensitive_rate_limit_per_minute: int = 30
+    rate_limit_burst: int = 120
+    sensitive_rate_limit_per_minute: int = 120
     timeout_seconds: float = 15.0
     max_output_chars: int = 200_000
 
