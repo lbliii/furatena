@@ -72,7 +72,7 @@ def operational_status(docs: Any, *, now: float | None = None) -> dict[str, Any]
     }
     freshness = _freshness(source_health, freeze, export, observed_at)
     readiness = _readiness(docs, source_health, freeze, observed_at)
-    return {
+    report = {
         "schema_version": 1,
         "kind": "operational_status",
         "observed_at": _iso(observed_at),
@@ -82,6 +82,10 @@ def operational_status(docs: Any, *, now: float | None = None) -> dict[str, Any]
         "freshness": freshness,
         "artifacts": artifacts,
     }
+    from furatena.catalog.observability import emit_operational_status
+
+    emit_operational_status(docs.observability, report)
+    return report
 
 
 def _readiness(

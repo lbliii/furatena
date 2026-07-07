@@ -82,6 +82,7 @@ from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.incremental import is_partial_reload
 from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
+from furatena.catalog.observability import OperationalEventEmitter
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.render_context import RenderContextService
 from furatena.catalog.retrieval_feedback import RetrievalFeedbackCollector
@@ -173,6 +174,7 @@ class DocsApp:
         author_subject: AccessSubject | None = None,
         author_store: AuthorMutationStore | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
+        observability: OperationalEventEmitter | None = None,
     ) -> None:
         self.config = config
         self.locale_service = LocaleResolutionService(config.i18n)
@@ -185,6 +187,7 @@ class DocsApp:
         )
         self.author_store = author_store or FilesystemAuthorMutationStore()
         self.retrieval_feedback = retrieval_feedback or RetrievalFeedbackCollector.disabled()
+        self.observability = observability or OperationalEventEmitter.from_environment()
         frozen = self.serve.frozen_dir or frozen_dir
         self.theme = DocsTheme.from_docs_config(
             config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None
@@ -1228,6 +1231,7 @@ class DocsApp:
         author_subject: AccessSubject | None = None,
         author_store: AuthorMutationStore | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
+        observability: OperationalEventEmitter | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
         if autodoc is None:
@@ -1244,6 +1248,7 @@ class DocsApp:
             author_subject=author_subject,
             author_store=author_store,
             retrieval_feedback=retrieval_feedback,
+            observability=observability,
         )
 
     def create_app(self) -> App:
