@@ -12,6 +12,9 @@ category: operations
 Deploy Furatena as a live Chirp app or as a static export. Set public URLs and channels
 before freeze/export so SEO metadata is correct.
 
+For a first project-site deployment with a complete GitHub Actions workflow and
+recovery steps, follow [[docs/get-started/first-github-pages-deploy|First GitHub Pages deploy]].
+
 ## Environment variables
 
 | Variable | Purpose |

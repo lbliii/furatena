@@ -1,5 +1,5 @@
 {
-  "documentation_file_count": 62,
+  "documentation_file_count": 63,
   "missing": [
     "config_field:catalog.sections",
     "config_field:delivery.head",
@@ -340,6 +340,7 @@
         "content/furatena/docs/concepts/persona-diataxis-matrix.md",
         "content/furatena/docs/concepts/platform-proof.md",
         "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/quickstart.md",
         "content/furatena/docs/get-started/standalone-site.md",
         "content/furatena/docs/operations/_index.md",
@@ -362,7 +363,7 @@
         "docs/VIEWS.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "f11fbc1922142c83",
+      "documentation_fingerprint": "7b673474668e81af",
       "id": "cli_command:check",
       "implementation": "furatena.cli:fura check",
       "implementation_fingerprint": "3ad5099f1afc3e6d",
@@ -401,6 +402,7 @@
       "documentation": [
         "content/furatena/docs/about/chirp-relationship.md",
         "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/quickstart.md",
         "content/furatena/docs/operations/_index.md",
         "content/furatena/docs/operations/deploy.md",
@@ -414,7 +416,7 @@
         "docs/CLI_CONTRACT.md",
         "docs/THEMING.md"
       ],
-      "documentation_fingerprint": "61088c50fbe7f8e6",
+      "documentation_fingerprint": "0719c035f16b47f0",
       "id": "cli_command:export",
       "implementation": "furatena.cli:fura export",
       "implementation_fingerprint": "e87ec5ff9d40ce20",
@@ -426,6 +428,7 @@
       "documentation": [
         "content/furatena/docs/about/chirp-relationship.md",
         "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/quickstart.md",
         "content/furatena/docs/operations/_index.md",
         "content/furatena/docs/operations/deploy.md",
@@ -439,7 +442,7 @@
         "docs/ROADMAP.md",
         "docs/THEMING.md"
       ],
-      "documentation_fingerprint": "f23f1fb4412a423b",
+      "documentation_fingerprint": "369ac9adc2dcd760",
       "id": "cli_command:freeze",
       "implementation": "furatena.cli:fura freeze",
       "implementation_fingerprint": "a2c2e06705ddefaa",
@@ -514,7 +517,7 @@
         "docs/CLI_CONTRACT.md",
         "docs/DCP.md"
       ],
-      "documentation_fingerprint": "f2c40d91e4ad68dd",
+      "documentation_fingerprint": "e7296dce744d9a7d",
       "id": "cli_command:pdf",
       "implementation": "furatena.cli:fura pdf",
       "implementation_fingerprint": "e2b83f7ef1afcaa9",
@@ -578,7 +581,7 @@
         "docs/ROADMAP.md",
         "docs/THEMING.md"
       ],
-      "documentation_fingerprint": "fb5e9b94de774cc8",
+      "documentation_fingerprint": "eab4b3c383580165",
       "id": "cli_command:serve",
       "implementation": "furatena.cli:fura serve",
       "implementation_fingerprint": "1de7e0bb190e016a",
@@ -725,6 +728,7 @@
         "content/furatena/docs/concepts/persona-diataxis-matrix.md",
         "content/furatena/docs/concepts/platform-proof.md",
         "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/project-layout.md",
         "content/furatena/docs/get-started/quickstart.md",
         "content/furatena/docs/get-started/standalone-site.md",
@@ -760,7 +764,7 @@
         "docs/VIEWS.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "b583252a91d2cad8",
+      "documentation_fingerprint": "a58c1cef7a4a6cdf",
       "id": "config_field:catalog",
       "implementation": "furatena.catalog.config:DocsConfig.catalog",
       "implementation_fingerprint": "06f7135fcec81610",
@@ -944,7 +948,7 @@
         "docs/DCP.md",
         "docs/RBAC.md"
       ],
-      "documentation_fingerprint": "e51eede9ab21c396",
+      "documentation_fingerprint": "01d98be3e833e967",
       "id": "config_field:identity",
       "implementation": "furatena.catalog.config:DocsConfig.identity",
       "implementation_fingerprint": "08fba0c440205f07",
@@ -1057,7 +1061,7 @@
         "docs/VIEWS.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "71e84821145882a5",
+      "documentation_fingerprint": "2fd8f546cc3f2c9f",
       "id": "config_field:mounts",
       "implementation": "furatena.catalog.config:DocsConfig.mounts_path",
       "implementation_fingerprint": "b0ea46cc8d5c0f48",
@@ -1143,7 +1147,7 @@
         "docs/VIEWS.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "98ed44e6a6f30d3b",
+      "documentation_fingerprint": "41a7eadc6d6bb480",
       "id": "config_field:mounts[].default",
       "implementation": "furatena.catalog.registry:MountConfig.default",
       "implementation_fingerprint": "60217e474ad3cb9a",
@@ -1194,6 +1198,7 @@
         "content/furatena/docs/concepts/adoption-research.md",
         "content/furatena/docs/concepts/persona-diataxis-matrix.md",
         "content/furatena/docs/concepts/platform-proof.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/installation.md",
         "content/furatena/docs/operations/check-and-lint.md",
         "content/furatena/docs/operations/deploy.md",
@@ -1217,7 +1222,7 @@
         "docs/ROUTES.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "32830e0b280db0eb",
+      "documentation_fingerprint": "4d01b51540c65f32",
       "id": "config_field:mounts[].source",
       "implementation": "furatena.catalog.registry:MountConfig.source",
       "implementation_fingerprint": "7fa551f573e461d6",
@@ -1235,7 +1240,7 @@
         "docs/DCP.md",
         "docs/RBAC.md"
       ],
-      "documentation_fingerprint": "d3dd880ea92832d1",
+      "documentation_fingerprint": "4780a35e959f025c",
       "id": "config_field:mounts[].url_prefix",
       "implementation": "furatena.catalog.registry:MountConfig.url_prefix",
       "implementation_fingerprint": "b040197f1dbd7023",
@@ -1277,7 +1282,7 @@
         "docs/ROADMAP.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "fa192cedc9d55a50",
+      "documentation_fingerprint": "026b08f93d21d09d",
       "id": "config_field:rewrites",
       "implementation": "furatena.catalog.config:DocsConfig.rewrites_path",
       "implementation_fingerprint": "b0ea46cc8d5c0f48",
@@ -1336,6 +1341,7 @@
         "content/furatena/docs/concepts/adoption-research.md",
         "content/furatena/docs/concepts/persona-diataxis-matrix.md",
         "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/installation.md",
         "content/furatena/docs/get-started/project-layout.md",
         "content/furatena/docs/get-started/standalone-site.md",
@@ -1360,7 +1366,7 @@
         "docs/THEMING.md",
         "docs/VIEWS.md"
       ],
-      "documentation_fingerprint": "83c3693ded57b3e1",
+      "documentation_fingerprint": "b71b738492ce564d",
       "id": "config_field:site",
       "implementation": "furatena.catalog.config:DocsConfig.site",
       "implementation_fingerprint": "2b295024cd4c486a",
@@ -1787,7 +1793,7 @@
         "docs/THEMING.md",
         "docs/VIEWS.md"
       ],
-      "documentation_fingerprint": "4bcd8bc1d9d14e29",
+      "documentation_fingerprint": "06f5c4f4cd3efc85",
       "id": "config_field:theme",
       "implementation": "furatena.catalog.config:DocsConfig.theme",
       "implementation_fingerprint": "ac8d6cdf5c775183",
@@ -2660,7 +2666,7 @@
         "docs/THEMING.md",
         "docs/VIEWS.md"
       ],
-      "documentation_fingerprint": "1fc2043a44d83920",
+      "documentation_fingerprint": "8b53a7ff667a4a9f",
       "id": "mcp_resource:fura://catalog/graph",
       "implementation": "furatena.catalog.mcp:FuraMCPServer.list_resources",
       "implementation_fingerprint": "9ee852293f94c025",
@@ -2989,7 +2995,7 @@
         "docs/THEMING.md",
         "docs/VIEWS.md"
       ],
-      "documentation_fingerprint": "bbc365a62507a5c0",
+      "documentation_fingerprint": "ecefba6c579cfef6",
       "id": "route:GET /",
       "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.home",
       "implementation_fingerprint": "58eeb3372baea707",
@@ -3016,7 +3022,7 @@
         "docs/ROADMAP.md",
         "docs/THEMING.md"
       ],
-      "documentation_fingerprint": "a5e06715531cde08",
+      "documentation_fingerprint": "51031d1614aec0a8",
       "id": "route:GET /catalog.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_json",
       "implementation_fingerprint": "337010603ca8f086",
@@ -3084,7 +3090,7 @@
         "content/furatena/docs/operations/deploy.md",
         "content/furatena/docs/reference/cli.md"
       ],
-      "documentation_fingerprint": "9673cae9c29c0c2a",
+      "documentation_fingerprint": "f79aadc4dc3907bf",
       "id": "route:GET /channels.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.channels_json_route",
       "implementation_fingerprint": "0e9ff34499da81eb",
@@ -3098,7 +3104,7 @@
         "content/furatena/docs/operations/deploy.md",
         "content/furatena/docs/operations/deployment-profiles.md"
       ],
-      "documentation_fingerprint": "22621d694696320d",
+      "documentation_fingerprint": "caeeeeb81cc965b9",
       "id": "route:GET /deployment-profiles.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.deployment_profiles_json_route",
       "implementation_fingerprint": "075dc18d9ac75baf",
@@ -3145,6 +3151,7 @@
         "content/furatena/docs/concepts/persona-diataxis-matrix.md",
         "content/furatena/docs/concepts/views-and-shell.md",
         "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/project-layout.md",
         "content/furatena/docs/get-started/quickstart.md",
         "content/furatena/docs/operations/check-and-lint.md",
@@ -3169,7 +3176,7 @@
         "docs/VIEWS.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "28b7732fb70a637b",
+      "documentation_fingerprint": "31b7c89ec059cd0d",
       "id": "route:GET /docs/",
       "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.default_mount_section",
       "implementation_fingerprint": "00056e6227a0376d",
@@ -3283,7 +3290,7 @@
         "content/furatena/docs/theming/branding.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "3c7df89e320a0b6f",
+      "documentation_fingerprint": "05d7c6e3cadfdc8a",
       "id": "route:GET /favicon.ico",
       "implementation": "furatena.catalog.route_registrars:register_error_routes.<locals>.favicon",
       "implementation_fingerprint": "cef9785c31de075c",
@@ -3358,7 +3365,7 @@
         "docs/ROADMAP.md",
         "docs/THEMING.md"
       ],
-      "documentation_fingerprint": "19c7e5a008757118",
+      "documentation_fingerprint": "e2ce682376c22e96",
       "id": "route:GET /llms.txt",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.llms_txt",
       "implementation_fingerprint": "4025085c39fc19c2",
@@ -3384,7 +3391,7 @@
         "docs/ROADMAP.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "b6967ad849e83a3c",
+      "documentation_fingerprint": "f18543a2f0c055cd",
       "id": "route:GET /objects.inv",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventory_inv",
       "implementation_fingerprint": "44c9eb8abe8ee47b",
@@ -3474,6 +3481,7 @@
         "content/furatena/docs/concepts/platform-proof.md",
         "content/furatena/docs/concepts/views-and-shell.md",
         "content/furatena/docs/get-started/_index.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/get-started/standalone-site.md",
         "content/furatena/docs/operations/deploy.md",
         "content/furatena/docs/operations/deployment-profiles.md",
@@ -3499,7 +3507,7 @@
         "docs/THEMING.md",
         "docs/VIEWS.md"
       ],
-      "documentation_fingerprint": "2094576f2405a7d0",
+      "documentation_fingerprint": "f6b614c4316de40e",
       "id": "route:GET /search",
       "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.search",
       "implementation_fingerprint": "479b7d6a3e7d7680",
@@ -3520,7 +3528,7 @@
         "docs/DCP.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "9123b217b0d93214",
+      "documentation_fingerprint": "f7a3c6c9f86139db",
       "id": "route:GET /search.json",
       "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.search_json_route",
       "implementation_fingerprint": "c7f63b56c1d88c01",
@@ -3560,7 +3568,7 @@
         "content/furatena/docs/operations/deploy.md",
         "content/furatena/docs/reference/public-surface-inventory.md"
       ],
-      "documentation_fingerprint": "32ed8f47fbee057f",
+      "documentation_fingerprint": "5db0b8535f5a20d8",
       "id": "route:GET /semantic.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.semantic_json_route",
       "implementation_fingerprint": "6f3ddcce19e954b5",
@@ -3581,7 +3589,7 @@
         "docs/ROADMAP.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "c086f91b00919704",
+      "documentation_fingerprint": "6aa2bfa63986abe5",
       "id": "route:GET /shared/",
       "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.prefixed_mount",
       "implementation_fingerprint": "06322e58db6a5e41",
@@ -3601,6 +3609,7 @@
     {
       "coverage": "documented",
       "documentation": [
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/operations/deploy.md",
         "content/furatena/docs/operations/freeze-and-export.md",
         "docs/APP-README.md",
@@ -3609,7 +3618,7 @@
         "docs/RBAC.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "3adffbcae38b07c5",
+      "documentation_fingerprint": "453e09d1b9b08f30",
       "id": "route:GET /sitemap.xml",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.sitemap",
       "implementation_fingerprint": "b064bf8d7be78f75",
@@ -3652,7 +3661,7 @@
         "docs/APP-README.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "565a030a22199ee0",
+      "documentation_fingerprint": "c321157c29eb713e",
       "id": "route:GET /tools.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.tools_json",
       "implementation_fingerprint": "f3089d3741f00881",
@@ -3706,7 +3715,7 @@
         "docs/THEMING.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "2a123b0ae5009c65",
+      "documentation_fingerprint": "54eab0bb40cdd491",
       "id": "sidecar:/catalog.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.catalog_json",
       "implementation_fingerprint": "02861148dc96bf1c",
@@ -3773,13 +3782,14 @@
       "coverage": "documented",
       "documentation": [
         "content/furatena/docs/concepts/adoption-research.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/operations/deploy.md",
         "content/furatena/docs/operations/deployment-profiles.md",
         "content/furatena/docs/reference/cli.md",
         "docs/CLI_CONTRACT.md",
         "docs/DCP.md"
       ],
-      "documentation_fingerprint": "375163bb54846157",
+      "documentation_fingerprint": "13f2a09892663e78",
       "id": "sidecar:/channels.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.channels_json_route",
       "implementation_fingerprint": "02861148dc96bf1c",
@@ -3793,7 +3803,7 @@
         "content/furatena/docs/operations/deploy.md",
         "content/furatena/docs/operations/deployment-profiles.md"
       ],
-      "documentation_fingerprint": "22621d694696320d",
+      "documentation_fingerprint": "caeeeeb81cc965b9",
       "id": "sidecar:/deployment-profiles.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.deployment_profiles_json_route",
       "implementation_fingerprint": "02861148dc96bf1c",
@@ -3821,6 +3831,7 @@
       "documentation": [
         "content/furatena/docs/concepts/adoption-research.md",
         "content/furatena/docs/concepts/persona-diataxis-matrix.md",
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/operations/serve-and-author.md",
         "content/furatena/docs/reference/cli.md",
         "content/furatena/docs/reference/public-surface-inventory.md",
@@ -3834,7 +3845,7 @@
         "docs/ROADMAP.md",
         "docs/THEMING.md"
       ],
-      "documentation_fingerprint": "2503e187debcae4e",
+      "documentation_fingerprint": "c01650e1ddd37c04",
       "id": "sidecar:/docs/_author/stale",
       "implementation": "furatena.catalog.route_registrars:register_author_routes.<locals>.author_stale",
       "implementation_fingerprint": "02861148dc96bf1c",
@@ -3889,7 +3900,7 @@
         "docs/ROADMAP.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "4ec7cb70fc0ac6fd",
+      "documentation_fingerprint": "a4247846e2948f13",
       "id": "sidecar:/inventories/{inventory_id}/objects.inv",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventory_inv",
       "implementation_fingerprint": "2f4dbf6cf243546a",
@@ -3927,7 +3938,7 @@
         "docs/ROADMAP.md",
         "docs/THEMING.md"
       ],
-      "documentation_fingerprint": "c48cd52dbd9a7fd0",
+      "documentation_fingerprint": "11e26c9c7e2ce400",
       "id": "sidecar:/llms.txt",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.llms_txt",
       "implementation_fingerprint": "6319303fd774263d",
@@ -3956,7 +3967,7 @@
         "docs/ROADMAP.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "4ec7cb70fc0ac6fd",
+      "documentation_fingerprint": "a4247846e2948f13",
       "id": "sidecar:/objects.inv",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.inventory_inv",
       "implementation_fingerprint": "2f4dbf6cf243546a",
@@ -3994,7 +4005,7 @@
         "docs/RBAC.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "e07e8ee5367a84ff",
+      "documentation_fingerprint": "b41ea3539afa183b",
       "id": "sidecar:/search.json",
       "implementation": "furatena.catalog.route_registrars:register_search_routes.<locals>.search_json_route",
       "implementation_fingerprint": "02861148dc96bf1c",
@@ -4020,7 +4031,7 @@
         "docs/THEMING.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "6184fc64f7a1e82e",
+      "documentation_fingerprint": "f69fc5db6002a707",
       "id": "sidecar:/search/semantic",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.search_semantic",
       "implementation_fingerprint": "02861148dc96bf1c",
@@ -4036,7 +4047,7 @@
         "docs/APP-README.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "6cafe6ced06d5df7",
+      "documentation_fingerprint": "3e0bd6f51d2c18ef",
       "id": "sidecar:/semantic.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.semantic_json_route",
       "implementation_fingerprint": "02861148dc96bf1c",
@@ -4046,12 +4057,13 @@
     {
       "coverage": "documented",
       "documentation": [
+        "content/furatena/docs/get-started/first-github-pages-deploy.md",
         "content/furatena/docs/operations/deploy.md",
         "docs/APP-README.md",
         "docs/I18N.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "c70cfa1c48b0c203",
+      "documentation_fingerprint": "4670aca08412ca74",
       "id": "sidecar:/sitemap.xml",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.sitemap",
       "implementation_fingerprint": "fceb5e9890515f34",
@@ -4103,7 +4115,7 @@
         "docs/RBAC.md",
         "docs/ROADMAP.md"
       ],
-      "documentation_fingerprint": "5f52984a9826ac6a",
+      "documentation_fingerprint": "af2904adb599271a",
       "id": "sidecar:/tools.json",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.tools_json",
       "implementation_fingerprint": "02861148dc96bf1c",
