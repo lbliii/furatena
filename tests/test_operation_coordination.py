@@ -71,6 +71,58 @@ def test_lease_serializes_free_threaded_writers(tmp_path: Path) -> None:
     assert counter.read_text(encoding="utf-8") == "256"
 
 
+def test_lease_retries_when_owner_bootstrap_directory_is_reclaimed(tmp_path: Path) -> None:
+    assert_free_threading()
+    root = tmp_path / "leases"
+    bootstrap_started = threading.Event()
+    resume_bootstrap = threading.Event()
+    delayed_entered = threading.Event()
+
+    class DelayedOwnerLease(OperationLease):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, **kwargs)
+            self._delay_owner_once = True
+
+        def _claim_owner(self) -> None:
+            if self._delay_owner_once:
+                self._delay_owner_once = False
+                bootstrap_started.set()
+                assert resume_bootstrap.wait(timeout=5)
+            super()._claim_owner()
+
+    def acquire_delayed() -> None:
+        with DelayedOwnerLease(
+            root,
+            "bootstrap",
+            timeout_seconds=5.0,
+            lease_seconds=0.05,
+            poll_seconds=0.002,
+        ):
+            delayed_entered.set()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(acquire_delayed)
+        assert bootstrap_started.wait(timeout=5)
+        time.sleep(0.08)
+
+        with OperationLease(
+            root,
+            "bootstrap",
+            timeout_seconds=5.0,
+            lease_seconds=0.2,
+            poll_seconds=0.002,
+        ) as newer_owner:
+            assert newer_owner.owner()["token"] == newer_owner.token
+            resume_bootstrap.set()
+            time.sleep(0.03)
+            assert newer_owner.owner()["token"] == newer_owner.token
+            assert not delayed_entered.is_set()
+
+        future.result(timeout=5)
+
+    assert delayed_entered.is_set()
+
+
 def test_lease_serializes_multiple_processes(tmp_path: Path) -> None:
     counter = tmp_path / "counter.txt"
     counter.write_text("0", encoding="utf-8")

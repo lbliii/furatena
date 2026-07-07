@@ -759,8 +759,8 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:75` |
 | `FURA_LANG` | read | '' | `furatena/catalog/i18n.py:112` |
 | `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:35`, `furatena/cli/commands/serve.py:37`, `furatena/cli/commands/serve.py:39` |
-| `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:184` |
-| `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:179` |
+| `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:209` |
+| `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:204` |
 | `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:149`, `furatena/cli/commands/serve.py:47`, `furatena/cli/commands/serve.py:90`, `furatena/cli/commands/stop.py:17` |
 | `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:176` |
 | `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:170` |

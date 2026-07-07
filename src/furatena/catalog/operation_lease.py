@@ -20,6 +20,10 @@ class OperationLeaseTimeout(TimeoutError):
     """Raised when an active operation lease outlives the acquisition timeout."""
 
 
+class _OperationLeaseOwnershipLost(RuntimeError):
+    """Internal signal that a lease directory changed during owner publication."""
+
+
 class OperationLease:
     """Portable mkdir-based lease with heartbeat and stale-worker recovery."""
 
@@ -67,7 +71,15 @@ class OperationLease:
                 self._stop.wait(min(self.poll_seconds, remaining))
                 continue
             self._acquired = True
-            self._write_owner()
+            try:
+                self._claim_owner()
+            except (FileExistsError, FileNotFoundError, _OperationLeaseOwnershipLost):
+                # A stale-lease reclaimer may replace the directory after mkdir()
+                # but before the first owner record is published. Treat that as a
+                # lost acquisition and compete for the current directory instead
+                # of overwriting a newer owner's record.
+                self._acquired = False
+                continue
             self._heartbeat = threading.Thread(
                 target=self._heartbeat_loop,
                 name=f"fura-lease-{self.name}",
@@ -123,10 +135,10 @@ class OperationLease:
             except (OSError, RuntimeError, ValueError):
                 return
 
-    def _write_owner(self, *, acquired_at: float | None = None) -> None:
+    def _owner_payload(self, *, acquired_at: float | None = None) -> dict[str, Any]:
         now = time.time()
         acquired = now if acquired_at is None else acquired_at
-        payload = {
+        return {
             "schema_version": 1,
             "name": self.name,
             "resource": self.resource,
@@ -140,6 +152,19 @@ class OperationLease:
             "expires_at": _iso(now + self.lease_seconds),
             "expires_at_epoch": now + self.lease_seconds,
         }
+
+    def _claim_owner(self) -> None:
+        """Publish the initial owner without replacing a newer lease owner."""
+        payload = self._owner_payload()
+        with self.owner_path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        if self.owner().get("token") != self.token:
+            raise _OperationLeaseOwnershipLost
+
+    def _write_owner(self, *, acquired_at: float | None = None) -> None:
+        payload = self._owner_payload(acquired_at=acquired_at)
         temporary = self.path / f".owner.{self.token}.tmp"
         with temporary.open("w", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
