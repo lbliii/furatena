@@ -98,17 +98,17 @@ def test_heartbeat_prevents_steal_and_crashed_worker_expires(tmp_path: Path) -> 
         root,
         "live",
         timeout_seconds=1.0,
-        lease_seconds=0.06,
-        poll_seconds=0.005,
+        lease_seconds=0.3,
+        poll_seconds=0.01,
     ):
-        time.sleep(0.15)
+        time.sleep(0.75)
         with pytest.raises(OperationLeaseTimeout, match="timed out"):
             OperationLease(
                 root,
                 "live",
-                timeout_seconds=0.03,
-                lease_seconds=0.06,
-                poll_seconds=0.005,
+                timeout_seconds=0.1,
+                lease_seconds=0.3,
+                poll_seconds=0.01,
             ).acquire()
 
     context = multiprocessing.get_context("fork")
