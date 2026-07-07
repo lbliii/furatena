@@ -752,7 +752,7 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     )
     assert payload["data"]["known_answer_dataset"] == {
         "id": "furatena-known-answers",
-        "version": "1.1.3",
+        "version": "1.1.4",
         "case_count": 8,
         "corpora": ["furatena-dogfood", "access-boundary-fixture"],
         "query_classes": [
@@ -2587,6 +2587,7 @@ def test_unknown_recipe_returns_config_error_in_process() -> None:
 def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
     audit_path = tmp_path / "audit" / "events.jsonl"
+    rate_limit_path = tmp_path / "limits" / "counters.sqlite3"
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
@@ -2602,6 +2603,10 @@ def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -
             str(audit_path),
             "--audit-retention-days",
             "30",
+            "--rate-limit-store",
+            str(rate_limit_path),
+            "--rate-limit-fallback",
+            "memory",
         ]
     )
     payload = json.loads(capsys.readouterr().out)
@@ -2619,6 +2624,14 @@ def test_mcp_describe_json_reports_resources_and_tools(tmp_path: Path, capsys) -
         "path": str(audit_path),
         "count": 0,
         "entries": [],
+    }
+    assert payload["data"]["rate_limit"] == {
+        "backend": "sqlite",
+        "shared": True,
+        "restart_safe": True,
+        "available": True,
+        "path": str(rate_limit_path),
+        "fallback_mode": "memory",
     }
     assert "fura://catalog/nodes" in resource_uris
     assert "fura://catalog/graph" in resource_uris
@@ -2956,6 +2969,8 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
 
 
 def test_mcp_remote_policy_rate_limits_tools(tmp_path: Path) -> None:
+    from furatena.catalog.rate_limit import SQLiteRateLimitStore
+
     app_root = tmp_path / "docs-site"
 
     main(["init", str(app_root), "--name", "Acme Docs"])
@@ -2965,13 +2980,16 @@ def test_mcp_remote_policy_rate_limits_tools(tmp_path: Path) -> None:
         autodoc=False,
         serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
     )
+    rate_limit_path = tmp_path / "limits.sqlite3"
+    policy = MCPAccessPolicy(
+        transport="remote",
+        actor="agent-ci",
+        rate_limit_per_minute=1,
+    )
     server = FuraMCPServer(
         docs,
-        policy=MCPAccessPolicy(
-            transport="remote",
-            actor="agent-ci",
-            rate_limit_per_minute=1,
-        ),
+        policy=policy,
+        rate_limit_store=SQLiteRateLimitStore(rate_limit_path),
     )
 
     first = server.handle_request(
@@ -2982,7 +3000,12 @@ def test_mcp_remote_policy_rate_limits_tools(tmp_path: Path) -> None:
             "params": {"name": "semantic_search", "arguments": {"query": "Get started"}},
         }
     )
-    second = server.handle_request(
+    restarted_server = FuraMCPServer(
+        docs,
+        policy=policy,
+        rate_limit_store=SQLiteRateLimitStore(rate_limit_path),
+    )
+    second = restarted_server.handle_request(
         {
             "jsonrpc": "2.0",
             "id": 2,
@@ -2990,13 +3013,15 @@ def test_mcp_remote_policy_rate_limits_tools(tmp_path: Path) -> None:
             "params": {"name": "semantic_search", "arguments": {"query": "Get started"}},
         }
     )
-    audit = json.loads(server.read_resource("fura://reports/audit")["text"])
+    audit = json.loads(restarted_server.read_resource("fura://reports/audit")["text"])
 
     assert first["result"]["isError"] is False
     assert second["error"]["code"] == -32029
     assert second["error"]["data"]["diagnostics"][0]["rule_id"] == "fura.mcp.rate_limit"
     assert audit["entries"][-1]["status"] == "rate_limited"
     assert audit["entries"][-1]["result_status"] == "error"
+    assert second["error"]["data"]["rate_limit"]["backend"] == "sqlite"
+    assert second["error"]["data"]["rate_limit"]["rule"] == "actor-sustained"
 
 
 def test_mcp_stale_impact_groups_by_provenance(tmp_path: Path) -> None:

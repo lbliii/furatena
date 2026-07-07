@@ -338,7 +338,12 @@ Command parser contract.
 | `--audit-store` | no | — | — | — | Persist sanitized MCP audit events to this JSONL path |
 | `--audit-retention-days` | no | `90` | — | `int` | Retain MCP audit events for this many days (default 90) |
 | `--privileged-token` | no | — | — | — | Token required by remote MCP clients before sensitive authoring tools can run |
-| `--rate-limit` | no | `120` | — | `int` | Maximum MCP tool calls per minute for this server session |
+| `--rate-limit` | no | `120` | — | `int` | Maximum MCP tool calls per actor per minute |
+| `--tenant-rate-limit` | no | `600` | — | `int` | Maximum MCP tool calls per tenant per minute across actors |
+| `--rate-limit-burst` | no | `20` | — | `int` | Maximum MCP tool calls per actor in a one-second burst |
+| `--sensitive-rate-limit` | no | `30` | — | `int` | Maximum sensitive MCP tool calls per actor per minute |
+| `--rate-limit-store` | no | — | — | — | Share restart-safe MCP rate limits through this SQLite path |
+| `--rate-limit-fallback` | no | `deny` | `deny`, `memory` | — | Behavior when a configured shared rate-limit store is unavailable |
 | `--timeout` | no | `15.0` | — | `float` | Declared MCP tool timeout in seconds for audit and client policy metadata |
 | `--max-output-chars` | no | `200000` | — | `int` | Maximum serialized characters returned by one MCP tool before truncation |
 | `--describe` | no | false | — | — | Describe MCP resources/tools and exit |
