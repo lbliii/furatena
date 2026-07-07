@@ -31,7 +31,11 @@ def _run_migrate(args: argparse.Namespace) -> None:
     _ensure_pythonpath()
     sys.path.insert(0, str(_app_root(args)))
     from furatena.catalog.config import load_docs_config
-    from furatena.catalog.migrate import migrate_mdx_paths, migrate_mounts
+    from furatena.catalog.migrate import (
+        migrate_mdx_paths,
+        migrate_mounts,
+        remediate_mdx_paths_safely,
+    )
     from furatena.catalog.registry import load_mounts
 
     if args.report:
@@ -51,6 +55,59 @@ def _run_migrate(args: argparse.Namespace) -> None:
     config = load_docs_config(_docs_yaml(args))
     mounts_path = config.mounts_path or app_root / "mounts.yaml"
     mounts = load_mounts(mounts_path, repo_root=repo)
+    if args.apply_safe:
+        paths = [Path(path).expanduser().resolve() for path in args.paths]
+        if not paths:
+            paths = [
+                path
+                for mount in mounts
+                if mount.content_root.is_dir()
+                for path in sorted(mount.content_root.rglob("*.mdx"))
+            ]
+        remediations = remediate_mdx_paths_safely(paths, write=not args.dry_run)
+        manual = [item for item in remediations if not item.safe]
+        diagnostics = tuple(
+            Diagnostic(
+                severity="warning",
+                source_path=str(item.source_path),
+                message=item.reason,
+                rule_id="fura.migration.remediation.manual",
+                next_action="Assign an owner and resolve this source-specific blocker manually.",
+            )
+            for item in manual
+        )
+        exit_code = ExitCode.WARNING if manual else ExitCode.SUCCESS
+        result = CommandResult(
+            command=command_name(args),
+            ok=not manual,
+            exit_code=exit_code,
+            summary=(
+                f"safe migration remediation processed {len(remediations)} source(s): "
+                f"{sum(item.status == 'applied' for item in remediations)} applied, "
+                f"{sum(item.status == 'planned' for item in remediations)} planned, "
+                f"{sum(item.status == 'unchanged' for item in remediations)} unchanged, "
+                f"{len(manual)} manual"
+            ),
+            diagnostics=diagnostics,
+            data={
+                "apply_safe": True,
+                "dry_run": bool(args.dry_run),
+                "source_preservation": "required",
+                "overwrite_existing": False,
+                "count": len(remediations),
+                "manual_count": len(manual),
+                "remediations": [item.to_dict() for item in remediations],
+            },
+            terminal_lines=(
+                *(
+                    f"{item.status}: {item.source_path} -> {item.target_path}: {item.reason}"
+                    for item in remediations
+                ),
+                f"manual blockers: {len(manual)}",
+            ),
+        )
+        _finish_result(result, json_output=_json_output(args))
+        return
     write = not args.dry_run
     remove_source = not args.keep_mdx
 
@@ -260,10 +317,16 @@ def _run_migration_report(args: argparse.Namespace) -> CommandResult:
 def configure(sub: Any) -> None:
     migrate = sub.add_parser("migrate", help="Lower MDX JSX to Patitas directives")
     migrate.add_argument("paths", nargs="*", help="Optional .mdx files")
-    migrate.add_argument(
+    mode = migrate.add_mutually_exclusive_group()
+    mode.add_argument(
         "--report",
         action="store_true",
         help="Report migration readiness risks without writing files",
+    )
+    mode.add_argument(
+        "--apply-safe",
+        action="store_true",
+        help="Create reversible canonical siblings only for conflict-free MDX conversions",
     )
     migrate.add_argument("--dry-run", action="store_true")
     migrate.add_argument("--keep-mdx", action="store_true")

@@ -95,7 +95,9 @@ exit codes in both terminal and JSON modes.
 - `fura theme diff --json`
 - `fura theme init --json`
 
-`fura migrate --report --json` is read-only and emits `data.migration_report` with `summary`, `groups`, and `findings`. The groups cover severity, source path, construct, and next action; findings compose `fura check` diagnostics with format compatibility findings for embedded MDX JSX, RST directives/roles, and MyST directives/roles.
+`fura migrate --report --json` is read-only and emits `data.migration_report` with `summary`, `groups`, `findings`, and a `remediation_plan`. The groups cover severity, source path, owner, construct, and next action; playbook groups add ecosystem and risk. Findings compose `fura check` diagnostics with format compatibility findings for embedded MDX JSX, RST directives/roles, and MyST directives/roles.
+
+`fura migrate --apply-safe [PATH ...] --json` creates canonical `.md` siblings only for deterministic, parse-clean MDX conversions with no unmapped JSX and no conflicting target. Sources are never removed and existing targets are never overwritten. `--dry-run` previews the same decisions without writing. Manual items emit `fura.migration.remediation.manual` and warning exit code `1`.
 
 `fura init --starter minimal|api-portal|multi-mount` creates a maintained standalone repository profile. Every profile includes an exact dependency on the generating Furatena release, CPython `3.14` compatibility, a `3.14t`/`PYTHON_GIL=0` GitHub workflow, documented audience and first edit, and clone-to-check-to-freeze-to-export commands. The API portal adds a lint-clean OpenAPI projection; the multi-mount profile adds independently rooted product, SDK, and operations mounts.
 
