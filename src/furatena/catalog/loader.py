@@ -28,7 +28,11 @@ from furatena.catalog.i18n import (
     resolve_translation_key,
     strip_locale_prefix,
 )
-from furatena.catalog.incremental import htmx_swap_hints, needs_graph_rebuild
+from furatena.catalog.incremental import (
+    htmx_swap_hints,
+    metadata_invalidation_regions,
+    needs_graph_rebuild,
+)
 from furatena.catalog.models import DocNode, SectionChunk, TocEntry
 from furatena.catalog.record_types import EdgeRecord, NamespaceRecord
 from furatena.catalog.render import DocsRenderer
@@ -172,6 +176,7 @@ class DocCatalog:
         self._ast_documents: dict[str, Document] = {}
         self._body_by_slug: dict[str, str] = {}
         self._last_invalidations: dict[str, tuple[str, ...]] = {}
+        self._last_invalidation_regions: dict[str, frozenset[str]] = {}
         self._workers = resolve_workers(workers)
         self.i18n_config = i18n_config or DocsI18nConfig()
         self.catalog_nav = catalog_nav
@@ -224,6 +229,9 @@ class DocCatalog:
             for slug in dirty_slugs:
                 if self.get_by_slug(slug) is not None:
                     self._last_invalidations[slug] = _FULL_AUTHOR_RELOAD_HINTS
+                    self._last_invalidation_regions[slug] = frozenset(
+                        {"body", "toc", "content_ir", "meta", "graph", "nav"}
+                    )
         else:
             self._reindex_paths(dirty_paths)
         return True
@@ -283,6 +291,7 @@ class DocCatalog:
         self._ast_documents = {}
         self._body_by_slug = {}
         self._last_invalidations = {}
+        self._last_invalidation_regions = {}
         self._frozen_edges = None
 
     def _scan_locale_pages(self, scanned: list[PageSource]) -> list[PageSource]:
@@ -588,12 +597,14 @@ class DocCatalog:
                         self._ast_documents.pop(slug, None)
                         self._body_by_slug.pop(slug, None)
                         self._last_invalidations.pop(slug, None)
+                        self._last_invalidation_regions.pop(slug, None)
                         graph_dirty = True
                 continue
             for page in self._raw_pages:
                 if page["path"] != path:
                     continue
                 slug = page["slug"]
+                old_node = self._nodes_by_slug.get(slug)
                 old_document = self._ast_documents.get(slug)
                 old_body = self._body_by_slug.get(slug)
                 self._unregister_slug(slug)
@@ -602,6 +613,8 @@ class DocCatalog:
                 content_format = str(page.get("content_format") or "patitas-markdown")
                 adapter = get_content_adapter(content_format, renderer=self._renderer)
                 regions = frozenset(adapter.invalidation_regions(old_document, new_document))
+                regions |= metadata_invalidation_regions(old_node, node)
+                self._last_invalidation_regions[slug] = regions
                 self._last_invalidations[slug] = htmx_swap_hints(regions)
                 if needs_graph_rebuild(regions):
                     graph_dirty = True
@@ -617,9 +630,14 @@ class DocCatalog:
         """htmx swap targets to refresh after the last incremental reindex."""
         return self._last_invalidations.get(slug.strip("/"), ())
 
+    def invalidation_regions_for(self, slug: str) -> frozenset[str]:
+        """Return the computed work regions for the last incremental reindex."""
+        return self._last_invalidation_regions.get(slug.strip("/"), frozenset())
+
     def clear_invalidation_hints(self, slug: str) -> None:
         """Drop pending author reload hints after a selective refresh."""
         self._last_invalidations.pop(slug.strip("/"), None)
+        self._last_invalidation_regions.pop(slug.strip("/"), None)
 
     def stale_invalidation_entries(self) -> list[tuple[str, tuple[str, ...]]]:
         """Return ``(slug, hints)`` pairs awaiting author reload."""
@@ -1107,6 +1125,7 @@ class DocCatalog:
         catalog._renderer = DocsRenderer()
         catalog._ast_documents = {}
         catalog._last_invalidations = {}
+        catalog._last_invalidation_regions = {}
         catalog.i18n_config = DocsI18nConfig()
         catalog.catalog_nav = catalog_nav
         catalog.include_private = False

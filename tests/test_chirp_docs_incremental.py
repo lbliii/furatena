@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
@@ -78,13 +79,57 @@ class TestIncrementalReindex:
         first_backlinks = dict(catalog._backlinks)
 
         page.write_text("---\ntitle: Page\n---\n# Page\n\nHello world.\n", encoding="utf-8")
-        catalog._reindex_paths({page})
+        with patch.object(catalog, "_finalize_graph", wraps=catalog._finalize_graph) as rebuild:
+            catalog._reindex_paths({page})
 
         assert catalog.get_by_slug("docs/page") is not None
+        rebuild.assert_not_called()
+        assert "graph" not in catalog.invalidation_regions_for("docs/page")
+        assert "nav" not in catalog.invalidation_regions_for("docs/page")
         assert catalog._backlinks == first_backlinks
         hints = catalog.invalidation_hints("docs/page")
         assert "page-root" in hints
-        assert catalog._backlinks == first_backlinks
+
+    def test_frontmatter_edit_reports_metadata_and_nav_work(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        docs = content / "docs"
+        docs.mkdir(parents=True)
+        page = docs / "page.md"
+        page.write_text("---\ntitle: Page\n---\n# Body heading\n\nHello.\n", encoding="utf-8")
+        catalog = DocCatalog(content, autodoc=False, autodoc_config=None, auto_reload=True)
+
+        page.write_text(
+            "---\ntitle: Renamed page\n---\n# Body heading\n\nHello.\n",
+            encoding="utf-8",
+        )
+        with patch.object(catalog, "_finalize_graph", wraps=catalog._finalize_graph) as rebuild:
+            catalog._reindex_paths({page})
+
+        assert catalog.invalidation_regions_for("docs/page") == frozenset({"meta", "nav"})
+        assert catalog.invalidation_hints("docs/page") == ("head-meta", "docs-sidebar")
+        rebuild.assert_called_once_with()
+
+    def test_link_edit_reports_graph_work_and_rebuilds_once(self, tmp_path: Path) -> None:
+        content = tmp_path / "content"
+        docs = content / "docs"
+        docs.mkdir(parents=True)
+        page = docs / "page.md"
+        page.write_text("---\ntitle: Page\n---\n# Page\n\nHello.\n", encoding="utf-8")
+        catalog = DocCatalog(content, autodoc=False, autodoc_config=None, auto_reload=True)
+
+        page.write_text(
+            "---\ntitle: Page\n---\n# Page\n\nSee [target](/docs/target/).\n",
+            encoding="utf-8",
+        )
+        with patch.object(catalog, "_finalize_graph", wraps=catalog._finalize_graph) as rebuild:
+            catalog._reindex_paths({page})
+
+        regions = catalog.invalidation_regions_for("docs/page")
+        assert "graph" in regions
+        assert "body" in regions
+        rebuild.assert_called_once_with()
+        hints = catalog.invalidation_hints("docs/page")
+        assert "page-root" in hints
 
     def test_heading_edit_rebuilds_toc_hints(self, tmp_path: Path) -> None:
         content = tmp_path / "content"

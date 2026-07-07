@@ -6,6 +6,8 @@ from patitas.context import context_paths_for
 from patitas.differ import diff_documents
 from patitas.nodes import Document, Link, Node
 
+from furatena.catalog.models import DocNode
+
 _CONTEXT_TO_REGION: dict[str, str] = {
     "page.toc": "toc",
     "page.headings": "toc",
@@ -22,6 +24,9 @@ _HTMX_SWAP_HINTS: dict[str, str] = {
 }
 
 _FULL_PAGE_HINTS: frozenset[str] = frozenset(_HTMX_SWAP_HINTS.values())
+
+_NAV_FIELDS = ("title", "weight", "section", "section_root")
+_GRAPH_FIELDS = ("slug", "url", "tags", "lang", "translation_key")
 
 
 def invalidation_regions(
@@ -75,6 +80,20 @@ def needs_graph_rebuild(regions: frozenset[str]) -> bool:
     if not regions:
         return False
     return "graph" in regions or "nav" in regions
+
+
+def metadata_invalidation_regions(old: DocNode | None, new: DocNode) -> frozenset[str]:
+    """Map frontmatter-derived node changes to their affected indexes and views."""
+    if old is None:
+        return frozenset({"meta", "nav", "graph"})
+    regions: set[str] = set()
+    if old.meta != new.meta:
+        regions.add("meta")
+    if any(getattr(old, field) != getattr(new, field) for field in _NAV_FIELDS):
+        regions.add("nav")
+    if any(getattr(old, field) != getattr(new, field) for field in _GRAPH_FIELDS):
+        regions.add("graph")
+    return frozenset(regions)
 
 
 def _change_node(new_node: object | None, old_node: object | None) -> Node | None:

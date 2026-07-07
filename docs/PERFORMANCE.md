@@ -37,3 +37,8 @@ defers search snippet extraction until after ranking/limit selection. On the 1,0
 synthetic profile this reduced search time by 79%, full-index time by 24%, and total
 function calls from 75.0 million to 54.2 million without changing ranking or output
 contracts.
+
+Incremental reindexing records its last computed regions per slug through
+`DocCatalog.invalidation_regions_for()`. Fast CI instruments graph finalization and fails
+if a body-only edit triggers backlink/edge recomputation; separate metadata and link-edit
+cases assert their exact region and rebuild behavior.

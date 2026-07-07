@@ -112,6 +112,7 @@ ci-fast:
 	$(PYTEST) \
 		tests/test_catalog_nav.py \
 		tests/test_benchmark_harness.py \
+		tests/test_chirp_docs_incremental.py \
 		tests/test_docs_core.py \
 		tests/test_domain_errors.py \
 		tests/test_record_types.py \
