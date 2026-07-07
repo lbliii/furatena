@@ -83,6 +83,7 @@ exit codes in both terminal and JSON modes.
 - `fura export --json`
 - `fura pdf --json`
 - `fura migrate --json`
+- `fura activation start|mark|report --json`
 - `fura recipes --json`
 - `fura evals --json`
 - `fura mcp --describe --json`
@@ -121,6 +122,8 @@ regeneration action when they differ.
 `fura pdf --json` exports one public page (`--page`), one public collection (`--collection`), or the full public site as PDF artifacts. The JSON `data` includes `output_dir`, `target`, generated `paths`, `page_count`, `byte_count`, and whether `channels.json` was refreshed. By default artifacts are written under `app/public/pdf/` and the public channel manifest is updated with available PDF outputs.
 
 `fura impact --json` emits a CI-friendly stale-content impact report without requiring an MCP session. The payload includes stale entries, affected chunks, graph context, changed graph edges touching each DCP node, provenance, owner/source/channel groupings, recommended remediation, and GitHub-issue-ready `repair_tasks` plus `task_markdown`. It combines live author invalidations with frozen public-output freshness checks so local, static, and deployed workflows can route repair work from the same structured contract.
+
+`fura activation` implements the opt-in activation measurement protocol. `start` requires explicit `--consent` and records only a local monotonic origin, a random local session id, and the `new-site` or `imported-site` journey. `mark` records elapsed duration for first edit, first publish, or clean migration plus separately supplied automated and manual remediation seconds. `report` removes session ids, origins, and file paths, never transmits data, and aggregates the two journey types separately against the documented first-edit targets.
 
 Recoverable domain failures use `CatalogError` subclasses and the same JSON
 diagnostic envelope. The base code is `fura.catalog`; specialized codes are

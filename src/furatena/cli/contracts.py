@@ -154,6 +154,13 @@ def command_name(args: Any) -> str:
     if command == "author":
         author_command = getattr(args, "author_command", None)
         return f"author {author_command}" if author_command else "author"
+    if command == "activation":
+        activation_command = getattr(args, "activation_command", None)
+        return (
+            f"activation {activation_command}"
+            if activation_command
+            else "activation"
+        )
     return command
 
 
