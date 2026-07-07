@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "release_line": "0.1",
+  "versioning": {
+    "scheme": "SemVer 2.0.0",
+    "pre_1_0_breaking_boundary": "minor",
+    "stable_breaking_boundary": "major"
+  },
+  "deprecation": {
+    "minimum_days": 90,
+    "minimum_minor_releases": 2,
+    "emergency_exceptions": [
+      "actively_exploited_security_issue",
+      "data_loss_or_corruption"
+    ]
+  },
+  "python": {
+    "requires_python": ">=3.14,<3.15",
+    "implementation": "CPython",
+    "version": "3.14",
+    "abi": "free-threaded",
+    "gil_enabled": false,
+    "required_environment": {
+      "PYTHON_GIL": "0"
+    }
+  },
+  "public_python": {
+    "furatena": [
+      "__version__"
+    ],
+    "furatena.catalog": [
+      "VIEW_KINDS",
+      "CatalogRegistry",
+      "DocCatalog",
+      "DocNode",
+      "DocsApp",
+      "MountConfig",
+      "TocEntry",
+      "ViewKindSpec",
+      "ViewRegistry",
+      "load_mounts"
+    ],
+    "furatena.catalog.sources": [
+      "AdaptedContent",
+      "ContentAdapter",
+      "FilesystemScanner",
+      "FilesystemSourceProvider",
+      "GitSourceConfig",
+      "GitSourceProvider",
+      "GitSyncResult",
+      "MountSourceConfig",
+      "PageSource",
+      "SourceFingerprint",
+      "SourceProvenance",
+      "SourceProvider",
+      "file_to_url",
+      "get_content_adapter",
+      "register_adapter",
+      "registered_formats",
+      "source_provider_for_config",
+      "sync_git_source"
+    ],
+    "furatena.cli": [
+      "CommandResult",
+      "Diagnostic",
+      "ExitCode",
+      "main",
+      "run_command"
+    ],
+    "furatena.themes": [
+      "ThemePack"
+    ]
+  },
+  "contract_documents": {
+    "cli": "docs/CLI_CONTRACT.md",
+    "config": "content/furatena/docs/reference/generated-cli-config.md",
+    "dcp": "docs/DCP.md",
+    "mcp": "docs/AGENT_WORKFLOWS.md",
+    "source_adapters": "docs/COMPATIBILITY.md",
+    "themes": "docs/THEMING.md"
+  }
+}
