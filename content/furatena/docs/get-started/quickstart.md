@@ -56,3 +56,6 @@ uv run fura export             # static HTML → app/public/
 ## Next
 
 → [[docs/get-started/project-layout|Project layout]] — where config, content, and theme live.
+
+→ [[docs/get-started/first-github-pages-deploy|First GitHub Pages deploy]] — turn the
+page you just edited into a verified public artifact.

@@ -18,20 +18,18 @@ Furatena turns Markdown files into a searchable documentation site. Write locall
 preview changes as you go, and publish the same content as static pages when it is
 ready.
 
-New here? Start with **Get Started**. Building a mental model? Read **Concepts**. Running
-a site in production? Jump to **Operations** or the **Reference**.
+Choose the journey that matches the job in front of you. The underlying guide URLs
+stay stable, so existing links and bookmarks continue to work.
 
 ## How this site is organized
 
-| Lane | Use when |
-|------|----------|
-| [Get Started](/docs/get-started/) | First hour: install, quickstart, project layout |
-| [Concepts](/docs/concepts/) | How pages, navigation, search, and outputs fit together |
-| [Authoring](/docs/authoring/) | Markdown, directives, navigation, collections |
-| [Theming](/docs/theming/) | Tokens, skin, views, branding |
-| [Operations](/docs/operations/) | Preview locally, build static pages, check links, deploy |
-| [Reference](/docs/reference/) | CLI, config files, glossary |
-| [About](/docs/about/) | Product principles, project direction, roadmap |
+| Journey | Start here when you need to… |
+|---------|-----------------------------|
+| [Adopt](/docs/get-started/) | Evaluate Furatena, install it, and prove the first workflow |
+| [Author](/docs/authoring/) | Write pages, shape navigation, and customize presentation |
+| [Publish](/docs/operations/) | Freeze, export, migrate, and deploy a public artifact |
+| [Operate](/docs/operations/serve-and-author/) | Run authoring, quality, observability, and recovery loops |
+| [Integrate](/docs/operations/consume-agent-outputs/) | Connect agents, APIs, catalogs, configuration, and platform tooling |
 
 AI-ready page index: [`/llms.txt`](/llms.txt) (generated on site build).
 
@@ -39,28 +37,34 @@ AI-ready page index: [`/llms.txt`](/llms.txt) (generated on site build).
 :columns: 2
 :gap: medium
 
-:::{card} Get Started
-:icon: rocket
+:::{card} Adopt
+:icon: book-open
 :link: /docs/get-started/
-Install Furatena, run `fura serve`, and edit your first page.
+Install Furatena, edit your first page, and choose a starter path.
 :::{/card}
 
-:::{card} Concepts
-:icon: layers
-:link: /docs/concepts/
-How pages, navigation, search, and outputs fit together.
-:::{/card}
-
-:::{card} Authoring
+:::{card} Author
 :icon: pencil
 :link: /docs/authoring/
-Markdown, directives, front matter, and collections.
+Write Markdown, compose collections, and apply the existing theme system.
 :::{/card}
 
-:::{card} Operations
-:icon: check-circle
+:::{card} Publish
+:icon: rocket
 :link: /docs/operations/
-Local preview, static builds, deploys, and CI checks.
+Freeze, export, validate, and deploy the public site.
+:::{/card}
+
+:::{card} Operate
+:icon: check-circle
+:link: /docs/operations/serve-and-author/
+Run local authoring, CI quality gates, telemetry, and recovery.
+:::{/card}
+
+:::{card} Integrate
+:icon: code
+:link: /docs/operations/consume-agent-outputs/
+Use agent outputs, MCP, catalog contracts, and platform reference.
 :::{/card}
 
 :::{/cards}
