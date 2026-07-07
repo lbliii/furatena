@@ -30,6 +30,7 @@ from furatena.catalog.inventories.export import inventories_json
 from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.record_types import MCPResourceContentRecord, MCPToolResultRecord
 from furatena.catalog.registry import load_mounts
+from furatena.catalog.retrieval_feedback import RetrievalFeedbackCollector
 from furatena.catalog.semantic import hybrid_search, retrieve_node
 from furatena.catalog.structure_index import build_structure_index
 from furatena.cli.authoring import (
@@ -147,6 +148,7 @@ class FuraMCPServer:
         base_url: str = "",
         include_private: bool = False,
         policy: MCPAccessPolicy | None = None,
+        retrieval_feedback: RetrievalFeedbackCollector | None = None,
     ) -> None:
         self.docs_app = docs_app
         self.catalog = docs_app.catalog
@@ -154,6 +156,11 @@ class FuraMCPServer:
         self.base_url = base_url.rstrip("/")
         self.policy = policy or MCPAccessPolicy(allow_private=include_private)
         self.include_private = include_private and self.policy.allow_private
+        self.retrieval_feedback = (
+            retrieval_feedback
+            or getattr(docs_app, "retrieval_feedback", None)
+            or RetrievalFeedbackCollector.disabled()
+        )
         self.audit_log: list[dict[str, Any]] = []
         self._rate_window_started = time.monotonic()
         self._rate_count = 0
@@ -733,6 +740,14 @@ class FuraMCPServer:
                 "duration_ms": duration_ms,
             }
         )
+        self.retrieval_feedback.record_tool_outcome(
+            tenant=self.policy.tenant or "default",
+            surface=f"mcp:{self.policy.transport}",
+            tool=name,
+            status=status,
+            duration_ms=duration_ms,
+            metadata={"is_error": is_error, "site": self.policy.site},
+        )
 
     def _author_create_draft(self, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
         gate = self._author_gate("author_create_draft", arguments)
@@ -1077,7 +1092,7 @@ class FuraMCPServer:
             }
             for hit in result.hits
         ]
-        return {
+        payload = {
             "schema_version": 1,
             "query": query,
             "mode": "hybrid",
@@ -1092,6 +1107,14 @@ class FuraMCPServer:
             "count": len(hits),
             "results": hits,
         }
+        self.retrieval_feedback.record_query(
+            query,
+            tenant=self.policy.tenant or "default",
+            surface=f"mcp:{self.policy.transport}",
+            result_count=len(hits),
+            metadata=payload["filters"],
+        )
+        return payload
 
     def _retrieve_node(self, arguments: dict[str, Any]) -> dict[str, Any]:
         node_id = str(arguments.get("node_id") or "").strip()

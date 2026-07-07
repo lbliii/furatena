@@ -110,6 +110,17 @@ chunk IDs, and the effective `mount`, `edition`, `tag`, `url_prefix`, and access
 filters. Free-threaded conformance tests keep those identities aligned and
 verify that private and archived pages remain absent from every public surface.
 
+Retrieval feedback is opt-in. Inject a `RetrievalFeedbackCollector` into
+`DocsApp` or `FuraMCPServer`; the default collector is disabled and emits
+nothing. An enabled policy records query/zero-result, selection, and tool
+outcome events. Query text defaults to a salted SHA-256 digest, raw text
+requires `query_mode="raw"`, token-shaped metadata is redacted, and
+`sample_rate` plus `retention_days` bound collection. The memory sink supports
+tests, while `JsonlRetrievalFeedbackSink` provides a hosted-service-free local
+sink with hashed per-tenant files, retention pruning, and locks for
+free-threaded writes. Call `record_selection` from the consuming UI or client
+when a result is opened; browser queries and MCP tool outcomes are wired in.
+
 MCP tools return both text content and `structuredContent` payloads:
 
 - `semantic_search` — hybrid keyword and semantic search over pages and chunks.

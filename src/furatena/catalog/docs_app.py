@@ -80,6 +80,7 @@ from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.render_context import RenderContextService
+from furatena.catalog.retrieval_feedback import RetrievalFeedbackCollector
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.search_experience import (
     build_search_workspace_context,
@@ -167,6 +168,7 @@ class DocsApp:
         workers: int | None = None,
         author_subject: AccessSubject | None = None,
         author_store: AuthorMutationStore | None = None,
+        retrieval_feedback: RetrievalFeedbackCollector | None = None,
     ) -> None:
         self.config = config
         self.locale_service = LocaleResolutionService(config.i18n)
@@ -178,6 +180,7 @@ class DocsApp:
             else AccessSubject.anonymous()
         )
         self.author_store = author_store or FilesystemAuthorMutationStore()
+        self.retrieval_feedback = retrieval_feedback or RetrievalFeedbackCollector.disabled()
         frozen = self.serve.frozen_dir or frozen_dir
         self.theme = DocsTheme.from_docs_config(
             config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None
@@ -878,6 +881,22 @@ class DocsApp:
             limit=limit,
             include_shell_extras=not partial,
         )
+        if query:
+            hits = workspace.get("hits")
+            self.retrieval_feedback.record_query(
+                query,
+                tenant=self.config.identity.tenant,
+                surface="browser",
+                result_count=len(hits) if isinstance(hits, list) else 0,
+                metadata={
+                    "section": section_value or None,
+                    "mount": mount_value or None,
+                    "tag": tag_value or None,
+                    "edition": channel_value,
+                    "lang": page_lang,
+                    "global": global_search,
+                },
+            )
         layout = {
             "catalog_surface": "search",
             "catalog_with_toc": True,
@@ -1174,6 +1193,7 @@ class DocsApp:
         workers: int | None = None,
         author_subject: AccessSubject | None = None,
         author_store: AuthorMutationStore | None = None,
+        retrieval_feedback: RetrievalFeedbackCollector | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
         if autodoc is None:
@@ -1189,6 +1209,7 @@ class DocsApp:
             workers=workers,
             author_subject=author_subject,
             author_store=author_store,
+            retrieval_feedback=retrieval_feedback,
         )
 
     def create_app(self) -> App:

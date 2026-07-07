@@ -126,6 +126,7 @@ ci-fast:
 		tests/test_retrieval_dataset.py \
 		tests/test_retrieval_benchmarks.py \
 		tests/test_retrieval_conformance.py \
+		tests/test_retrieval_feedback.py \
 		tests/test_retrieval_metrics.py \
 		tests/test_search_hot_paths.py \
 		tests/test_site_config.py \
