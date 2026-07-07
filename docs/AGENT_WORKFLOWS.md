@@ -55,7 +55,7 @@ fura mcp --remote --tenant acme --site docs --privileged-token <TOKEN>
 fura mcp --describe --json
 ```
 
-The server exposes catalog nodes, the DCP catalog graph, API/autodoc operations, structure indexes, inventories, source health, channel manifests, validation reports, and stale-impact reports as JSON resources.
+The server exposes catalog nodes, the DCP catalog graph, API/autodoc operations, structure indexes, inventories, source health, channel manifests, validation reports, and stale-impact reports as JSON resources. Operators should use `/healthz` only for process liveness and `/readyz` for safe-to-serve admission; `/catalog/operational-status.json` adds source/index freshness and freeze/export artifact ages.
 Draft, private, internal, unlisted, and archived pages are hidden by default; `--include-private` is an explicit author-mode opt-in. Protected MCP results are still filtered by the trusted repeatable `--role` and `--team` subject claims; tool arguments cannot replace or elevate those claims.
 The stdio transport is served through Milo's MCP runtime, while Furatena owns the catalog-specific resource and tool definitions.
 Remote MCP sessions should start with `--remote` and stable `--actor`, `--tenant`, and `--site` metadata. Remote sessions deny sensitive authoring tools unless the request includes a valid `privileged_token`; remote `--include-private` only enables private content when a privileged token is configured.

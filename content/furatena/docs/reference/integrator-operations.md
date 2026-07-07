@@ -125,6 +125,9 @@ configured base path.
 |---|---|---|
 | `/catalog.json` | `json` | Catalog/DCP graph with schema version, pages, edges, and graph nodes. |
 | `/catalog/api-operations.json` | `json` | `schema_version`, operation count, and API `operations`. |
+| `/catalog/artifacts.json` | `json` | Freeze/export presence, manifest validity, generation time, age, upstream freshness, counts, and paths. |
+| `/catalog/freshness.json` | `json` | Source, index, freeze, and export freshness signals plus remediation. |
+| `/catalog/operational-status.json` | `json` | Combined health, readiness, freshness, and artifact contracts from one observation. |
 | `/catalog/query.json` | `json` | Query echo plus `page_count`, `edge_count`, `pages`, `edges`, and `graph_nodes`. |
 | `/catalog/retrieve` | `json` | Retrieved node, chunks, backlinks, related context, and API operation metadata. |
 | `/catalog/source-health.json` | `json` | `ok`, `mount_count`, `active_channel`, `serve_mode`, and `mounts`. |
@@ -133,6 +136,7 @@ configured base path.
 | `/docs/_author/events` | `event-stream` | Author invalidation events; live author mode only. |
 | `/docs/_author/stale` | `json` | Stale source/output entries and impact summary; author mode only. |
 | `/graph/query.json` | `json` | Compatibility alias for the catalog graph query schema. |
+| `/healthz` | `json` | Process liveness only; HTTP 200 while the process can answer, independent of source/artifact state. |
 | `/index.txt` | `text` | Per-page machine-readable text index with title, URL, and body. |
 | `/inventories.json` | `json` | Inventory manifest with ids, URLs, domains, and versions. |
 | `/inventories/{inventory_id}/objects.inv` | `binary` | One named Sphinx v2 inventory. Unknown ids return not found. |
@@ -140,6 +144,7 @@ configured base path.
 | `/llms.txt` | `text` | Compact public page/API index and descriptions. |
 | `/meta.json` | `json` | Public site, channel, catalog, and agent-output metadata. |
 | `/objects.inv` | `binary` | Default Sphinx v2 reference inventory. |
+| `/readyz` | `json` | Safe-to-serve checks; HTTP 200 for `ready`, HTTP 503 for `not_ready`. |
 | `/routes.json` | `json` | `route_count` and route records with methods, path, handler, response, template, and fragment contracts. |
 | `/search.json` | `json` | Public search records with URLs, text, tags, chunks, API hints, and provenance. |
 | `/search/semantic` | `json` | Query, hybrid ranking mode, count, and accessible result records. |
@@ -148,6 +153,28 @@ configured base path.
 | `/structure.json` | `json` | Content-IR heading/directive structure keyed by public node. |
 | `/surface.json` | `json` | Product-surface manifest and linked machine-readable URLs. |
 | `/tools.json` | `json` | Agent tool descriptors, schemas, and API-operation discovery metadata. |
+
+## Health, readiness, freshness, and artifact age
+
+These signals are intentionally distinct. Do not use `/healthz` as a traffic
+readiness probe: it proves only that the process can answer. Use `/readyz` for
+load-balancer admission and rollout gates.
+
+| Contract | HTTP | Stable fields | Meaning |
+|---|---:|---|---|
+| `/healthz` | 200 | `kind=health`, `ok`, `status`, `observed_at`, `process.pid`, `process.responsive` | Process liveness; no source, index, freeze, or export checks. |
+| `/readyz` ready | 200 | `kind=readiness`, `ok=true`, `status=ready`, `checks`, `remediation=[]` | Every mount source and index passes; preview/hybrid also has a valid current freeze. |
+| `/readyz` not ready | 503 | `kind=readiness`, `ok=false`, `status=not_ready`, failed `checks`, `remediation` | Do not admit traffic; perform the named source, index, or freeze repair. |
+| `/catalog/freshness.json` | 200 | `status`, `signals`, `remediation` | Reports `fresh`, `stale`, `degraded`, or `unknown` without treating staleness as process death. |
+| `/catalog/artifacts.json` | 200 | `freeze`, `export`; each has `exists`, `valid`, `required`, `freshness`, `generated_at`, `age_seconds`, counts, and paths | Artifact inventory and age; freeze compares with source mtimes, export compares with freeze. |
+
+All payloads use `schema_version: 1`, include `kind`, `http_status`, and an UTC
+`observed_at`, and are combined at `/catalog/operational-status.json`. A failed
+source sync instructs operators to restore source access; a failed index directs
+an index or frozen-shard rebuild; stale freeze/export signals direct `fura freeze`
+or `fura export --fresh`. Author mode does not require deployment artifacts for
+readiness. Preview and hybrid modes require a valid non-stale freeze because it
+is part of their safe serving path.
 
 ## Diagnostics
 

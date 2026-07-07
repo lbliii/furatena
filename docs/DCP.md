@@ -253,6 +253,8 @@ mounts:
 | `GET /catalog/api-operations.json` | Agent/SDK-friendly API operation inventory grouped by API tag |
 | `GET /catalog/retrieve?id=` | Node + chunks + backlinks |
 | `GET /catalog/source-health.json` | Mount/source sync and index health for CI and admin UI |
+| `GET /catalog/operational-status.json` | Combined process health, serving readiness, freshness, and artifact-age contract |
+| `GET /healthz` / `GET /readyz` | Distinct liveness (always 200 when responsive) and safe-to-serve readiness (200/503) probes |
 
 `/catalog/query.json` and `/graph/query.json` accept these filters:
 

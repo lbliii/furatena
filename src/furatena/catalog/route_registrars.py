@@ -35,6 +35,7 @@ from furatena.catalog.export import (
     llms_txt as llms_index_txt,
 )
 from furatena.catalog.graph_schema import EdgeKind
+from furatena.catalog.operational_status import operational_status, process_health
 from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.semantic import retrieve_node, semantic_index_json, semantic_search_json
@@ -99,6 +100,35 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
 def register_public_routes(docs: Any, app: App) -> None:
     """Register one cohesive route surface."""
     self = docs
+
+    @app.route("/healthz", referenced=True)
+    def healthz(request: Request):
+        body = process_health()
+        return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
+
+    @app.route("/readyz", referenced=True)
+    def readyz(request: Request):
+        body = operational_status(self)["readiness"]
+        return Response(
+            json.dumps(body, indent=2),
+            status=int(body["http_status"]),
+            content_type="application/json; charset=utf-8",
+        )
+
+    @app.route("/catalog/operational-status.json", referenced=True)
+    def operational_status_json(request: Request):
+        body = operational_status(self)
+        return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
+
+    @app.route("/catalog/freshness.json", referenced=True)
+    def freshness_json(request: Request):
+        body = operational_status(self)["freshness"]
+        return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
+
+    @app.route("/catalog/artifacts.json", referenced=True)
+    def artifacts_json(request: Request):
+        body = operational_status(self)["artifacts"]
+        return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
     @app.route("/portal/", referenced=True)
     def portal(request: Request):
