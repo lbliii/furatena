@@ -1,0 +1,365 @@
+{
+  "decision": "no-go",
+  "decision_date": "2026-07-07",
+  "evidence_sha256": "c660e8e18df11b962f23125872e9e53790dcb343c8e8d2d2b97781e8e45b133c",
+  "gate_count": 16,
+  "gates": [
+    {
+      "area": "activation",
+      "definition": "Median clone-to-first-edit time for new sites",
+      "id": "activation.new_site_first_edit",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "<=",
+        "value": 600.0
+      }
+    },
+    {
+      "area": "activation",
+      "definition": "Median clone-to-first-edit time for imported sites",
+      "id": "activation.imported_site_first_edit",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "<=",
+        "value": 1800.0
+      }
+    },
+    {
+      "area": "activation",
+      "definition": "Opted-in sessions with a first-publish milestone",
+      "id": "activation.first_publish_measured",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": ">=",
+        "value": 1.0
+      }
+    },
+    {
+      "area": "activation",
+      "definition": "Imported-site sessions with a clean-migration milestone",
+      "id": "activation.clean_migration_measured",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": ">=",
+        "value": 1.0
+      }
+    },
+    {
+      "area": "migration",
+      "definition": "Share of indexed pages clean after the first automated pass",
+      "id": "migration.clean_page_ratio",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": ">=",
+        "value": 0.9
+      }
+    },
+    {
+      "area": "migration",
+      "definition": "Remaining blockers are grouped by owner and source",
+      "id": "migration.blockers_grouped",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    },
+    {
+      "area": "build",
+      "definition": "P95 check duration in seconds",
+      "id": "build.check_p95",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "<",
+        "value": 300.0
+      }
+    },
+    {
+      "area": "build",
+      "definition": "P95 static-export duration in seconds",
+      "id": "build.static_export_p95",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "<",
+        "value": 600.0
+      }
+    },
+    {
+      "area": "build",
+      "definition": "Representative PDF batch duration and corpus are documented",
+      "id": "build.pdf_batch_documented",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    },
+    {
+      "area": "retrieval",
+      "definition": "Known-answer top-3 retrieval rate before tuning",
+      "id": "retrieval.recall_at_3",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": ">=",
+        "value": 0.8
+      }
+    },
+    {
+      "area": "retrieval",
+      "definition": "Private results leaked by public retrieval",
+      "id": "retrieval.private_leaks",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "<=",
+        "value": 0.0
+      }
+    },
+    {
+      "area": "agent",
+      "definition": "Agent evaluation errors",
+      "id": "agent.error_count",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "<=",
+        "value": 0.0
+      }
+    },
+    {
+      "area": "agent",
+      "definition": "Private results leaked by public agent tools",
+      "id": "agent.private_leaks",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "<=",
+        "value": 0.0
+      }
+    },
+    {
+      "area": "agent",
+      "definition": "Every stale or safety warning has explicit remediation",
+      "id": "agent.warnings_actionable",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    },
+    {
+      "area": "buyer_confidence",
+      "definition": "A supported deployment profile is selected",
+      "id": "buyer_confidence.deployment_profile",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "one_of",
+        "value": [
+          "cloud-live",
+          "local-author",
+          "self-hosted-enterprise",
+          "static-pages"
+        ]
+      }
+    },
+    {
+      "area": "buyer_confidence",
+      "definition": "Remaining approval blockers are named",
+      "id": "buyer_confidence.approval_blockers_named",
+      "observed": null,
+      "passed": false,
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    }
+  ],
+  "ok": false,
+  "passed_gate_count": 0,
+  "policy": {
+    "definitions": "docs/concepts/adoption-research#success-metrics",
+    "id": "furatena-beta-adoption-readiness",
+    "version": "1.0.0"
+  },
+  "schema_version": 1,
+  "unmet_gate_count": 16,
+  "unmet_gates": [
+    {
+      "gate_id": "activation.new_site_first_edit",
+      "observed": null,
+      "owner": "docs-product",
+      "remediation": "Run opted-in new-site and imported-site pilots through first publish and clean migration.",
+      "target": {
+        "operator": "<=",
+        "value": 600.0
+      }
+    },
+    {
+      "gate_id": "activation.imported_site_first_edit",
+      "observed": null,
+      "owner": "docs-product",
+      "remediation": "Run opted-in new-site and imported-site pilots through first publish and clean migration.",
+      "target": {
+        "operator": "<=",
+        "value": 1800.0
+      }
+    },
+    {
+      "gate_id": "activation.first_publish_measured",
+      "observed": null,
+      "owner": "docs-product",
+      "remediation": "Run opted-in new-site and imported-site pilots through first publish and clean migration.",
+      "target": {
+        "operator": ">=",
+        "value": 1.0
+      }
+    },
+    {
+      "gate_id": "activation.clean_migration_measured",
+      "observed": null,
+      "owner": "docs-product",
+      "remediation": "Run opted-in new-site and imported-site pilots through first publish and clean migration.",
+      "target": {
+        "operator": ">=",
+        "value": 1.0
+      }
+    },
+    {
+      "gate_id": "migration.clean_page_ratio",
+      "observed": null,
+      "owner": "platform-docs",
+      "remediation": "Complete representative migration pilots and record clean-page ratios plus grouped blockers.",
+      "target": {
+        "operator": ">=",
+        "value": 0.9
+      }
+    },
+    {
+      "gate_id": "migration.blockers_grouped",
+      "observed": null,
+      "owner": "platform-docs",
+      "remediation": "Complete representative migration pilots and record clean-page ratios plus grouped blockers.",
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    },
+    {
+      "gate_id": "build.check_p95",
+      "observed": null,
+      "owner": "release-engineering",
+      "remediation": "Capture representative check, static-export, and PDF batch distributions.",
+      "target": {
+        "operator": "<",
+        "value": 300.0
+      }
+    },
+    {
+      "gate_id": "build.static_export_p95",
+      "observed": null,
+      "owner": "release-engineering",
+      "remediation": "Capture representative check, static-export, and PDF batch distributions.",
+      "target": {
+        "operator": "<",
+        "value": 600.0
+      }
+    },
+    {
+      "gate_id": "build.pdf_batch_documented",
+      "observed": null,
+      "owner": "release-engineering",
+      "remediation": "Capture representative check, static-export, and PDF batch distributions.",
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    },
+    {
+      "gate_id": "retrieval.recall_at_3",
+      "observed": null,
+      "owner": "search-platform",
+      "remediation": "Publish representative known-answer results and confirm zero public/private boundary leaks.",
+      "target": {
+        "operator": ">=",
+        "value": 0.8
+      }
+    },
+    {
+      "gate_id": "retrieval.private_leaks",
+      "observed": null,
+      "owner": "search-platform",
+      "remediation": "Publish representative known-answer results and confirm zero public/private boundary leaks.",
+      "target": {
+        "operator": "<=",
+        "value": 0.0
+      }
+    },
+    {
+      "gate_id": "agent.error_count",
+      "observed": null,
+      "owner": "agent-platform",
+      "remediation": "Publish representative MCP eval results with zero errors and leaks plus actionable warnings.",
+      "target": {
+        "operator": "<=",
+        "value": 0.0
+      }
+    },
+    {
+      "gate_id": "agent.private_leaks",
+      "observed": null,
+      "owner": "agent-platform",
+      "remediation": "Publish representative MCP eval results with zero errors and leaks plus actionable warnings.",
+      "target": {
+        "operator": "<=",
+        "value": 0.0
+      }
+    },
+    {
+      "gate_id": "agent.warnings_actionable",
+      "observed": null,
+      "owner": "agent-platform",
+      "remediation": "Publish representative MCP eval results with zero errors and leaks plus actionable warnings.",
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    },
+    {
+      "gate_id": "buyer_confidence.deployment_profile",
+      "observed": null,
+      "owner": "product",
+      "remediation": "Record a selected deployment profile and named approval blockers for each pilot.",
+      "target": {
+        "operator": "one_of",
+        "value": [
+          "cloud-live",
+          "local-author",
+          "self-hosted-enterprise",
+          "static-pages"
+        ]
+      }
+    },
+    {
+      "gate_id": "buyer_confidence.approval_blockers_named",
+      "observed": null,
+      "owner": "product",
+      "remediation": "Record a selected deployment profile and named approval blockers for each pilot.",
+      "target": {
+        "operator": "==",
+        "value": true
+      }
+    }
+  ]
+}

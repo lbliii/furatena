@@ -125,6 +125,7 @@ configuration errors exit 3, and source conflicts exit 4. Pattern ids ending in
 | `fura.impact.stale_public_output`, `fura.visibility_leak` | Public artifact is stale or exposes protected content; rebuild or block promotion. |
 | `fura.identity.*` | Trusted gateway claims are missing, ambiguous, spoofable, or conflict with tenant/site identity; reject the request and repair the deployment-owned claim mapping. |
 | `fura.docs_quality.*`, `fura.docs_quality.exemption` | Documentation completeness or stale exemption; follow the named owner and page-type recommendation. |
+| `fura.scorecard.*` | Adoption gate is unmet; route the documented remediation to the gate owner before the next decision date. |
 
 Exact rule-id index:
 
@@ -140,6 +141,7 @@ Exact rule-id index:
 - `fura.identity.*`
 - `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.report`
 - `fura.pdf`, `fura.recipes`, `fura.visibility_leak`
+- `fura.scorecard.*`
 - `fura.catalog`, `fura.config`, `fura.source_sync`, `fura.content_parse`, `fura.access`, `fura.access_denied`, `fura.catalog_load`, `fura.export`
 
 ## Lifecycle, roles, teams, and export filtering

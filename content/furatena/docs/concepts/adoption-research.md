@@ -95,6 +95,26 @@ source content, source paths, actor/host identity, wall-clock timestamps, or
 session identifiers. Furatena performs no network transmission for this
 protocol.
 
+## Reproducible readiness decision
+
+The beta scorecard turns the success metrics above into 16 fixed gates. Its
+versioned JSON input covers activation, migration, build, retrieval, agent
+safety, and buyer confidence. Every area names an owner and remediation, while
+unavailable evidence is represented as `null` and produces a no-go result.
+
+```bash
+fura scorecard \
+  --input adoption-evidence.json \
+  --output adoption-scorecard.json \
+  --json
+```
+
+The output records policy version `1.0.0`, the decision date, and a SHA-256 of
+the canonical evidence manifest. This makes two decisions comparable without
+depending on file paths, filesystem timestamps, or process state. See
+[[docs/concepts/adoption-readiness-scorecard|Beta adoption-readiness scorecard]]
+for the complete input contract and current decision.
+
 ## Positioning
 
 Lead with **repo-owned docs that become many surfaces**. Hosted platforms win on

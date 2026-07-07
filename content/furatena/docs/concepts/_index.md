@@ -24,6 +24,7 @@ how the htmx shell persists across navigation.
 - [[docs/concepts/federation|Federation]] — multiple mounts and cross-links
 - [[docs/concepts/platform-proof|Platform proof]] — one corpus, live docs, static output, search, and agent exports
 - [[docs/concepts/adoption-research|Adoption research]] — personas, competitors, and success metrics
+- [[docs/concepts/adoption-readiness-scorecard|Beta adoption-readiness scorecard]] — fixed go/no-go gates, evidence contract, and current decision
 - [[docs/concepts/persona-diataxis-matrix|Persona-by-Diataxis matrix]] — coverage, gaps, owners, and backlog routing
 
 Design deep-dives also live in the repository under `docs/` (DUAL_IR.md, VIEWS.md, DCP.md).
