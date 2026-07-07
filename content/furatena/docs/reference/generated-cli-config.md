@@ -391,6 +391,16 @@ Command parser contract.
 | `recipe` | no | — | — | — | Optional recipe id, e.g. init, inspect, validate, query, publish, repair, source-sync |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
+### `fura scorecard`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--input` | yes | — | — | — | Versioned evidence manifest JSON |
+| `--output` | no | — | — | — | Write the scorecard report JSON |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
 ### `fura serve`
 
 Command parser contract.

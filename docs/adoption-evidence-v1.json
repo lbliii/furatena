@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "decision_date": "2026-07-07",
+  "evidence": {
+    "activation": {
+      "owner": "docs-product",
+      "remediation": "Run opted-in new-site and imported-site pilots through first publish and clean migration.",
+      "new_site_first_edit_median_seconds": null,
+      "imported_site_first_edit_median_seconds": null,
+      "first_publish_sample_count": null,
+      "clean_migration_sample_count": null
+    },
+    "migration": {
+      "owner": "platform-docs",
+      "remediation": "Complete representative migration pilots and record clean-page ratios plus grouped blockers.",
+      "clean_page_ratio": null,
+      "blockers_grouped_by_owner_source": null
+    },
+    "build": {
+      "owner": "release-engineering",
+      "remediation": "Capture representative check, static-export, and PDF batch distributions.",
+      "check_p95_seconds": null,
+      "static_export_p95_seconds": null,
+      "pdf_batch_documented": null
+    },
+    "retrieval": {
+      "owner": "search-platform",
+      "remediation": "Publish representative known-answer results and confirm zero public/private boundary leaks.",
+      "recall_at_3": null,
+      "private_leaks": null
+    },
+    "agent": {
+      "owner": "agent-platform",
+      "remediation": "Publish representative MCP eval results with zero errors and leaks plus actionable warnings.",
+      "error_count": null,
+      "private_leaks": null,
+      "warnings_with_remediation": null
+    },
+    "buyer_confidence": {
+      "owner": "product",
+      "remediation": "Record a selected deployment profile and named approval blockers for each pilot.",
+      "deployment_profile": null,
+      "approval_blockers_named": null
+    }
+  }
+}

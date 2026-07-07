@@ -84,6 +84,7 @@ exit codes in both terminal and JSON modes.
 - `fura pdf --json`
 - `fura migrate --json`
 - `fura activation start|mark|report --json`
+- `fura scorecard --json`
 - `fura recipes --json`
 - `fura evals --json`
 - `fura mcp --describe --json`
@@ -124,6 +125,8 @@ regeneration action when they differ.
 `fura impact --json` emits a CI-friendly stale-content impact report without requiring an MCP session. The payload includes stale entries, affected chunks, graph context, changed graph edges touching each DCP node, provenance, owner/source/channel groupings, recommended remediation, and GitHub-issue-ready `repair_tasks` plus `task_markdown`. It combines live author invalidations with frozen public-output freshness checks so local, static, and deployed workflows can route repair work from the same structured contract.
 
 `fura activation` implements the opt-in activation measurement protocol. `start` requires explicit `--consent` and records only a local monotonic origin, a random local session id, and the `new-site` or `imported-site` journey. `mark` records elapsed duration for first edit, first publish, or clean migration plus separately supplied automated and manual remediation seconds. `report` removes session ids, origins, and file paths, never transmits data, and aggregates the two journey types separately against the documented first-edit targets.
+
+`fura scorecard --input EVIDENCE.json --output SCORECARD.json` evaluates the versioned beta adoption-readiness policy. The strict input manifest records a decision date, all six evidence areas, and an owner plus remediation for every area. The report includes the policy version, canonical input SHA-256, all fixed gates, and a `go` or `no-go` decision. Missing measurements are explicit `null` values and fail their gate; no target is inferred from the input. A no-go result uses exit code `2` and emits one structured diagnostic per unmet gate.
 
 Recoverable domain failures use `CatalogError` subclasses and the same JSON
 diagnostic envelope. The base code is `fura.catalog`; specialized codes are

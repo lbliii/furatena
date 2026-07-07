@@ -121,6 +121,7 @@ ci-fast:
 		tests/test_support_policy.py \
 		tests/test_release_publishing.py \
 		tests/test_activation_measurement.py \
+		tests/test_adoption_scorecard.py \
 		tests/test_benchmark_harness.py \
 		tests/test_chirp_docs_incremental.py \
 		tests/test_docs_core.py \
