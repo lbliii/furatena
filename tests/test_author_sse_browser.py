@@ -138,7 +138,7 @@ def dogfood_server() -> Iterator[str]:
     )
     base_url = f"http://127.0.0.1:{port}"
     try:
-        _wait_for_server(f"{base_url}/docs/get-started/", proc)
+        _wait_for_server(f"{base_url}/docs/get-started/", proc, timeout=60.0)
         yield base_url
     finally:
         proc.terminate()
