@@ -3,6 +3,7 @@
 
 {% block page_root %}
 <div id="page-root" class="chirpui-page-fill" data-fura-surface="{{ chirp_docs_surface | default('app') }}">
+{% include "partials/agent_discovery.html" %}
 {% block page_root_inner %}
 {% block page_content %}
 <a href="#page-content" class="skip-link">Skip to main content</a>

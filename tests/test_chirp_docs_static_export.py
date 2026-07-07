@@ -201,8 +201,18 @@ class TestMiniStaticExport:
         assert (out / "docs/hello/index.html").is_file()
         assert (out / "docs/hello.md").is_file()
         assert (out / "docs/hello/index.md").is_file()
-        assert "# Hello" in (out / "docs/hello.md").read_text(encoding="utf-8")
+        hello_html = (out / "docs/hello/index.html").read_text(encoding="utf-8")
+        hello_markdown = (out / "docs/hello.md").read_text(encoding="utf-8")
+        assert "# Hello" in hello_markdown
+        assert "complete documentation index is available at [llms.txt](/llms.txt)" in (
+            hello_markdown
+        )
         assert "Body." in (out / "docs/hello/index.md").read_text(encoding="utf-8")
+        assert 'id="fura-llms-index"' in hello_html
+        assert 'href="/llms.txt"' in hello_html
+        assert 'id="fura-page-markdown"' in hello_html
+        assert "http://127.0.0.1:8080/docs/hello.md" in hello_html
+        assert 'id="fura-agent-discovery"' in hello_html
         assert (out / "catalog.json").is_file()
         assert (out / "channels.json").is_file()
         assert (out / "deployment-profiles.json").is_file()
