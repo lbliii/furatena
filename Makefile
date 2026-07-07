@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint benchmark serve stop freeze export pages-build check clean \
+.PHONY: help install test lint benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
@@ -36,6 +36,7 @@ help:
 	@echo "  make test         pytest"
 	@echo "  make lint         ruff check"
 	@echo "  make benchmark    index/freeze/query/search timing report"
+	@echo "  make retrieval-benchmark  known-answer ranking quality/cost report"
 	@echo ""
 	@echo "CI lanes (see docs/CI.md)"
 	@echo "  make ci-fast      lint + core unit tests (~20s)"
@@ -80,6 +81,9 @@ lint:
 benchmark:
 	$(UV_RUN) python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)
 
+retrieval-benchmark:
+	$(UV_RUN) python scripts/benchmark_retrieval.py $(BENCHMARK_ARGS)
+
 fast: ci-fast
 
 contract: ci-contract
@@ -120,6 +124,7 @@ ci-fast:
 		tests/test_embedding_providers.py \
 		tests/test_record_types.py \
 		tests/test_retrieval_dataset.py \
+		tests/test_retrieval_benchmarks.py \
 		tests/test_retrieval_metrics.py \
 		tests/test_search_hot_paths.py \
 		tests/test_site_config.py \

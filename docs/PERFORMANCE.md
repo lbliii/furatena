@@ -6,6 +6,31 @@ Run the repeatable catalog benchmark with free-threaded Python:
 make benchmark
 ```
 
+Benchmark retrieval quality and cost against the versioned known-answer corpus:
+
+```bash
+make retrieval-benchmark
+make retrieval-benchmark BENCHMARK_ARGS="--repeats 5 --limit 12 --output benchmarks/retrieval-baseline.json"
+```
+
+The retrieval report compares keyword-only ranking, TF-IDF-only ranking,
+additive hybrid fusion, and keyword-guarded hybrid reranking. Each mode reports
+Recall@3, MRR, no-result rate, median query latency, estimated index memory, and
+serialized index size. The same run verifies mount, edition, tag, URL-prefix,
+and public/private access filters for every algorithm.
+
+`reranked_hybrid` is the default. It preserves deterministic keyword ordering
+when lexical evidence exists, then uses semantic matches as fallback. Tuning
+controls are the result `limit`, semantic candidate limit (`max(limit * 3,
+64)`), ranking mode (`keyword_guarded` or `additive`), and the five filters
+listed above. The benchmark rejects candidate rerankers that reduce measured
+quality even when they are technically valid.
+
+The committed `benchmarks/retrieval-baseline.json` records the selected
+free-threaded baseline and every quality, cost, and filter result. Latency is
+informational across machines; quality and filter outcomes are deterministic
+contracts covered in fast CI.
+
 The command measures full index, body-only incremental reindex, full freeze,
 `/catalog/query.json`-equivalent graph queries, and ranked search against two isolated
 corpora: a copy of the Furatena dogfood documentation and a deterministic synthetic

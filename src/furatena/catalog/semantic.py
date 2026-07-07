@@ -7,16 +7,19 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.chunks import chunk_node
-from furatena.catalog.embeddings import EmbeddingIndex, SemanticHit
+from furatena.catalog.embedding_providers import EmbeddingSearchIndex
+from furatena.catalog.embeddings import SemanticHit
 from furatena.catalog.search import search_nodes
 
 if TYPE_CHECKING:
+    from patitas.nodes import Document
+
     from furatena.catalog.models import DocNode
     from furatena.catalog.registry import CatalogRegistry
 
 
 class CatalogLike(Protocol):
-    def doc_nodes(self) -> list[DocNode]: ...
+    def doc_nodes(self, *, lang: str | None = None) -> list[DocNode]: ...
     def get_by_node_id(self, node_id: str) -> DocNode | None: ...
     def backlinks_for(self, node: DocNode) -> list[dict[str, str]]: ...
     def body_html(self, node: DocNode) -> str: ...
@@ -38,11 +41,12 @@ class HybridSearchResult:
 
     hits: tuple[HybridHit, ...]
     semantic_hits: tuple[SemanticHit, ...]
+    ranking: str
 
 
 def semantic_index_json(
     catalog: CatalogLike,
-    index: EmbeddingIndex,
+    index: EmbeddingSearchIndex,
     *,
     include_private: bool = False,
 ) -> dict[str, Any]:
@@ -73,6 +77,7 @@ def _node_matches_filters(
     tag: str | None = None,
     edition: str | None = None,
     lang: str | None = None,
+    url_prefix: str | None = None,
 ) -> bool:
     if mount is not None and node.mount != mount:
         return False
@@ -82,12 +87,14 @@ def _node_matches_filters(
         return False
     if edition is not None and node.edition != edition:
         return False
+    if url_prefix is not None and not node.url.startswith(url_prefix):
+        return False
     return not (lang is not None and getattr(node, "lang", "en") != lang)
 
 
 def hybrid_search(
     catalog: CatalogLike,
-    index: EmbeddingIndex,
+    index: EmbeddingSearchIndex,
     query: str,
     *,
     limit: int = 12,
@@ -96,13 +103,18 @@ def hybrid_search(
     section: str | None = None,
     tag: str | None = None,
     semantic_limit: int | None = None,
-    documents: dict[str, object] | None = None,
+    documents: dict[str, Document] | None = None,
     lang: str | None = None,
+    url_prefix: str | None = None,
     include_private: bool = True,
+    ranking: str = "keyword_guarded",
 ) -> HybridSearchResult:
     """Rank pages with keyword + TF-IDF chunk retrieval (one semantic scan)."""
-    if documents is None and hasattr(catalog, "ast_documents"):
-        documents = catalog.ast_documents()
+    if ranking not in {"additive", "keyword_guarded"}:
+        raise ValueError(f"unknown hybrid ranking mode: {ranking}")
+    ast_documents = getattr(catalog, "ast_documents", None)
+    if documents is None and callable(ast_documents):
+        documents = ast_documents()
 
     nodes = accessible_nodes(
         catalog,
@@ -110,7 +122,7 @@ def hybrid_search(
         permission=AccessPermission.SEARCH,
         include_private=include_private,
     )
-    if mount is not None or section is not None or tag is not None or edition is not None or lang is not None:
+    if any((mount, section, tag, edition, lang, url_prefix)):
         nodes = [
             node
             for node in nodes
@@ -121,6 +133,7 @@ def hybrid_search(
                 tag=tag,
                 edition=edition,
                 lang=lang,
+                url_prefix=url_prefix,
             )
         ]
 
@@ -150,7 +163,15 @@ def hybrid_search(
             continue
         if not include_private and node.node_id not in accessible_node_ids:
             continue
-        if not _node_matches_filters(node, mount=mount, section=section, tag=tag, edition=edition, lang=lang):
+        if not _node_matches_filters(
+            node,
+            mount=mount,
+            section=section,
+            tag=tag,
+            edition=edition,
+            lang=lang,
+            url_prefix=url_prefix,
+        ):
             continue
         sem_score = round(sem_hit.score * 100, 2)
         existing = combined.get(node.node_id)
@@ -173,16 +194,29 @@ def hybrid_search(
                 chunk_id=sem_hit.chunk.chunk_id,
             )
 
-    hits = sorted(combined.values(), key=lambda hit: (-hit.score, hit.node.title.lower()))
+    if ranking == "keyword_guarded":
+        hits = sorted(
+            combined.values(),
+            key=lambda hit: (
+                -int(hit.keyword_score > 0),
+                -hit.keyword_score,
+                -hit.semantic_score if hit.keyword_score == 0 else 0.0,
+                hit.node.weight,
+                hit.node.title.lower(),
+            ),
+        )
+    else:
+        hits = sorted(combined.values(), key=lambda hit: (-hit.score, hit.node.title.lower()))
     return HybridSearchResult(
         hits=tuple(hits[:limit]),
         semantic_hits=tuple(semantic_hits),
+        ranking=ranking,
     )
 
 
 def retrieve_node(
     catalog: CatalogLike,
-    index: EmbeddingIndex,
+    index: EmbeddingSearchIndex,
     node_id: str,
     *,
     include_private: bool = True,
@@ -197,7 +231,8 @@ def retrieve_node(
         )
     ):
         return None
-    documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else None
+    ast_documents = getattr(catalog, "ast_documents", None)
+    documents = ast_documents() if callable(ast_documents) else None
     chunks = [
         {
             "chunk_id": chunk.chunk_id,
@@ -252,7 +287,7 @@ def retrieve_node(
 
 def semantic_search_json(
     catalog: CatalogRegistry,
-    index: EmbeddingIndex,
+    index: EmbeddingSearchIndex,
     query: str,
     *,
     base_url: str = "",
@@ -275,6 +310,7 @@ def semantic_search_json(
         "schema_version": 1,
         "query": query,
         "mode": "hybrid",
+        "ranking": result.ranking,
         "count": len(hits),
         "results": [
             {

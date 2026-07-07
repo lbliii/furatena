@@ -2844,6 +2844,7 @@ def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path)
     assert tool_by_name["query_graph"].output_schema is not None
     assert search.is_error is False
     assert search.structured["count"] >= 1
+    assert search.structured["ranking"] == "keyword_guarded"
     assert retrieve.is_error is False
     assert retrieve.structured["node_id"] == node.node_id
     assert graph_query.is_error is False

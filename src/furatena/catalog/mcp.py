@@ -1071,6 +1071,7 @@ class FuraMCPServer:
             "schema_version": 1,
             "query": query,
             "mode": "hybrid",
+            "ranking": result.ranking,
             "count": len(hits),
             "results": hits,
         }
