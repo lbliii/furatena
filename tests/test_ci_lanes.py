@@ -46,6 +46,7 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "tests/test_domain_errors.py" in makefile
     assert "$(UV_RUN) ty check" in makefile
     assert "tests/test_record_types.py" in makefile
+    assert "tests/test_search_hot_paths.py" in makefile
     assert "uv build --clear --no-sources" in makefile
     assert "scripts/check_distributions.py --dist-dir dist" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile

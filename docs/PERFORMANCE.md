@@ -28,3 +28,12 @@ performance work:
 ```bash
 make benchmark BENCHMARK_ARGS="--output benchmarks/catalog-baseline.json"
 ```
+
+## Optimization profiles
+
+Profile evidence and methodology for applied optimizations live under
+`benchmarks/profiles/`. The issue 222 profile removes duplicate frontmatter parsing and
+defers search snippet extraction until after ranking/limit selection. On the 1,000-page
+synthetic profile this reduced search time by 79%, full-index time by 24%, and total
+function calls from 75.0 million to 54.2 million without changing ranking or output
+contracts.
