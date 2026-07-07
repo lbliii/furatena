@@ -108,8 +108,10 @@ ci-contract:
 	$(UV_RUN) fura check
 	$(UV_RUN) fura docs-reference \
 		--output content/furatena/docs/reference/generated-cli-config.md --check
+	$(UV_RUN) fura docs-quality
 	$(PYTEST) \
 		tests/test_author_authorization.py \
+		tests/test_docs_quality.py \
 		tests/test_integrator_operations_reference.py \
 		tests/test_chirp_docs_content_lint.py \
 		tests/test_chirp_docs_response_conformance.py \

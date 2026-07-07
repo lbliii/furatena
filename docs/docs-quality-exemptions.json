@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "exemptions": [
+    {
+      "finding": "navigation:/docs/",
+      "disposition": "internal",
+      "reason": "The default docs mount is represented by / in generated catalog navigation; /docs/ remains a linked compatibility entry point."
+    },
+    {
+      "finding": "public_feature:route:GET /develop/{export_id}/",
+      "disposition": "internal",
+      "reason": "Dynamic develop preview dispatch is an implementation route; the /develop/ surface and each exported contract are the public interface."
+    },
+    {
+      "finding": "public_feature:route:GET /docs/_author/page.json",
+      "disposition": "internal",
+      "reason": "This author-shell transport is internal; supported author UI, CLI, and MCP contracts are documented instead."
+    },
+    {
+      "finding": "public_feature:route:GET /docs/_author/source",
+      "disposition": "internal",
+      "reason": "This author-shell source transport is internal; supported author UI, CLI, and MCP contracts are documented instead."
+    },
+    {
+      "finding": "public_feature:route:GET /docs/{slug:path}",
+      "disposition": "internal",
+      "reason": "The dynamic default-mount dispatcher is implementation metadata; individual documentation URLs are the public contracts."
+    },
+    {
+      "finding": "public_feature:route:GET /og/{name}",
+      "disposition": "internal",
+      "reason": "Generated social preview assets are linked through page metadata and are not a directly operated feature."
+    },
+    {
+      "finding": "public_feature:route:GET /releases/",
+      "disposition": "deferred",
+      "reason": "Release hub documentation belongs to the release-policy work tracked by issues 175 and 176."
+    },
+    {
+      "finding": "public_feature:route:GET /releases/{slug:path}",
+      "disposition": "deferred",
+      "reason": "Release detail documentation belongs to the release-policy work tracked by issues 175 and 176."
+    },
+    {
+      "finding": "public_feature:route:GET /shared/{slug:path}",
+      "disposition": "internal",
+      "reason": "The dynamic federated-mount dispatcher is implementation metadata; concrete shared-page URLs and federation behavior are documented."
+    }
+  ]
+}

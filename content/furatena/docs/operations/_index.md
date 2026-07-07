@@ -21,6 +21,7 @@ Run Furatena locally, build static HTML, publish it, and validate docs in CI.
 | [[docs/operations/serve-and-author|Serve and author]] | Live index, reload, serve modes |
 | [[docs/operations/freeze-and-export|Freeze and export]] | `fura freeze`, `fura export`, GitHub Pages |
 | [[docs/operations/check-and-lint|Check and lint]] | `fura check`, content lint, theme lint |
+| [[docs/operations/docs-quality|Gate documentation completeness]] | Orphans, navigation, links, public coverage, and reasoned exemptions |
 | [[docs/operations/migrate-from-js-docs|Migrate from JS docs]] | MDX lowering and platform migration path |
 | [[docs/operations/consume-agent-outputs|Consume agent outputs and MCP]] | llms, page indexes, sidecars, channels, and MCP |
 | [[docs/operations/deployment-profiles|Deployment profiles]] | Local, static, cloud, and self-hosted operating paths |
