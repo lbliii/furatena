@@ -59,7 +59,7 @@ def test_metrics_report_recall_mrr_negative_stale_and_access_boundaries() -> Non
         threshold_policy=_strict_policy(),
     )
 
-    assert report["ok"] is True
+    assert report["ok"] is True, report
     assert report["metrics"]["overall"] == {
         "case_count": 8,
         "retrieval_case_count": 7,
@@ -143,7 +143,7 @@ def test_active_catalog_matches_packaged_free_threaded_ratchet() -> None:
 
     report = run_retrieval_evaluation(docs)
 
-    assert report["ok"] is True
+    assert report["ok"] is True, report
     assert report["applicable"] is True
     assert report["regressions"] == []
     assert report["metrics"]["overall"] == {
