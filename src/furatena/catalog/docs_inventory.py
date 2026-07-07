@@ -8,7 +8,7 @@ import hashlib
 import json
 from dataclasses import MISSING, asdict, dataclass, fields, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args, get_origin, get_type_hints
 
 from furatena.catalog.config import DocsConfig
 from furatena.catalog.deployment_profiles import DEPLOYMENT_PROFILES
@@ -143,50 +143,56 @@ def _config_name(field_name: str) -> str:
 def _config_surfaces() -> list[PublicSurface]:
     surfaces: list[PublicSurface] = []
 
-    def walk(value: object, prefix: tuple[str, ...] = ()) -> None:
-        for item in fields(value):
+    def nested_types(annotation: object) -> tuple[tuple[type[object], bool], ...]:
+        if isinstance(annotation, type) and is_dataclass(annotation):
+            return ((annotation, False),)
+        origin = get_origin(annotation)
+        is_collection = origin in {dict, list, set, tuple, frozenset}
+        nested: list[tuple[type[object], bool]] = []
+        for argument in get_args(annotation):
+            for nested_type, child_collection in nested_types(argument):
+                nested.append((nested_type, is_collection or child_collection))
+        return tuple(nested)
+
+    def walk(config_type: type[object], prefix: tuple[str, ...] = ()) -> None:
+        hints = get_type_hints(config_type)
+        for item in fields(config_type):
             if not prefix and item.name == "root":
                 continue
             name = _config_name(item.name)
             path = (*prefix, name)
             dotted = ".".join(path)
-            current = getattr(value, item.name)
+            required = item.default is MISSING and item.default_factory is MISSING
+            if item.default is not MISSING:
+                default = _jsonable(item.default)
+            elif item.default_factory is not MISSING:
+                try:
+                    default = _jsonable(item.default_factory())
+                except TypeError:
+                    default = None
+            else:
+                default = None
             surfaces.append(
                 PublicSurface(
                     kind="config_field",
                     name=dotted,
                     implementation=(
-                        f"{value.__class__.__module__}:{value.__class__.__name__}.{item.name}"
+                        f"{config_type.__module__}:{config_type.__name__}.{item.name}"
                     ),
                     aliases=(dotted,),
                     contract={
                         "type": str(item.type),
-                        "default": _jsonable(current),
+                        "default": default,
+                        "required": required,
                     },
                 )
             )
-            if is_dataclass(current):
-                walk(current, path)
+            for nested_type, collection in nested_types(hints.get(item.name, item.type)):
+                nested_prefix = (*prefix, f"{name}[]" if collection else name)
+                walk(nested_type, nested_prefix)
 
-    walk(DocsConfig(root=Path(".")))
-    for item in fields(MountConfig):
-        dotted = f"mounts[].{item.name}"
-        required = item.default is MISSING and item.default_factory is MISSING
-        if item.default is not MISSING:
-            default = _jsonable(item.default)
-        elif item.default_factory is not MISSING:
-            default = _jsonable(item.default_factory())
-        else:
-            default = None
-        surfaces.append(
-            PublicSurface(
-                kind="config_field",
-                name=dotted,
-                implementation=f"{MountConfig.__module__}:MountConfig.{item.name}",
-                aliases=(dotted, item.name),
-                contract={"type": str(item.type), "default": default, "required": required},
-            )
-        )
+    walk(DocsConfig)
+    walk(MountConfig, ("mounts[]",))
     return surfaces
 
 

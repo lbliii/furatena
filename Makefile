@@ -106,6 +106,8 @@ ci-fast:
 
 ci-contract:
 	$(UV_RUN) fura check
+	$(UV_RUN) fura docs-reference \
+		--output content/furatena/docs/reference/generated-cli-config.md --check
 	$(PYTEST) \
 		tests/test_author_authorization.py \
 		tests/test_chirp_docs_content_lint.py \

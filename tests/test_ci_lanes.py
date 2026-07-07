@@ -37,6 +37,8 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert '--junitxml=$(BROWSER_RESULTS)/full.xml' in makefile
     assert '-m "browser and browser_full" $(BROWSER_TESTS)' in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
+    assert "fura docs-reference" in makefile
+    assert "generated-cli-config.md --check" in makefile
     assert "uv build --clear --no-sources" in makefile
     assert "scripts/check_distributions.py --dist-dir dist" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile
