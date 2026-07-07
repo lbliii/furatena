@@ -1,5 +1,7 @@
 ---
 title: Migrate from JS docs
+owner: devrel
+reviewed_at: "2026-07-07"
 description: Move MDX-heavy docs from Mintlify, Fern, Docusaurus, or custom React stacks into Furatena.
 weight: 35
 lang: en

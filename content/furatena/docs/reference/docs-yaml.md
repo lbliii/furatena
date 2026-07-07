@@ -1,5 +1,7 @@
 ---
 title: docs.yaml reference
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: Furatena app configuration — shell, views, theme, site, compose
 draft: false
 weight: 20

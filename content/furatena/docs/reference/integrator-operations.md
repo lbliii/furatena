@@ -1,5 +1,7 @@
 ---
 title: Integrator and operations reference
+owner: agent-platform
+reviewed_at: "2026-07-07"
 description: MCP, sidecar, diagnostics, access, deployment, and source-health contracts.
 weight: 40
 lang: en

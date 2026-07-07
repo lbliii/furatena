@@ -1,5 +1,7 @@
 ---
 title: Freeze and export
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: fura freeze, fura export, and static site output
 draft: false
 weight: 20

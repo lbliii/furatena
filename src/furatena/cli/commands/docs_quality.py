@@ -59,6 +59,7 @@ def _run_docs_quality(args: argparse.Namespace) -> CommandResult:
         documentation_roots=roots,
         exemptions=load_docs_quality_exemptions(exemptions_path),
         previous_inventory=previous,
+        freshness_days=args.freshness_days,
     )
     diagnostics = [
         Diagnostic(
@@ -110,6 +111,12 @@ def configure(sub: Any) -> None:
         "--inventory-baseline",
         default=None,
         help="Prior inventory used to detect stale public-feature coverage",
+    )
+    parser.add_argument(
+        "--freshness-days",
+        type=int,
+        default=180,
+        help="Maximum age of reviewed_at metadata for operations/reference pages",
     )
     parser.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     parser.set_defaults(handler=_run_docs_quality)

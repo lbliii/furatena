@@ -1,5 +1,7 @@
 ---
 title: Deployment profiles
+owner: security-operations
+reviewed_at: "2026-07-07"
 description: Local, static, cloud, and self-hosted operating paths
 draft: false
 weight: 45

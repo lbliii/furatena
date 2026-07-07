@@ -1,5 +1,7 @@
 ---
 title: CLI reference
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: fura subcommands and common flags
 draft: false
 weight: 10

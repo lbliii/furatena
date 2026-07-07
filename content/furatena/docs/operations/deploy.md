@@ -1,5 +1,7 @@
 ---
 title: Deploy
+owner: security-operations
+reviewed_at: "2026-07-07"
 description: FURA_BASE_URL, version channels, and production configuration
 draft: false
 weight: 40

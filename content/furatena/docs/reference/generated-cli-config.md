@@ -1,5 +1,7 @@
 ---
 title: Generated CLI and configuration reference
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: Parser-derived commands, options, defaults, config fields, and environment controls.
 weight: 35
 lang: en
@@ -193,6 +195,7 @@ Command parser contract.
 | `--docs-root` | no | — | — | — | Documentation root |
 | `--exemptions` | no | — | — | — | Reasoned exemption JSON path |
 | `--inventory-baseline` | no | — | — | — | Prior inventory used to detect stale public-feature coverage |
+| `--freshness-days` | no | `180` | — | `int` | Maximum age of reviewed_at metadata for operations/reference pages |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
 ### `fura docs-reference`

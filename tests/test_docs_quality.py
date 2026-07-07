@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -12,7 +13,10 @@ from furatena.catalog import docs_quality
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.docs_quality import (
     _broken_link_findings,
+    _freshness_findings,
     _orphan_findings,
+    _snippet_findings,
+    _snippet_semantic_errors,
     build_docs_quality_report,
     load_docs_quality_exemptions,
 )
@@ -57,6 +61,7 @@ def test_repository_docs_quality_gate_is_clean(docs_app: DocsApp) -> None:
         "internal",
     }
     assert all(item["reason"] for item in report["exemptions"])
+    assert report["snippet_summary"]["block_count"] >= 80
 
 
 def test_unexempted_report_names_owner_and_page_type(docs_app: DocsApp) -> None:
@@ -135,3 +140,55 @@ def test_exemptions_require_exact_reasoned_dispositions(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="internal/deferred disposition"):
         load_docs_quality_exemptions(path)
+
+
+def test_snippet_gate_checks_shell_syntax_cli_options_and_make_targets(tmp_path: Path) -> None:
+    root = tmp_path / "docs"
+    root.mkdir()
+    (root / "bad.md").write_text("```bash\nif true; then\n```\n", encoding="utf-8")
+
+    findings, summary = _snippet_findings((root,))
+    assert summary == {"file_count": 1, "block_count": 1}
+    assert findings[0].rule_id == "fura.docs_quality.snippet"
+    assert "unexpected end of file" in findings[0].message
+
+    errors = _snippet_semantic_errors(
+        "fura export --removed-option\nmake removed-target",
+        make_targets={"export"},
+    )
+    assert errors == [
+        "unknown option --removed-option for fura export",
+        "unknown make target removed-target",
+    ]
+
+
+def test_freshness_gate_requires_owner_valid_date_and_threshold() -> None:
+    nodes = [
+        SimpleNamespace(
+            url="/docs/operations/missing/",
+            source_path="docs/operations/missing.md",
+            meta={},
+        ),
+        SimpleNamespace(
+            url="/docs/reference/stale/",
+            source_path="docs/reference/stale.md",
+            meta={"owner": "platform-docs", "reviewed_at": "2025-01-01"},
+        ),
+        SimpleNamespace(
+            url="/docs/reference/current/",
+            source_path="docs/reference/current.md",
+            meta={"owner": "platform-docs", "reviewed_at": "2026-07-01"},
+        ),
+    ]
+    fake_docs = SimpleNamespace(catalog=SimpleNamespace(nodes=nodes))
+
+    findings = _freshness_findings(
+        fake_docs,
+        freshness_days=180,
+        today=date(2026, 7, 7),
+    )
+    assert [item.target for item in findings] == [
+        "/docs/operations/missing/",
+        "/docs/reference/stale/",
+    ]
+    assert all(item.rule_id == "fura.docs_quality.freshness" for item in findings)

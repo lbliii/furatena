@@ -1,5 +1,7 @@
 ---
 title: Consume agent outputs and MCP
+owner: agent-platform
+reviewed_at: "2026-07-07"
 description: Choose and verify llms, page indexes, catalog, tools, channels, and MCP resources.
 weight: 32
 lang: en

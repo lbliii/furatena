@@ -1,5 +1,7 @@
 ---
 title: Serve and author
+owner: docs-product
+reviewed_at: "2026-07-07"
 description: fura serve modes, live reload, and author invalidation
 draft: false
 weight: 10

@@ -7,6 +7,7 @@ type: doc
 category: operations
 tags: [documentation, quality, ci, links, navigation, coverage]
 owner: docs-product
+reviewed_at: "2026-07-07"
 ---
 
 # Gate documentation completeness
@@ -18,7 +19,7 @@ uv run fura docs-quality --json
 ```
 
 The command indexes the live catalog and implementation-owned public surfaces,
-then reports four actionable finding types:
+statically validates shell fences, and checks review ownership:
 
 | Rule id | Detects | Recommended response |
 |---|---|---|
@@ -26,12 +27,21 @@ then reports four actionable finding types:
 | `fura.docs_quality.navigation` | A default-mount public page omitted from generated navigation | Add it to navigation or explain why it is represented by another entry point. |
 | `fura.docs_quality.link` | An internal content link that does not resolve | Repair the source link or restore the target. |
 | `fura.docs_quality.public_feature` | Missing or stale coverage for a CLI, route, config, MCP, sidecar, diagnostic, or deployment contract | Add or refresh the recommended reference page. |
+| `fura.docs_quality.snippet` | Invalid shell syntax, unknown `fura` option/command, or unknown Make target | Fix or retag the snippet; commands are parsed but never executed. |
+| `fura.docs_quality.freshness` | Missing owner/review date or a review older than the threshold | Assign an owner, review the page, and update `reviewed_at`. |
 | `fura.docs_quality.exemption` | An exemption that no longer matches a finding | Remove or update the stale exemption. |
 | `fura.docs_quality.*` | Dynamic docs-quality rule family used by inventory tooling | Resolve the concrete rule emitted in the diagnostic. |
 
 Each diagnostic names the owning workstream and recommends a Diataxis page type
 (`tutorial`, `how-to`, `explanation`, or `reference`) in `next_action`. Active
 findings and unused exemptions return validation exit code 2.
+
+Every page under Operations and Reference must declare `owner` and an ISO
+`reviewed_at: "YYYY-MM-DD"` value. The default maximum age is 180 days; use
+`--freshness-days N` to apply an organization-specific threshold. Shell fences
+tagged `bash`, `sh`, `shell`, or `console` receive non-executing Bash syntax
+validation. Any `fura` commands and Make targets inside them are also checked
+against the active parser and Makefile.
 
 ## Reasoned exemptions
 
