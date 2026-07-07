@@ -17,6 +17,12 @@ if TYPE_CHECKING:
     from furatena.catalog.docs_app import DocsApp
 
 from furatena.catalog.channel_manifest import channel_manifest
+from furatena.catalog.deployment_manifest import (
+    DeploymentManifest,
+    collect_deployment_artifacts,
+    read_deployment_manifest,
+    write_deployment_manifest,
+)
 from furatena.catalog.exceptions import ExportError
 from furatena.catalog.identity import scoped_frozen_dir
 from furatena.catalog.packaging import (
@@ -200,17 +206,11 @@ def _content_digest(body: str) -> str:
 
 
 def _load_manifest_fingerprints(output_dir: Path) -> dict[str, str]:
-    path = output_dir / "export.manifest.json"
-    if not path.is_file():
-        return {}
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return {}
-    fingerprints = payload.get("fingerprints")
-    if isinstance(fingerprints, dict):
-        return {str(key): str(value) for key, value in fingerprints.items()}
-    return {}
+    manifest = read_deployment_manifest(
+        output_dir / "export.manifest.json",
+        target_hint="static",
+    )
+    return manifest.route_fingerprints if manifest is not None else {}
 
 
 def _node_source_fingerprint(node, *, renderer_fp: str, frozen_dir: Path | None) -> str:
@@ -768,20 +768,32 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
             )
 
         written_paths.add(Path("channels.json"))
-        manifest = {
-            "schema_version": 2,
-            "page_count": page_count,
-            "skipped_count": skipped_count,
-            "base_path": base_path or "/",
-            "site_url": options.site_url or "",
-            "incremental": options.incremental,
-            "sidecars": [*list(_sidecar_routes()), "semantic.json", "structure.json"],
-            "paths": sorted(str(path) for path in written_paths),
-            "fingerprints": route_fps,
-        }
-        (output_dir / "export.manifest.json").write_text(
-            json.dumps(manifest, indent=2) + "\n",
-            encoding="utf-8",
+        artifact_paths = sorted(str(path) for path in written_paths)
+        write_deployment_manifest(
+            output_dir / "export.manifest.json",
+            DeploymentManifest(
+                target="static",
+                mode="static",
+                page_count=page_count,
+                artifacts=collect_deployment_artifacts(output_dir, artifact_paths),
+                fingerprints={"renderer": renderer_fp, "routes": route_fps},
+                sync={
+                    "incremental": options.incremental,
+                    "skipped_count": skipped_count,
+                },
+                extensions={
+                    "skipped_count": skipped_count,
+                    "base_path": base_path or "/",
+                    "site_url": options.site_url or "",
+                    "incremental": options.incremental,
+                    "sidecars": [
+                        *list(_sidecar_routes()),
+                        "semantic.json",
+                        "structure.json",
+                    ],
+                    "paths": artifact_paths,
+                },
+            ),
         )
         channel_payload = channel_manifest(
             docs_app.catalog,
@@ -789,12 +801,12 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
             base_url=options.site_url or "",
             base_path=base_path,
             mode="static",
-            paths=sorted(str(path) for path in written_paths),
+            paths=artifact_paths,
             fingerprints=route_fps,
         )
-        (output_dir / "channels.json").write_text(
-            json.dumps(channel_payload, indent=2) + "\n",
-            encoding="utf-8",
+        write_deployment_manifest(
+            output_dir / "channels.json",
+            DeploymentManifest.from_dict(channel_payload, target_hint="channels"),
         )
         from furatena.catalog.visibility_audit import (
             StaticExportVisibilityError,

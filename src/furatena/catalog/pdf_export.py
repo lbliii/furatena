@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import hashlib
 import re
 import textwrap
 from dataclasses import dataclass
@@ -18,6 +18,12 @@ from reportlab.platypus import PageBreak, Paragraph, Preformatted, SimpleDocTemp
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.channel_manifest import channel_manifest
+from furatena.catalog.deployment_manifest import (
+    DeploymentArtifact,
+    DeploymentManifest,
+    read_deployment_manifest,
+    write_deployment_manifest,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -284,30 +290,40 @@ def _safe_name(value: str) -> str:
 
 
 def _write_pdf_manifest(output_dir: Path, *, target: str, paths: tuple[Path, ...], nodes: list[Any]) -> None:
-    payload = {
-        "schema_version": 1,
-        "target": target,
-        "page_count": len(nodes),
-        "artifacts": [
-            {
-                "path": path.name,
-                "bytes": path.stat().st_size,
-                "media_type": "application/pdf",
-            }
-            for path in paths
-        ],
-        "nodes": [
-            {
-                "node_id": node.node_id,
-                "title": node.title,
-                "url": node.url,
-                "mount": node.mount,
-                "section": node.section,
-            }
-            for node in nodes
-        ],
+    artifact_fingerprints = {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()[:16] for path in paths
     }
-    (output_dir / "manifest.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    write_deployment_manifest(
+        output_dir / "manifest.json",
+        DeploymentManifest(
+            target="pdf",
+            mode="pdf",
+            page_count=len(nodes),
+            artifacts=tuple(
+                DeploymentArtifact(
+                    path=path.name,
+                    bytes=path.stat().st_size,
+                    media_type="application/pdf",
+                    fingerprint=artifact_fingerprints[path.name],
+                )
+                for path in paths
+            ),
+            fingerprints={"artifacts": artifact_fingerprints},
+            sync={},
+            extensions={
+                "nodes": [
+                    {
+                        "node_id": node.node_id,
+                        "title": node.title,
+                        "url": node.url,
+                        "mount": node.mount,
+                        "section": node.section,
+                    }
+                    for node in nodes
+                ],
+            },
+        ),
+    )
 
 
 def _update_public_channel_manifest(
@@ -319,19 +335,16 @@ def _update_public_channel_manifest(
     base_url: str,
 ) -> None:
     public_root = output_dir.parent if output_dir.name == "pdf" else output_dir
-    export_manifest = public_root / "export.manifest.json"
+    export_manifest_path = public_root / "export.manifest.json"
+    export_manifest = read_deployment_manifest(
+        export_manifest_path,
+        target_hint="static",
+    )
     artifact_paths: list[str] = []
     fingerprints: dict[str, str] = {}
-    if export_manifest.is_file():
-        try:
-            existing = json.loads(export_manifest.read_text(encoding="utf-8"))
-        except json.JSONDecodeError:
-            existing = {}
-        artifact_paths = [str(path) for path in existing.get("paths") or []]
-        fingerprints = {
-            str(key): str(value)
-            for key, value in (existing.get("fingerprints") or {}).items()
-        }
+    if export_manifest is not None:
+        artifact_paths = list(export_manifest.artifact_paths)
+        fingerprints = export_manifest.route_fingerprints
     pdf_paths = [
         path.relative_to(public_root).as_posix() if path.is_relative_to(public_root) else path.name
         for path in paths
@@ -343,9 +356,12 @@ def _update_public_channel_manifest(
         catalog,
         config=config,
         base_url=base_url,
-        mode="static" if export_manifest.is_file() else "pdf",
+        mode="static" if export_manifest is not None else "pdf",
         paths=sorted(artifact_paths),
         pdf_paths=pdf_paths,
         fingerprints=fingerprints,
     )
-    (public_root / "channels.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    write_deployment_manifest(
+        public_root / "channels.json",
+        DeploymentManifest.from_dict(payload, target_hint="channels"),
+    )

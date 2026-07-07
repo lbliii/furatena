@@ -75,9 +75,12 @@ Agents and tooling can consume live or frozen exports:
 Set **`FURA_BASE_URL`** so these URLs resolve correctly in exported JSON.
 
 `channels.json` records the active docs channel, site identity, public/protected page
-counts, source/catalog/theme fingerprints, canonical URLs, and output artifacts. PDF
-is advertised as `planned` until PDF artifacts exist, then the PDF channel lists the
-generated files.
+counts, source/catalog/theme fingerprints, canonical URLs, and output artifacts. It
+uses deployment manifest schema v3, the same `furatena.deployment` envelope used by
+`freeze.manifest.json`, `export.manifest.json`, and PDF `manifest.json`: inspect
+`target`, `mode`, `artifacts`, `fingerprints`, and `sync` before target-specific
+fields. PDF is advertised as `planned` until PDF artifacts exist, then the PDF
+channel lists the generated files.
 
 ## PDF artifacts
 

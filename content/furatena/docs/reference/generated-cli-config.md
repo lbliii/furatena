@@ -684,8 +684,8 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:228` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
 | `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1179`, `furatena/cli/commands/serve.py:41` |
-| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:174`, `furatena/catalog/static_export.py:262`, `furatena/catalog/static_export.py:268`, `furatena/cli/commands/export.py:28` |
-| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:178`, `furatena/catalog/static_export.py:261`, `furatena/catalog/static_export.py:266`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
+| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:180`, `furatena/catalog/static_export.py:262`, `furatena/catalog/static_export.py:268`, `furatena/cli/commands/export.py:28` |
+| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:184`, `furatena/catalog/static_export.py:261`, `furatena/catalog/static_export.py:266`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:43` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:111` |
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:75` |

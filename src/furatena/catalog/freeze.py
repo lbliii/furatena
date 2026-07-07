@@ -18,6 +18,7 @@ from furatena.catalog.assets import (
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
+from furatena.catalog.deployment_manifest import DeploymentManifest, write_deployment_manifest
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.exceptions import ExportError
@@ -464,9 +465,9 @@ def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
             mount_status=mount_status,
             renderer_fingerprint=renderer_fp,
         )
-        (out_dir / "channels.json").write_text(
-            json.dumps(channel_payload, indent=2) + "\n",
-            encoding="utf-8",
+        write_deployment_manifest(
+            out_dir / "channels.json",
+            DeploymentManifest.from_dict(channel_payload, target_hint="channels"),
         )
 
     if failed_mounts:

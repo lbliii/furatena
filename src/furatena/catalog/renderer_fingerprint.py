@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from furatena.catalog.deployment_manifest import read_deployment_manifest
 from furatena.catalog.docs_core import load_docs_core
 from furatena.catalog.paths import catalog_root
 from furatena.catalog.theme_assets import docs_core_assets_root, packaged_theme_assets
@@ -76,11 +77,31 @@ def write_renderer_fingerprint(frozen_dir: Path, fingerprint: str) -> None:
 
 
 def read_renderer_fingerprint(frozen_dir: Path) -> str | None:
+    deployment = read_deployment_manifest(
+        frozen_dir / "freeze.manifest.json",
+        target_hint="freeze",
+    )
+    manifest_value = deployment.renderer_fingerprint if deployment is not None else None
+    if deployment is not None:
+        statuses = deployment.sync.get("mount_status")
+        if isinstance(statuses, list) and any(
+            isinstance(status, dict) and status.get("status") == "failed"
+            for status in statuses
+        ):
+            manifest_value = None
     path = frozen_dir / "renderer.fingerprint"
     if path.is_file():
         value = path.read_text(encoding="utf-8").strip()
         if value:
+            # A disagreement is stale state; retain the standalone value so
+            # callers compare unequal and rebuild instead of trusting either.
+            if manifest_value and manifest_value != value:
+                return value
+            if manifest_value:
+                return manifest_value
             return value
+    if manifest_value:
+        return manifest_value
     manifest_path = frozen_dir / "assets" / "manifest.json"
     if manifest_path.is_file():
         raw = json.loads(manifest_path.read_text(encoding="utf-8"))

@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.deployment_manifest import DeploymentArtifact, DeploymentManifest
 from furatena.catalog.identity import normalize_identity
 
 _JSON_OUTPUTS = (
@@ -68,24 +69,33 @@ def channel_manifest(
         "routes": route_fingerprints,
     }
     identity = _identity(config)
-    return {
-        "schema_version": 1,
-        "active_channel": getattr(catalog, "active_channel", "latest"),
-        "mode": mode,
-        "site": _site(config),
-        "identity": identity,
-        "base_url": base,
-        "page_count": len(public_nodes),
-        "protected_page_count": max(len(all_nodes) - len(public_nodes), 0),
-        "fingerprints": fingerprints_payload,
-        "sources": source_fingerprints,
-        "channels": [
-            _live_channel(base, enabled=mode == "live"),
-            _static_channel(base, enabled=mode in {"static", "freeze"}, paths=artifact_paths),
-            _agent_channel(base, catalog=catalog),
-            _pdf_channel(base, paths=pdf_artifact_paths),
-        ],
-    }
+    all_artifact_paths = sorted({*artifact_paths, *pdf_artifact_paths})
+    return DeploymentManifest(
+        target="channels",
+        mode=mode,
+        page_count=len(public_nodes),
+        artifacts=tuple(DeploymentArtifact(path=path) for path in all_artifact_paths),
+        fingerprints=fingerprints_payload,
+        sync={"sources": source_fingerprints},
+        extensions={
+            "active_channel": getattr(catalog, "active_channel", "latest"),
+            "site": _site(config),
+            "identity": identity,
+            "base_url": base,
+            "protected_page_count": max(len(all_nodes) - len(public_nodes), 0),
+            "sources": source_fingerprints,
+            "channels": [
+                _live_channel(base, enabled=mode == "live"),
+                _static_channel(
+                    base,
+                    enabled=mode in {"static", "freeze"},
+                    paths=artifact_paths,
+                ),
+                _agent_channel(base, catalog=catalog),
+                _pdf_channel(base, paths=pdf_artifact_paths),
+            ],
+        },
+    ).to_dict()
 
 
 def _live_channel(base: str, *, enabled: bool) -> dict[str, Any]:

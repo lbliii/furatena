@@ -897,6 +897,14 @@ def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) ->
     assert site_pdf.stat().st_size > 1000
     assert site_payload["data"]["page_count"] >= collection_payload["data"]["page_count"]
 
+    pdf_manifest = json.loads(
+        (app_root / "public" / "pdf" / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert pdf_manifest["schema_version"] == 3
+    assert pdf_manifest["manifest_type"] == "furatena.deployment"
+    assert pdf_manifest["target"] == "pdf"
+    assert pdf_manifest["artifacts"][0]["fingerprint"]
+
     text = "\n".join(page.extract_text() or "" for page in PdfReader(str(page_pdf)).pages)
     assert "PDF Source" in text
     assert "Heading One" in text
@@ -928,7 +936,11 @@ def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, caps
     assert status["status"] == "frozen"
     assert "missing_source_fingerprint" in status["drift_reasons"]
     assert "source_root" not in status
-    assert manifest["schema_version"] == 2
+    assert manifest["schema_version"] == 3
+    assert manifest["manifest_type"] == "furatena.deployment"
+    assert manifest["target"] == "freeze"
+    assert manifest["fingerprints"]["renderer"] == status["renderer_fingerprint"]
+    assert manifest["sync"]["mount_status"] == manifest["mount_status"]
     assert manifest_status["content_fingerprint"] == status["content_fingerprint"]
     assert "source_root" not in manifest_status
     assert manifest["renderer"]["fingerprint"] == status["renderer_fingerprint"]

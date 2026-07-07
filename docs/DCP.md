@@ -303,13 +303,30 @@ When the app config includes `delivery` settings, `surface.json` includes the
 resolved global and per-mount head/theme selections used by live routing and
 static export.
 
-`channels.json` describes publication outputs rather than document versions. It
-lists live, static, agent, and PDF channels with canonical URLs,
-public/protected page counts, source/catalog/theme fingerprints, static artifact
-paths when an export has been written, and PDF artifact paths after `fura pdf`
-runs. Freeze, static export, and PDF export write this manifest so CI, deploy
-tooling, and develop/admin views can discover available outputs without scraping
-route lists.
+Deployment manifests use the shared `furatena.deployment` schema (version 3).
+`channels.json`, `freeze.manifest.json`, `export.manifest.json`, and the PDF
+`manifest.json` all expose the same required envelope:
+
+| Field | Contract |
+|---|---|
+| `manifest_type` | Always `furatena.deployment`. |
+| `target` / `mode` | Producer (`channels`, `freeze`, `static`, or `pdf`) and publication mode. |
+| `page_count` | Public pages represented by this artifact set. |
+| `artifacts` | Normalized `path`, optional byte size/media type, and optional fingerprint records. |
+| `fingerprints` | Renderer, route, catalog, source, theme, or artifact digests owned by the target. |
+| `sync` | Incremental, skipped, dirty-mount, renderer-change, and source-status state. |
+
+Target-specific fields remain alongside the envelope for compatibility. For
+example, `channels.json` still lists live, static, agent, and PDF channels with
+canonical URLs; `export.manifest.json` retains `paths`, `base_path`, and
+`sidecars`; and `freeze.manifest.json` retains `dirty_mounts`, `mounts`, and
+`mount_status`. Readers accept the earlier channel v1 and freeze/static v2
+shapes, but all new writes use v3. This is the only intentional artifact-byte
+change in the v3 migration; rendered pages and sidecars remain byte-stable.
+
+Freeze, static export, and PDF export write through the shared interface so CI,
+deploy tooling, hybrid serve mode, publication channels, and PDF tooling can
+discover outputs without target-specific JSON parsing.
 
 ## Adapter contract
 
@@ -327,7 +344,8 @@ Live and frozen builds persist the same source boundary. `GET
 root existence, tracked extensions, file count, page count, loaded shard
 origin, channel coverage, and structured sync/index errors. Frozen builds also
 record `source_status`/`mount_status` entries in `registry.json` and
-`freeze.manifest.json` with provider, content fingerprint, previous
+`freeze.manifest.json` (both the compatibility field and shared `sync` field)
+with provider, content fingerprint, previous
 fingerprint, page count, renderer fingerprint, final freeze status (`frozen`,
 `skipped`, or `failed`), and explicit drift reasons such as `content`,
 `renderer`, `missing_source_fingerprint`, `source_unavailable`, or

@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from furatena.catalog.registry import CatalogRegistry
+
+from furatena.catalog.deployment_manifest import (
+    DeploymentManifest,
+    collect_deployment_artifacts,
+    write_deployment_manifest,
+)
 
 
 def mount_content_fingerprint(shard, content_root: Path) -> str:
@@ -148,23 +153,51 @@ def write_freeze_manifest(
     renderer_fingerprint: str | None = None,
     renderer_changed: bool = False,
 ) -> None:
-    payload = {
-        "schema_version": 2,
+    mounts = [
+        mount_dir.name
+        for mount_dir in sorted((out_dir / "mounts").glob("*"))
+        if mount_dir.is_dir()
+    ]
+    public_statuses = (
+        [_public_status(status) for _mount_id, status in sorted(mount_statuses.items())]
+        if mount_statuses is not None
+        else []
+    )
+    renderer = (
+        {"fingerprint": renderer_fingerprint, "changed": renderer_changed}
+        if renderer_fingerprint is not None
+        else {}
+    )
+    artifact_paths = [
+        path.relative_to(out_dir)
+        for path in out_dir.rglob("*")
+        if path.is_file() and path.name != "freeze.manifest.json"
+    ]
+    extensions: dict[str, Any] = {
         "dirty_mounts": dirty_mounts,
-        "page_count": total_pages,
-        "mounts": [mount_dir.name for mount_dir in sorted((out_dir / "mounts").glob("*")) if mount_dir.is_dir()],
+        "mounts": mounts,
     }
     if renderer_fingerprint is not None:
-        payload["renderer"] = {
-            "fingerprint": renderer_fingerprint,
-            "changed": renderer_changed,
-        }
+        extensions["renderer"] = renderer
     if mount_statuses is not None:
-        payload["mount_status"] = [
-            _public_status(status)
-            for _mount_id, status in sorted(mount_statuses.items())
-        ]
-    (out_dir / "freeze.manifest.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+        extensions["mount_status"] = public_statuses
+    write_deployment_manifest(
+        out_dir / "freeze.manifest.json",
+        DeploymentManifest(
+            target="freeze",
+            mode="freeze",
+            page_count=total_pages,
+            artifacts=collect_deployment_artifacts(out_dir, artifact_paths),
+            fingerprints={"renderer": renderer_fingerprint or ""},
+            sync={
+                "dirty_mounts": dirty_mounts,
+                "mounts": mounts,
+                "mount_status": public_statuses,
+                "renderer_changed": renderer_changed,
+            },
+            extensions=extensions,
+        ),
+    )
 
 
 def _public_status(status: dict[str, Any]) -> dict[str, Any]:
