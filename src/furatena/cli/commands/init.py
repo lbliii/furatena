@@ -3,12 +3,288 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
+from furatena import __version__
 from furatena.cli.commands._shared import CommandModule
 from furatena.cli.contracts import CommandResult, command_name
+
+STARTERS = ("minimal", "api-portal", "multi-mount")
+
+
+def _repository_files(starter: str, name: str) -> dict[str, str]:
+    project_slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "furatena"
+    audiences = {
+        "minimal": "A small repo-owned documentation site with the shortest path to static output.",
+        "api-portal": "A DevRel portal combining authored guides with an OpenAPI reference.",
+        "multi-mount": "A platform documentation hub with independently mounted product, SDK, and operations sources.",
+    }
+    first_edits = {
+        "minimal": "content/docs/get-started.md",
+        "api-portal": "content/docs/get-started.md and specs/openapi.yaml",
+        "multi-mount": "content/product/docs/get-started.md, content/sdk/docs/sdk-quickstart.md, or content/operations/docs/runbook.md",
+    }
+    return {
+        "pyproject.toml": dedent(
+            f"""\
+            [project]
+            name = {json.dumps(f"{project_slug}-docs")}
+            version = "0.1.0"
+            requires-python = ">=3.14,<3.15"
+            dependencies = ["furatena=={__version__}"]
+
+            [tool.uv]
+            python-preference = "only-managed"
+            """
+        ),
+        ".gitignore": dedent(
+            """\
+            .venv/
+            .docs-cache/
+            frozen/
+            public/
+            """
+        ),
+        ".github/workflows/docs.yml": dedent(
+            """\
+            name: docs
+
+            on:
+              push:
+              pull_request:
+
+            permissions:
+              contents: read
+
+            jobs:
+              validate-and-export:
+                runs-on: ubuntu-latest
+                env:
+                  PYTHON_GIL: "0"
+                steps:
+                  - uses: actions/checkout@v4
+                  - uses: astral-sh/setup-uv@v8.2.0
+                  - run: uv python install 3.14t
+                  - run: uv sync
+                  - name: Prove free-threading
+                    run: uv run python -c 'import sys; assert not sys._is_gil_enabled()'
+                  - run: uv run fura check --content-only --warnings-as-errors
+                  - run: uv run fura freeze
+                  - run: uv run fura export --base-path ""
+                  - uses: actions/upload-pages-artifact@v3
+                    with:
+                      path: public
+            """
+        ),
+        "README.md": dedent(
+            f"""\
+            # {name}
+
+            Furatena `{starter}` starter pinned to Furatena `{__version__}`.
+
+            **Audience:** {audiences[starter]}
+
+            ## From clone to export
+
+            ```bash
+            uv python install 3.14t
+            uv sync
+            PYTHON_GIL=0 uv run fura check --content-only --warnings-as-errors
+            PYTHON_GIL=0 uv run fura freeze
+            PYTHON_GIL=0 uv run fura export --base-path ""
+            ```
+
+            Edit `{first_edits[starter]}` first. The deployable site is written to
+            `public/`; `frozen/` contains the portable catalog and agent sidecars.
+            """
+        ),
+    }
+
+
+def _api_portal_files(name: str) -> dict[str, str]:
+    return {
+        "config/autodoc.yaml": dedent(
+            """\
+            autodoc:
+              python:
+                enabled: false
+              openapi:
+                enabled: true
+                output_prefix: api/rest
+                display_name: REST API
+                specs:
+                  - specs/openapi.yaml
+            """
+        ),
+        "specs/openapi.yaml": dedent(
+            f"""\
+            openapi: 3.1.0
+            info:
+              title: {json.dumps(f"{name} API")}
+              version: 1.0.0
+              description: Stable example API for the generated Furatena portal.
+            servers:
+              - url: https://api.example.com
+                description: Production
+            paths:
+              /widgets:
+                get:
+                  operationId: listWidgets
+                  summary: List widgets
+                  description: Return the widgets visible to the current API consumer.
+                  tags: [Widgets]
+                  responses:
+                    '200':
+                      description: Widget collection
+                      content:
+                        application/json:
+                          schema:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Widget'
+                          examples:
+                            sample:
+                              value:
+                                - id: widget-1
+                                  name: Example widget
+            components:
+              schemas:
+                Widget:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+            """
+        ),
+        "content/docs/get-started.md": dedent(
+            """\
+            ---
+            title: Start with the API portal
+            description: Edit a guide and an OpenAPI operation from one repository.
+            weight: 20
+            ---
+
+            # Start with the API portal
+
+            Edit this guide, then edit `specs/openapi.yaml`. Furatena projects the
+            OpenAPI operations into `/api/rest/`, search, static output, and agent
+            sidecars from the same source contract.
+            """
+        ),
+    }
+
+
+def _multi_mount_files() -> dict[str, str]:
+    return {
+        "mounts.yaml": dedent(
+            """\
+            mounts:
+              - id: product
+                label: Product
+                content_root: content/product
+                default: true
+                extensions: [".md", ".mdx", ".html"]
+              - id: sdk
+                label: SDK
+                content_root: content/sdk
+                url_prefix: /sdk
+                extensions: [".md", ".rst", ".myst"]
+              - id: operations
+                label: Operations
+                content_root: content/operations
+                url_prefix: /operations
+                extensions: [".md", ".html"]
+            """
+        ),
+        "content/product/_index.md": dedent(
+            """\
+            ---
+            title: Product documentation
+            description: Product guides from the default mount.
+            layout: home
+            ---
+
+            # Product documentation
+
+            Start with the product guide, then follow the SDK and operations mounts.
+            """
+        ),
+        "content/product/docs/_index.md": dedent(
+            """\
+            ---
+            title: Product guides
+            description: Adopt and use the product.
+            ---
+
+            # Product guides
+            """
+        ),
+        "content/product/docs/get-started.md": dedent(
+            """\
+            ---
+            title: Product quickstart
+            description: First successful product workflow.
+            ---
+
+            # Product quickstart
+
+            Continue with the [SDK quickstart](/sdk/docs/sdk-quickstart/) or the
+            [operations runbook](/operations/docs/runbook/).
+            """
+        ),
+        "content/sdk/_index.md": dedent(
+            """\
+            ---
+            title: SDK documentation
+            description: SDK guides from an independent mount.
+            ---
+
+            # SDK documentation
+            """
+        ),
+        "content/sdk/docs/sdk-quickstart.md": dedent(
+            """\
+            ---
+            title: SDK quickstart
+            description: Install and call the SDK.
+            ---
+
+            # SDK quickstart
+
+            This page is owned by the `sdk` mount and publishes below `/sdk/`.
+            """
+        ),
+        "content/operations/_index.md": dedent(
+            """\
+            ---
+            title: Operations
+            description: Operator guidance from an independent mount.
+            ---
+
+            # Operations
+            """
+        ),
+        "content/operations/docs/runbook.md": dedent(
+            """\
+            ---
+            title: Service runbook
+            description: Verify and recover the documentation service.
+            ---
+
+            # Service runbook
+
+            Run `fura check`, rebuild `frozen/`, and promote `public/` only after
+            validation succeeds.
+            """
+        ),
+    }
 
 
 def _run_init(args: argparse.Namespace) -> CommandResult:
@@ -392,6 +668,18 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
         ),
     }
 
+    files.update(_repository_files(args.starter, args.name))
+    if args.starter == "api-portal":
+        files.update(_api_portal_files(args.name))
+    elif args.starter == "multi-mount":
+        for path in (
+            "content/_index.md",
+            "content/docs/_index.md",
+            "content/docs/get-started.md",
+        ):
+            files.pop(path)
+        files.update(_multi_mount_files())
+
     written: list[Path] = []
     for rel, body in files.items():
         target = app_root / rel
@@ -411,6 +699,7 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
                 "written": [],
                 "skipped_existing": True,
                 "force": bool(force),
+                "starter": args.starter,
             },
             terminal_lines=(
                 f"no files written — {app_root} already has a Furatena scaffold (use --force)",
@@ -426,6 +715,7 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
             "written": [path.relative_to(app_root) for path in written],
             "count": len(written),
             "force": bool(force),
+            "starter": args.starter,
         },
         terminal_lines=(summary, *(f"  {path.relative_to(app_root)}" for path in written)),
     )
@@ -440,6 +730,12 @@ def configure(sub: Any) -> None:
         help="Target app directory (default current directory)",
     )
     init.add_argument("--name", default="Furatena Docs", help="Site name")
+    init.add_argument(
+        "--starter",
+        choices=STARTERS,
+        default="minimal",
+        help="Maintained repository profile (default: minimal)",
+    )
     init.add_argument("--force", action="store_true", help="Overwrite scaffold files")
     init.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     init.set_defaults(handler=_run_init)

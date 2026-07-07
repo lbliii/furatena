@@ -97,6 +97,8 @@ exit codes in both terminal and JSON modes.
 
 `fura migrate --report --json` is read-only and emits `data.migration_report` with `summary`, `groups`, and `findings`. The groups cover severity, source path, construct, and next action; findings compose `fura check` diagnostics with format compatibility findings for embedded MDX JSX, RST directives/roles, and MyST directives/roles.
 
+`fura init --starter minimal|api-portal|multi-mount` creates a maintained standalone repository profile. Every profile includes an exact dependency on the generating Furatena release, CPython `3.14` compatibility, a `3.14t`/`PYTHON_GIL=0` GitHub workflow, documented audience and first edit, and clone-to-check-to-freeze-to-export commands. The API portal adds a lint-clean OpenAPI projection; the multi-mount profile adds independently rooted product, SDK, and operations mounts.
+
 `fura docs-inventory --json` derives public CLI commands, routes, config fields,
 MCP tools/resources, sidecars, diagnostic rule ids, and deployment profiles from
 runtime metadata. Records link stable identifiers to matching documentation and

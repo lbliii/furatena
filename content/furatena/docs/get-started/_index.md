@@ -27,7 +27,7 @@ reload — markdown in `content/`, hypermedia out in the browser.
 
 1. [[docs/get-started/installation|Installation]] — clone, sync dependencies
 2. [[docs/get-started/quickstart|Quickstart]] — `fura serve` and your first edit
-3. [[docs/get-started/standalone-site|Standalone site]] — start a docs app outside this repo
+3. [[docs/get-started/standalone-site|Starter repositories]] — choose minimal, API-portal, or multi-mount and validate through export
 4. [[docs/get-started/first-github-pages-deploy|First GitHub Pages deploy]] — build, verify, publish, and recover
 5. [[docs/get-started/project-layout|Project layout]] — `app/`, `content/`, `src/furatena/`
 
