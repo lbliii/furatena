@@ -31,6 +31,18 @@ class PublicSurface:
 
 
 def _jsonable(value: object) -> object:
+    if isinstance(value, Path):
+        if value.is_absolute():
+            try:
+                return value.relative_to(Path.cwd()).as_posix()
+            except ValueError:
+                return value.as_posix()
+        return value.as_posix()
+    if isinstance(value, str) and Path(value).is_absolute():
+        try:
+            return Path(value).relative_to(Path.cwd()).as_posix()
+        except ValueError:
+            return value
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     if isinstance(value, (list, tuple, set, frozenset)):

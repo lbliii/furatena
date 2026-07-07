@@ -629,7 +629,7 @@
       "documentation_fingerprint": "26f8469427fa3989",
       "id": "cli_command:theme init",
       "implementation": "furatena.cli:fura theme init",
-      "implementation_fingerprint": "8e95261b8be8436b",
+      "implementation_fingerprint": "de946edfb9a4a755",
       "kind": "cli_command",
       "name": "theme init"
     },

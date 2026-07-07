@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,7 @@ def test_inventory_collects_every_public_surface_kind(inventory_docs: DocsApp) -
     assert "sidecar:/catalog.json" in by_id
     assert "deployment_profile:static-pages" in by_id
     assert all(not surface.name.endswith(".") for surface in surfaces if surface.kind == "diagnostic")
+    assert str(REPO) not in json.dumps([surface.contract for surface in surfaces])
 
 
 def test_inventory_links_docs_and_detects_stale_coverage(
