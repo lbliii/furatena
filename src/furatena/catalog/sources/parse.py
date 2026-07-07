@@ -6,14 +6,20 @@ from typing import Any
 
 import yaml
 
+from furatena.catalog.exceptions import ContentParseError
 from furatena.catalog.patitas_bridge import split_frontmatter
 
 
-def parse_source_text(source: str, *, content_format: str) -> tuple[dict[str, Any], str]:
+def parse_source_text(
+    source: str,
+    *,
+    content_format: str,
+    path: str | None = None,
+) -> tuple[dict[str, Any], str]:
     """Split optional YAML front matter from a source file body."""
     frontmatter_error = frontmatter_parse_error(source)
     if frontmatter_error is not None:
-        raise ValueError(frontmatter_error)
+        raise ContentParseError(frontmatter_error, path=path, operation="parse_frontmatter")
     stripped = source.lstrip()
     if stripped.startswith("---"):
         meta, body = split_frontmatter(source)

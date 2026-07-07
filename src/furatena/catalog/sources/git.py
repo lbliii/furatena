@@ -6,6 +6,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from furatena.catalog.exceptions import SourceSyncError
 from furatena.catalog.sources.types import GitSourceConfig
 
 
@@ -34,16 +35,23 @@ def sync_git_source(
     repo_root.parent.mkdir(parents=True, exist_ok=True)
 
     if not (repo_root / ".git").is_dir():
-        _run_git("clone", config.repo, str(repo_root))
+        _run_git("clone", config.repo, str(repo_root), mount_id=mount_id)
     else:
-        _run_git("-C", str(repo_root), "fetch", "--all", "--tags", "--prune")
+        _run_git(
+            "-C", str(repo_root), "fetch", "--all", "--tags", "--prune", mount_id=mount_id
+        )
 
-    _run_git("-C", str(repo_root), "checkout", "--force", config.ref)
-    resolved_ref = _run_git("-C", str(repo_root), "rev-parse", "HEAD").strip()
+    _run_git("-C", str(repo_root), "checkout", "--force", config.ref, mount_id=mount_id)
+    resolved_ref = _run_git(
+        "-C", str(repo_root), "rev-parse", "HEAD", mount_id=mount_id
+    ).strip()
     content_root = (repo_root / config.path).resolve() if config.path else repo_root.resolve()
     if not content_root.is_dir():
-        raise RuntimeError(
-            f"git source path for mount {mount_id!r} does not exist: {config.path or '.'}"
+        raise SourceSyncError(
+            f"git source path for mount {mount_id!r} does not exist: {config.path or '.'}",
+            path=content_root,
+            mount=mount_id,
+            operation="resolve_path",
         )
     return GitSyncResult(
         content_root=content_root,
@@ -76,7 +84,7 @@ def _sync_base(config: GitSourceConfig, app_root: Path) -> Path:
     return (app_root / ".docs-cache" / "sources").resolve()
 
 
-def _run_git(*args: str) -> str:
+def _run_git(*args: str, mount_id: str | None = None) -> str:
     try:
         result = subprocess.run(
             ("git", *args),
@@ -85,9 +93,17 @@ def _run_git(*args: str) -> str:
             text=True,
         )
     except FileNotFoundError as exc:
-        raise RuntimeError("git executable is required for git-backed mounts") from exc
+        raise SourceSyncError(
+            "git executable is required for git-backed mounts",
+            mount=mount_id,
+            operation="git",
+        ) from exc
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or "").strip()
         command = "git " + " ".join(args)
-        raise RuntimeError(f"{command} failed: {detail}") from exc
+        raise SourceSyncError(
+            f"{command} failed: {detail}",
+            mount=mount_id,
+            operation=command,
+        ) from exc
     return result.stdout

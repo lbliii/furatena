@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from furatena.catalog.exceptions import ExportError
 from furatena.catalog.lifecycle import check_lifecycle_sources
 
 _ROOT_PATH_ATTRS = (
@@ -28,11 +29,14 @@ _JSON_URL_RE = re.compile(
 )
 
 
-class PackagingLifecycleError(RuntimeError):
+class PackagingLifecycleError(ExportError):
     """Raised when a publication target would violate lifecycle safety."""
 
     def __init__(self, target: str, errors: list[str], warnings: list[str]) -> None:
-        super().__init__(f"{target} blocked by lifecycle safety checks")
+        super().__init__(
+            f"{target} blocked by lifecycle safety checks",
+            operation=target,
+        )
         self.target = target
         self.errors = errors
         self.warnings = warnings

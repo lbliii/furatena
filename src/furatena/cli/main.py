@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import argparse
 
+from furatena.catalog.exceptions import CatalogError
 from furatena.cli.commands import COMMANDS
 from furatena.cli.commands._shared import _finish_result, _json_output
-from furatena.cli.contracts import CommandResult
+from furatena.cli.contracts import CommandResult, command_result_from_catalog_error
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -42,7 +43,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _invoke(argv: list[str] | None = None) -> tuple[argparse.Namespace, CommandResult | None]:
     args = _build_parser().parse_args(argv)
-    return args, args.handler(args)
+    try:
+        return args, args.handler(args)
+    except CatalogError as exc:
+        return args, command_result_from_catalog_error(str(args.command), exc)
 
 
 def run_command(argv: list[str]) -> CommandResult | None:

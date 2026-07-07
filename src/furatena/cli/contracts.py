@@ -9,6 +9,8 @@ from enum import IntEnum
 from pathlib import Path
 from typing import Any
 
+from furatena.catalog.exceptions import CatalogError
+
 
 class ExitCode(IntEnum):
     """Documented exit codes for ``fura`` automation."""
@@ -109,6 +111,36 @@ def diagnostic_from_message(
         message=message,
         rule_id=rule_id,
         next_action=next_action,
+    )
+
+
+def diagnostic_from_catalog_error(error: CatalogError) -> Diagnostic:
+    """Render one typed domain error through the stable CLI diagnostic contract."""
+
+    return Diagnostic(
+        severity="error",
+        message=error.message,
+        source_path=error.path,
+        mount=error.mount,
+        rule_id=error.code,
+        next_action=(
+            f"Review {error.operation or 'the failing operation'}"
+            + (f" for slug {error.slug}" if error.slug else "")
+            + " and retry after correcting the reported context."
+        ),
+    )
+
+
+def command_result_from_catalog_error(command: str, error: CatalogError) -> CommandResult:
+    """Return the standard failed command envelope for a typed domain error."""
+
+    return CommandResult(
+        command=command,
+        ok=False,
+        exit_code=error.exit_code,
+        summary=f"{command} failed: {error.message}",
+        diagnostics=(diagnostic_from_catalog_error(error),),
+        data={"error": error.to_dict()},
     )
 
 

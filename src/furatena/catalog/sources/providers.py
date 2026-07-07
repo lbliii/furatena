@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from furatena.catalog.exceptions import CatalogConfigError
 from furatena.catalog.sources.git import repo_web_url
 from furatena.catalog.sources.scanner import FilesystemScanner
 from furatena.catalog.sources.types import (
@@ -65,7 +66,7 @@ class GitSourceProvider(FilesystemSourceProvider):
     def __init__(self, config: MountSourceConfig) -> None:
         super().__init__(config)
         if config.git is None:
-            raise ValueError("GitSourceProvider requires MountSourceConfig.git")
+            raise CatalogConfigError("GitSourceProvider requires MountSourceConfig.git")
         self._git = config.git
 
     def provenance(self, source: PageSource, *, mount: str) -> SourceProvenance:
