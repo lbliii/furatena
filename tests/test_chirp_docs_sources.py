@@ -854,6 +854,7 @@ class TestRstAdapter:
         assert content_ir is not None
         assert content_ir.headings
         assert content_ir.links
+        assert content_ir.links[0].line == 4
 
     def test_catalog_indexes_rst_file(self, tmp_path: Path) -> None:
         pytest = __import__("pytest")
