@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from furatena.catalog.access import AccessPolicy, AccessRole
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.retrieval_dataset import (
@@ -29,7 +30,7 @@ def dataset():
 def test_known_answer_dataset_covers_required_query_and_content_classes(dataset) -> None:
     assert dataset.schema_version == 1
     assert dataset.dataset_id == "furatena-known-answers"
-    assert dataset.version == "1.0.0"
+    assert dataset.version == "1.1.0"
     assert validate_known_answer_dataset(dataset) == ()
     assert {case.query_class for case in dataset.cases} >= {
         "navigational",
@@ -95,6 +96,7 @@ def test_access_boundary_fixture_is_private_and_has_unique_sentinel(dataset) -> 
 
     assert visibility_state(meta) == "private"
     assert "orion-cinder recovery sequence" in body
+    assert AccessPolicy.from_page_meta(meta).roles == frozenset({AccessRole.ADMIN})
     case = next(item for item in dataset.cases if item.id == "exclude-private-incident-runbook")
     assert case.result_policy == "excluded_public_included_trusted"
     assert case.access == "admin"

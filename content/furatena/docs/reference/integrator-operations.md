@@ -133,7 +133,7 @@ Exact rule-id index:
 - `fura.agent.output_schema`, `fura.agent.parameter_description`, `fura.agent.permission_note`, `fura.agent.resource_metadata`, `fura.agent.tool_description`
 - `fura.agent_safety.private_leak`, `fura.agent_safety.stale_context`
 - `fura.api`, `fura.author`, `fura.author.authorization`, `fura.author.conflict`, `fura.author.csrf`, `fura.author.method`, `fura.author.target`
-- `fura.check`, `fura.content`, `fura.dcp`, `fura.docs_reference.drift`, `fura.evals.*`
+- `fura.check`, `fura.content`, `fura.dcp`, `fura.docs_reference.drift`, `fura.evals.*`, `fura.evals.retrieval_regression`
 - `fura.docs_quality.*`, `fura.docs_quality.exemption`
 - `fura.impact.stale_public_output`, `fura.lifecycle`, `fura.mcp`, `fura.mcp.author`, `fura.mcp.privileged_token`, `fura.mcp.rate_limit`
 - `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.report`

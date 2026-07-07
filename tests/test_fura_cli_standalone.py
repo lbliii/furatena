@@ -744,9 +744,15 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     assert payload["ok"] is True
     assert payload["command"] == "evals"
     assert payload["data"]["fail_count"] == 0
+    assert payload["data"]["retrieval_regression_count"] == 0
+    assert payload["data"]["retrieval_metrics"]["ok"] is True
+    assert payload["data"]["retrieval_metrics"]["applicable"] is False
+    assert payload["data"]["retrieval_metrics"]["skip_reason"] == (
+        "dataset corpus mounts are unavailable: furatena"
+    )
     assert payload["data"]["known_answer_dataset"] == {
         "id": "furatena-known-answers",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "case_count": 8,
         "corpora": ["furatena-dogfood", "access-boundary-fixture"],
         "query_classes": [

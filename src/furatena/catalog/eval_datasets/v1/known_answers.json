@@ -1,14 +1,16 @@
 {
   "schema_version": 1,
   "dataset_id": "furatena-known-answers",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Representative prose, API, release, operations, negative, and access-boundary retrieval questions.",
   "corpora": [
     {
       "id": "furatena-dogfood",
       "kind": "repository",
       "root": ".",
-      "revision": "sha256:9f52a9e976f1d29cb284225ffb1dd621709708e8446e44e87cd9c0c8822d7cb6",
+      "mount": "furatena",
+      "url_prefix": "",
+      "revision": "sha256:361831d1c4238d038aca33f11316c65d89940ecbab536dcdf05f33e7c32f74eb",
       "sources": [
         {
           "path": "content/furatena/docs/get-started/installation.md",
@@ -32,7 +34,7 @@
         },
         {
           "path": "content/furatena/docs/reference/integrator-operations.md",
-          "sha256": "f27facad9e2a69f70728d69de96b3ea676cebb714b77b0f2f198051045ef1619"
+          "sha256": "109a1723383246784ec2f571c70181dbedaebe4e81598d922f97875163880df7"
         },
         {
           "path": "content/furatena/releases/_index.md",
@@ -48,11 +50,13 @@
       "id": "access-boundary-fixture",
       "kind": "synthetic",
       "root": "eval_datasets/v1/corpus",
-      "revision": "sha256:dbdcd5c85c1074388a2925d6d96f5c052622b0f758a93ed4d1599b16856eb6fd",
+      "mount": "eval-private",
+      "url_prefix": "/private/",
+      "revision": "sha256:3aa7b771a45587c5010a18a3458689858ff6cb95377de3ef2cbf4260304f3db8",
       "sources": [
         {
-          "path": "private-incident-runbook.md",
-          "sha256": "0be630068ad4f61f809f903e0aa1a6970093de673cbdd17445350b6298c8e15a"
+          "path": "incident-runbook.md",
+          "sha256": "11c0c8814f01057b7e2716fed3b9bb1c48fc18044838af69560a694146dd1cab"
         }
       ]
     }
@@ -211,7 +215,7 @@
           "node_id": "eval-private:latest:incident-runbook",
           "url": "/private/incident-runbook/",
           "sections": ["rotate-compromised-credentials"],
-          "source_path": "private-incident-runbook.md"
+          "source_path": "incident-runbook.md"
         }
       ],
       "acceptable_alternatives": []

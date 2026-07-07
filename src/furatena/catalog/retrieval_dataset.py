@@ -35,6 +35,8 @@ class RetrievalCorpus:
     id: str
     kind: str
     root: str
+    mount: str
+    url_prefix: str
     revision: str
     sources: tuple[CorpusSource, ...]
 
@@ -111,8 +113,12 @@ def validate_known_answer_dataset(dataset: KnownAnswerDataset) -> tuple[str, ...
     known_corpora = set(corpus_ids)
 
     for corpus in dataset.corpora:
+        if not corpus.mount:
+            findings.append(f"corpus {corpus.id} mount is required")
         if not corpus.revision.startswith("sha256:"):
             findings.append(f"corpus {corpus.id} revision must use sha256")
+        if corpus.url_prefix and not corpus.url_prefix.startswith("/"):
+            findings.append(f"corpus {corpus.id} url_prefix must start with /")
         source_paths = [source.path for source in corpus.sources]
         _append_duplicate_findings(findings, f"corpus {corpus.id} source", source_paths)
         for source in corpus.sources:
@@ -234,6 +240,8 @@ def _corpus_from_dict(raw: Mapping[str, Any]) -> RetrievalCorpus:
         id=str(raw.get("id") or ""),
         kind=str(raw.get("kind") or ""),
         root=str(raw.get("root") or ""),
+        mount=str(raw.get("mount") or ""),
+        url_prefix=str(raw.get("url_prefix") or ""),
         revision=str(raw.get("revision") or ""),
         sources=tuple(
             CorpusSource(path=str(item.get("path") or ""), sha256=str(item.get("sha256") or ""))

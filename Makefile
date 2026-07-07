@@ -105,6 +105,8 @@ ci-fast:
 		src/furatena/catalog/export.py \
 		src/furatena/catalog/graph_schema.py \
 		src/furatena/catalog/query.py \
+		src/furatena/catalog/retrieval_dataset.py \
+		src/furatena/catalog/retrieval_metrics.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
@@ -116,6 +118,8 @@ ci-fast:
 		tests/test_docs_core.py \
 		tests/test_domain_errors.py \
 		tests/test_record_types.py \
+		tests/test_retrieval_dataset.py \
+		tests/test_retrieval_metrics.py \
 		tests/test_search_hot_paths.py \
 		tests/test_site_config.py \
 		tests/test_theme_lint.py \
