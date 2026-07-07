@@ -1,5 +1,7 @@
 ---
 title: Glossary
+owner: docs-product
+reviewed_at: "2026-07-07"
 description: Furatena, Fura, DCP, and catalog vocabulary
 draft: false
 weight: 40

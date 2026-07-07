@@ -169,6 +169,8 @@ def render_docs_reference() -> str:
     lines = [
         "---",
         "title: Generated CLI and configuration reference",
+        "owner: platform-docs",
+        'reviewed_at: "2026-07-07"',
         "description: Parser-derived commands, options, defaults, config fields, and environment controls.",
         "weight: 35",
         "lang: en",

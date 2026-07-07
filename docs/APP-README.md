@@ -61,18 +61,18 @@ Compile (freeze) then link into static HTML:
 ```bash
 fura freeze                    # catalog IR + body HTML + assets
 fura export                    # writes app/public/
-make docs-export                     # same via ./app/export
-make docs-preview                    # serve under /chirp/ like GitHub Pages
-make docs-pages-build                # freeze + export (CI / upload)
+make export                    # export through the project environment
+python -m http.server --directory app/public 8080  # preview exported files
+make pages-build               # freeze + export (CI / upload)
 fura export --incremental      # skip unchanged pages (~1s)
 fura query --directive tabs      # Wave 14 content IR query
 ```
 
 Defaults target GitHub Pages project-site layout (`--base-path /chirp`,
-`--site-url https://lbliii.github.io/chirp`). For a flat local preview:
+`--base-url https://lbliii.github.io/chirp`). For a flat local preview:
 
 ```bash
-fura export /tmp/public --base-path '' --site-url http://127.0.0.1:8080
+fura export /tmp/public --base-path '' --base-url http://127.0.0.1:8080
 cd /tmp/public && python -m http.server 8080
 ```
 

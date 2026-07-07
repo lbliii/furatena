@@ -1,5 +1,7 @@
 ---
 title: Reference
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: CLI, configuration files, and glossary
 draft: false
 weight: 50

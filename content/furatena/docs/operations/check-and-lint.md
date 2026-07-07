@@ -1,5 +1,7 @@
 ---
 title: Check and lint
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: fura check, content lint, theme lint, and CI gates
 draft: false
 weight: 30

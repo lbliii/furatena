@@ -1,5 +1,7 @@
 ---
 title: Operations
+owner: docs-product
+reviewed_at: "2026-07-07"
 description: Preview, build, check, and deploy Furatena sites
 draft: false
 weight: 40

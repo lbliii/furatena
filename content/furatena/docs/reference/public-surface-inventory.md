@@ -1,5 +1,7 @@
 ---
 title: Public surface inventory
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: Machine-readable documentation coverage for product contracts.
 weight: 45
 ---

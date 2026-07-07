@@ -1,5 +1,7 @@
 ---
 title: mounts.yaml reference
+owner: platform-docs
+reviewed_at: "2026-07-07"
 description: Content mounts, URL prefixes, and federation
 draft: false
 weight: 30
