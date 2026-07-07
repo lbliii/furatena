@@ -21,12 +21,23 @@ def _display(value: object) -> str:
     return f"`{text}`"
 
 
+def _portable_default(value: object) -> object:
+    """Keep generated parser defaults stable across checkout locations."""
+
+    if isinstance(value, str) and Path(value).is_absolute():
+        try:
+            return Path(value).relative_to(Path.cwd()).as_posix()
+        except ValueError:
+            return value
+    return value
+
+
 def _action_record(action: argparse.Action) -> dict[str, object]:
     label = ", ".join(action.option_strings) if action.option_strings else action.dest
     return {
         "label": label,
         "required": bool(action.required),
-        "default": action.default,
+        "default": _portable_default(action.default),
         "choices": list(action.choices) if action.choices is not None else [],
         "nargs": action.nargs,
         "type": getattr(action.type, "__name__", str(action.type or "")),

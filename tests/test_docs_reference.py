@@ -36,6 +36,8 @@ def test_committed_reference_matches_active_implementation() -> None:
     } <= set(environment)
     assert "Error and remediation examples" in rendered
     assert "fura.docs_reference.drift" not in rendered
+    assert str(REPO) not in rendered
+    assert "`app/theme-skin`" in rendered
 
 
 def test_docs_reference_command_writes_and_detects_drift(tmp_path: Path) -> None:

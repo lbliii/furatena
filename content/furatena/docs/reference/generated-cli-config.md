@@ -393,7 +393,7 @@ Command parser contract.
 
 | Argument or option | Required | Default | Choices | Type | Purpose |
 |---|---:|---|---|---|---|
-| `directory` | no | `/Users/llane/Documents/github/furatena/app/theme-skin` | — | — | Output directory (default app/theme-skin) |
+| `directory` | no | `app/theme-skin` | — | — | Output directory (default app/theme-skin) |
 | `--force` | no | false | — | — | Overwrite existing scaffold files |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
