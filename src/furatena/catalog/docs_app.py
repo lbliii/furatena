@@ -54,6 +54,7 @@ from furatena.catalog.dev_reload import (
     write_dev_server_record,
 )
 from furatena.catalog.develop_exports import DevelopExport
+from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.error_experience import build_error_context
 from furatena.catalog.export import (
@@ -212,7 +213,7 @@ class DocsApp:
             frozen or config.root / "frozen", config.identity.to_meta()
         )
         semantic_path = semantic_root / "semantic.json"
-        self.embedding_index = EmbeddingIndex.load(semantic_path) or EmbeddingIndex.from_nodes(
+        self.embedding_index = EmbeddingIndex.load(semantic_path) or build_embedding_index(
             list(self.catalog.nodes),
             documents=self.catalog.ast_documents(),
         )

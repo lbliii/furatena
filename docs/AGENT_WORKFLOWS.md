@@ -91,6 +91,13 @@ validation error. For an intentional transition, pass
 the JSON report. Use `--retrieval-thresholds path/to/policy.json` to test a
 proposed policy before changing the packaged ratchet.
 
+`semantic.json` schema version 2 identifies the embedding provider interface,
+provider/model versions, deterministic/external behavior, chunk count, and a
+stable index fingerprint. `LocalTfidfProvider` remains the dependency-free
+default. Integrators can inject `ExternalEmbeddingProvider` with the same build,
+query, serialization, and structured failure contracts; Furatena does not
+couple that adapter to a hosted service.
+
 MCP tools return both text content and `structuredContent` payloads:
 
 - `semantic_search` — hybrid keyword and semantic search over pages and chunks.
