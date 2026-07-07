@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "decision_date": "2026-07-07",
+  "runtime": {
+    "python": "3.14t",
+    "python_gil": "0"
+  },
+  "corpora": [
+    {
+      "id": "public-mdx-vendor-docs",
+      "repository": "https://github.com/mintlify/docs",
+      "revision": "919e17933413c81c63860cf61a1708d44489a55a",
+      "tracked_source_count": 953,
+      "mdx_source_count": 931,
+      "readiness_report_seconds": 13.53,
+      "blocking_finding_count": 244,
+      "blocking_source_count": 80,
+      "clean_source_count": 873,
+      "clean_page_ratio": 0.9160545645,
+      "warning_finding_count": 7393,
+      "safe_mdx_conversion_count": 302,
+      "manual_mdx_conversion_count": 629,
+      "top_unsupported_constructs": {
+        "ResponseField": 1189,
+        "Note": 422,
+        "Card": 340,
+        "Update": 311,
+        "Frame": 303,
+        "Badge": 290,
+        "Tip": 281,
+        "Steps": 237,
+        "CodeGroup": 228
+      },
+      "manual_work": [
+        "Map vendor JSX components to Furatena directives or assign source rewrites.",
+        "Repair internal links reported on 80 source files.",
+        "Review the 302 reversible conversion candidates before applying them."
+      ]
+    },
+    {
+      "id": "public-sphinx-myst-parser-docs",
+      "repository": "https://github.com/executablebooks/MyST-Parser",
+      "revision": "aa273e3fe6d1242c686b27c55e23f85370606bdd",
+      "tracked_source_count": 28,
+      "readiness_report_seconds": 1.27,
+      "blocking_finding_count": 4,
+      "blocking_source_count": 3,
+      "clean_source_count": 25,
+      "clean_page_ratio": 0.8928571429,
+      "warning_finding_count": 716,
+      "top_unsupported_constructs": {
+        "myst-example": 124,
+        "ref-role": 23,
+        "admonition": 22,
+        "versionadded": 19,
+        "note": 17,
+        "seealso": 16,
+        "tab-item": 13,
+        "include": 10,
+        "list-table": 9
+      },
+      "manual_work": [
+        "Install the optional furatena[formats] dependency for RST ingestion.",
+        "Map project-specific MyST and Sphinx directives or assign source rewrites.",
+        "Repair nested card contracts and two unresolved doc-role targets."
+      ]
+    }
+  ],
+  "aggregate": {
+    "tracked_source_count": 981,
+    "clean_source_count": 898,
+    "clean_page_ratio": 0.9153924567,
+    "blockers_grouped_by_owner_source": true
+  },
+  "privacy": {
+    "public_sources_only": true,
+    "source_content_published": false,
+    "local_paths_published": false,
+    "actor_or_host_identity_published": false
+  }
+}

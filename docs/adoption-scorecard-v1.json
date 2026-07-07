@@ -1,7 +1,7 @@
 {
   "decision": "no-go",
   "decision_date": "2026-07-07",
-  "evidence_sha256": "c660e8e18df11b962f23125872e9e53790dcb343c8e8d2d2b97781e8e45b133c",
+  "evidence_sha256": "c43bf06151f3bcb4292544ed7d012ca71f57918e19e7569c97c3969354835dcb",
   "gate_count": 16,
   "gates": [
     {
@@ -52,8 +52,8 @@
       "area": "migration",
       "definition": "Share of indexed pages clean after the first automated pass",
       "id": "migration.clean_page_ratio",
-      "observed": null,
-      "passed": false,
+      "observed": 0.9153924567,
+      "passed": true,
       "target": {
         "operator": ">=",
         "value": 0.9
@@ -63,8 +63,8 @@
       "area": "migration",
       "definition": "Remaining blockers are grouped by owner and source",
       "id": "migration.blockers_grouped",
-      "observed": null,
-      "passed": false,
+      "observed": true,
+      "passed": true,
       "target": {
         "operator": "==",
         "value": true
@@ -187,14 +187,14 @@
     }
   ],
   "ok": false,
-  "passed_gate_count": 0,
+  "passed_gate_count": 2,
   "policy": {
     "definitions": "docs/concepts/adoption-research#success-metrics",
     "id": "furatena-beta-adoption-readiness",
     "version": "1.0.0"
   },
   "schema_version": 1,
-  "unmet_gate_count": 16,
+  "unmet_gate_count": 14,
   "unmet_gates": [
     {
       "gate_id": "activation.new_site_first_edit",
@@ -234,26 +234,6 @@
       "target": {
         "operator": ">=",
         "value": 1.0
-      }
-    },
-    {
-      "gate_id": "migration.clean_page_ratio",
-      "observed": null,
-      "owner": "platform-docs",
-      "remediation": "Complete representative migration pilots and record clean-page ratios plus grouped blockers.",
-      "target": {
-        "operator": ">=",
-        "value": 0.9
-      }
-    },
-    {
-      "gate_id": "migration.blockers_grouped",
-      "observed": null,
-      "owner": "platform-docs",
-      "remediation": "Complete representative migration pilots and record clean-page ratios plus grouped blockers.",
-      "target": {
-        "operator": "==",
-        "value": true
       }
     },
     {

@@ -12,9 +12,9 @@
     },
     "migration": {
       "owner": "platform-docs",
-      "remediation": "Complete representative migration pilots and record clean-page ratios plus grouped blockers.",
-      "clean_page_ratio": null,
-      "blockers_grouped_by_owner_source": null
+      "remediation": "Map the remaining corpus-specific constructs and assign unowned source groups from docs/migration-pilots-v1.json.",
+      "clean_page_ratio": 0.9153924567,
+      "blockers_grouped_by_owner_source": true
     },
     "build": {
       "owner": "release-engineering",

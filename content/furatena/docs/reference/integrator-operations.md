@@ -226,7 +226,7 @@ Exact rule-id index:
 - `fura.docs_quality.*`, `fura.docs_quality.exemption`
 - `fura.impact.stale_public_output`, `fura.lifecycle`, `fura.mcp`, `fura.mcp.author`, `fura.mcp.privileged_token`, `fura.mcp.rate_limit`
 - `fura.identity.*`
-- `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.remediation.manual`, `fura.migration.report`
+- `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.remediation.manual`, `fura.migration.report`, `fura.migration.source_unavailable`
 - `fura.pdf`, `fura.recipes`, `fura.visibility_leak`
 - `fura.scorecard.*`
 - `fura.catalog`, `fura.config`, `fura.source_sync`, `fura.content_parse`, `fura.access`, `fura.access_denied`, `fura.catalog_load`, `fura.export`

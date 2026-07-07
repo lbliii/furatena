@@ -17,7 +17,7 @@ from furatena.catalog.export import catalog_graph, meta_json
 from furatena.catalog.freeze_incremental import mount_source_statuses
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
-from furatena.catalog.registry import CatalogRegistry
+from furatena.catalog.registry import CatalogRegistry, load_mounts
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.sources import (
     FilesystemScanner,
@@ -87,6 +87,29 @@ class TestMountSourceConfig:
         assert config.git.ref == "main"
         assert config.git.path == "docs"
         assert ".mdx" in config.tracked_extensions()
+
+    def test_absolute_content_root_is_canonicalized(self, tmp_path: Path) -> None:
+        real_root = tmp_path / "real-docs"
+        real_root.mkdir()
+        alias_root = tmp_path / "docs-alias"
+        alias_root.symlink_to(real_root, target_is_directory=True)
+        mounts_yaml = tmp_path / "mounts.yaml"
+        mounts_yaml.write_text(
+            "\n".join(
+                (
+                    "mounts:",
+                    "  - id: docs",
+                    f"    content_root: {alias_root}",
+                    "    default: true",
+                )
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        (mount,) = load_mounts(mounts_yaml, repo_root=tmp_path)
+
+        assert mount.content_root == real_root.resolve()
 
 
 class TestFilesystemScanner:

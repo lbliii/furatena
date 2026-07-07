@@ -279,6 +279,22 @@ def _run_migration_report(args: argparse.Namespace) -> CommandResult:
         )
         for message in warnings
     )
+    for mount in registry.source_health()["mounts"]:
+        if mount["loaded"]:
+            continue
+        index_error = mount["index"].get("error") or {}
+        detail = str(index_error.get("message") or "catalog shard did not load")
+        diagnostics.append(
+            Diagnostic(
+                severity="error",
+                source_path=f"mount:{mount['id']}",
+                message=f"migration source mount is unavailable: {detail}",
+                rule_id="fura.migration.source_unavailable",
+                next_action=(
+                    "Fix the mount source or format configuration, then rerun the migration report."
+                ),
+            )
+        )
     report = build_migration_report(registry, diagnostics=tuple(diagnostics))
     finding_diagnostics = tuple(
         Diagnostic(

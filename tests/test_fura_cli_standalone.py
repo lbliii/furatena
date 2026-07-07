@@ -335,6 +335,43 @@ def test_migrate_report_text_is_readable(tmp_path: Path, capsys) -> None:
     assert "MDX JSX component <ApiTable>" in output
 
 
+def test_migrate_report_fails_when_a_source_mount_cannot_load(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    app_root = tmp_path / "docs-site"
+
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    (app_root / "mounts.yaml").write_text(
+        "\n".join(
+            (
+                "mounts:",
+                "  - id: docs",
+                "    content_root: content",
+                "    default: true",
+                "    extensions: ['.md']",
+                "    format_map:",
+                "      '.md': missing-adapter",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as excinfo:
+        main(["--app-root", str(app_root), "migrate", "--report", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert excinfo.value.code == 2
+    assert payload["ok"] is False
+    report = payload["data"]["migration_report"]
+    assert report["summary"]["error_count"] == 1
+    assert report["groups"]["by_source_path"] == {"mount:docs": 1}
+    assert report["findings"][0]["rule_id"] == "fura.migration.source_unavailable"
+    assert "missing-adapter" in report["findings"][0]["message"]
+
+
 def test_check_reports_openapi_governance_findings(tmp_path: Path, capsys) -> None:
     app_root = tmp_path / "docs-site"
 
