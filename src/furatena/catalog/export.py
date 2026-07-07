@@ -4,12 +4,22 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
 from furatena.catalog.content_ir import content_ir_record
 from furatena.catalog.graph_schema import graph_node_records
 from furatena.catalog.patitas_bridge import excerpt_text, llm_text, plain_text, section_texts
+from furatena.catalog.record_types import (
+    CatalogGraphRecord,
+    EdgeRecord,
+    NamespaceRecord,
+    PageRecord,
+    ProvenanceRecord,
+    SearchEntryRecord,
+    SearchIndexRecord,
+    SearchSectionRecord,
+)
 from furatena.catalog.search import search_nodes
 from furatena.catalog.text import sections_record
 
@@ -23,8 +33,8 @@ class CatalogExport(Protocol):
 
     def doc_nodes(self) -> list[Any]: ...
     def backlinks_for(self, node: Any) -> list[dict[str, str]]: ...
-    def graph_edges(self) -> list[dict[str, Any]]: ...
-    def namespaces(self) -> list[dict[str, Any]]: ...
+    def graph_edges(self) -> list[EdgeRecord]: ...
+    def namespaces(self) -> list[NamespaceRecord]: ...
     def inventories_metadata(self) -> list[dict[str, Any]]: ...
 
 
@@ -33,9 +43,9 @@ def catalog_graph(
     *,
     schema_version: int = 3,
     include_private: bool = False,
-) -> dict[str, Any]:
+) -> CatalogGraphRecord:
     """JSON-serializable view of the documentation graph."""
-    pages: list[dict[str, Any]] = []
+    pages: list[PageRecord] = []
     nodes = accessible_nodes(
         catalog,
         catalog.nodes,
@@ -57,10 +67,13 @@ def catalog_graph(
         edge
         for edge in catalog.graph_edges()
         if edge.get("source") in node_ids
-        and (edge.get("target") in node_ids or _is_external_graph_target(str(edge.get("target") or "")))
+        and (
+            edge.get("target") in node_ids
+            or _is_external_graph_target(str(edge.get("target") or ""))
+        )
     ]
     graph_nodes = graph_node_records(edges)
-    payload: dict[str, Any] = {
+    payload: CatalogGraphRecord = {
         "schema_version": schema_version,
         "version": schema_version,
         "channel": catalog.active_channel,
@@ -71,7 +84,8 @@ def catalog_graph(
         "graph_nodes": graph_nodes,
         "namespaces": catalog.namespaces(),
     }
-    inventories = catalog.inventories_metadata() if hasattr(catalog, "inventories_metadata") else []
+    inventories_method = getattr(catalog, "inventories_metadata", None)
+    inventories = inventories_method() if callable(inventories_method) else []
     if inventories:
         payload["inventories"] = inventories
     from furatena.catalog.structure_index import build_structure_index
@@ -92,13 +106,13 @@ def _page_record(
     *,
     schema_version: int = 3,
     public_urls: set[str] | None = None,
-) -> dict[str, Any]:
+) -> PageRecord:
     source_kind = node.meta.get("source", "markdown")
     backlinks = catalog.backlinks_for(node)
     if public_urls is not None:
         backlinks = [item for item in backlinks if item.get("href") in public_urls]
     provenance = _provenance_record(catalog, node, source_kind=source_kind)
-    record: dict[str, Any] = {
+    record: PageRecord = {
         "node_id": node.node_id,
         "url": node.url,
         "slug": node.slug,
@@ -131,8 +145,7 @@ def _page_record(
         "api_operation": node.meta.get("api_operation"),
         "api_try_it": node.meta.get("api_try_it"),
         "toc": [
-            {"anchor": entry.anchor, "text": entry.text, "depth": entry.depth}
-            for entry in node.toc
+            {"anchor": entry.anchor, "text": entry.text, "depth": entry.depth} for entry in node.toc
         ],
         "backlinks": backlinks,
     }
@@ -213,7 +226,12 @@ def _last_indexed_at(catalog: CatalogExport | DocCatalog, node) -> str | None:
     mtime = source_mtimes.get(path)
     if mtime is None:
         return None
-    return datetime.fromtimestamp(float(mtime), UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.fromtimestamp(float(mtime), UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def _provenance_record(
@@ -221,7 +239,7 @@ def _provenance_record(
     node,
     *,
     source_kind: Any,
-) -> dict[str, Any]:
+) -> ProvenanceRecord:
     meta = node.meta
     provider = _string_or_none(_meta_value(meta, "source_provider", "provider")) or (
         "generated" if source_kind != "markdown" else "filesystem"
@@ -352,7 +370,11 @@ def _api_agent_operation(
 def _api_agent_operation_groups(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     groups: dict[str, dict[str, Any]] = {}
     for operation in operations:
-        tags = operation.get("tags") if isinstance(operation.get("tags"), list) else []
+        tags = (
+            cast(list[Any], operation.get("tags"))
+            if isinstance(operation.get("tags"), list)
+            else []
+        )
         group_names = [str(tag) for tag in tags if tag] or ["untagged"]
         for group_name in group_names:
             group = groups.setdefault(
@@ -387,7 +409,9 @@ def _api_operation_line(node: Any) -> str | None:
     summary = " ".join(parts)
     if operation_id:
         summary = f"{summary} ({operation_id})" if summary else operation_id
-    examples = api_operation.get("examples") if isinstance(api_operation.get("examples"), list) else []
+    examples = (
+        api_operation.get("examples") if isinstance(api_operation.get("examples"), list) else []
+    )
     schemas = api_operation.get("schemas") if isinstance(api_operation.get("schemas"), list) else []
     details = []
     if examples:
@@ -491,7 +515,11 @@ def llms_full_txt(
 ) -> str:
     """Full LLM-safe corpus for agents (Patitas ``render_llm`` when AST is available)."""
     lines = [f"# {site_name} Documentation (full corpus)", ""]
-    documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None)
+    documents = (
+        catalog.ast_documents()
+        if hasattr(catalog, "ast_documents")
+        else getattr(catalog, "_ast_documents", None)
+    )
     nodes = accessible_nodes(
         catalog,
         catalog.doc_nodes(),
@@ -520,9 +548,9 @@ def search_json(
     *,
     base_url: str = "",
     include_private: bool = False,
-) -> dict[str, Any]:
+) -> SearchIndexRecord:
     """Machine-readable search index for tools and agents."""
-    entries: list[dict[str, Any]] = []
+    entries: list[SearchEntryRecord] = []
     sections: set[str] = set()
     tags: set[str] = set()
     languages: set[str] = set()
@@ -534,7 +562,11 @@ def search_json(
         permission=AccessPermission.SEARCH,
         include_private=include_private,
     )
-    documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None)
+    documents = (
+        catalog.ast_documents()
+        if hasattr(catalog, "ast_documents")
+        else getattr(catalog, "_ast_documents", None)
+    )
     for node in nodes:
         sections.add(node.section)
         tags.update(node.tags)
@@ -542,8 +574,12 @@ def search_json(
         document = None
         if isinstance(documents, dict):
             document = documents.get(node.node_id) or documents.get(node.slug)
-        body_text = node.body_text.strip() or plain_text(node, document, source=node.body_md) or node.description
-        blocks = []
+        body_text = (
+            node.body_text.strip()
+            or plain_text(node, document, source=node.body_md)
+            or node.description
+        )
+        blocks: list[SearchSectionRecord] = []
         if node.sections:
             for section in node.sections:
                 blocks.append(
@@ -582,7 +618,7 @@ def search_json(
                 }
                 for entry in node.toc
             ]
-        entry: dict[str, Any] = {
+        entry: SearchEntryRecord = {
             "node_id": node.node_id,
             "url": _absolute_url(base_url, node.url),
             "title": node.title,
@@ -633,7 +669,9 @@ def search_json_for_query(
         ),
         query,
         limit=limit,
-        documents=catalog.ast_documents() if hasattr(catalog, "ast_documents") else getattr(catalog, "_ast_documents", None),
+        documents=catalog.ast_documents()
+        if hasattr(catalog, "ast_documents")
+        else getattr(catalog, "_ast_documents", None),
     )
     return {
         "version": 1,
@@ -813,9 +851,7 @@ def tools_manifest(
     }
     inventory_store = getattr(catalog, "inventory_store", None)
     if inventory_store is not None and inventory_store.specs:
-        payload["inventories_url"] = (
-            f"{origin}/inventories.json" if origin else "/inventories.json"
-        )
+        payload["inventories_url"] = f"{origin}/inventories.json" if origin else "/inventories.json"
         payload["objects_inv_url"] = f"{origin}/objects.inv" if origin else "/objects.inv"
     return payload
 

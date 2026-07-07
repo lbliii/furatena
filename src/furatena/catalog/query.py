@@ -7,6 +7,7 @@ from typing import Any
 from furatena.catalog.content_ir import content_ir_record
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.graph_schema import graph_node_records
+from furatena.catalog.record_types import EdgeRecord, GraphQueryRecord, PageRecord
 
 
 def _clean(value: str | None) -> str:
@@ -26,7 +27,7 @@ def _match_text(value: Any, expected: str) -> bool:
 
 
 def _page_matches(
-    page: dict[str, Any],
+    page: PageRecord,
     *,
     mount: str,
     tag: str,
@@ -47,7 +48,7 @@ def _page_matches(
         if format_value not in candidates:
             return False
     if owner:
-        provenance = page.get("provenance") if isinstance(page.get("provenance"), dict) else {}
+        provenance = page.get("provenance") or {}
         candidates = {
             str(page.get("owner") or "").lower(),
             str(page.get("team") or "").lower(),
@@ -59,7 +60,7 @@ def _page_matches(
     return not (locale and not _match_text(page.get("lang"), locale))
 
 
-def _selector_matches_page(selector: str, page: dict[str, Any]) -> bool:
+def _selector_matches_page(selector: str, page: PageRecord) -> bool:
     if not selector:
         return True
     normalized = selector.strip()
@@ -78,7 +79,7 @@ def _selector_matches_page(selector: str, page: dict[str, Any]) -> bool:
 def _selector_matches_target(
     selector: str,
     target: str,
-    pages_by_id: dict[str, dict[str, Any]],
+    pages_by_id: dict[str, PageRecord],
 ) -> bool:
     if not selector:
         return True
@@ -100,7 +101,7 @@ def query_catalog_graph(
     source: str | None = None,
     target: str | None = None,
     include_private: bool = False,
-) -> dict[str, Any]:
+) -> GraphQueryRecord:
     """Filter the DCP catalog graph for headless consumers.
 
     Page filters narrow the source page set. Edge filters then reduce the graph
@@ -133,7 +134,7 @@ def query_catalog_graph(
     selected_ids = {str(page.get("node_id")) for page in pages}
     edge_filters_active = any((edge_kind_value, source_value, target_value))
 
-    edges: list[dict[str, Any]] = []
+    edges: list[EdgeRecord] = []
     for edge in graph.get("edges", []):
         source_id = str(edge.get("source") or "")
         target_id = str(edge.get("target") or "")

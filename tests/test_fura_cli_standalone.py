@@ -982,8 +982,12 @@ def test_freeze_records_failed_mount_status_without_refreshing_renderer(
 
     monkeypatch.setattr(freeze_module, "_freeze_shard", fail_shard)
 
-    with pytest.raises(RuntimeError, match="synthetic shard failure"):
+    with pytest.raises(SystemExit) as exit_info:
         main(["--app-root", str(app_root), "freeze", "--json"])
+    assert int(exit_info.value.code) == 4
+    failure = json.loads(capsys.readouterr().out)
+    assert failure["diagnostics"][0]["rule_id"] == "fura.export"
+    assert failure["data"]["error"]["context"]["mount"] == "docs"
 
     registry = json.loads((app_root / "frozen" / "registry.json").read_text(encoding="utf-8"))
     manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))

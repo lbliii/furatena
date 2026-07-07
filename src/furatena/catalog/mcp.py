@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import sys
 import time
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import quote, unquote
 
 from furatena.catalog.access import (
@@ -24,6 +25,7 @@ from furatena.catalog.export import catalog_graph
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
 from furatena.catalog.query import query_catalog_graph
+from furatena.catalog.record_types import MCPResourceContentRecord, MCPToolResultRecord
 from furatena.catalog.registry import load_mounts
 from furatena.catalog.semantic import hybrid_search, retrieve_node
 from furatena.catalog.structure_index import build_structure_index
@@ -95,7 +97,9 @@ class MCPAccessPolicy:
         return self.remote and bool(self.privileged_tokens)
 
     def has_privileged_token(self, arguments: dict[str, Any]) -> bool:
-        token = _optional_str(arguments.get("privileged_token")) or _optional_str(arguments.get("token"))
+        token = _optional_str(arguments.get("privileged_token")) or _optional_str(
+            arguments.get("token")
+        )
         return bool(token and token in self.privileged_tokens)
 
     @property
@@ -246,7 +250,7 @@ class FuraMCPServer:
         )
         return resources
 
-    def read_resource(self, uri: str) -> dict[str, Any]:
+    def read_resource(self, uri: str) -> MCPResourceContentRecord:
         payload = self._resource_payload(uri)
         return {
             "uri": uri,
@@ -270,7 +274,9 @@ class FuraMCPServer:
                             maximum=50,
                         ),
                         "mount": _string_schema("Optional mount id used to scope search results."),
-                        "edition": _string_schema("Optional edition id used to scope search results."),
+                        "edition": _string_schema(
+                            "Optional edition id used to scope search results."
+                        ),
                     },
                     "required": ["query"],
                 },
@@ -294,23 +300,37 @@ class FuraMCPServer:
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "mount": _string_schema("Optional mount id used to scope graph source pages."),
-                        "tag": _string_schema("Optional page tag used to scope graph source pages."),
+                        "mount": _string_schema(
+                            "Optional mount id used to scope graph source pages."
+                        ),
+                        "tag": _string_schema(
+                            "Optional page tag used to scope graph source pages."
+                        ),
                         "format": _string_schema(
                             "Optional content format, source, or source kind used to scope pages."
                         ),
-                        "owner": _string_schema("Optional owner or team metadata used to scope pages."),
+                        "owner": _string_schema(
+                            "Optional owner or team metadata used to scope pages."
+                        ),
                         "team": _string_schema("Alias for owner when callers use team metadata."),
-                        "locale": _string_schema("Optional locale or language code used to scope pages."),
-                        "lang": _string_schema("Alias for locale when callers use language metadata."),
-                        "edge_kind": _string_schema("Optional graph edge kind such as link, api_schema, or owned_by."),
+                        "locale": _string_schema(
+                            "Optional locale or language code used to scope pages."
+                        ),
+                        "lang": _string_schema(
+                            "Alias for locale when callers use language metadata."
+                        ),
+                        "edge_kind": _string_schema(
+                            "Optional graph edge kind such as link, api_schema, or owned_by."
+                        ),
                         "edge": _string_schema("Alias for edge_kind."),
                         "kind": _string_schema("Alias for edge_kind."),
                         "link_edge": _string_schema("Alias for edge_kind."),
                         "source": _string_schema("Optional edge source node id, slug, or URL."),
                         "from": _string_schema("Alias for source."),
                         "linked_from": _string_schema("Alias for source."),
-                        "target": _string_schema("Optional edge target node id, slug, URL, or external graph id."),
+                        "target": _string_schema(
+                            "Optional edge target node id, slug, URL, or external graph id."
+                        ),
                         "to": _string_schema("Alias for target."),
                         "linked_to": _string_schema("Alias for target."),
                         "include_private": _boolean_schema(
@@ -318,7 +338,9 @@ class FuraMCPServer:
                         ),
                     },
                 },
-                "outputSchema": _object_schema("query", "page_count", "edge_count", "pages", "edges", "graph_nodes"),
+                "outputSchema": _object_schema(
+                    "query", "page_count", "edge_count", "pages", "edges", "graph_nodes"
+                ),
             },
             {
                 "name": "traverse_graph",
@@ -327,7 +349,9 @@ class FuraMCPServer:
                     "type": "object",
                     "properties": {
                         "node_id": _string_schema("Stable catalog node id to traverse."),
-                        "url": _string_schema("Catalog URL to traverse when node_id is not provided."),
+                        "url": _string_schema(
+                            "Catalog URL to traverse when node_id is not provided."
+                        ),
                         "direction": {
                             "type": "string",
                             "enum": ["neighbors", "backlinks", "children", "outbound"],
@@ -350,7 +374,9 @@ class FuraMCPServer:
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "mount": _string_schema("Optional mount id used to scope the health report."),
+                        "mount": _string_schema(
+                            "Optional mount id used to scope the health report."
+                        ),
                     },
                 },
                 "outputSchema": _object_schema("mount_count", "mounts"),
@@ -370,7 +396,9 @@ class FuraMCPServer:
                         "slug": _string_schema("Optional slug used to scope stale-impact entries."),
                     },
                 },
-                "outputSchema": _object_schema("stale_count", "entries", "impact", "repair_tasks", "task_markdown"),
+                "outputSchema": _object_schema(
+                    "stale_count", "entries", "impact", "repair_tasks", "task_markdown"
+                ),
             },
             {
                 "name": "author_create_draft",
@@ -379,9 +407,15 @@ class FuraMCPServer:
                     "type": "object",
                     "properties": {
                         "slug": _string_schema("New draft slug relative to the target mount."),
-                        "title": _string_schema("Optional page title for the new draft front matter."),
-                        "mount": _string_schema("Optional mount id where the draft should be created."),
-                        "dry_run": _boolean_schema("When true, preview the write without changing files.", default=True),
+                        "title": _string_schema(
+                            "Optional page title for the new draft front matter."
+                        ),
+                        "mount": _string_schema(
+                            "Optional mount id where the draft should be created."
+                        ),
+                        "dry_run": _boolean_schema(
+                            "When true, preview the write without changing files.", default=True
+                        ),
                         "confirmed": _boolean_schema(
                             "Must be true with dry_run=false before files are written.",
                             default=False,
@@ -400,7 +434,9 @@ class FuraMCPServer:
                     "type": "object",
                     "properties": {
                         "target": _string_schema("Existing source slug or path to read."),
-                        "mount": _string_schema("Optional mount id used to disambiguate the target."),
+                        "mount": _string_schema(
+                            "Optional mount id used to disambiguate the target."
+                        ),
                         "actor": _string_schema("Optional actor id stored in the audit payload."),
                         "privileged_token": _privileged_token_schema(),
                     },
@@ -428,8 +464,12 @@ class FuraMCPServer:
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "target": _string_schema("Optional source slug or path to scope validation."),
-                        "mount": _string_schema("Optional mount id used to disambiguate the target."),
+                        "target": _string_schema(
+                            "Optional source slug or path to scope validation."
+                        ),
+                        "mount": _string_schema(
+                            "Optional mount id used to disambiguate the target."
+                        ),
                         "actor": _string_schema("Optional actor id stored in the audit payload."),
                         "privileged_token": _privileged_token_schema(),
                     },
@@ -460,18 +500,24 @@ class FuraMCPServer:
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "target": _string_schema("Source slug or path to inspect before publication changes."),
-                        "mount": _string_schema("Optional mount id used to disambiguate the target."),
+                        "target": _string_schema(
+                            "Source slug or path to inspect before publication changes."
+                        ),
+                        "mount": _string_schema(
+                            "Optional mount id used to disambiguate the target."
+                        ),
                         "actor": _string_schema("Optional actor id stored in the audit payload."),
                         "privileged_token": _privileged_token_schema(),
                     },
                     "required": ["target"],
                 },
-                "outputSchema": _object_schema("ok", "status", "validation", "stale_impact", "audit"),
+                "outputSchema": _object_schema(
+                    "ok", "status", "validation", "stale_impact", "audit"
+                ),
             },
         ]
 
-    def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResultRecord:
         arguments = dict(arguments)
         started = time.monotonic()
         self._apply_rate_limit(name, arguments)
@@ -611,11 +657,17 @@ class FuraMCPServer:
             ],
             "policy": self.policy.to_dict(),
         }
-        self._record_tool_audit(name, arguments, status="rate_limited", is_error=True, payload=payload)
+        self._record_tool_audit(
+            name, arguments, status="rate_limited", is_error=True, payload=payload
+        )
         raise MCPError(-32029, "MCP tool rate limit exceeded", payload)
 
     def _policy_gate(self, name: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
-        if self.policy.remote and name in _SENSITIVE_TOOLS and not self.policy.has_privileged_token(arguments):
+        if (
+            self.policy.remote
+            and name in _SENSITIVE_TOOLS
+            and not self.policy.has_privileged_token(arguments)
+        ):
             return {
                 "schema_version": 1,
                 "ok": False,
@@ -652,7 +704,8 @@ class FuraMCPServer:
                 "command": _optional_str(payload.get("audit", {}).get("command"))
                 if isinstance(payload.get("audit"), dict)
                 else name,
-                "target": _optional_str(arguments.get("target")) or _optional_str(arguments.get("slug")),
+                "target": _optional_str(arguments.get("target"))
+                or _optional_str(arguments.get("slug")),
                 "target_path": payload.get("target_path"),
                 "previous_state": payload.get("previous_visibility"),
                 "resulting_state": payload.get("resulting_visibility"),
@@ -723,13 +776,17 @@ class FuraMCPServer:
             new_text=str(arguments.get("new_text") or ""),
             expected_revision=_optional_str(arguments.get("source_revision")),
             dry_run=dry_run,
-            confirmed=False if force_dry_run else _bool_arg(arguments.get("confirmed"), default=False),
+            confirmed=False
+            if force_dry_run
+            else _bool_arg(arguments.get("confirmed"), default=False),
         )
         self._reindex_author_result(result)
         payload = self._author_payload(result, command, arguments)
         return payload, not result.ok
 
-    def _author_transition(self, operation: str, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    def _author_transition(
+        self, operation: str, arguments: dict[str, Any]
+    ) -> tuple[dict[str, Any], bool]:
         command = f"author_{operation}"
         gate = self._author_gate(command, arguments)
         if gate is not None:
@@ -779,7 +836,9 @@ class FuraMCPServer:
             subject=self.policy.subject,
             mount_id=_optional_str(arguments.get("mount")),
         )
-        status_payload = self._author_payload(status, "author_inspect_publication_impact", arguments)
+        status_payload = self._author_payload(
+            status, "author_inspect_publication_impact", arguments
+        )
         if not status.ok:
             return status_payload, True
         report = self.validation_report()
@@ -887,13 +946,18 @@ class FuraMCPServer:
         return {
             "actor": self.policy.actor,
             "command": command,
-            "target": _optional_str(arguments.get("target")) or _optional_str(arguments.get("slug")),
+            "target": _optional_str(arguments.get("target"))
+            or _optional_str(arguments.get("slug")),
             "target_path": result.get("target_path") if result else None,
             "previous_state": result.get("previous_visibility") if result else None,
             "resulting_state": result.get("resulting_visibility") if result else None,
             "diagnostics": result.get("diagnostics", []) if result else [],
-            "dry_run": result.get("dry_run") if result else _bool_arg(arguments.get("dry_run"), default=True),
-            "confirmed": result.get("confirmed") if result else _bool_arg(arguments.get("confirmed"), default=False),
+            "dry_run": result.get("dry_run")
+            if result
+            else _bool_arg(arguments.get("dry_run"), default=True),
+            "confirmed": result.get("confirmed")
+            if result
+            else _bool_arg(arguments.get("confirmed"), default=False),
         }
 
     def channels_manifest(self) -> dict[str, Any]:
@@ -936,7 +1000,10 @@ class FuraMCPServer:
             nodes = [_node_record(node) for node in self._doc_nodes()]
             return {"schema_version": 1, "count": len(nodes), "nodes": nodes}
         if uri == "fura://catalog/graph":
-            return catalog_graph(self.catalog, include_private=self.include_private)
+            return cast(
+                dict[str, Any],
+                catalog_graph(self.catalog, include_private=self.include_private),
+            )
         if uri == "fura://catalog/api-operations":
             return self._api_operations()
         if uri == "fura://catalog/structure":
@@ -1010,30 +1077,34 @@ class FuraMCPServer:
             arguments.get("include_private"),
             default=self.include_private,
         )
-        return query_catalog_graph(
-            self.catalog,
-            mount=_optional_str(arguments.get("mount")),
-            tag=_optional_str(arguments.get("tag")),
-            format=_optional_str(arguments.get("format")),
-            owner=_optional_str(arguments.get("owner")) or _optional_str(arguments.get("team")),
-            locale=_optional_str(arguments.get("locale")) or _optional_str(arguments.get("lang")),
-            edge_kind=(
-                _optional_str(arguments.get("edge_kind"))
-                or _optional_str(arguments.get("edge"))
-                or _optional_str(arguments.get("kind"))
-                or _optional_str(arguments.get("link_edge"))
+        return cast(
+            dict[str, Any],
+            query_catalog_graph(
+                self.catalog,
+                mount=_optional_str(arguments.get("mount")),
+                tag=_optional_str(arguments.get("tag")),
+                format=_optional_str(arguments.get("format")),
+                owner=_optional_str(arguments.get("owner")) or _optional_str(arguments.get("team")),
+                locale=_optional_str(arguments.get("locale"))
+                or _optional_str(arguments.get("lang")),
+                edge_kind=(
+                    _optional_str(arguments.get("edge_kind"))
+                    or _optional_str(arguments.get("edge"))
+                    or _optional_str(arguments.get("kind"))
+                    or _optional_str(arguments.get("link_edge"))
+                ),
+                source=(
+                    _optional_str(arguments.get("source"))
+                    or _optional_str(arguments.get("from"))
+                    or _optional_str(arguments.get("linked_from"))
+                ),
+                target=(
+                    _optional_str(arguments.get("target"))
+                    or _optional_str(arguments.get("to"))
+                    or _optional_str(arguments.get("linked_to"))
+                ),
+                include_private=include_private,
             ),
-            source=(
-                _optional_str(arguments.get("source"))
-                or _optional_str(arguments.get("from"))
-                or _optional_str(arguments.get("linked_from"))
-            ),
-            target=(
-                _optional_str(arguments.get("target"))
-                or _optional_str(arguments.get("to"))
-                or _optional_str(arguments.get("linked_to"))
-            ),
-            include_private=include_private,
         )
 
     def _node_payload(self, node_id: str) -> dict[str, Any]:
@@ -1061,15 +1132,17 @@ class FuraMCPServer:
             results = self._outbound_records(node, limit=limit)
         elif direction == "neighbors":
             prev_node, next_node = self.catalog.prev_next(node)
-            related = [
-                {"relation": "parent", **item} for item in self.catalog.trail(node)[-2:-1]
-            ]
+            related = [{"relation": "parent", **item} for item in self.catalog.trail(node)[-2:-1]]
             if prev_node is not None:
                 related.append({"relation": "previous", **_node_ref(prev_node)})
             if next_node is not None:
                 related.append({"relation": "next", **_node_ref(next_node)})
-            related.extend({"relation": "backlink", **item} for item in self.catalog.backlinks_for(node))
-            related.extend({"relation": "child", **item} for item in self._child_records(node, limit=limit))
+            related.extend(
+                {"relation": "backlink", **item} for item in self.catalog.backlinks_for(node)
+            )
+            related.extend(
+                {"relation": "child", **item} for item in self._child_records(node, limit=limit)
+            )
             results = related[:limit]
         else:
             raise MCPError(-32602, f"unsupported direction: {direction}")
@@ -1124,7 +1197,7 @@ class FuraMCPServer:
             candidate_slug = candidate.slug.strip("/")
             if prefix and not candidate_slug.startswith(prefix):
                 continue
-            remainder = candidate_slug[len(prefix):] if prefix else candidate_slug
+            remainder = candidate_slug[len(prefix) :] if prefix else candidate_slug
             if "/" in remainder.strip("/"):
                 continue
             children.append(_node_ref(candidate))
@@ -1214,7 +1287,7 @@ class FuraMCPServer:
         )
 
     @staticmethod
-    def _response(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:
+    def _response(request_id: Any, result: Mapping[str, Any]) -> dict[str, Any]:
         return {"jsonrpc": "2.0", "id": request_id, "result": result}
 
     @staticmethod
@@ -1397,7 +1470,12 @@ def build_milo_cli(server: FuraMCPServer):
         return _milo_tool_payload(
             server,
             "author_read_source",
-            {"target": target, "mount": mount, "actor": actor, "privileged_token": privileged_token},
+            {
+                "target": target,
+                "mount": mount,
+                "actor": actor,
+                "privileged_token": privileged_token,
+            },
         )
 
     @cli.command(
@@ -1478,7 +1556,12 @@ def build_milo_cli(server: FuraMCPServer):
         return _milo_tool_payload(
             server,
             "author_validate",
-            {"target": target, "mount": mount, "actor": actor, "privileged_token": privileged_token},
+            {
+                "target": target,
+                "mount": mount,
+                "actor": actor,
+                "privileged_token": privileged_token,
+            },
         )
 
     @cli.command(
@@ -1579,7 +1662,12 @@ def build_milo_cli(server: FuraMCPServer):
         return _milo_tool_payload(
             server,
             "author_inspect_publication_impact",
-            {"target": target, "mount": mount, "actor": actor, "privileged_token": privileged_token},
+            {
+                "target": target,
+                "mount": mount,
+                "actor": actor,
+                "privileged_token": privileged_token,
+            },
         )
 
     return cli
@@ -1684,8 +1772,8 @@ def _channel_record(channel: Any) -> dict[str, Any]:
     }
 
 
-def _tool_result(payload: dict[str, Any], *, is_error: bool = False) -> dict[str, Any]:
-    structured = _jsonable(payload)
+def _tool_result(payload: dict[str, Any], *, is_error: bool = False) -> MCPToolResultRecord:
+    structured = cast(dict[str, Any], _jsonable(payload))
     return {
         "content": [
             {
@@ -1718,7 +1806,9 @@ def _author_edit_schema() -> dict[str, Any]:
                 "SHA-256 revision returned by author_read_source; required for writes."
             ),
             "mount": _string_schema("Optional mount id used to disambiguate the target."),
-            "dry_run": _boolean_schema("When true, preview the edit without changing files.", default=True),
+            "dry_run": _boolean_schema(
+                "When true, preview the edit without changing files.", default=True
+            ),
             "confirmed": _boolean_schema(
                 "Must be true with dry_run=false before files are written.",
                 default=False,
@@ -1739,7 +1829,9 @@ def _author_transition_schema() -> dict[str, Any]:
             "source_revision": _string_schema(
                 "SHA-256 revision returned by author_read_source; required for writes."
             ),
-            "dry_run": _boolean_schema("When true, preview the transition without changing files.", default=True),
+            "dry_run": _boolean_schema(
+                "When true, preview the transition without changing files.", default=True
+            ),
             "confirmed": _boolean_schema(
                 "Must be true with dry_run=false before files are written.",
                 default=False,
@@ -1798,7 +1890,9 @@ def _validation_messages(report: dict[str, Any], key: str) -> tuple[str, ...]:
     )
 
 
-def _attach_author_validation_fields(payload: dict[str, Any], result: AuthorOperationResult) -> None:
+def _attach_author_validation_fields(
+    payload: dict[str, Any], result: AuthorOperationResult
+) -> None:
     errors = [
         {
             "severity": diagnostic.severity,
@@ -1865,11 +1959,7 @@ def _group_impact(impact: list[dict[str, Any]], field: str) -> list[dict[str, An
             "count": len(items),
             "slugs": sorted(str(item.get("slug") or "") for item in items),
             "refresh_targets": sorted(
-                {
-                    str(target)
-                    for item in items
-                    for target in (item.get("refresh_targets") or [])
-                }
+                {str(target) for item in items for target in (item.get("refresh_targets") or [])}
             ),
         }
         for key, items in sorted(groups.items())
@@ -1889,7 +1979,7 @@ def _bool_arg(value: Any, *, default: bool) -> bool:
 def _bounded_int(value: Any, *, default: int, low: int, high: int) -> int:
     try:
         number = int(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         number = default
     return max(low, min(high, number))
 

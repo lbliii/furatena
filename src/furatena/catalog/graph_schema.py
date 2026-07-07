@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
+from furatena.catalog.record_types import EdgeRecord, GraphNodeRecord, NamespaceRecord
+
 if TYPE_CHECKING:
     from furatena.catalog.loader import DocCatalog
     from furatena.catalog.models import DocNode
@@ -248,7 +250,7 @@ def build_graph_edges(
                         target=parent.node_id,
                         mount=node.mount,
                         edition=node.edition,
-                    )
+                    ),
                 )
 
         for tag in sorted(node.tags):
@@ -285,7 +287,7 @@ def build_graph_edges(
                     target=target_id,
                     mount=node.mount,
                     edition=node.edition,
-                )
+                ),
             )
 
         prev_node, next_node = catalog.prev_next(node)
@@ -299,7 +301,7 @@ def build_graph_edges(
                     target=prev_node.node_id,
                     mount=node.mount,
                     edition=node.edition,
-                )
+                ),
             )
         if next_node is not None and next_node.node_id in local_nodes_by_id:
             _append_edge(
@@ -311,7 +313,7 @@ def build_graph_edges(
                     target=next_node.node_id,
                     mount=node.mount,
                     edition=node.edition,
-                )
+                ),
             )
 
         owner = str(node.meta.get("owner") or node.meta.get("team") or "").strip()
@@ -395,7 +397,7 @@ def build_translation_edges(
     return edges
 
 
-def edge_record(edge: GraphEdge) -> dict[str, Any]:
+def edge_record(edge: GraphEdge) -> EdgeRecord:
     return {
         "kind": edge.kind.value,
         "source": edge.source,
@@ -405,9 +407,9 @@ def edge_record(edge: GraphEdge) -> dict[str, Any]:
     }
 
 
-def graph_node_records(edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def graph_node_records(edges: list[EdgeRecord]) -> list[GraphNodeRecord]:
     """Project external edge endpoints into typed graph node records."""
-    records: dict[tuple[str, str, str], dict[str, Any]] = {}
+    records: dict[tuple[str, str, str], GraphNodeRecord] = {}
     for edge in edges:
         target = str(edge.get("target") or "")
         prefix, separator, label = target.partition(":")
@@ -429,7 +431,10 @@ def graph_node_records(edges: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "edition": edition,
             },
         )
-    return sorted(records.values(), key=lambda item: (item["kind"], item["id"], item["mount"], item["edition"]))
+    return sorted(
+        records.values(),
+        key=lambda item: (item["kind"], item["id"], item["mount"], item["edition"]),
+    )
 
 
 def namespace_record(
@@ -441,8 +446,8 @@ def namespace_record(
     tenant: str | None = None,
     workspace: str | None = None,
     site: str | None = None,
-) -> dict[str, Any]:
-    record = {
+) -> NamespaceRecord:
+    record: NamespaceRecord = {
         "mount": mount_id,
         "edition": edition,
         "label": label,
