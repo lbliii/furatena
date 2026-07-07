@@ -82,6 +82,15 @@ count, and query classes. Dataset provenance tests fail when a source changes
 without an intentional dataset revision, preventing quality baselines from
 silently drifting with the documentation corpus.
 
+The same command executes the fixed cases and reports Recall@3, mean reciprocal
+rank (MRR), no-result rate, stale-answer failures, and private leaks overall,
+by corpus, and by query class. The packaged `thresholds.json` ratchets the
+current CPython free-threaded baseline. An unapproved regression exits with a
+validation error. For an intentional transition, pass
+`--approve-retrieval-regression "reason"`; the non-empty reason is recorded in
+the JSON report. Use `--retrieval-thresholds path/to/policy.json` to test a
+proposed policy before changing the packaged ratchet.
+
 MCP tools return both text content and `structuredContent` payloads:
 
 - `semantic_search` — hybrid keyword and semantic search over pages and chunks.

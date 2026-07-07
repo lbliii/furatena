@@ -73,6 +73,15 @@ fura theme list
 Live **`/catalog.json`** export is validated against **`catalog-v3.schema.json`**
 shipped in `src/furatena/catalog/schemas/`.
 
+## Retrieval regression gate
+
+`fura evals` compares the versioned known-answer dataset with its packaged
+Recall@3, MRR, no-result, stale-answer, and private-leak thresholds. An
+unapproved regression emits `fura.evals.retrieval_regression` and exits with a
+validation error. Restore the metric or pass
+`--approve-retrieval-regression "reason"` for an intentional, auditable
+transition.
+
 ## Query and structure
 
 Inspect indexed structure without opening the browser:

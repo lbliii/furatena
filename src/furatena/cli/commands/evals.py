@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Any
 
 from furatena.cli.commands._shared import (
@@ -24,6 +25,7 @@ def _run_evals(args: argparse.Namespace) -> None:
     sys.path.insert(0, str(_app_root(args)))
     from furatena.catalog.agent_evals import run_agent_evaluations
     from furatena.catalog.docs_app import DocsApp
+    from furatena.catalog.retrieval_metrics import load_retrieval_thresholds
     from furatena.catalog.runtime import ServeConfig, ServeMode
 
     app_root = _app_root(args)
@@ -36,10 +38,17 @@ def _run_evals(args: argparse.Namespace) -> None:
         serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
         workers=args.workers,
     )
+    thresholds = load_retrieval_thresholds(
+        path=Path(args.retrieval_thresholds).expanduser().resolve()
+        if args.retrieval_thresholds
+        else None
+    )
     report = run_agent_evaluations(
         docs,
         include_private=args.include_private,
         categories=args.category,
+        retrieval_thresholds=thresholds,
+        retrieval_regression_approval=args.approve_retrieval_regression,
     )
     fail_count = int(report["fail_count"])
     diagnostics = tuple(
@@ -52,6 +61,19 @@ def _run_evals(args: argparse.Namespace) -> None:
         )
         for result in report["results"]
         if result["status"] == "fail"
+    ) + tuple(
+        Diagnostic(
+            severity="error",
+            message=finding,
+            source_path="retrieval-thresholds",
+            rule_id="fura.evals.retrieval_regression",
+            next_action=(
+                "Restore the retrieval metric or rerun with "
+                "--approve-retrieval-regression and a recorded reason."
+            ),
+        )
+        for finding in report["retrieval_metrics"]["regressions"]
+        if not report["retrieval_metrics"]["ok"]
     )
     exit_code = ExitCode.VALIDATION_ERROR if fail_count else ExitCode.SUCCESS
     result = CommandResult(
@@ -71,6 +93,9 @@ def _run_evals(args: argparse.Namespace) -> None:
     print(result.summary)
     for item in report["results"]:
         print(f"{item['status']}: {item['id']} - {item['message']}")
+    if not report["retrieval_metrics"]["ok"]:
+        for finding in report["retrieval_metrics"]["regressions"]:
+            print(f"fail: retrieval-regression - {finding}")
     if fail_count:
         raise SystemExit(int(exit_code))
 
@@ -90,6 +115,17 @@ def configure(sub: Any) -> None:
     )
     evals.add_argument("--no-autodoc", action="store_true", help="Skip autodoc slice")
     evals.add_argument("--workers", type=int, default=None, help="Parallel index workers")
+    evals.add_argument(
+        "--retrieval-thresholds",
+        default=None,
+        help="Path to a retrieval threshold policy JSON file",
+    )
+    evals.add_argument(
+        "--approve-retrieval-regression",
+        metavar="REASON",
+        default=None,
+        help="Explicitly approve threshold regressions with a recorded reason",
+    )
     evals.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     evals.set_defaults(handler=_run_evals)
 

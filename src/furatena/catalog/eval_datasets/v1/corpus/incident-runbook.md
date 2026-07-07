@@ -2,7 +2,7 @@
 title: Private incident runbook
 visibility: private
 access:
-  min_role: admin
+  roles: [admin]
 ---
 
 # Private incident runbook

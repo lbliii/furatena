@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "policy_id": "furatena-retrieval-ratchet",
+  "version": "1.1.0",
+  "dataset_id": "furatena-known-answers",
+  "dataset_version": "1.1.0",
+  "measured_on": "2026-07-07",
+  "runtime": "CPython 3.14t, PYTHON_GIL=0",
+  "overall": {
+    "recall_at_3_min": 0.714286,
+    "mrr_min": 0.678571,
+    "no_result_rate_min": 0.0,
+    "stale_answer_failures_max": 0,
+    "private_leaks_max": 0
+  },
+  "corpora": {
+    "furatena-dogfood": {
+      "recall_at_3_min": 0.666667,
+      "mrr_min": 0.625,
+      "no_result_rate_min": 0.0,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    },
+    "access-boundary-fixture": {
+      "recall_at_3_min": 1.0,
+      "mrr_min": 1.0,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    }
+  },
+  "query_classes": {
+    "access_restricted": {
+      "recall_at_3_min": 1.0,
+      "mrr_min": 1.0,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    },
+    "cross_surface": {
+      "recall_at_3_min": 1.0,
+      "mrr_min": 1.0,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    },
+    "factual": {
+      "recall_at_3_min": 1.0,
+      "mrr_min": 0.75,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    },
+    "navigational": {
+      "recall_at_3_min": 0.0,
+      "mrr_min": 0.125,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    },
+    "negative": {
+      "no_result_rate_min": 0.0,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    },
+    "troubleshooting": {
+      "recall_at_3_min": 1.0,
+      "mrr_min": 1.0,
+      "stale_answer_failures_max": 0,
+      "private_leaks_max": 0
+    }
+  }
+}

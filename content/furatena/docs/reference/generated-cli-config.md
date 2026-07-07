@@ -218,6 +218,8 @@ Command parser contract.
 | `--include-private` | no | false | — | — | Exercise include-private author MCP evals |
 | `--no-autodoc` | no | false | — | — | Skip autodoc slice |
 | `--workers` | no | — | — | `int` | Parallel index workers |
+| `--retrieval-thresholds` | no | — | — | — | Path to a retrieval threshold policy JSON file |
+| `--approve-retrieval-regression` | no | — | — | — | Explicitly approve threshold regressions with a recorded reason |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
 ### `fura export`

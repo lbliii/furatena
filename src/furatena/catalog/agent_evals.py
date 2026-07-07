@@ -9,6 +9,7 @@ from typing import Any
 
 from furatena.catalog.lifecycle import is_public_node
 from furatena.catalog.retrieval_dataset import load_known_answer_dataset
+from furatena.catalog.retrieval_metrics import run_retrieval_evaluation
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +67,8 @@ def run_agent_evaluations(
     *,
     include_private: bool = False,
     categories: Iterable[str] | None = None,
+    retrieval_thresholds: dict[str, Any] | None = None,
+    retrieval_regression_approval: str | None = None,
 ) -> dict[str, Any]:
     """Run a lightweight deterministic eval suite through the Milo MCP adapter."""
     from milo.testing import MCPClient
@@ -81,6 +84,12 @@ def run_agent_evaluations(
 
     cases = _build_cases(docs_app.catalog)
     known_answers = load_known_answer_dataset()
+    retrieval_report = run_retrieval_evaluation(
+        docs_app,
+        dataset=known_answers,
+        threshold_policy=retrieval_thresholds,
+        approval_reason=retrieval_regression_approval,
+    )
     results: list[AgentEvalResult] = []
     for case in cases:
         if selected and case.category not in selected and case.id not in selected:
@@ -111,7 +120,11 @@ def run_agent_evaluations(
             results.append(
                 _eval_author_publish_round_trip(case, public_client, private_client, include_private)
             )
-    fail_count = sum(1 for result in results if result.status == "fail")
+    golden_fail_count = sum(1 for result in results if result.status == "fail")
+    unapproved_regressions = (
+        int(retrieval_report["regression_count"]) if not retrieval_report["ok"] else 0
+    )
+    fail_count = golden_fail_count + unapproved_regressions
     skip_count = sum(1 for result in results if result.status == "skip")
     pass_count = sum(1 for result in results if result.status == "pass")
     return {
@@ -122,6 +135,9 @@ def run_agent_evaluations(
         "fail_count": fail_count,
         "skip_count": skip_count,
         "include_private": include_private,
+        "golden_fail_count": golden_fail_count,
+        "retrieval_regression_count": int(retrieval_report["regression_count"]),
+        "unapproved_retrieval_regression_count": unapproved_regressions,
         "known_answer_dataset": {
             "id": known_answers.dataset_id,
             "version": known_answers.version,
@@ -130,6 +146,7 @@ def run_agent_evaluations(
             "query_classes": sorted({case.query_class for case in known_answers.cases}),
         },
         "categories": sorted({result.category for result in results}),
+        "retrieval_metrics": retrieval_report,
         "results": [result.to_dict() for result in results],
     }
 
