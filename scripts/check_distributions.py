@@ -140,7 +140,6 @@ import asyncio
 import os
 import pathlib
 
-from chirp.testing import TestClient
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.runtime import ServeConfig, ServeMode
 
@@ -152,12 +151,43 @@ docs = DocsApp.from_paths(
     serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
 )
 assert docs.catalog.get_path("/docs/get-started/") is not None
-client = TestClient(docs.create_app())
+app = docs.create_app()
 
 async def fetch():
-    response = await client.get("/docs/get-started/")
-    assert response.status_code == 200
-    assert "Get started" in response.text
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "path": "/docs/get-started/",
+        "raw_path": b"/docs/get-started/",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [],
+        "server": ("testserver", 80),
+        "client": ("127.0.0.1", 0),
+    }
+    body_sent = False
+    status = 500
+    body = []
+
+    async def receive():
+        nonlocal body_sent
+        if not body_sent:
+            body_sent = True
+            return {"type": "http.request", "body": b"", "more_body": False}
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        nonlocal status
+        if message["type"] == "http.response.start":
+            status = message["status"]
+        elif message["type"] == "http.response.body":
+            body.append(message.get("body", b""))
+
+    await app(scope, receive, send)
+    assert status == 200
+    assert "Get started" in b"".join(body).decode("utf-8")
 
 asyncio.run(fetch())
 """
