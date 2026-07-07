@@ -350,6 +350,7 @@ Command parser contract.
 |---|---:|---|---|---|---|
 | `paths` | no | — | — | — | Optional .mdx files |
 | `--report` | no | false | — | — | Report migration readiness risks without writing files |
+| `--apply-safe` | no | false | — | — | Create reversible canonical siblings only for conflict-free MDX conversions |
 | `--dry-run` | no | false | — | — | — |
 | `--keep-mdx` | no | false | — | — | — |
 | `--json` | no | false | — | — | Emit the standard command result JSON |

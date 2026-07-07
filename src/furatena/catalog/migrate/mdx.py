@@ -8,6 +8,7 @@ from pathlib import Path
 
 import yaml
 
+from furatena.catalog.directives.registry import create_directive_registry
 from furatena.catalog.patitas_bridge import split_frontmatter
 from furatena.catalog.sources.adapters.mdx import mdx_to_markdown
 
@@ -37,7 +38,9 @@ def _format_page(meta: dict, body: str) -> str:
 
 
 def _find_unmigrated_jsx(text: str) -> tuple[str, ...]:
-    return tuple(sorted({match.group(0)[1:] for match in _UNMIGRATED_JSX_RE.finditer(text)}))
+    known_directives = create_directive_registry().names
+    components = {match.group(0)[1:] for match in _UNMIGRATED_JSX_RE.finditer(text)}
+    return tuple(sorted(name for name in components if name.lower() not in known_directives))
 
 
 def _parse_warnings(body: str) -> tuple[str, ...]:
@@ -53,8 +56,9 @@ def _parse_warnings(body: str) -> tuple[str, ...]:
 
 def migrate_mdx_body(body: str) -> tuple[str, tuple[str, ...]]:
     """Lower JSX in a markdown body to Patitas extension blocks."""
+    unmigrated = _find_unmigrated_jsx(body)
     converted = mdx_to_markdown(body)
-    return converted, _find_unmigrated_jsx(converted)
+    return converted, unmigrated
 
 
 def migrate_mdx_text(source: str) -> tuple[str, MigrateReport]:
@@ -67,7 +71,7 @@ def migrate_mdx_text(source: str) -> tuple[str, MigrateReport]:
     report = MigrateReport(
         source_path=Path(""),
         target_path=Path(""),
-        changed=converted_body.strip() != body.strip() or unmigrated,
+        changed=converted_body.strip() != body.strip() or bool(unmigrated),
         unmigrated_components=unmigrated,
         warnings=_parse_warnings(converted_body),
     )

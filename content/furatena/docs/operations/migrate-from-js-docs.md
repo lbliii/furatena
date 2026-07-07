@@ -37,9 +37,36 @@ fura migrate --report --json
 ```
 
 The report groups check and compatibility findings by severity, source path,
-construct, and suggested action. It includes broken internal or cross-mount links,
-unresolved reference roles, directive compatibility gaps, and embedded MDX/RST/MyST
-constructs that need mapping or manual cleanup.
+construct, owner, and suggested action. Its remediation plan additionally groups
+every item by ecosystem and risk (`safe`, `review`, `manual`, or `blocking`). It
+includes broken internal or cross-mount links, unresolved reference roles,
+directive compatibility gaps, and embedded MDX/RST/MyST constructs that need
+mapping or manual cleanup.
+
+## Safe automated remediation
+
+Preview only deterministic, reversible MDX conversions:
+
+```bash
+fura migrate --apply-safe --dry-run --json
+```
+
+Apply the approved safe set:
+
+```bash
+fura migrate --apply-safe --json
+```
+
+Safe mode creates a canonical `.md` sibling only when the converted document is
+parse-clean, contains no unmapped JSX component, and has no conflicting target.
+It never deletes the `.mdx` source and never overwrites an existing `.md` file.
+Deleting the generated sibling is therefore the complete rollback. Repeating the
+command is idempotent; a matching sibling is reported as `unchanged`.
+
+Anything ambiguous remains a manual blocker under
+`fura.migration.remediation.manual`. The structured result names its source and
+reason, while `fura migrate --report --json` supplies the owner, ecosystem, risk,
+and recommended action for backlog routing.
 
 By default, `.mdx` files become `.md` siblings and the source `.mdx` file is removed.
 Use `--keep-mdx` while evaluating:
@@ -111,9 +138,10 @@ fura check --content-only --json
 
 Then handle each format deliberately:
 
-1. **MDX:** run `fura migrate PATH --dry-run --keep-mdx --json`, review mapped
+1. **MDX:** run `fura migrate --apply-safe PATH --dry-run --json`, review mapped
    directive options and `fura.migrate.unmigrated_component` warnings, then rerun
-   without `--dry-run` only for the approved files.
+   without `--dry-run` only for the safe files. Use the legacy bulk conversion
+   only when a reviewed migration commit intentionally replaces its MDX sources.
 2. **MyST:** keep registered directive fences and supported ref/doc roles; repair
    unsupported roles from the compatibility report before changing extensions.
 3. **RST:** preserve supported admonitions and inventory-backed references; assign
@@ -160,6 +188,7 @@ static output must retain mock/static fallbacks and never publish credentials.
 
 - No blocking migration or content diagnostics remain.
 - Every unsupported construct has an owner and explicit manual/deferred decision.
+- Every automated rewrite is parse-clean, source-preserving, conflict-free, and reversible.
 - Internal and cross-mount links resolve after the final file moves.
 - OpenAPI operations have stable ids, summaries, responses, and valid examples.
 - Freeze/export and public agent outputs contain the migrated content once, at the

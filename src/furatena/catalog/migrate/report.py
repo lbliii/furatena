@@ -12,6 +12,7 @@ from furatena.catalog.format_compat import (
     myst_compatibility_findings,
     rst_compatibility_findings,
 )
+from furatena.catalog.migrate.remediation import remediation_plan
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,7 @@ class MigrationReportFinding:
     next_action: str
     line: int | None = None
     rule_id: str | None = None
+    owner: str = "unassigned"
 
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -33,6 +35,7 @@ class MigrationReportFinding:
             "construct": self.construct,
             "message": self.message,
             "next_action": self.next_action,
+            "owner": self.owner,
         }
         if self.line is not None:
             payload["line"] = self.line
@@ -43,18 +46,34 @@ class MigrationReportFinding:
 
 def build_migration_report(catalog, *, diagnostics: tuple[Any, ...] = ()) -> dict[str, Any]:
     """Build a grouped migration readiness report for a catalog."""
-    findings = [*_compatibility_findings(catalog), *(_from_diagnostic(item) for item in diagnostics)]
+    source_owners = _source_owners(catalog)
+    findings = [
+        *_compatibility_findings(catalog),
+        *(
+            _from_diagnostic(
+                item,
+                owner=source_owners.get(
+                    str(getattr(item, "source_path", None) or "<catalog>"),
+                    "unassigned",
+                ),
+            )
+            for item in diagnostics
+        ),
+    ]
     findings = _dedupe_findings(findings)
-    return {
+    report = {
         "summary": _summary(findings),
         "groups": {
             "by_severity": _group_counts(findings, "severity"),
             "by_source_path": _group_counts(findings, "source_path"),
             "by_construct": _group_counts(findings, "construct"),
             "by_next_action": _group_counts(findings, "next_action"),
+            "by_owner": _group_counts(findings, "owner"),
         },
         "findings": [finding.to_dict() for finding in findings],
     }
+    report["remediation_plan"] = remediation_plan(report)
+    return report
 
 
 def render_migration_report(report: dict[str, Any]) -> str:
@@ -82,7 +101,7 @@ def render_migration_report(report: dict[str, Any]) -> str:
         if finding.get("line") is not None:
             location = f"{location}:{finding['line']}"
         lines.append(
-            f"- {location}: {finding['construct']}: {finding['message']} "
+            f"- {location}: {finding['construct']} (owner: {finding['owner']}): {finding['message']} "
             f"(next: {finding['next_action']})"
         )
     return "\n".join(lines)
@@ -98,12 +117,14 @@ def _compatibility_findings(catalog) -> tuple[MigrationReportFinding, ...]:
         if not body:
             continue
         source = getattr(node, "source_path", "") or getattr(node, "slug", "") or getattr(node, "url", "")
+        owner = str(getattr(node, "meta", {}).get("owner") or getattr(node, "meta", {}).get("team") or "unassigned")
         content_format = getattr(node, "content_format", "")
         if content_format == "mdx":
             findings.extend(
                 _from_compatibility(
                     item,
                     rule_id="fura.migration.compat.mdx",
+                    owner=owner,
                 )
                 for item in mdx_compatibility_findings(
                     body,
@@ -116,6 +137,7 @@ def _compatibility_findings(catalog) -> tuple[MigrationReportFinding, ...]:
                 _from_compatibility(
                     item,
                     rule_id="fura.migration.compat.rst",
+                    owner=owner,
                 )
                 for item in rst_compatibility_findings(body, source_path=source)
             )
@@ -124,6 +146,7 @@ def _compatibility_findings(catalog) -> tuple[MigrationReportFinding, ...]:
                 _from_compatibility(
                     item,
                     rule_id="fura.migration.compat.myst",
+                    owner=owner,
                 )
                 for item in myst_compatibility_findings(
                     body,
@@ -138,6 +161,7 @@ def _from_compatibility(
     finding: FormatCompatibilityFinding,
     *,
     rule_id: str,
+    owner: str,
 ) -> MigrationReportFinding:
     return MigrationReportFinding(
         severity=finding.severity,
@@ -147,10 +171,11 @@ def _from_compatibility(
         message=finding.behavior,
         next_action=finding.next_action,
         rule_id=rule_id,
+        owner=owner,
     )
 
 
-def _from_diagnostic(diagnostic: Any) -> MigrationReportFinding:
+def _from_diagnostic(diagnostic: Any, *, owner: str) -> MigrationReportFinding:
     message = str(getattr(diagnostic, "message", ""))
     rule_id = str(getattr(diagnostic, "rule_id", "") or "fura.check")
     return MigrationReportFinding(
@@ -161,6 +186,7 @@ def _from_diagnostic(diagnostic: Any) -> MigrationReportFinding:
         message=message,
         next_action=str(getattr(diagnostic, "next_action", None) or "Review this finding before migration."),
         rule_id=rule_id,
+        owner=owner,
     )
 
 
@@ -203,6 +229,7 @@ def _dedupe_findings(findings: list[MigrationReportFinding]) -> list[MigrationRe
             finding.construct,
             finding.message,
             finding.next_action,
+            finding.owner,
         )
         if key in seen:
             continue
@@ -226,6 +253,21 @@ def _group_counts(findings: list[MigrationReportFinding], attr: str) -> dict[str
         value = str(getattr(finding, attr))
         groups[value] = groups.get(value, 0) + 1
     return dict(sorted(groups.items()))
+
+
+def _source_owners(catalog: Any) -> dict[str, str]:
+    owners: dict[str, str] = {}
+    for node in getattr(catalog, "nodes", ()):
+        source = str(
+            getattr(node, "source_path", "")
+            or getattr(node, "slug", "")
+            or getattr(node, "url", "")
+        )
+        if not source:
+            continue
+        meta = getattr(node, "meta", {})
+        owners[source] = str(meta.get("owner") or meta.get("team") or "unassigned")
+    return owners
 
 
 def _severity_sort(severity: str) -> int:
