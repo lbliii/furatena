@@ -47,7 +47,7 @@ help:
 	@echo "  make ci-browser-responsive  responsive viewport browser paths"
 	@echo "  make ci-browser-full        complete browser regression tier"
 	@echo "  make ci-agent     agent/MCP lint and tests (~30s)"
-	@echo "  make ci-release   package build + CLI smoke test (~3m)"
+	@echo "  make ci-release   isolated wheel + sdist install smoke (~3m)"
 
 install:
 	$(FREE_THREADED) uv sync --group dev
@@ -163,8 +163,8 @@ ci-agent:
 	$(PYTEST) tests/test_fura_cli_standalone.py -k "agent or mcp or evals"
 
 ci-release:
-	$(FREE_THREADED) uv build
-	$(UV_RUN) fura --help
+	$(FREE_THREADED) uv build --clear --no-sources
+	$(PYTHON) scripts/check_distributions.py --dist-dir dist
 
 clean:
 	rm -rf app/frozen app/public app/.docs-cache app/.docs-cache-test .pytest_cache .ruff_cache dist build *.egg-info

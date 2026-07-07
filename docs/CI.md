@@ -13,7 +13,7 @@ for scheduling, not as enforced performance thresholds.
 | Export | `make ci-export` | Static-export and DCP worker tests, a production-shaped Pages build, and an artifact URL crawl | None beyond `make install` | ~3 minutes |
 | Browser | `make ci-browser` | Complete real-browser search, navigation, authoring, and responsive regression tier | `uv run playwright install chromium` | ~90 seconds |
 | Agent | `make ci-agent` | MCP/resource lint, adapter parity, agent safety, and deterministic eval tests | None beyond `make install` | ~30 seconds |
-| Release | `make ci-release` | Wheel/sdist build and CLI entry-point smoke | None beyond `make install` | ~3 minutes |
+| Release | `make ci-release` | Clean wheel/sdist build, archive audit, and isolated install smoke | None beyond `make install` | ~3 minutes |
 
 Short aliases are available for `make fast`, `make contract`, `make coverage`, `make browser`,
 `make browser-smoke`, `make browser-authoring`, `make browser-responsive`, `make agent`, and `make release`. The existing `make export` command remains a
@@ -25,10 +25,11 @@ the final local fallback when a change crosses multiple surfaces.
 
 ## Branch gates and artifacts
 
-Pull requests run the `fast`, `contract`, `coverage`, and browser-smoke jobs for
-early lint, unit, hypermedia/diagnostic, core coverage, and critical real-browser
-feedback. Pushes to `main` and manual runs replace browser smoke with the full
-browser tier and add the `export`, `agent`, and `release` safety jobs.
+Pull requests run the `fast`, `contract`, `coverage`, `release`, and
+browser-smoke jobs for early lint, unit, hypermedia/diagnostic, core coverage,
+distribution, and critical real-browser feedback. Pushes to `main` and manual
+runs replace browser smoke with the full browser tier and add the `export` and
+`agent` safety jobs.
 GitHub Pages deploys only after all seven jobs pass.
 
 Each job scopes the uv cache with its GitHub job name, so a cache or install
@@ -37,6 +38,14 @@ artifact, while the release job uploads a commit-named wheel/sdist artifact;
 the browser job retains JUnit XML for 14 days, and the remaining jobs keep their
 diagnostics in their named job logs. Browser tests have zero automatic retries:
 a flaky failure remains visible and blocks the owning PR or main run.
+
+The release lane clears stale distributions and ignores local uv source
+overrides before building. It audits both archives against every runtime Python
+module, schema, fixture, template, vendor script, and theme asset in `src/`,
+then installs the wheel and sdist into separate temporary environments. Each
+installed copy is exercised from outside the checkout with Python isolated mode,
+no `PYTHONPATH`, and the GIL disabled; imports, entry points, package data, and
+`fura --help` must all succeed without a repository path on `sys.path`.
 
 Every Make lane runs Python with `PYTHON_GIL=0`, matching the workflow's
 free-threaded CPython 3.14t runtime. The export lane clears deployment
