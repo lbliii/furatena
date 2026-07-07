@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -83,7 +84,12 @@ def _run(
     )
 
 
-def _smoke_code(expected: set[str]) -> str:
+def _project_version(source_root: Path) -> str:
+    with (source_root / "pyproject.toml").open("rb") as handle:
+        return str(tomllib.load(handle)["project"]["version"])
+
+
+def _smoke_code(expected: set[str], expected_version: str) -> str:
     expected_json = json.dumps(sorted(expected))
     return f"""
 import importlib.metadata
@@ -111,7 +117,7 @@ from furatena.cli.main import main
 package_file = pathlib.Path(furatena.__file__).resolve()
 assert repo not in package_file.parents, f"furatena imported from checkout: {{package_file}}"
 assert callable(main)
-assert importlib.metadata.version("furatena")
+assert importlib.metadata.version("furatena") == {expected_version!r}
 
 root = importlib.resources.files("furatena")
 missing = []
@@ -128,8 +134,111 @@ assert themes.get("lagoon") == "furatena.themes.lagoon:PACK"
 """
 
 
+def _live_smoke_code() -> str:
+    return """
+import asyncio
+import os
+import pathlib
+
+from furatena.catalog.docs_app import DocsApp
+from furatena.catalog.runtime import ServeConfig, ServeMode
+
+app_root = pathlib.Path(os.environ["FURA_SMOKE_APP"])
+docs = DocsApp.from_paths(
+    app_root / "docs.yaml",
+    repo_root=app_root,
+    autodoc=False,
+    serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+)
+assert docs.catalog.get_path("/docs/get-started/") is not None
+app = docs.create_app()
+
+async def fetch():
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "GET",
+        "path": "/docs/get-started/",
+        "raw_path": b"/docs/get-started/",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [],
+        "server": ("testserver", 80),
+        "client": ("127.0.0.1", 0),
+    }
+    body_sent = False
+    status = 500
+    body = []
+
+    async def receive():
+        nonlocal body_sent
+        if not body_sent:
+            body_sent = True
+            return {"type": "http.request", "body": b"", "more_body": False}
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        nonlocal status
+        if message["type"] == "http.response.start":
+            status = message["status"]
+        elif message["type"] == "http.response.body":
+            body.append(message.get("body", b""))
+
+    await app(scope, receive, send)
+    assert status == 200
+    assert "Get started" in b"".join(body).decode("utf-8")
+
+asyncio.run(fetch())
+"""
+
+
+def _assert_workflow_outputs(app_root: Path) -> None:
+    required = {
+        "frozen/catalog.json",
+        "frozen/search.json",
+        "frozen/semantic.json",
+        "frozen/structure.json",
+        "frozen/tools.json",
+        "frozen/channels.json",
+        "public/docs/get-started/index.html",
+        "public/catalog.json",
+        "public/search.json",
+        "public/semantic.json",
+        "public/tools.json",
+        "public/llms.txt",
+        "public/llms-full.txt",
+        "public/channels.json",
+        "public/docs-assets/manifest.json",
+        "public/docs-vendor/htmx.min.js",
+    }
+    missing = sorted(relative for relative in required if not (app_root / relative).is_file())
+    if missing:
+        raise RuntimeError(f"packaged workflow did not generate required outputs: {missing}")
+    if not list((app_root / "public" / "docs-assets").glob("theme.*.css")):
+        raise RuntimeError("packaged workflow did not generate the hashed theme stylesheet")
+    if not list((app_root / "public" / "docs-theme" / "fonts").glob("*.woff2")):
+        raise RuntimeError("packaged workflow did not copy theme fonts")
+
+    page = (app_root / "public" / "docs" / "get-started" / "index.html").read_text(
+        encoding="utf-8"
+    )
+    if "Get started" not in page:
+        raise RuntimeError("packaged workflow generated an unexpected get-started page")
+    for root in (app_root / "frozen", app_root / "public"):
+        channels = json.loads((root / "channels.json").read_text(encoding="utf-8"))
+        ids = {channel["id"] for channel in channels["channels"]}
+        if not {"agent", "pdf"} <= ids:
+            raise RuntimeError(f"{root / 'channels.json'} is missing agent output channels")
+
+
 def _check_isolated_install(
-    artifact: Path, *, expected: set[str], repo_root: Path, uv: str
+    artifact: Path,
+    *,
+    expected: set[str],
+    expected_version: str,
+    repo_root: Path,
+    uv: str,
 ) -> None:
     with tempfile.TemporaryDirectory(prefix=f"furatena-{artifact.suffix.removeprefix('.')}-") as raw:
         workspace = Path(raw)
@@ -138,6 +247,8 @@ def _check_isolated_install(
         child_env.pop("PYTHONPATH", None)
         child_env["PYTHON_GIL"] = "0"
         child_env["FURA_REPO_ROOT"] = str(repo_root)
+        app_root = workspace / "standalone-app"
+        child_env["FURA_SMOKE_APP"] = str(app_root)
 
         _run(
             [uv, "venv", "--no-project", "--python", sys.executable, str(environment)],
@@ -162,19 +273,54 @@ def _check_isolated_install(
             env=child_env,
         )
         _run(
-            [str(python), "-I", "-c", _smoke_code(expected)],
+            [str(python), "-I", "-c", _smoke_code(expected, expected_version)],
             cwd=workspace,
             env=child_env,
         )
+        fura = str(_environment_script(environment, "fura"))
         help_result = _run(
-            [str(_environment_script(environment, "fura")), "--help"],
+            [fura, "--help"],
             cwd=workspace,
             env=child_env,
             capture=True,
         )
         if "usage:" not in (help_result.stdout or "").lower():
             raise RuntimeError(f"{artifact.name} CLI help did not contain a usage banner")
-        print(f"validated isolated GIL-off install: {artifact.name}")
+        _run(
+            [fura, "init", str(app_root), "--name", "Packaged Smoke", "--json"],
+            cwd=workspace,
+            env=child_env,
+        )
+        _run(
+            [
+                fura,
+                "--app-root",
+                str(app_root),
+                "check",
+                "--content-only",
+                "--warnings-as-errors",
+                "--json",
+            ],
+            cwd=workspace,
+            env=child_env,
+        )
+        _run(
+            [str(python), "-I", "-c", _live_smoke_code()],
+            cwd=workspace,
+            env=child_env,
+        )
+        _run(
+            [fura, "--app-root", str(app_root), "freeze", "--json"],
+            cwd=workspace,
+            env=child_env,
+        )
+        _run(
+            [fura, "--app-root", str(app_root), "export", "--base-path", "", "--json"],
+            cwd=workspace,
+            env=child_env,
+        )
+        _assert_workflow_outputs(app_root)
+        print(f"validated packaged standalone workflow: {artifact.name}")
 
 
 def main() -> int:
@@ -194,7 +340,14 @@ def main() -> int:
         )
 
     expected = _runtime_paths(source_root)
+    expected_version = _project_version(source_root)
     artifacts = [wheels[0], sdists[0]]
+    normalized_version = expected_version.replace("-", "_")
+    if any(not artifact.name.startswith(f"furatena-{normalized_version}") for artifact in artifacts):
+        raise RuntimeError(
+            f"distribution filenames do not match project version {expected_version}: "
+            f"{[artifact.name for artifact in artifacts]}"
+        )
     for artifact in artifacts:
         _assert_archive_complete(artifact, expected)
 
@@ -202,7 +355,13 @@ def main() -> int:
     if uv is None:
         raise RuntimeError("uv is required to create isolated distribution environments")
     for artifact in artifacts:
-        _check_isolated_install(artifact, expected=expected, repo_root=source_root, uv=uv)
+        _check_isolated_install(
+            artifact,
+            expected=expected,
+            expected_version=expected_version,
+            repo_root=source_root,
+            uv=uv,
+        )
     return 0
 
 

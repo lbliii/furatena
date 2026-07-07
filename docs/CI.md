@@ -45,7 +45,10 @@ module, schema, fixture, template, vendor script, and theme asset in `src/`,
 then installs the wheel and sdist into separate temporary environments. Each
 installed copy is exercised from outside the checkout with Python isolated mode,
 no `PYTHONPATH`, and the GIL disabled; imports, entry points, package data, and
-`fura --help` must all succeed without a repository path on `sys.path`.
+the declared package version must all match without a repository path on
+`sys.path`. Finally, each installed artifact must scaffold a new app, pass a
+strict content check, render a live request, freeze, and export the complete
+static, asset, and agent-output surface.
 
 Every Make lane runs Python with `PYTHON_GIL=0`, matching the workflow's
 free-threaded CPython 3.14t runtime. The export lane clears deployment
