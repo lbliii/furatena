@@ -1,0 +1,135 @@
+{
+  "corpora": [
+    {
+      "name": "dogfood",
+      "page_count": 50,
+      "source_file_count": 50,
+      "timings_ms": {
+        "catalog_query": {
+          "median": 1.828229,
+          "samples": [
+            1.860008,
+            1.828229,
+            1.797013
+          ],
+          "unit": "ms"
+        },
+        "freeze": {
+          "median": 456.910875,
+          "samples": [
+            437.659916,
+            456.910875,
+            825.461916
+          ],
+          "unit": "ms"
+        },
+        "full_index": {
+          "median": 225.502667,
+          "samples": [
+            225.502667,
+            300.652083,
+            165.909458
+          ],
+          "unit": "ms"
+        },
+        "incremental_reindex": {
+          "median": 42.929084,
+          "samples": [
+            48.693709,
+            41.168875,
+            42.929084
+          ],
+          "unit": "ms"
+        },
+        "search": {
+          "median": 9.016933,
+          "samples": [
+            9.058575,
+            9.0148,
+            9.016933
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "name": "synthetic",
+      "page_count": 250,
+      "source_file_count": 250,
+      "timings_ms": {
+        "catalog_query": {
+          "median": 7.125317,
+          "samples": [
+            7.20795,
+            7.125317,
+            6.991746
+          ],
+          "unit": "ms"
+        },
+        "freeze": {
+          "median": 490.946959,
+          "samples": [
+            602.15325,
+            490.946959,
+            482.062875
+          ],
+          "unit": "ms"
+        },
+        "full_index": {
+          "median": 142.742166,
+          "samples": [
+            425.99825,
+            142.682167,
+            142.742166
+          ],
+          "unit": "ms"
+        },
+        "incremental_reindex": {
+          "median": 99.160209,
+          "samples": [
+            100.366625,
+            99.160209,
+            98.552209
+          ],
+          "unit": "ms"
+        },
+        "search": {
+          "median": 3.157075,
+          "samples": [
+            3.152258,
+            3.157075,
+            3.158833
+          ],
+          "unit": "ms"
+        }
+      }
+    }
+  ],
+  "elapsed_seconds": 6.671613,
+  "environment": {
+    "cpu_count": 11,
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "methodology": {
+    "autodoc": false,
+    "clock": "time.perf_counter",
+    "cold_operations": [
+      "full_index",
+      "freeze"
+    ],
+    "corpus_isolation": "temporary copy",
+    "query_iterations_per_repeat": 10,
+    "repeats": 3,
+    "statistic": "median",
+    "warm_operations": [
+      "incremental_reindex",
+      "catalog_query",
+      "search"
+    ],
+    "workers": 1
+  },
+  "schema_version": 1
+}

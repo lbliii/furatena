@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint serve stop freeze export pages-build check clean \
+.PHONY: help install test lint benchmark serve stop freeze export pages-build check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
@@ -35,6 +35,7 @@ help:
 	@echo "  make check        fura check"
 	@echo "  make test         pytest"
 	@echo "  make lint         ruff check"
+	@echo "  make benchmark    index/freeze/query/search timing report"
 	@echo ""
 	@echo "CI lanes (see docs/CI.md)"
 	@echo "  make ci-fast      lint + core unit tests (~20s)"
@@ -76,6 +77,9 @@ test:
 lint:
 	$(UV_RUN) ruff check src tests app
 
+benchmark:
+	$(UV_RUN) python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)
+
 fast: ci-fast
 
 contract: ci-contract
@@ -107,6 +111,7 @@ ci-fast:
 		src/furatena/catalog/sources/types.py
 	$(PYTEST) \
 		tests/test_catalog_nav.py \
+		tests/test_benchmark_harness.py \
 		tests/test_docs_core.py \
 		tests/test_domain_errors.py \
 		tests/test_record_types.py \

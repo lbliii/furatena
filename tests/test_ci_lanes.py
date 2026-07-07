@@ -53,6 +53,7 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "FURA_BASE_PATH=/furatena" in makefile
     assert "FURA_WORKERS=8" in makefile
     assert "python -m furatena.catalog.artifact_audit app/public" in makefile
+    assert "python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)" in makefile
 
 
 def test_dead_spikes_are_removed_and_public_returns_are_linted() -> None:
