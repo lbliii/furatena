@@ -322,3 +322,21 @@ snapshot and reports degraded health; it never presents partial staged output as
 current. After repair, `SourceSyncStateStore.clear_quarantine(mount)` makes a
 retry eligible, and only a successful sync writes the `reconciled` state and a
 new last-known-good record.
+
+### Operation leases and atomic deployment
+
+Git sync takes a mount-scoped `source-sync` lease. Freeze and static export take
+the same app-scoped `deployment` lease, preventing concurrent mutation of frozen
+and public state. Leases are portable atomic-directory records with token, PID,
+host, resource, acquisition/renewal, and expiry fields. Active workers heartbeat;
+expired crashed-worker leases are reclaimed using directory identity checks so a
+waiter cannot steal a newly created lease with the same name.
+
+`FURA_OPERATION_LOCK_TIMEOUT` defaults to 30 seconds and bounds acquisition.
+`FURA_OPERATION_LEASE_SECONDS` defaults to 3600 seconds and bounds crash
+recovery. Timeout raises a structured exception containing current owner
+metadata. Freeze/export writes occur in copied sibling pending trees, then use an
+atomic directory swap. Restart reconciliation restores an orphaned backup and
+deletes partial pending output. Deployment manifests independently use
+fsync-and-replace. Duplicate deliveries serialize; failed or killed workers leave
+the prior complete tree visible.

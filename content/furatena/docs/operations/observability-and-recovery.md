@@ -146,3 +146,32 @@ read transactionally, and regenerated artifacts match the intended source ref.
 Never delete audit evidence, reset rate-limit state, or overwrite the active
 source during diagnosis. Prefer a reversible artifact rollback and an isolated
 restore over in-place repair with uncertain provenance.
+
+## Concurrency and worker-failure recovery
+
+Source sync uses one renewable filesystem lease per mount. Freeze and static
+export share a deployment lease under `.docs-cache/operation-leases/`, so they
+cannot update related artifact trees concurrently. Lease owner metadata includes
+operation/resource, token, PID, host, acquisition, renewal, and expiry times.
+
+`FURA_OPERATION_LOCK_TIMEOUT` controls how long a contender waits (default 30
+seconds). `FURA_OPERATION_LEASE_SECONDS` controls worker-failure expiry (default
+3600 seconds). A heartbeat renews active leases; do not configure expiry below
+the longest expected scheduler pause. A live lease times out with its owner
+metadata. If a worker dies, a contender may reclaim the lease only after expiry.
+
+Freeze/export build in a sibling pending directory and atomically promote the
+completed tree. Existing output moves briefly to a backup during promotion. On
+restart, reconciliation restores an orphaned backup and removes partial pending
+trees before new work begins. Deployment manifests use atomic fsync-and-replace
+writes. Duplicate deliveries therefore serialize and converge on one complete
+tree; a partial writer cannot overwrite last-known-good output.
+
+After worker failure:
+
+1. Inspect the lease owner and wait for expiry unless the worker is proven dead.
+2. Retry the same operation; startup reconciliation restores any orphaned backup.
+3. Verify manifests parse, `/readyz` passes, and freshness/artifact ages advance.
+4. Confirm no `.pending.*` or `.backup.*` directories remain beside the output.
+5. If the first freeze fails with no prior output, retain its coherent failure
+   registry/manifest for diagnosis; it is not a ready artifact.

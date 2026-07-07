@@ -8,7 +8,7 @@ import inspect
 import json
 import os
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     from furatena.catalog.docs_app import DocsApp
 
+from furatena.catalog.atomic_directory import AtomicDirectoryTransaction
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.deployment_manifest import (
     DeploymentManifest,
@@ -25,6 +26,11 @@ from furatena.catalog.deployment_manifest import (
 )
 from furatena.catalog.exceptions import ExportError
 from furatena.catalog.identity import scoped_frozen_dir
+from furatena.catalog.operation_lease import (
+    OperationLease,
+    operation_lease_seconds,
+    operation_timeout_seconds,
+)
 from furatena.catalog.packaging import (
     PackagingLifecycleError,
     normalize_base_path,
@@ -836,4 +842,21 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
 
 def export_static_site(docs_app: DocsApp, options: StaticExportOptions) -> StaticExportResult:
     """Render the docs app to a static directory tree."""
-    return asyncio.run(_export_async(docs_app, options))
+    with OperationLease(
+        docs_app.config.root / ".docs-cache" / "operation-leases",
+        "deployment",
+        resource=str(options.output_dir.resolve()),
+        timeout_seconds=operation_timeout_seconds(),
+        lease_seconds=operation_lease_seconds(),
+    ):
+        target = options.output_dir.resolve()
+        transaction = AtomicDirectoryTransaction(target, operation="export")
+        staging = transaction.prepare()
+        try:
+            staged_result = asyncio.run(
+                _export_async(docs_app, replace(options, output_dir=staging))
+            )
+            transaction.commit()
+            return replace(staged_result, output_dir=target)
+        finally:
+            transaction.cleanup()
