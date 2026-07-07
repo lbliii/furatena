@@ -98,6 +98,11 @@ default. Integrators can inject `ExternalEmbeddingProvider` with the same build,
 query, serialization, and structured failure contracts; Furatena does not
 couple that adapter to a hosted service.
 
+Hybrid search reports `ranking: keyword_guarded`. The default preserves lexical
+ordering when keyword evidence exists and retains TF-IDF-only candidates as
+fallback; `make retrieval-benchmark` compares it with keyword-only, TF-IDF-only,
+and additive-fusion modes against the versioned known-answer corpus.
+
 MCP tools return both text content and `structuredContent` payloads:
 
 - `semantic_search` — hybrid keyword and semantic search over pages and chunks.

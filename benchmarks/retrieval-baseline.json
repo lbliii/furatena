@@ -1,0 +1,369 @@
+{
+  "algorithms": {
+    "hybrid": {
+      "estimated_index_memory_bytes": 4763306,
+      "latency_ms_per_query": {
+        "median": 63.198881,
+        "samples": [
+          63.198881,
+          63.659357,
+          61.448601
+        ],
+        "unit": "ms"
+      },
+      "quality": {
+        "case_count": 7,
+        "cases": [
+          {
+            "case_id": "navigate-installation",
+            "relevant_rank": 4
+          },
+          {
+            "case_id": "troubleshoot-stale-pages-deploy",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-known-answer-agent-checks",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "compare-installation-across-surfaces",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-access-policy-api",
+            "relevant_rank": 2
+          },
+          {
+            "case_id": "navigate-release-history",
+            "relevant_rank": null
+          }
+        ],
+        "mrr": 0.625,
+        "negative_case_count": 1,
+        "no_result_rate": 0.0,
+        "recall_at_3": 0.666667,
+        "retrieval_case_count": 6
+      },
+      "serialized_index_bytes": 697463
+    },
+    "keyword": {
+      "estimated_index_memory_bytes": 0,
+      "latency_ms_per_query": {
+        "median": 60.571827,
+        "samples": [
+          71.580214,
+          57.682226,
+          60.571827
+        ],
+        "unit": "ms"
+      },
+      "quality": {
+        "case_count": 7,
+        "cases": [
+          {
+            "case_id": "navigate-installation",
+            "relevant_rank": 4
+          },
+          {
+            "case_id": "troubleshoot-stale-pages-deploy",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-known-answer-agent-checks",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "compare-installation-across-surfaces",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-access-policy-api",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "navigate-release-history",
+            "relevant_rank": null
+          }
+        ],
+        "mrr": 0.708333,
+        "negative_case_count": 1,
+        "no_result_rate": 0.0,
+        "recall_at_3": 0.666667,
+        "retrieval_case_count": 6
+      },
+      "serialized_index_bytes": 0
+    },
+    "reranked_hybrid": {
+      "estimated_index_memory_bytes": 4763306,
+      "latency_ms_per_query": {
+        "median": 66.601065,
+        "samples": [
+          66.601065,
+          76.681631,
+          61.68575
+        ],
+        "unit": "ms"
+      },
+      "quality": {
+        "case_count": 7,
+        "cases": [
+          {
+            "case_id": "navigate-installation",
+            "relevant_rank": 4
+          },
+          {
+            "case_id": "troubleshoot-stale-pages-deploy",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-known-answer-agent-checks",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "compare-installation-across-surfaces",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-access-policy-api",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "navigate-release-history",
+            "relevant_rank": null
+          }
+        ],
+        "mrr": 0.708333,
+        "negative_case_count": 1,
+        "no_result_rate": 0.0,
+        "recall_at_3": 0.666667,
+        "retrieval_case_count": 6
+      },
+      "serialized_index_bytes": 697463
+    },
+    "tfidf": {
+      "estimated_index_memory_bytes": 4763306,
+      "latency_ms_per_query": {
+        "median": 4.082566,
+        "samples": [
+          4.227994,
+          4.082566,
+          4.043744
+        ],
+        "unit": "ms"
+      },
+      "quality": {
+        "case_count": 7,
+        "cases": [
+          {
+            "case_id": "navigate-installation",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "troubleshoot-stale-pages-deploy",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-known-answer-agent-checks",
+            "relevant_rank": null
+          },
+          {
+            "case_id": "compare-installation-across-surfaces",
+            "relevant_rank": 1
+          },
+          {
+            "case_id": "find-access-policy-api",
+            "relevant_rank": 2
+          },
+          {
+            "case_id": "navigate-release-history",
+            "relevant_rank": null
+          }
+        ],
+        "mrr": 0.583333,
+        "negative_case_count": 1,
+        "no_result_rate": 0.0,
+        "recall_at_3": 0.666667,
+        "retrieval_case_count": 6
+      },
+      "serialized_index_bytes": 697463
+    }
+  },
+  "dataset": {
+    "id": "furatena-known-answers",
+    "version": "1.1.0"
+  },
+  "default_algorithm": "reranked_hybrid",
+  "environment": {
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "filters": {
+    "access": {
+      "algorithms": {
+        "hybrid": {
+          "passed": true,
+          "public_target_count": 0,
+          "trusted_target_count": 1
+        },
+        "keyword": {
+          "passed": true,
+          "public_target_count": 0,
+          "trusted_target_count": 1
+        },
+        "reranked_hybrid": {
+          "passed": true,
+          "public_target_count": 0,
+          "trusted_target_count": 1
+        },
+        "tfidf": {
+          "passed": true,
+          "public_target_count": 0,
+          "trusted_target_count": 1
+        }
+      },
+      "all_passed": true,
+      "filters": {
+        "include_private": false
+      }
+    },
+    "all_passed": true,
+    "edition": {
+      "algorithms": {
+        "hybrid": {
+          "passed": true,
+          "result_count": 2
+        },
+        "keyword": {
+          "passed": true,
+          "result_count": 2
+        },
+        "reranked_hybrid": {
+          "passed": true,
+          "result_count": 2
+        },
+        "tfidf": {
+          "passed": true,
+          "result_count": 2
+        }
+      },
+      "filters": {
+        "edition": "latest",
+        "include_private": false,
+        "mount": null,
+        "tag": null,
+        "url_prefix": null
+      }
+    },
+    "mount": {
+      "algorithms": {
+        "hybrid": {
+          "passed": true,
+          "result_count": 2
+        },
+        "keyword": {
+          "passed": true,
+          "result_count": 2
+        },
+        "reranked_hybrid": {
+          "passed": true,
+          "result_count": 2
+        },
+        "tfidf": {
+          "passed": true,
+          "result_count": 2
+        }
+      },
+      "filters": {
+        "edition": null,
+        "include_private": false,
+        "mount": "furatena",
+        "tag": null,
+        "url_prefix": null
+      }
+    },
+    "tag": {
+      "algorithms": {
+        "hybrid": {
+          "passed": true,
+          "result_count": 1
+        },
+        "keyword": {
+          "passed": true,
+          "result_count": 1
+        },
+        "reranked_hybrid": {
+          "passed": true,
+          "result_count": 1
+        },
+        "tfidf": {
+          "passed": true,
+          "result_count": 1
+        }
+      },
+      "filters": {
+        "edition": null,
+        "include_private": false,
+        "mount": null,
+        "tag": "hypermedia",
+        "url_prefix": null
+      }
+    },
+    "url": {
+      "algorithms": {
+        "hybrid": {
+          "passed": true,
+          "result_count": 2
+        },
+        "keyword": {
+          "passed": true,
+          "result_count": 2
+        },
+        "reranked_hybrid": {
+          "passed": true,
+          "result_count": 2
+        },
+        "tfidf": {
+          "passed": true,
+          "result_count": 2
+        }
+      },
+      "filters": {
+        "edition": null,
+        "include_private": false,
+        "mount": null,
+        "tag": null,
+        "url_prefix": "/docs/"
+      }
+    }
+  },
+  "methodology": {
+    "algorithms": [
+      "keyword",
+      "tfidf",
+      "hybrid",
+      "reranked_hybrid"
+    ],
+    "clock": "time.perf_counter",
+    "index_size_method": "compact semantic index JSON bytes",
+    "latency_statistic": "median",
+    "memory_method": "recursive sys.getsizeof estimate",
+    "repeats": 3,
+    "result_limit": 12
+  },
+  "schema_version": 1,
+  "tuning_controls": {
+    "filters": [
+      "mount",
+      "edition",
+      "tag",
+      "url_prefix",
+      "include_private"
+    ],
+    "hybrid_ranking": "keyword_guarded",
+    "limit": 12,
+    "semantic_candidate_limit": "max(limit * 3, 64)"
+  }
+}
