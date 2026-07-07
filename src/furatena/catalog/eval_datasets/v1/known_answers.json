@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "dataset_id": "furatena-known-answers",
+  "version": "1.0.0",
+  "description": "Representative prose, API, release, operations, negative, and access-boundary retrieval questions.",
+  "corpora": [
+    {
+      "id": "furatena-dogfood",
+      "kind": "repository",
+      "root": ".",
+      "revision": "sha256:9f52a9e976f1d29cb284225ffb1dd621709708e8446e44e87cd9c0c8822d7cb6",
+      "sources": [
+        {
+          "path": "content/furatena/docs/get-started/installation.md",
+          "sha256": "22faa50ad9f6d02e71fbb835453b7a3cfbf4510893e2450e10676c154d1abd94"
+        },
+        {
+          "path": "content/furatena/docs/get-started/quickstart.md",
+          "sha256": "2575084764ca99e5809c25eee744c0f97b2562139587dc23644cd83664ff060e"
+        },
+        {
+          "path": "content/furatena/docs/get-started/first-github-pages-deploy.md",
+          "sha256": "3b6603e35600951474b65d875761aa8d235418da4ca6580a97358037d5e94ade"
+        },
+        {
+          "path": "content/furatena/docs/operations/consume-agent-outputs.md",
+          "sha256": "e423887a6be472389173145a78fe1d2a1cab93083ecef18d1cc2b57829be8803"
+        },
+        {
+          "path": "content/furatena/docs/operations/freeze-and-export.md",
+          "sha256": "fa44be843f46efdc1e8bba832c0922242f9d673f44589203f0894e1738f84edd"
+        },
+        {
+          "path": "content/furatena/docs/reference/integrator-operations.md",
+          "sha256": "f27facad9e2a69f70728d69de96b3ea676cebb714b77b0f2f198051045ef1619"
+        },
+        {
+          "path": "content/furatena/releases/_index.md",
+          "sha256": "7a33809b097c844ca0f0e874b83e93e8348610ce3c93349bb156846a24d3e170"
+        },
+        {
+          "path": "src/furatena/catalog/access.py",
+          "sha256": "0eeb47dbd3ff6ac1f23b26f877fb657cd7fce4e978f6c325eddb9ec119fb49e2"
+        }
+      ]
+    },
+    {
+      "id": "access-boundary-fixture",
+      "kind": "synthetic",
+      "root": "eval_datasets/v1/corpus",
+      "revision": "sha256:dbdcd5c85c1074388a2925d6d96f5c052622b0f758a93ed4d1599b16856eb6fd",
+      "sources": [
+        {
+          "path": "private-incident-runbook.md",
+          "sha256": "0be630068ad4f61f809f903e0aa1a6970093de673cbdd17445350b6298c8e15a"
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "navigate-installation",
+      "corpus": "furatena-dogfood",
+      "query_class": "navigational",
+      "query": "Where are the Furatena installation and environment setup steps?",
+      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "access": "public",
+      "result_policy": "any_target",
+      "targets": [
+        {
+          "node_id": "furatena:latest:docs/get-started/installation",
+          "url": "/docs/get-started/installation/",
+          "sections": ["clone-and-sync", "verify-the-install"],
+          "source_path": "content/furatena/docs/get-started/installation.md"
+        }
+      ],
+      "acceptable_alternatives": [
+        {
+          "node_id": "furatena:latest:docs/get-started/quickstart",
+          "url": "/docs/get-started/quickstart/",
+          "sections": ["start-the-server"],
+          "source_path": "content/furatena/docs/get-started/quickstart.md"
+        }
+      ]
+    },
+    {
+      "id": "troubleshoot-stale-pages-deploy",
+      "corpus": "furatena-dogfood",
+      "query_class": "troubleshooting",
+      "query": "The deployed GitHub Pages site shows old pages or assets. What should I rebuild and verify?",
+      "surfaces": ["browser", "sidecar", "mcp"],
+      "access": "public",
+      "result_policy": "any_target",
+      "targets": [
+        {
+          "node_id": "furatena:latest:docs/get-started/first-github-pages-deploy",
+          "url": "/docs/get-started/first-github-pages-deploy/",
+          "sections": ["the-deployed-site-shows-old-pages-or-assets"],
+          "source_path": "content/furatena/docs/get-started/first-github-pages-deploy.md"
+        }
+      ],
+      "acceptable_alternatives": [
+        {
+          "node_id": "furatena:latest:docs/operations/freeze-and-export",
+          "url": "/docs/operations/freeze-and-export/",
+          "sections": ["export"],
+          "source_path": "content/furatena/docs/operations/freeze-and-export.md"
+        }
+      ]
+    },
+    {
+      "id": "find-known-answer-agent-checks",
+      "corpus": "furatena-dogfood",
+      "query_class": "factual",
+      "query": "How do I verify known answers and private retrieval boundaries for MCP?",
+      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "access": "public",
+      "result_policy": "any_target",
+      "targets": [
+        {
+          "node_id": "furatena:latest:docs/operations/consume-agent-outputs",
+          "url": "/docs/operations/consume-agent-outputs/",
+          "sections": ["5-verify-known-answers-and-boundaries"],
+          "source_path": "content/furatena/docs/operations/consume-agent-outputs.md"
+        }
+      ],
+      "acceptable_alternatives": []
+    },
+    {
+      "id": "compare-installation-across-surfaces",
+      "corpus": "furatena-dogfood",
+      "query_class": "cross_surface",
+      "query": "Return the installation guide and verify-install section consistently across the browser, DCP, search sidecar, and MCP.",
+      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "access": "public",
+      "result_policy": "any_target",
+      "targets": [
+        {
+          "node_id": "furatena:latest:docs/get-started/installation",
+          "url": "/docs/get-started/installation/",
+          "sections": ["verify-the-install"],
+          "source_path": "content/furatena/docs/get-started/installation.md"
+        }
+      ],
+      "acceptable_alternatives": []
+    },
+    {
+      "id": "find-access-policy-api",
+      "corpus": "furatena-dogfood",
+      "query_class": "factual",
+      "query": "Which Python API defines access roles, subjects, and permission evaluation?",
+      "surfaces": ["dcp", "sidecar", "mcp"],
+      "access": "public",
+      "result_policy": "any_target",
+      "targets": [
+        {
+          "node_id": "furatena:latest:api/furatena/catalog/access",
+          "url": "/api/furatena/catalog/access/",
+          "sections": [],
+          "source_path": "src/furatena/catalog/access.py"
+        }
+      ],
+      "acceptable_alternatives": [
+        {
+          "node_id": "furatena:latest:docs/reference/integrator-operations",
+          "url": "/docs/reference/integrator-operations/",
+          "sections": [],
+          "source_path": "content/furatena/docs/reference/integrator-operations.md"
+        }
+      ]
+    },
+    {
+      "id": "navigate-release-history",
+      "corpus": "furatena-dogfood",
+      "query_class": "navigational",
+      "query": "Where is the Furatena release history?",
+      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "access": "public",
+      "result_policy": "any_target",
+      "targets": [
+        {
+          "node_id": "furatena:latest:releases",
+          "url": "/releases/",
+          "sections": [],
+          "source_path": "content/furatena/releases/_index.md"
+        }
+      ],
+      "acceptable_alternatives": []
+    },
+    {
+      "id": "reject-nonexistent-hosted-control-plane",
+      "corpus": "furatena-dogfood",
+      "query_class": "negative",
+      "query": "How do I configure the built-in Furatena hosted control-plane billing console?",
+      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "access": "public",
+      "result_policy": "no_results",
+      "targets": [],
+      "acceptable_alternatives": []
+    },
+    {
+      "id": "exclude-private-incident-runbook",
+      "corpus": "access-boundary-fixture",
+      "query_class": "access_restricted",
+      "query": "orion-cinder recovery sequence",
+      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "access": "admin",
+      "result_policy": "excluded_public_included_trusted",
+      "targets": [
+        {
+          "node_id": "eval-private:latest:incident-runbook",
+          "url": "/private/incident-runbook/",
+          "sections": ["rotate-compromised-credentials"],
+          "source_path": "private-incident-runbook.md"
+        }
+      ],
+      "acceptable_alternatives": []
+    }
+  ]
+}

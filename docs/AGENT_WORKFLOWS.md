@@ -68,6 +68,20 @@ Versioned public and trusted-author contract fixtures live under `tests/fixtures
 
 Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, validation-error repair, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the validation repair and publish round-trip cases perform confirmed writes against a private fixture and restore the original source before finishing.
 
+## Versioned known-answer corpus
+
+`furatena.catalog.eval_datasets/v1/known_answers.json` is the stable retrieval
+quality input. Version 1 records the corpus revision and per-source SHA-256
+provenance alongside navigational, factual, troubleshooting, negative, and
+access-restricted questions. Expected evidence names node IDs, URLs, heading
+anchors, acceptable alternatives, and the browser/DCP/sidecar/MCP surfaces
+where each answer must remain consistent.
+
+`fura evals --json` reports the packaged dataset ID, version, corpora, case
+count, and query classes. Dataset provenance tests fail when a source changes
+without an intentional dataset revision, preventing quality baselines from
+silently drifting with the documentation corpus.
+
 MCP tools return both text content and `structuredContent` payloads:
 
 - `semantic_search` — hybrid keyword and semantic search over pages and chunks.
