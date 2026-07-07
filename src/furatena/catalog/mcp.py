@@ -29,6 +29,12 @@ from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
 from furatena.catalog.query import query_catalog_graph
+from furatena.catalog.rate_limit import (
+    InMemoryRateLimitStore,
+    RateLimitRequest,
+    RateLimitStore,
+    mcp_rate_limit_rules,
+)
 from furatena.catalog.record_types import MCPResourceContentRecord, MCPToolResultRecord
 from furatena.catalog.registry import load_mounts
 from furatena.catalog.retrieval_feedback import RetrievalFeedbackCollector
@@ -91,6 +97,9 @@ class MCPAccessPolicy:
     teams: frozenset[str] = field(default_factory=frozenset)
     privileged_tokens: frozenset[str] = field(default_factory=frozenset)
     rate_limit_per_minute: int = 120
+    tenant_rate_limit_per_minute: int = 600
+    rate_limit_burst: int = 20
+    sensitive_rate_limit_per_minute: int = 30
     timeout_seconds: float = 15.0
     max_output_chars: int = 200_000
 
@@ -126,6 +135,9 @@ class MCPAccessPolicy:
             "teams": sorted(self.subject.teams),
             "requires_privileged_token": self.requires_privileged_token,
             "rate_limit_per_minute": self.rate_limit_per_minute,
+            "tenant_rate_limit_per_minute": self.tenant_rate_limit_per_minute,
+            "rate_limit_burst": self.rate_limit_burst,
+            "sensitive_rate_limit_per_minute": self.sensitive_rate_limit_per_minute,
             "timeout_seconds": self.timeout_seconds,
             "max_output_chars": self.max_output_chars,
         }
@@ -153,6 +165,7 @@ class FuraMCPServer:
         policy: MCPAccessPolicy | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         audit_store: AuditStore | None = None,
+        rate_limit_store: RateLimitStore | None = None,
     ) -> None:
         self.docs_app = docs_app
         self.catalog = docs_app.catalog
@@ -169,8 +182,7 @@ class FuraMCPServer:
             or RetrievalFeedbackCollector.disabled()
         )
         self.audit_store = audit_store or InMemoryAuditStore()
-        self._rate_window_started = time.monotonic()
-        self._rate_count = 0
+        self.rate_limit_store = rate_limit_store or InMemoryRateLimitStore()
 
     def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
         """Handle one JSON-RPC request object.
@@ -660,25 +672,45 @@ class FuraMCPServer:
         return self.audit_store.query()
 
     def _apply_rate_limit(self, name: str, arguments: dict[str, Any]) -> None:
-        now = time.monotonic()
-        if now - self._rate_window_started >= 60:
-            self._rate_window_started = now
-            self._rate_count = 0
-        self._rate_count += 1
-        if self._rate_count <= max(self.policy.rate_limit_per_minute, 1):
+        decision = self.rate_limit_store.consume(
+            RateLimitRequest(
+                tenant=self.policy.tenant or "default",
+                actor=self.policy.actor,
+                action=name,
+                sensitive=name in _SENSITIVE_TOOLS,
+            ),
+            mcp_rate_limit_rules(
+                burst=self.policy.rate_limit_burst,
+                actor_per_minute=self.policy.rate_limit_per_minute,
+                tenant_per_minute=self.policy.tenant_rate_limit_per_minute,
+                sensitive_per_minute=self.policy.sensitive_rate_limit_per_minute,
+                sensitive=name in _SENSITIVE_TOOLS,
+            ),
+        )
+        if decision.allowed:
             return
+        backend_unavailable = decision.reason == "shared_backend_unavailable"
         payload = {
             "schema_version": 1,
             "ok": False,
             "diagnostics": [
                 {
                     "severity": "error",
-                    "message": "MCP tool rate limit exceeded",
+                    "message": (
+                        "MCP shared rate-limit backend unavailable; request denied"
+                        if backend_unavailable
+                        else "MCP tool rate limit exceeded"
+                    ),
                     "rule_id": "fura.mcp.rate_limit",
-                    "next_action": "Wait for the current rate-limit window or raise the configured remote MCP limit.",
+                    "next_action": (
+                        "Restore the shared rate-limit backend; fail-closed policy is active."
+                        if backend_unavailable
+                        else "Wait for the current rate-limit window or raise the configured remote MCP limit."
+                    ),
                 }
             ],
             "policy": self.policy.to_dict(),
+            "rate_limit": decision.to_dict(),
         }
         self._record_tool_audit(
             name, arguments, status="rate_limited", is_error=True, payload=payload

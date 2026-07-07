@@ -27,6 +27,10 @@ def _run_mcp(args: argparse.Namespace) -> None:
     from furatena.catalog.audit_store import InMemoryAuditStore, JsonLinesAuditStore
     from furatena.catalog.docs_app import DocsApp
     from furatena.catalog.mcp import FuraMCPServer, MCPAccessPolicy, run_milo_stdio
+    from furatena.catalog.rate_limit import (
+        InMemoryRateLimitStore,
+        ResilientRateLimitStore,
+    )
     from furatena.catalog.runtime import ServeConfig, ServeMode
 
     app_root = _app_root(args)
@@ -66,6 +70,9 @@ def _run_mcp(args: argparse.Namespace) -> None:
         teams=frozenset(args.team),
         privileged_tokens=privileged_tokens,
         rate_limit_per_minute=args.rate_limit,
+        tenant_rate_limit_per_minute=args.tenant_rate_limit,
+        rate_limit_burst=args.rate_limit_burst,
+        sensitive_rate_limit_per_minute=args.sensitive_rate_limit,
         timeout_seconds=args.timeout,
         max_output_chars=args.max_output_chars,
     )
@@ -77,12 +84,21 @@ def _run_mcp(args: argparse.Namespace) -> None:
         if args.audit_store
         else InMemoryAuditStore(retention_days=args.audit_retention_days)
     )
+    rate_limit_store = (
+        ResilientRateLimitStore.from_sqlite(
+            Path(args.rate_limit_store),
+            fallback_mode=args.rate_limit_fallback,
+        )
+        if args.rate_limit_store
+        else InMemoryRateLimitStore()
+    )
     server = FuraMCPServer(
         docs,
         base_url=args.base_url or "",
         include_private=serve.mode == ServeMode.AUTHOR and args.include_private,
         policy=policy,
         audit_store=audit_store,
+        rate_limit_store=rate_limit_store,
     )
 
     if args.describe:
@@ -91,6 +107,7 @@ def _run_mcp(args: argparse.Namespace) -> None:
             "transport": "milo-stdio",
             "policy": server.policy.to_dict(),
             "audit": server.audit_store.export(),
+            "rate_limit": server.rate_limit_store.describe(),
             "resources": server.list_resources(),
             "tools": server.list_tools(),
         }
@@ -178,7 +195,36 @@ def configure(sub: Any) -> None:
         "--rate-limit",
         type=int,
         default=120,
-        help="Maximum MCP tool calls per minute for this server session",
+        help="Maximum MCP tool calls per actor per minute",
+    )
+    mcp.add_argument(
+        "--tenant-rate-limit",
+        type=int,
+        default=600,
+        help="Maximum MCP tool calls per tenant per minute across actors",
+    )
+    mcp.add_argument(
+        "--rate-limit-burst",
+        type=int,
+        default=20,
+        help="Maximum MCP tool calls per actor in a one-second burst",
+    )
+    mcp.add_argument(
+        "--sensitive-rate-limit",
+        type=int,
+        default=30,
+        help="Maximum sensitive MCP tool calls per actor per minute",
+    )
+    mcp.add_argument(
+        "--rate-limit-store",
+        default=None,
+        help="Share restart-safe MCP rate limits through this SQLite path",
+    )
+    mcp.add_argument(
+        "--rate-limit-fallback",
+        choices=("deny", "memory"),
+        default="deny",
+        help="Behavior when a configured shared rate-limit store is unavailable",
     )
     mcp.add_argument(
         "--timeout",

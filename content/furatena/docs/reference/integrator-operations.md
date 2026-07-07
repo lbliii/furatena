@@ -24,10 +24,11 @@ result contains MCP text content and `structuredContent`; callers should consume
 the structured object. `fura mcp --describe --json` returns the live schemas.
 
 Local sessions default to an admin-equivalent process subject. Remote sessions
-default to `anonymous`, apply `--rate-limit`, `--timeout`, and
-`--max-output-chars`, and require a configured `--privileged-token` for sensitive
-author tools. Author tools require `--author --include-private`; writes default
-to `dry_run=true` and require both `dry_run=false` and `confirmed=true`.
+default to `anonymous`, apply actor, tenant, burst, and sensitive-tool limits plus
+`--timeout` and `--max-output-chars`, and require a configured
+`--privileged-token` for sensitive author tools. Author tools require
+`--author --include-private`; writes default to `dry_run=true` and require both
+`dry_run=false` and `confirmed=true`.
 
 ### Tools
 
@@ -90,6 +91,28 @@ queries, retention purge, structured export, and writing an export snapshot.
 `fura://reports/audit` exposes the active backend, retention, count, entries, and
 session policy; `fura mcp --describe --json` reports the empty/current store
 metadata before serving.
+
+### Shared abuse controls
+
+`--rate-limit-store PATH` moves fixed-window counters from the thread-safe local
+backend into a restart-safe SQLite store. Each decision updates all applicable
+buckets in one `BEGIN IMMEDIATE` transaction, so restarts, threads, and workers
+sharing the path cannot reset or race the limits. Tenant and actor identities are
+hashed before persistence.
+
+The default policy combines `--rate-limit-burst` per actor per second,
+`--rate-limit` per actor per minute, `--tenant-rate-limit` across tenant actors
+per minute, and `--sensitive-rate-limit` across sensitive author tools per actor
+per minute. A denied response includes the violated rule, backend, and retry
+delay in `rate_limit`; its audit event has outcome `rate_limited`.
+
+`--rate-limit-fallback deny` is the default for a configured shared backend and
+fails closed when an atomic decision cannot be made. The explicit `memory`
+fallback preserves one process's availability but is neither shared nor
+restart-safe, so multi-worker production deployments should retain `deny` and
+alert on `shared_backend_unavailable`. Without `--rate-limit-store`, the local
+memory backend is intentional and `fura mcp --describe --json` reports
+`shared: false` and `restart_safe: false`.
 
 ## HTTP and static sidecars
 
