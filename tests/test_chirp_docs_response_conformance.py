@@ -180,3 +180,44 @@ def test_markdown_pages_include_agent_discovery_directive(docs_client: TestClien
     assert response.status == 200
     assert response.content_type.startswith("text/markdown")
     assert "complete documentation index is available at [llms.txt](/llms.txt)" in response.text
+
+
+def test_content_pages_support_http_conditional_requests(docs_client: TestClient) -> None:
+    async def _fetch():
+        html = await docs_client.get("/docs/get-started/installation/")
+        markdown = await docs_client.get("/docs/get-started/installation.md")
+        html_cached = await docs_client.get(
+            "/docs/get-started/installation/",
+            headers={"If-Modified-Since": html.header("Last-Modified") or ""},
+        )
+        markdown_cached = await docs_client.get(
+            "/docs/get-started/installation.md",
+            headers={"If-None-Match": markdown.header("ETag") or ""},
+        )
+        return html, markdown, html_cached, markdown_cached
+
+    html, markdown, html_cached, markdown_cached = asyncio.run(_fetch())
+    assert html.header("Last-Modified")
+    assert html.header("ETag") is None
+    assert markdown.header("Last-Modified")
+    assert markdown.header("ETag")
+    assert html_cached.status == 304
+    assert not html_cached.body
+    assert markdown_cached.status == 304
+    assert not markdown_cached.body
+
+
+def test_json_sidecars_support_etag_revalidation(docs_client: TestClient) -> None:
+    async def _fetch():
+        response = await docs_client.get("/catalog.json")
+        cached = await docs_client.get(
+            "/catalog.json",
+            headers={"If-None-Match": response.header("ETag") or ""},
+        )
+        return response, cached
+
+    response, cached = asyncio.run(_fetch())
+    assert response.status == 200
+    assert response.header("ETag")
+    assert cached.status == 304
+    assert not cached.body
