@@ -221,3 +221,28 @@ def test_json_sidecars_support_etag_revalidation(docs_client: TestClient) -> Non
     assert response.header("ETag")
     assert cached.status == 304
     assert not cached.body
+
+
+@pytest.mark.parametrize(
+    "headers",
+    (
+        {},
+        {"HX-Request": "true", "HX-Boosted": "true"},
+    ),
+)
+def test_catalog_responses_front_load_content_before_navigation(
+    docs_client: TestClient,
+    headers: dict[str, str],
+) -> None:
+    async def _fetch():
+        return await docs_client.get(
+            "/docs/get-started/installation/",
+            headers=headers,
+        )
+
+    response = asyncio.run(_fetch())
+    article = response.text.index("chirp-theme-docs-layout__article")
+    sidebar = response.text.index('id="docs-sidebar"')
+    toc = response.text.index('id="toc-panel"')
+    assert article < sidebar < toc
+    assert article / len(response.text) < 0.2

@@ -2526,6 +2526,8 @@
   }
 
   .chirp-theme-docs-layout__sidebar {
+    grid-column: 1;
+    grid-row: 1;
     padding: 0;
   }
 
@@ -2534,6 +2536,8 @@
   }
 
   .chirp-theme-docs-layout__toc {
+    grid-column: 3;
+    grid-row: 1;
     overflow: auto;
   }
 
@@ -3246,9 +3250,28 @@
 
   .chirp-theme-docs-layout__main {
     display: grid;
+    grid-column: 2;
+    grid-row: 1;
     gap: 1.35rem;
     min-width: 0;
     padding: clamp(0.5rem, 1vw, 1rem) clamp(1.75rem, 3vw, 3.25rem) clamp(1.75rem, 3vw, 3.25rem);
+  }
+
+  .chirp-theme-docs-layout__hero {
+    order: 1;
+  }
+
+  .chirp-theme-docs-layout__main > .fura-author-chrome {
+    order: 2;
+  }
+
+  .chirp-theme-docs-layout__article-slot {
+    min-width: 0;
+    order: 3;
+  }
+
+  .chirp-theme-docs-layout__main > .page-navigation {
+    order: 4;
   }
 
   @media (min-width: 769px) {
