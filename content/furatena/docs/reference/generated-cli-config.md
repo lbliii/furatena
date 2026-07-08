@@ -747,15 +747,15 @@ implementation treats absence as significant or supplies behavior elsewhere.
 
 | Variable | Modes | Observed defaults | Implementation sources |
 |---|---|---|---|
-| `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:165` |
-| `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:171` |
-| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:286` |
+| `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:164` |
+| `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:170` |
+| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:285` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1373`, `furatena/cli/commands/serve.py:41` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1374`, `furatena/cli/commands/serve.py:41` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:186`, `furatena/catalog/static_export.py:268`, `furatena/catalog/static_export.py:274`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:190`, `furatena/catalog/static_export.py:267`, `furatena/catalog/static_export.py:272`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:43` |
-| `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:165` |
+| `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:164` |
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:75` |
 | `FURA_LANG` | read | '' | `furatena/catalog/i18n.py:112` |
 | `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:35`, `furatena/cli/commands/serve.py:37`, `furatena/cli/commands/serve.py:39` |
@@ -763,7 +763,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:218` |
 | `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:149`, `furatena/cli/commands/serve.py:47`, `furatena/cli/commands/serve.py:90`, `furatena/cli/commands/stop.py:17` |
 | `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:176` |
-| `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:171` |
+| `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:170` |
 | `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:269`, `furatena/catalog/static_export.py:277` |
 | `FURA_STRUCTURED_LOGS` | read | '' | `furatena/catalog/observability.py:136` |
 | `FURA_TELEMETRY` | read | 'none' | `furatena/catalog/observability.py:142` |

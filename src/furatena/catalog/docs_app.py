@@ -20,7 +20,6 @@ from chirp import (
     Page,
     Request,
     Response,
-    Template,
 )
 from chirp.errors import NotFound
 from chirp.ext.chirp_ui import use_chirp_ui
@@ -1312,44 +1311,46 @@ class DocsApp:
 
     @staticmethod
     def _register_contract_refs(app: App) -> None:
-        if False:
-            Fragment("directives/accordion.html", "_register")
-            Fragment("directives/callout.html", "_register")
-            Fragment("directives/card_grid.html", "_register")
-            Fragment("directives/card_link.html", "_register")
-            Fragment("directives/card_static.html", "_register")
-            Fragment("directives/child_cards.html", "_register")
-            Fragment("directives/code_block.html", "_register")
-            Fragment("directives/figure.html", "_register")
-            Fragment("directives/glossary.html", "_register")
-            Fragment("directives/gist.html", "_register")
-            Fragment("directives/literalinclude.html", "_register")
-            Fragment("directives/related.html", "_register")
-            Fragment("directives/step.html", "_register")
-            Fragment("directives/steps.html", "_register")
-            Fragment("directives/table.html", "_register")
-            Fragment("directives/tabs.html", "_register")
-            Fragment("directives/version_callout.html", "_register")
-            Fragment("directives/youtube.html", "_register")
-            for view in (
-                "views/doc.html",
-                "views/doc_list.html",
-                "views/page.html",
-                "views/home.html",
-                "views/collection.html",
-                "views/changelog.html",
-                "views/api_reference.html",
-                "views/portal.html",
-                "views/author_dashboard.html",
-                "views/author_studio.html",
-            ):
-                Template(view)
-            Template("error.html")
-            Template("partials/error_suggest_panel.html")
-            Template("partials/error_meta_oob.html")
-            Template("search.html")
-            Template("layouts/docs_catalog.html")
-            Template("layouts/docs_app.html")
+        directive_templates = (
+            "accordion",
+            "callout",
+            "card_grid",
+            "card_link",
+            "card_static",
+            "child_cards",
+            "code_block",
+            "figure",
+            "glossary",
+            "gist",
+            "literalinclude",
+            "related",
+            "step",
+            "steps",
+            "table",
+            "tabs",
+            "version_callout",
+            "youtube",
+        )
+        for name in directive_templates:
+            app.declare_template(f"directives/{name}.html")
+
+        for template in (
+            "views/doc.html",
+            "views/doc_list.html",
+            "views/page.html",
+            "views/home.html",
+            "views/collection.html",
+            "views/changelog.html",
+            "views/api_reference.html",
+            "views/portal.html",
+            "views/author_dashboard.html",
+            "views/author_studio.html",
+            "error.html",
+            "partials/error_suggest_panel.html",
+            "partials/error_meta_oob.html",
+            "search.html",
+        ):
+            app.declare_template(template)
 
     @classmethod
     def from_paths(

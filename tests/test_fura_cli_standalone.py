@@ -2909,6 +2909,7 @@ def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path)
     retrieve = client.call("retrieve_node", node_id=node.node_id)
     graph_query = client.call("query_graph", mount=node.mount)
     author_denied = client.call("author_read_source", target="docs/get-started")
+    invalid_search = client.call("semantic_search", query="Get started", unexpected=True)
 
     assert init["serverInfo"]["name"] == "furatena-catalog"
     assert "fura://catalog/nodes" in {resource["uri"] for resource in resources}
@@ -2928,6 +2929,9 @@ def test_mcp_milo_adapter_exposes_resources_and_structured_tools(tmp_path: Path)
     assert author_denied.is_error is False
     assert author_denied.structured["ok"] is False
     assert author_denied.structured["diagnostics"][0]["rule_id"] == "fura.mcp.author"
+    assert invalid_search.is_error is True
+    assert invalid_search.error_data["errorCode"] == "M-INP-005"
+    assert invalid_search.error_data["argument"] == "unexpected"
 
 
 def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> None:
