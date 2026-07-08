@@ -42,6 +42,7 @@ from furatena.catalog.access import (
 from furatena.catalog.author_store import AuthorMutationStore, FilesystemAuthorMutationStore
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
+from furatena.catalog.conditional_response import ConditionalResponseMiddleware
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
@@ -348,6 +349,7 @@ class DocsApp:
                 )
             )
         app.add_middleware(GoogleFontsCSPMiddleware())
+        app.add_middleware(ConditionalResponseMiddleware(self._response_last_modified))
         self._register_contract_refs(app)
         self._register_routes(app)
         return app
@@ -773,6 +775,35 @@ class DocsApp:
         shard = getattr(self.catalog, "_shards", {}).get(node.mount)
         source_mtimes = getattr(shard, "_source_mtimes", {}) if shard is not None else {}
         return source_mtimes.get(path)
+
+    def _response_last_modified(self, request: Request) -> float | None:
+        path = request.path
+        if path == "/index.md" or path == "/index.txt":
+            doc_path = "/"
+        elif path.endswith("/index.md"):
+            doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
+        elif path.endswith(".md"):
+            doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+        elif path.endswith("/index.txt"):
+            doc_path = f"{path[: -len('index.txt')].rstrip('/')}/"
+        elif "." not in path.rsplit("/", 1)[-1]:
+            doc_path = path
+        else:
+            return None
+
+        try:
+            match = self._resolve_page_from_path(doc_path)
+        except NotFound:
+            return None
+        source_path = str(getattr(match.node, "source_path", "") or "")
+        mount = next(
+            (item for item in self.catalog.mounts if item.id == match.node.mount),
+            None,
+        )
+        source = (mount.content_root / source_path).resolve() if mount and source_path else None
+        if source is not None and source.is_file():
+            return source.stat().st_mtime
+        return self._author_indexed_mtime(match.node, source)
 
     def _author_validation_status(self, node) -> dict[str, Any]:
         errors, warnings = check_catalog(

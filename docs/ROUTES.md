@@ -33,3 +33,8 @@ Live page GET routes also negotiate the same representation when an explicit
 `Accept: text/markdown` preference outranks `text/html`. Negotiated markdown
 responses include `Vary: Accept`; absent, wildcard-only, or HTML-preferred
 headers continue to receive the normal HTML page.
+
+Dynamic content pages expose source-backed `Last-Modified` validators.
+Markdown representations and JSON sidecars also expose strong `ETag` values;
+matching `If-Modified-Since` or `If-None-Match` requests return `304` without a
+response body.
