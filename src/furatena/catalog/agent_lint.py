@@ -161,7 +161,10 @@ def check_agent_manifest_alignment(server: Any) -> list[AgentLintFinding]:
     doc_nodes = {str(node.node_id): _manifest_path(str(node.url)) for node in server._doc_nodes()}
     meta_nodes = _manifest_node_index(meta_payload.get("pages"))
     search_nodes = _manifest_node_index(search_payload.get("entries"), base_path=base_path)
-    llms_urls = {_manifest_path(url) for url in re.findall(r"\]\(([^)]+)\)", llms_txt(catalog))}
+    llms_urls = {
+        _manifest_llms_page_path(url)
+        for url in re.findall(r"\]\(([^)]+)\)", llms_txt(catalog))
+    }
     mcp_node_ids = {
         unquote(str(resource.get("uri") or "").removeprefix("fura://catalog/nodes/"))
         for resource in server.list_resources()
@@ -774,6 +777,18 @@ def _manifest_path(value: str, *, base_path: str = "") -> str:
     if base_path and (path == base_path or path.startswith(f"{base_path}/")):
         path = path.removeprefix(base_path) or "/"
     return path if path.startswith("/") else f"/{path}"
+
+
+def _manifest_llms_page_path(value: str) -> str:
+    """Normalize supported markdown aliases to their catalog page URL."""
+    path = _manifest_path(value)
+    if path == "/index.md":
+        return "/"
+    if path.endswith("/index.md"):
+        return f"{path[: -len('index.md')]}"
+    if path.endswith(".md"):
+        return f"{path[:-len('.md')]}/"
+    return path
 
 
 def _manifest_route_matches(route: str, path: str) -> bool:

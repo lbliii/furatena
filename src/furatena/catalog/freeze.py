@@ -435,7 +435,11 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             encoding="utf-8",
         )
         (out_dir / "llms.txt").write_text(
-            llms_txt(registry, site_name=docs_config.site.name),
+            llms_txt(
+                registry,
+                site_name=docs_config.site.name,
+                site_description=docs_config.site.description,
+            ),
             encoding="utf-8",
         )
         (out_dir / "llms-full.txt").write_text(

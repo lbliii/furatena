@@ -156,5 +156,8 @@ class TestDevelopExports:
             resp = await docs_client.get("/llms.txt")
             assert resp.status == 200
             assert b"# Furatena Documentation" in resp.body
+            assert b"\n> " in resp.body
+            assert b"\n## " in resp.body
+            assert b".md)" in resp.body
 
         asyncio.run(_fetch())

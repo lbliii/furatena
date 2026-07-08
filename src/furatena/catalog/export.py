@@ -477,11 +477,13 @@ def llms_txt(
     catalog: DocCatalog,
     *,
     site_name: str = "Furatena",
+    site_description: str = "",
     include_private: bool = False,
     subject: AccessSubject | None = None,
 ) -> str:
-    """Compact LLM-safe page index with API operation hints."""
-    lines = [f"# {site_name} Documentation", ""]
+    """Compact llmstxt.org page index with grouped API operation hints."""
+    summary = " ".join(site_description.split()) or f"Documentation index for {site_name}."
+    lines = [f"# {site_name} Documentation", "", f"> {summary}", ""]
     nodes = accessible_nodes(
         catalog,
         catalog.doc_nodes(),
@@ -489,18 +491,38 @@ def llms_txt(
         permission=AccessPermission.EXPORT,
         include_private=include_private,
     )
+    grouped: dict[str, list[Any]] = {}
     for node in nodes:
-        desc = node.description.strip() if node.description else ""
-        api_line = _api_operation_line(node)
-        if api_line and desc:
-            lines.append(f"- [{node.title}]({node.url}): {desc} API: {api_line}")
-        elif api_line:
-            lines.append(f"- [{node.title}]({node.url}): API: {api_line}")
-        elif desc:
-            lines.append(f"- [{node.title}]({node.url}): {desc}")
-        else:
-            lines.append(f"- [{node.title}]({node.url})")
+        mount = str(getattr(node, "mount", "") or "Documentation")
+        section = str(getattr(node, "section", "") or "Overview")
+        heading = f"{_llms_label(mount)} — {_llms_label(section)}"
+        grouped.setdefault(heading, []).append(node)
+
+    for heading, group_nodes in grouped.items():
+        lines.extend((f"## {heading}", ""))
+        for node in group_nodes:
+            desc = node.description.strip() if node.description else ""
+            api_line = _api_operation_line(node)
+            url = _markdown_page_alias(node.url)
+            if api_line and desc:
+                lines.append(f"- [{node.title}]({url}): {desc} API: {api_line}")
+            elif api_line:
+                lines.append(f"- [{node.title}]({url}): API: {api_line}")
+            elif desc:
+                lines.append(f"- [{node.title}]({url}): {desc}")
+            else:
+                lines.append(f"- [{node.title}]({url})")
+        lines.append("")
     return "\n".join(lines) + "\n"
+
+
+def _llms_label(value: str) -> str:
+    return value.replace("-", " ").replace("_", " ").strip().title()
+
+
+def _markdown_page_alias(url: str) -> str:
+    path = url.rstrip("/")
+    return f"{path}.md" if path else "/index.md"
 
 
 def surface_json(config: Any | None = None, catalog: Any | None = None) -> dict[str, Any]:

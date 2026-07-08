@@ -524,6 +524,10 @@ autodoc:
         assert search_entry["api_operation"]["examples"] == ["sample"]
         assert search_entry["api_operation"]["source_spec"] == str(spec)
         llms_payload = llms_txt(_Catalog(), site_name="Acme Docs")
+        assert llms_payload.startswith(
+            "# Acme Docs Documentation\n\n> Documentation index for Acme Docs.\n\n## "
+        )
+        assert ".md)" in llms_payload
         assert "API: POST /users (createUser); examples: sample" in llms_payload
         api_operations_payload = api_operations_json(_Catalog(), base_url="https://docs.example.com")
         api_operations = {
