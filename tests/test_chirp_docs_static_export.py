@@ -218,6 +218,10 @@ class TestMiniStaticExport:
         assert (out / "deployment-profiles.json").is_file()
         assert (out / "routes.json").is_file()
         assert (out / "llms.txt").is_file()
+        llms = (out / "llms.txt").read_text(encoding="utf-8")
+        assert "\n> " in llms
+        assert "\n## " in llms
+        assert "](/docs/hello.md)" in llms
         assert (out / "robots.txt").is_file()
         assert (out / ".nojekyll").is_file()
         profiles = json.loads((out / "deployment-profiles.json").read_text(encoding="utf-8"))

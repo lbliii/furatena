@@ -1197,7 +1197,11 @@ class DocsApp:
         if export.id == "catalog":
             body = json.dumps(catalog_graph(self.catalog), indent=2)
         elif export.id == "llms":
-            body = llms_index_txt(self.catalog, site_name=self.config.site.name)
+            body = llms_index_txt(
+                self.catalog,
+                site_name=self.config.site.name,
+                site_description=self.config.site.description,
+            )
         elif export.id == "llms-full":
             body = llms_full_txt(self.catalog, site_name=self.config.site.name)
         elif export.id == "search":

@@ -750,6 +750,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         body = llms_index_txt(
             self.catalog,
             site_name=self.config.site.name,
+            site_description=self.config.site.description,
             subject=self._output_access_subject(request),
         )
         return Response(body, content_type="text/plain; charset=utf-8")
