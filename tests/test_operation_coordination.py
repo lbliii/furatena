@@ -188,6 +188,53 @@ def test_heartbeat_prevents_steal_and_crashed_worker_expires(tmp_path: Path) -> 
         assert recovered.owner()["pid"] == os.getpid()
 
 
+def test_renewal_invalidates_an_expired_reclaim_snapshot(tmp_path: Path) -> None:
+    assert_free_threading()
+    root = tmp_path / "leases"
+    reclaim_started = threading.Event()
+    resume_reclaim = threading.Event()
+
+    class PausedReclaimLease(OperationLease):
+        def _reclaim_expired(self, expected_identity) -> None:
+            reclaim_started.set()
+            assert resume_reclaim.wait(timeout=5)
+            super()._reclaim_expired(expected_identity)
+
+    owner = OperationLease(
+        root,
+        "renew-race",
+        timeout_seconds=1.0,
+        lease_seconds=0.2,
+        poll_seconds=0.002,
+    ).acquire()
+    owner._stop.set()
+    assert owner._heartbeat is not None
+    owner._heartbeat.join(timeout=1)
+    time.sleep(0.22)
+
+    def contend() -> None:
+        PausedReclaimLease(
+            root,
+            "renew-race",
+            timeout_seconds=0.08,
+            lease_seconds=0.2,
+            poll_seconds=0.002,
+        ).acquire()
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(contend)
+            assert reclaim_started.wait(timeout=5)
+            owner.renew()
+            resume_reclaim.set()
+            with pytest.raises(OperationLeaseTimeout):
+                future.result(timeout=5)
+        assert owner.owner()["token"] == owner.token
+    finally:
+        resume_reclaim.set()
+        owner.release()
+
+
 def test_duplicate_delivery_is_serial_and_leaves_one_consistent_tree(tmp_path: Path) -> None:
     target = tmp_path / "public"
     invocations: list[str] = []
