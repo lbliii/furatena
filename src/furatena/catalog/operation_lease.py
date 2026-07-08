@@ -15,6 +15,8 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any
 
+type _LeaseIdentity = tuple[int, int, str, float, float]
+
 
 class OperationLeaseTimeout(TimeoutError):
     """Raised when an active operation lease outlives the acquisition timeout."""
@@ -128,7 +130,7 @@ class OperationLease:
         self.release()
 
     def _heartbeat_loop(self) -> None:
-        interval = max(min(self.lease_seconds / 3.0, 30.0), 0.01)
+        interval = max(min(self.lease_seconds / 5.0, 30.0), 0.01)
         while not self._stop.wait(interval):
             try:
                 self.renew()
@@ -172,25 +174,37 @@ class OperationLease:
             os.fsync(handle.fileno())
         os.replace(temporary, self.owner_path)
 
-    def _expired_identity(self) -> tuple[int, int] | None:
+    def _lease_identity(self) -> _LeaseIdentity | None:
         try:
             stat = self.path.stat()
         except OSError:
             return None
         owner = self.owner()
         expires_at = owner.get("expires_at_epoch")
-        if expires_at is not None:
-            expired = time.time() >= float(expires_at)
-        else:
-            expired = time.time() >= stat.st_mtime + self.lease_seconds
-        return (stat.st_dev, stat.st_ino) if expired else None
+        expires = (
+            float(expires_at)
+            if expires_at is not None
+            else stat.st_mtime + self.lease_seconds
+        )
+        return (
+            stat.st_dev,
+            stat.st_ino,
+            str(owner.get("token") or ""),
+            float(owner.get("renewed_at_epoch") or 0.0),
+            expires,
+        )
 
-    def _reclaim_expired(self, expected_identity: tuple[int, int]) -> None:
-        try:
-            stat = self.path.stat()
-        except OSError:
+    def _expired_identity(self) -> _LeaseIdentity | None:
+        identity = self._lease_identity()
+        if identity is None or time.time() < identity[-1]:
+            return None
+        return identity
+
+    def _reclaim_expired(self, expected_identity: _LeaseIdentity) -> None:
+        current_identity = self._lease_identity()
+        if current_identity is None:
             return
-        if (stat.st_dev, stat.st_ino) != expected_identity:
+        if current_identity != expected_identity or time.time() < current_identity[-1]:
             return
         stale = self.root / f".{self.name}.stale.{uuid.uuid4().hex}"
         try:
