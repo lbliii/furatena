@@ -269,6 +269,16 @@ class TestNativeShell:
 
 
 class TestThemeHtmlContract:
+    def test_catalog_source_order_has_explicit_visual_grid_placement(self) -> None:
+        css = (
+            REPO / "src" / "furatena" / "themes" / "furatena" / "assets" / "css"
+            / "chirp-theme.css"
+        ).read_text(encoding="utf-8")
+        assert ".chirp-theme-docs-layout__sidebar {\n    grid-column: 1;" in css
+        assert ".chirp-theme-docs-layout__main {\n    display: grid;\n    grid-column: 2;" in css
+        assert ".chirp-theme-docs-layout__toc {\n    grid-column: 3;" in css
+        assert ".chirp-theme-docs-layout__article-slot {\n    min-width: 0;\n    order: 3;" in css
+
     def test_doc_page_uses_theme_layout_contract(self, docs_client) -> None:
         import asyncio
 
