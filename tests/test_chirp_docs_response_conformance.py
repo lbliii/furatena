@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from pathlib import Path
 
@@ -254,6 +255,24 @@ def test_json_sidecars_support_etag_revalidation(docs_client: TestClient) -> Non
     assert response.header("ETag")
     assert cached.status == 304
     assert not cached.body
+def test_meta_reports_deployed_build_identity(
+    docs_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FURA_BUILD_GIT_SHA", "f9fd2413b7327d10f7b3f79b38ff1fc850f8cf0d")
+
+    async def _fetch():
+        return await docs_client.get("/meta.json")
+
+    response = asyncio.run(_fetch())
+    payload = json.loads(response.text)
+    build = payload["build"]
+    assert build["git_sha"] == "f9fd2413b7327d10f7b3f79b38ff1fc850f8cf0d"
+    assert build["packages"]["bengal-chirp"]
+    assert build["packages"]["bengal-pounce"]
+    assert build["freeze_fingerprint"]
+
+
 @pytest.mark.parametrize(
     "headers",
     (

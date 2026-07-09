@@ -754,6 +754,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1387`, `furatena/cli/commands/serve.py:41` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:186`, `furatena/catalog/static_export.py:268`, `furatena/catalog/static_export.py:274`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:190`, `furatena/catalog/static_export.py:267`, `furatena/catalog/static_export.py:272`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
+| `FURA_BUILD_GIT_SHA` | read | None | `furatena/catalog/build_identity.py:24` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:43` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:164` |
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:75` |
