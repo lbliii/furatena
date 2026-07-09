@@ -37,7 +37,7 @@ from furatena.catalog.rendering_heads import check_rendering_head_contracts
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.search import search_nodes
 from furatena.catalog.semantic import retrieve_node
-from furatena.catalog.seo import canonical_url, json_ld_article
+from furatena.catalog.seo import canonical_url, docs_base_url, json_ld_article
 from furatena.catalog.static_export import StaticExportOptions, export_static_site
 from furatena.catalog.versions import infer_release_channels, node_matches_channel
 from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml
@@ -795,6 +795,23 @@ class TestSeo:
         assert canonical_url("https://lbliii.github.io/furatena", "/furatena/docs/get-started/") == (
             "https://lbliii.github.io/furatena/docs/get-started/"
         )
+
+    def test_railway_domain_supplies_https_origin(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("FURA_BASE_URL", raising=False)
+        monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "furatena-production.up.railway.app")
+
+        assert docs_base_url("internal:8000") == (
+            "https://furatena-production.up.railway.app"
+        )
+
+    def test_explicit_base_url_precedes_railway_domain(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("FURA_BASE_URL", "https://lbliii.github.io/furatena")
+        monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "furatena-production.up.railway.app")
+
+        assert docs_base_url("internal:8000") == "https://lbliii.github.io/furatena"
 
 
 class TestIncrementalReindex:

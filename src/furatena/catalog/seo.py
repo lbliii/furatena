@@ -16,6 +16,11 @@ def docs_base_url(request_host: str | None = None) -> str:
     configured = os.environ.get("FURA_BASE_URL", "").strip().rstrip("/")
     if configured:
         return configured
+    railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip().rstrip("/")
+    if railway_domain:
+        if "://" in railway_domain:
+            return railway_domain
+        return f"https://{railway_domain}"
     host = request_host or "127.0.0.1:8001"
     return f"http://{host}"
 
