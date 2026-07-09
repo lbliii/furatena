@@ -752,8 +752,8 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:301` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
 | `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1402`, `furatena/cli/commands/serve.py:41` |
-| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:186`, `furatena/catalog/static_export.py:268`, `furatena/catalog/static_export.py:274`, `furatena/cli/commands/export.py:28` |
-| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:190`, `furatena/catalog/static_export.py:267`, `furatena/catalog/static_export.py:272`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
+| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:188`, `furatena/catalog/static_export.py:315`, `furatena/catalog/static_export.py:321`, `furatena/cli/commands/export.py:28` |
+| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:192`, `furatena/catalog/static_export.py:314`, `furatena/catalog/static_export.py:319`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
 | `FURA_BUILD_GIT_SHA` | read | None | `furatena/catalog/build_identity.py:24` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:43` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:165` |
@@ -766,7 +766,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:149`, `furatena/cli/commands/serve.py:47`, `furatena/cli/commands/serve.py:90`, `furatena/cli/commands/stop.py:17` |
 | `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:176` |
 | `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:171` |
-| `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:269`, `furatena/catalog/static_export.py:277` |
+| `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:316`, `furatena/catalog/static_export.py:324` |
 | `FURA_STRUCTURED_LOGS` | read | '' | `furatena/catalog/observability.py:136` |
 | `FURA_TELEMETRY` | read | 'none' | `furatena/catalog/observability.py:142` |
 | `FURA_WORKERS` | read, write | '', None | `furatena/catalog/workers.py:20`, `furatena/cli/commands/freeze.py:26`, `furatena/cli/commands/serve.py:49` |
