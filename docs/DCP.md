@@ -5,7 +5,8 @@ describes indexed documentation pages, typed edges, and normalized content struc
 without requiring consumers to know the source authoring format.
 
 See also [DUAL_IR.md](DUAL_IR.md) for how Content IR and Presentation IR align at
-runtime.
+runtime, and [EDITIONS.md](EDITIONS.md) for immutable release shards, edition identity,
+and lifecycle-aware composition.
 
 ## Design principles
 

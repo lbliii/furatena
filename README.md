@@ -71,6 +71,7 @@ runtime line is pinned in `pyproject.toml` (`>=0.8.2,<0.9.0`) so a fresh
 ## Docs
 
 - [Dual IR](docs/DUAL_IR.md)
+- [Editions and immutable release shards](docs/EDITIONS.md)
 - [Views](docs/VIEWS.md)
 - [Authoring lifecycle](docs/AUTHORING.md)
 - [Author mutation threat model](docs/AUTHOR_MUTATION_THREAT_MODEL.md)
