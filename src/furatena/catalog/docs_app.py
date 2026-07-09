@@ -175,6 +175,18 @@ def _session_secret(environment: str) -> str:
     return secrets.token_urlsafe(32)
 
 
+def _server_keep_alive_timeout() -> float:
+    """Return the Pounce keep-alive timeout configured for this process."""
+    raw = os.environ.get("FURA_KEEP_ALIVE_TIMEOUT", "5").strip()
+    try:
+        timeout = float(raw)
+    except ValueError as exc:
+        raise ValueError("FURA_KEEP_ALIVE_TIMEOUT must be a number") from exc
+    if timeout <= 0:
+        raise ValueError("FURA_KEEP_ALIVE_TIMEOUT must be greater than zero")
+    return timeout
+
+
 def _active_form_proof() -> str:
     """Return the request token, or no token while rendering an error handler."""
     try:
@@ -303,6 +315,7 @@ class DocsApp:
             i18n_directory=str(locales_dir),
             env=environment,
             secret_key=_session_secret(environment),
+            keep_alive_timeout=_server_keep_alive_timeout(),
         )
         app = App(app_config)
         use_chirp_ui(app)

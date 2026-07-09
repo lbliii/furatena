@@ -5,6 +5,10 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
+import pytest
+
+from furatena.catalog.docs_app import _server_keep_alive_timeout
+
 REPO = Path(__file__).resolve().parents[1]
 
 
@@ -31,3 +35,41 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     assert "freeze --full --workers 1" in dockerfile
     assert "--preview" in start
     assert "--workers 1" in start
+
+
+def test_railway_raises_keep_alive_past_slow_h2_drain() -> None:
+    start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
+
+    assert 'FURA_KEEP_ALIVE_TIMEOUT="${FURA_KEEP_ALIVE_TIMEOUT:-75}"' in start
+    assert "lbliii/pounce#231" in start
+    assert "#232" in start
+
+
+def test_keep_alive_timeout_reaches_chirp_app_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FURA_KEEP_ALIVE_TIMEOUT", "75")
+    assert _server_keep_alive_timeout() == 75.0
+
+
+@pytest.mark.parametrize("value", ("0", "-1", "not-a-number"))
+def test_keep_alive_timeout_rejects_invalid_values(
+    monkeypatch: pytest.MonkeyPatch,
+    value: str,
+) -> None:
+    monkeypatch.setenv("FURA_KEEP_ALIVE_TIMEOUT", value)
+    with pytest.raises(ValueError, match="FURA_KEEP_ALIVE_TIMEOUT"):
+        _server_keep_alive_timeout()
+
+
+def test_railway_runbook_checks_bulk_artifact_integrity() -> None:
+    runbook = (REPO / "docs" / "RAILWAY.md").read_text(encoding="utf-8")
+    verifier = (REPO / "scripts" / "verify-live-artifacts.py").read_text(encoding="utf-8")
+
+    assert 'python scripts/verify-live-artifacts.py "$ORIGIN"' in runbook
+    for path in (
+        "/catalog.json",
+        "/catalog/query.json",
+        "/search.json",
+        "/semantic.json",
+        "/llms-full.txt",
+    ):
+        assert path in verifier

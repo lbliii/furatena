@@ -17,7 +17,11 @@ on-request responses agree.
 
 `PYTHON_GIL=0`, `FURA_MODE=preview`, and `FURA_WORKERS=1` are fixed in the image.
 The start script refuses to boot if the imported application stack has enabled
-the GIL.
+the GIL. It also sets `FURA_KEEP_ALIVE_TIMEOUT=75` as a temporary mitigation for
+Pounce [#231](https://github.com/lbliii/pounce/issues/231) and
+[#232](https://github.com/lbliii/pounce/issues/232), which can otherwise close
+slow HTTP/2 bulk responses at the five-second default. Remove the override once
+those fixes are in the deployed Pounce release.
 
 ## Deploy
 
@@ -46,7 +50,13 @@ curl --fail --silent --show-error "$ORIGIN/llms.txt"
 curl --fail --silent --show-error "$ORIGIN/sitemap.xml"
 curl --fail --silent --show-error \
   -H 'Accept: text/markdown' "$ORIGIN/docs/get-started/"
+python scripts/verify-live-artifacts.py "$ORIGIN"
 ```
+
+The artifact verifier downloads `catalog.json`, the unfiltered graph query,
+`search.json`, `semantic.json`, and `llms-full.txt`. It rejects truncated bodies,
+parses every JSON payload, and requires the catalog, graph-query, and search
+`page_count` values to agree.
 
 Also confirm the server process itself is free-threaded:
 
