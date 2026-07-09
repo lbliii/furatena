@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 
 import pytest
@@ -204,7 +205,7 @@ def test_content_pages_support_http_conditional_requests(docs_client: TestClient
         markdown = await docs_client.get("/docs/get-started/installation.md")
         html_cached = await docs_client.get(
             "/docs/get-started/installation/",
-            headers={"If-Modified-Since": html.header("Last-Modified") or ""},
+            headers={"If-Modified-Since": "Thu, 09 Jul 2099 00:00:00 GMT"},
         )
         markdown_cached = await docs_client.get(
             "/docs/get-started/installation.md",
@@ -213,12 +214,28 @@ def test_content_pages_support_http_conditional_requests(docs_client: TestClient
         return html, markdown, html_cached, markdown_cached
 
     html, markdown, html_cached, markdown_cached = asyncio.run(_fetch())
-    assert html.header("Last-Modified")
+    assert html.status == 200
+    assert html.header("Last-Modified") is None
     assert html.header("ETag") is None
     assert markdown.header("Last-Modified")
     assert markdown.header("ETag")
-    assert html_cached.status == 304
-    assert not html_cached.body
+    assert html_cached.status == 200
+    assert html_cached.header("Last-Modified") is None
+    assert html_cached.header("ETag") is None
+
+    initial_csp_nonce = re.search(
+        r"'nonce-([^']+)'", html.header("Content-Security-Policy") or ""
+    )
+    refreshed_csp_nonce = re.search(
+        r"'nonce-([^']+)'", html_cached.header("Content-Security-Policy") or ""
+    )
+    assert initial_csp_nonce is not None
+    assert refreshed_csp_nonce is not None
+    assert initial_csp_nonce.group(1) != refreshed_csp_nonce.group(1)
+    inline_nonces = re.findall(r'<script[^>]+\bnonce="([^"]+)"', html_cached.text)
+    assert inline_nonces
+    assert set(inline_nonces) == {refreshed_csp_nonce.group(1)}
+
     assert markdown_cached.status == 304
     assert not markdown_cached.body
 
@@ -237,8 +254,6 @@ def test_json_sidecars_support_etag_revalidation(docs_client: TestClient) -> Non
     assert response.header("ETag")
     assert cached.status == 304
     assert not cached.body
-
-
 @pytest.mark.parametrize(
     "headers",
     (
