@@ -23,7 +23,9 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-dev --no-install-project --python 3.14t
 
 ARG FURA_BASE_URL=""
-ENV FURA_BASE_URL=$FURA_BASE_URL
+ARG RAILWAY_GIT_COMMIT_SHA=""
+ENV FURA_BASE_URL=$FURA_BASE_URL \
+    FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA
 
 COPY . .
 RUN uv sync --locked --no-dev --python 3.14t \

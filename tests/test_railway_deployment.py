@@ -33,6 +33,7 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     assert "sys._is_gil_enabled()" in dockerfile
     assert "sys._is_gil_enabled()" in start
     assert "freeze --full --workers 1" in dockerfile
+    assert "FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA" in dockerfile
     assert "--preview" in start
     assert "--workers 1" in start
 

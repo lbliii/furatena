@@ -62,7 +62,7 @@ def channel_manifest(
     route_fingerprints = dict(sorted((fingerprints or {}).items()))
     source_fingerprints = _source_fingerprints(catalog, mount_status=mount_status)
     fingerprints_payload = {
-        "catalog": _catalog_fingerprint(catalog),
+        "catalog": catalog_fingerprint(catalog),
         "source": _digest(source_fingerprints),
         "theme": _theme_fingerprint(config),
         "renderer": renderer_fingerprint,
@@ -263,7 +263,8 @@ def _source_fingerprints(catalog: Any, *, mount_status: dict[str, dict[str, Any]
     return records
 
 
-def _catalog_fingerprint(catalog: Any) -> str:
+def catalog_fingerprint(catalog: Any) -> str:
+    """Return the stable fingerprint for a frozen catalog composition."""
     return _digest(
         {
             "active_channel": getattr(catalog, "active_channel", "latest"),

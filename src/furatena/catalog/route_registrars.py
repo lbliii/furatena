@@ -9,6 +9,7 @@ from typing import Any
 from chirp import OOB, App, EventStream, FormAction, Fragment, Page, Request, Response, SSEEvent
 from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
 
+from furatena.catalog.build_identity import deployed_build_identity
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.develop_exports import DEVELOP_EXPORTS, develop_export
@@ -768,10 +769,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/meta.json", referenced=True)
     def meta_json_route(request: Request):
         self._ensure_catalog()
-        body = json.dumps(
-            meta_json(self.catalog, subject=self._output_access_subject(request)),
-            indent=2,
+        payload = meta_json(
+            self.catalog,
+            subject=self._output_access_subject(request),
         )
+        payload["build"] = deployed_build_identity(self.catalog)
+        body = json.dumps(payload, indent=2)
         return Response(body, content_type="application/json; charset=utf-8")
 
     @app.route("/surface.json", referenced=True)

@@ -51,12 +51,18 @@ curl --fail --silent --show-error "$ORIGIN/sitemap.xml"
 curl --fail --silent --show-error \
   -H 'Accept: text/markdown' "$ORIGIN/docs/get-started/"
 python scripts/verify-live-artifacts.py "$ORIGIN"
+curl --fail --silent --show-error "$ORIGIN/meta.json" | \
+  python -c 'import json,sys; build=json.load(sys.stdin)["build"]; assert build["git_sha"] != "unknown"; print(json.dumps(build, sort_keys=True))'
 ```
 
 The artifact verifier downloads `catalog.json`, the unfiltered graph query,
 `search.json`, `semantic.json`, and `llms-full.txt`. It rejects truncated bodies,
 parses every JSON payload, and requires the catalog, graph-query, and search
 `page_count` values to agree.
+
+Record the printed git SHA, `bengal-chirp` and `bengal-pounce` versions, and
+freeze fingerprint with the deployment smoke result. These values identify the
+exact code, server stack, and frozen catalog that the runbook verified.
 
 Also confirm the server process itself is free-threaded:
 
