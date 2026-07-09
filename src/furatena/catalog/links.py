@@ -33,13 +33,14 @@ def is_shell_boost_href(href: str) -> bool:
 
 
 def shell_boost_attrs() -> dict[str, object]:
-    """Default htmx attrs for in-app doc navigation."""
+    """Default htmx attrs for in-app doc navigation and hover preloading."""
     return {
         "hx-boost": "true",
         "hx-target": "#main",
         "hx-swap": "innerHTML",
         "hx-select": "#page-root",
         "hx-sync": "#main:replace",
+        "preload": "mouseover",
     }
 
 
