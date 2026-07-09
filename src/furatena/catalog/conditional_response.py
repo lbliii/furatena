@@ -30,15 +30,16 @@ class ConditionalResponseMiddleware:
         if response.status != 200:
             return response
 
-        etag = _response_etag(response)
+        etag = response.header("ETag") or _response_etag(response)
         if etag is None:
             # HTML contains a per-request CSP nonce, so its rendered bytes are
             # not stable and must never advertise a reusable validator.
             return response
 
-        response = response.with_header("ETag", etag)
+        if response.header("ETag") is None:
+            response = response.with_header("ETag", etag)
         last_modified_epoch = self._last_modified(request)
-        if last_modified_epoch is not None:
+        if response.header("Last-Modified") is None and last_modified_epoch is not None:
             last_modified = format_datetime(
                 datetime.fromtimestamp(last_modified_epoch, tz=UTC).replace(microsecond=0),
                 usegmt=True,

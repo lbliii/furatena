@@ -67,3 +67,17 @@ Incremental reindexing records its last computed regions per slug through
 `DocCatalog.invalidation_regions_for()`. Fast CI instruments graph finalization and fails
 if a body-only edit triggers backlink/edge recomputation; separate metadata and link-edit
 cases assert their exact region and rebuild behavior.
+
+## Frozen bulk artifacts
+
+Preview and hybrid servers return the frozen bytes for `/catalog.json`, the unfiltered
+`/search.json`, `/semantic.json`, `/structure.json`, `/tools.json`,
+`/catalog/api-operations.json`, `/llms.txt`, and `/llms-full.txt`. Freeze writes the JSON
+sidecars compactly, and the runtime reads the files without rebuilding page records,
+structure indexes, or serialized payloads. A filtered `/search.json?q=...` remains a
+live query over the loaded frozen index.
+
+Frozen responses include a SHA-256 `ETag`, file `Last-Modified`, and
+`Cache-Control: public, max-age=0, must-revalidate`. Conditional requests are answered
+with `304 Not Modified`. Author mode keeps live serialization because its graph is
+mutable and may include authorized private content.
