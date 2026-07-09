@@ -13,6 +13,7 @@ from chirp.middleware.protocol import Next
 from chirp.server.conditional import evaluate_conditional_response
 
 LastModifiedResolver = Callable[[Request], float | None]
+_PRELOAD_CACHE_CONTROL = "private, max-age=60"
 
 
 class ConditionalResponseMiddleware:
@@ -29,6 +30,15 @@ class ConditionalResponseMiddleware:
             return response
         if response.status != 200:
             return response
+
+        if (
+            request.headers.get("HX-Preloaded") == "true"
+            and response.content_type.lower().startswith("text/html")
+            and response.header("Cache-Control") is None
+        ):
+            # The preload extension relies on the browser HTTP cache. Keep the
+            # response private because page visibility can depend on the user.
+            response = response.with_header("Cache-Control", _PRELOAD_CACHE_CONTROL)
 
         etag = response.header("ETag") or _response_etag(response)
         if etag is None:

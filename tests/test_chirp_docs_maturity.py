@@ -38,13 +38,19 @@ class TestMaturityAssets:
 
         html = asyncio.run(_fetch())
         assert "/docs-vendor/htmx.min.js" in html
+        assert "/docs-vendor/htmx-ext-preload.js" in html
+        assert '<body hx-ext="preload"' in html
         assert "unpkg.com" not in html
 
     def test_vendor_scripts_are_served(self, docs_client) -> None:
         import asyncio
 
         async def _fetch() -> None:
-            for path in ("/docs-vendor/htmx.min.js", "/docs-vendor/htmx-ext-sse.js"):
+            for path in (
+                "/docs-vendor/htmx.min.js",
+                "/docs-vendor/htmx-ext-sse.js",
+                "/docs-vendor/htmx-ext-preload.js",
+            ):
                 resp = await docs_client.get(path)
                 assert resp.status == 200, path
                 assert len(resp.body) > 100, path
