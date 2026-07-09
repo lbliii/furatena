@@ -88,6 +88,10 @@ class FreezeCatalogResult:
     export_seconds: float
 
 
+def _compact_json(payload: object) -> str:
+    return json.dumps(payload, separators=(",", ":")) + "\n"
+
+
 def _write_frozen_page(
     *,
     pages_dir: Path,
@@ -405,33 +409,29 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
                 path=out_dir / "catalog.json",
                 operation="freeze_catalog",
             )
-        (out_dir / "catalog.json").write_text(
-            json.dumps(merged_graph, indent=2) + "\n", encoding="utf-8"
-        )
+        (out_dir / "catalog.json").write_text(_compact_json(merged_graph), encoding="utf-8")
         (out_dir / "search.json").write_text(
-            json.dumps(search_json(registry, base_url=base), indent=2) + "\n",
+            _compact_json(search_json(registry, base_url=base)),
             encoding="utf-8",
         )
         (out_dir / "tools.json").write_text(
-            json.dumps(
+            _compact_json(
                 tools_manifest(
                     registry,
                     base_url=base,
                     site_name=docs_config.site.name,
-                ),
-                indent=2,
-            )
-            + "\n",
+                )
+            ),
             encoding="utf-8",
         )
         api_operations_path = out_dir / "catalog" / "api-operations.json"
         api_operations_path.parent.mkdir(parents=True, exist_ok=True)
         api_operations_path.write_text(
-            json.dumps(api_operations_json(registry, base_url=base), indent=2) + "\n",
+            _compact_json(api_operations_json(registry, base_url=base)),
             encoding="utf-8",
         )
         (out_dir / "structure.json").write_text(
-            json.dumps(build_structure_index(registry), indent=2) + "\n",
+            _compact_json(build_structure_index(registry)),
             encoding="utf-8",
         )
         (out_dir / "llms.txt").write_text(
@@ -466,7 +466,10 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             ),
             documents=registry.ast_documents(),
         )
-        semantic.write(out_dir / "semantic.json")
+        (out_dir / "semantic.json").write_text(
+            _compact_json(semantic.to_json()),
+            encoding="utf-8",
+        )
         _freeze_inventories(registry, out_dir)
         artifact_paths = [*required_agent_sidecars[:-1]]
         inventory_store = registry.inventory_store

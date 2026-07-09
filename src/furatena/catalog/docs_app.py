@@ -69,6 +69,7 @@ from furatena.catalog.export import (
 from furatena.catalog.export import (
     llms_txt as llms_index_txt,
 )
+from furatena.catalog.frozen_artifacts import FrozenArtifactStore
 from furatena.catalog.gateway_identity import (
     GatewayIdentityError,
     identity_from_trusted_session,
@@ -270,6 +271,9 @@ class DocsApp:
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
         )
+        self.frozen_artifacts = FrozenArtifactStore(
+            self.catalog.frozen_root if self.serve.mode != ServeMode.AUTHOR else None
+        )
         self.render_context = RenderContextService(
             config,
             self.catalog,
@@ -390,6 +394,17 @@ class DocsApp:
 
     def _ensure_catalog(self) -> None:
         self.catalog.refresh_if_stale()
+
+    def _frozen_artifact_response(
+        self,
+        relative_path: str,
+        *,
+        content_type: str,
+    ) -> Response | None:
+        """Return a frozen public sidecar outside mutable author mode."""
+        if self.serve.mode == ServeMode.AUTHOR:
+            return None
+        return self.frozen_artifacts.response(relative_path, content_type=content_type)
 
     def _request_language(self, request: Request | None, *, node=None) -> str:
         return self.render_context.request_language(request, node=node)

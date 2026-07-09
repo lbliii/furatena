@@ -540,6 +540,12 @@ def register_search_routes(docs: Any, app: App) -> None:
                 subject=subject,
             )
         else:
+            frozen = self._frozen_artifact_response(
+                "search.json",
+                content_type="application/json; charset=utf-8",
+            )
+            if frozen is not None:
+                return frozen
             body = search_json(self.catalog, base_url=base, subject=subject)
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
@@ -551,6 +557,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/tools.json", referenced=True)
     def tools_json(request: Request):
         self._ensure_catalog()
+        frozen = self._frozen_artifact_response(
+            "tools.json",
+            content_type="application/json; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
         body = tools_manifest(
             self.catalog,
             base_url=self._site_base(request),
@@ -562,6 +574,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/catalog/api-operations.json", referenced=True)
     def catalog_api_operations_json(request: Request):
         self._ensure_catalog()
+        frozen = self._frozen_artifact_response(
+            "catalog/api-operations.json",
+            content_type="application/json; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
         body = api_operations_json(
             self.catalog,
             base_url=self._site_base(request),
@@ -572,6 +590,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/semantic.json", referenced=True)
     def semantic_json_route(request: Request):
         self._ensure_catalog()
+        frozen = self._frozen_artifact_response(
+            "semantic.json",
+            content_type="application/json; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
         body = semantic_index_json(
             self.catalog,
             self.embedding_index,
@@ -582,6 +606,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/structure.json", referenced=True)
     def structure_json_route(request: Request):
         self._ensure_catalog()
+        frozen = self._frozen_artifact_response(
+            "structure.json",
+            content_type="application/json; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
         body = build_structure_index(
             self.catalog,
             subject=self._output_access_subject(request),
@@ -660,6 +690,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/catalog.json", referenced=True)
     def catalog_json(request: Request):
         self._ensure_catalog()
+        frozen = self._frozen_artifact_response(
+            "catalog.json",
+            content_type="application/json; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
         body = json.dumps(
             catalog_graph(
                 self.catalog,
@@ -748,6 +784,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/llms.txt", referenced=True)
     def llms_txt(request: Request):
         self._ensure_catalog()
+        frozen = self._frozen_artifact_response(
+            "llms.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
         body = llms_index_txt(
             self.catalog,
             site_name=self.config.site.name,
@@ -759,6 +801,12 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/llms-full.txt", referenced=True)
     def llms_full(request: Request):
         self._ensure_catalog()
+        frozen = self._frozen_artifact_response(
+            "llms-full.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
         body = llms_full_txt(
             self.catalog,
             site_name=self.config.site.name,

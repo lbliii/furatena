@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -10,7 +11,10 @@ from pathlib import Path
 import pytest
 from chirp.testing import TestClient
 
+import furatena.catalog.route_registrars as route_registrars
 from furatena.catalog.docs_app import DocsApp
+from furatena.catalog.runtime import ServeConfig, ServeMode
+from furatena.cli.main import main
 
 REPO = Path(__file__).resolve().parents[1]
 APP_ROOT = REPO / "app"
@@ -255,6 +259,95 @@ def test_json_sidecars_support_etag_revalidation(docs_client: TestClient) -> Non
     assert response.header("ETag")
     assert cached.status == 304
     assert not cached.body
+
+
+def test_frozen_bulk_sidecars_serve_exact_bytes_in_preview_and_hybrid(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Frozen Bytes"])
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+    frozen = app_root / "frozen"
+    sidecars = {
+        "/catalog.json": "catalog.json",
+        "/catalog/api-operations.json": "catalog/api-operations.json",
+        "/search.json": "search.json",
+        "/semantic.json": "semantic.json",
+        "/structure.json": "structure.json",
+        "/tools.json": "tools.json",
+        "/llms.txt": "llms.txt",
+        "/llms-full.txt": "llms-full.txt",
+    }
+    catalog_bytes = (frozen / "catalog.json").read_bytes()
+    assert b'\n  "' not in catalog_bytes
+
+    def _unexpected_serialization(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("frozen sidecar route rebuilt its payload")
+
+    for name in (
+        "api_operations_json",
+        "build_structure_index",
+        "catalog_graph",
+        "llms_full_txt",
+        "llms_index_txt",
+        "search_json",
+        "semantic_index_json",
+        "tools_manifest",
+    ):
+        monkeypatch.setattr(route_registrars, name, _unexpected_serialization)
+
+    async def _fetch(client: TestClient):
+        responses = {url: await client.get(url) for url in sidecars}
+        catalog = responses["/catalog.json"]
+        cached = await client.get(
+            "/catalog.json",
+            headers={"If-None-Match": catalog.header("ETag") or ""},
+        )
+        filtered = await client.get("/search.json?q=no-such-term")
+        return responses, cached, filtered
+
+    for mode in (ServeMode.PREVIEW, ServeMode.HYBRID):
+        docs = DocsApp.from_paths(
+            app_root / "docs.yaml",
+            repo_root=app_root,
+            autodoc=False,
+            serve=ServeConfig(mode, frozen, True, False),
+        )
+        responses, cached, filtered = asyncio.run(_fetch(TestClient(docs.create_app())))
+
+        for url, relative_path in sidecars.items():
+            expected = (frozen / relative_path).read_bytes()
+            response = responses[url]
+            assert response.status == 200
+            assert response.body == expected
+            assert response.header("ETag") == f'"{hashlib.sha256(expected).hexdigest()}"'
+            assert response.header("Last-Modified")
+            assert response.header("Cache-Control") == "public, max-age=0, must-revalidate"
+
+        assert cached.status == 304
+        assert not cached.body
+        assert filtered.status == 200
+        assert filtered.body != (frozen / "search.json").read_bytes()
+        assert json.loads(filtered.text)["count"] == 0
+
+    monkeypatch.undo()
+    author = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+    )
+    author_catalog = asyncio.run(TestClient(author.create_app()).get("/catalog.json"))
+    assert author_catalog.status == 200
+    assert author_catalog.body != catalog_bytes
+    assert author_catalog.header("Cache-Control") is None
+
+
 def test_meta_reports_deployed_build_identity(
     docs_client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
