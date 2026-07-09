@@ -74,6 +74,7 @@ _RESPONSE_CONTRACTS = {
     "search_suggest": "html-fragment",
     "search_semantic": "json",
     "catalog_retrieve": "json",
+    "catalog_mount_json": "json",
     "og_image": "image",
     "favicon": "image",
     "inventory_inv": "binary",

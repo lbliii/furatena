@@ -16,7 +16,9 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     from furatena.catalog.docs_app import DocsApp
 
+from furatena.catalog.access import AccessPermission, AccessSubject
 from furatena.catalog.atomic_directory import AtomicDirectoryTransaction
+from furatena.catalog.catalog_shards import catalog_shard_path, catalog_shard_url
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.deployment_manifest import (
     DeploymentManifest,
@@ -259,6 +261,51 @@ def _sidecar_fingerprint(name: str, *, renderer_fp: str, frozen_dir: Path | None
                 :16
             ]
     return hashlib.sha256(f"sidecar|{renderer_fp}|{name}".encode()).hexdigest()[:16]
+
+
+def _catalog_shard_routes(docs_app: DocsApp) -> tuple[str, ...]:
+    """Return safe public routes for every configured mount shard."""
+    routes = {
+        route
+        for mount in docs_app.catalog.mounts
+        if docs_app.catalog.can_access_mount(
+            mount.id,
+            AccessSubject.anonymous(),
+            permission=AccessPermission.EXPORT,
+        )
+        if (route := catalog_shard_url(str(mount.id))) is not None
+    }
+    return tuple(sorted(routes))
+
+
+def _catalog_shard_fingerprint(
+    docs_app: DocsApp,
+    mount_id: str,
+    *,
+    renderer_fp: str,
+    frozen_dir: Path | None,
+) -> str:
+    """Fingerprint a shard route from its frozen bytes or live graph."""
+    candidates: list[Path] = []
+    route_path = catalog_shard_path(mount_id)
+    if frozen_dir is not None and route_path is not None:
+        candidates.append(frozen_dir / route_path)
+        candidates.append(frozen_dir / "mounts" / mount_id / "catalog.json")
+    for path in candidates:
+        if path.is_file():
+            return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+
+    shard = getattr(docs_app.catalog, "_shards", {}).get(mount_id)
+    if shard is not None:
+        from furatena.catalog.export import catalog_graph
+
+        body = json.dumps(catalog_graph(shard), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(body.encode("utf-8")).hexdigest()[:16]
+    return _sidecar_fingerprint(
+        f"catalog/mounts/{mount_id}.json",
+        renderer_fp=renderer_fp,
+        frozen_dir=frozen_dir,
+    )
 
 
 def _configure_export_env(*, site_url: str | None, base_path: str) -> dict[str, str | None]:
@@ -626,6 +673,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     if renderer_fp is None:
         renderer_fp = renderer_fingerprint(docs_root)
     route_fps: dict[str, str] = {}
+    sidecar_routes = (*_sidecar_routes(), *_catalog_shard_routes(docs_app))
     try:
         client = _ExportClient(docs_app.create_app())
         async with client:
@@ -673,9 +721,18 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                 written_paths.add(target.relative_to(output_dir))
                 page_count += 1
 
-            for url_path in _sidecar_routes():
+            for url_path in sidecar_routes:
                 name = url_path.lstrip("/")
-                fp = _sidecar_fingerprint(name, renderer_fp=renderer_fp, frozen_dir=frozen_dir)
+                if url_path.startswith("/catalog/mounts/") and url_path.endswith(".json"):
+                    mount_id = url_path[len("/catalog/mounts/") : -len(".json")]
+                    fp = _catalog_shard_fingerprint(
+                        docs_app,
+                        mount_id,
+                        renderer_fp=renderer_fp,
+                        frozen_dir=frozen_dir,
+                    )
+                else:
+                    fp = _sidecar_fingerprint(name, renderer_fp=renderer_fp, frozen_dir=frozen_dir)
                 route_fps[url_path] = fp
                 rel = url_path_to_output_file(url_path)
                 if (
@@ -888,7 +945,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                     "site_url": options.site_url or "",
                     "incremental": options.incremental,
                     "sidecars": [
-                        *list(_sidecar_routes()),
+                        *list(sidecar_routes),
                         "semantic.json",
                         "structure.json",
                     ],

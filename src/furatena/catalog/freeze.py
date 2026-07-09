@@ -17,6 +17,7 @@ from furatena.catalog.assets import (
 )
 from furatena.catalog.atomic_directory import AtomicDirectoryTransaction
 from furatena.catalog.autodoc_cache import autodoc_fingerprint, write_autodoc_fingerprint
+from furatena.catalog.catalog_shards import catalog_shard_path
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.deployment_manifest import DeploymentManifest, write_deployment_manifest
@@ -279,6 +280,19 @@ def _write_registry_manifest(
     )
 
 
+def _write_catalog_shard_route_alias(out_dir: Path, mount_id: str) -> None:
+    """Expose the frozen mount shard at its public catalog route path."""
+    route_path = catalog_shard_path(mount_id)
+    if route_path is None:
+        return
+    source = out_dir / "mounts" / mount_id / "catalog.json"
+    if not source.is_file():
+        return
+    target = out_dir / route_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(source.read_bytes())
+
+
 def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     """Write frozen catalog files for a docs app."""
     with OperationLease(
@@ -378,6 +392,9 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             set_mount_freeze_status(status, "skipped")
         total = len(registry.nodes)
 
+    for mount in registry.mounts:
+        _write_catalog_shard_route_alias(out_dir, mount.id)
+
     _write_registry_manifest(out_dir, registry, mount_status=mount_status)
 
     required_agent_sidecars = (
@@ -472,6 +489,11 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         )
         _freeze_inventories(registry, out_dir)
         artifact_paths = [*required_agent_sidecars[:-1]]
+        artifact_paths.extend(
+            route_path.as_posix()
+            for mount in registry.mounts
+            if (route_path := catalog_shard_path(mount.id)) is not None
+        )
         inventory_store = registry.inventory_store
         if inventory_store is not None and inventory_store.entries:
             from furatena.catalog.inventories.export import inventories_json, inventory_bytes
