@@ -19,6 +19,7 @@ from chirp.testing import TestClient
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.export import catalog_graph
+from furatena.catalog.query import query_catalog_graph
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml
@@ -171,11 +172,68 @@ def test_graph_query_endpoint_filters_by_locale(tmp_path: Path) -> None:
     assert payload["pages"][0]["lang"] == "es"
 
 
+def test_graph_query_endpoint_paginates_pages_and_edges(tmp_path: Path) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    async def _fetch(offset: int) -> dict[str, object]:
+        response = await client.get(f"/catalog/query.json?limit=1&offset={offset}")
+        assert response.status == 200
+        return json.loads(response.text)
+
+    first = asyncio.run(_fetch(0))
+    second = asyncio.run(_fetch(1))
+
+    assert first["page_count"] == second["page_count"] == 1
+    assert first["total"] == second["total"] == 3
+    assert first["limit"] == 1
+    assert first["offset"] == 0
+    assert first["next_offset"] == 1
+    assert second["offset"] == 1
+    assert second["next_offset"] == 2
+    assert first["pages"][0]["node_id"] != second["pages"][0]["node_id"]
+    assert all(edge["source"] == first["pages"][0]["node_id"] for edge in first["edges"])
+
+
+def test_graph_query_reuses_access_scoped_graph_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import furatena.catalog.export as export_module
+
+    app_root, _content = _write_query_fixture(tmp_path)
+    config = load_docs_config(app_root / "docs.yaml")
+    registry = CatalogRegistry.from_config(
+        config.mounts_path or app_root / "mounts.yaml",
+        repo_root=tmp_path,
+        app_root=app_root,
+        autodoc=False,
+        i18n_config=config.i18n,
+    )
+    real_catalog_graph = export_module.catalog_graph
+    calls = 0
+
+    def _counted_catalog_graph(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return real_catalog_graph(*args, **kwargs)
+
+    monkeypatch.setattr(export_module, "catalog_graph", _counted_catalog_graph)
+    query_catalog_graph(registry, limit=1)
+    query_catalog_graph(registry, offset=1, limit=1)
+
+    assert calls == 1
+
+
 @pytest.mark.parametrize(
     ("query", "invalid_key", "invalid_value"),
     (
         ("unknown_filter=value", "unknown", ["unknown_filter"]),
         ("edge_kind=not-a-real-edge", "edge_kind", "not-a-real-edge"),
+        ("limit=0", "limit", 0),
+        ("limit=501", "limit", 501),
+        ("limit=nope", "limit", "nope"),
+        ("offset=-1", "offset", -1),
     ),
 )
 def test_graph_query_endpoint_rejects_invalid_filters(

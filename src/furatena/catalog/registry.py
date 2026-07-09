@@ -5,7 +5,8 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from threading import Lock
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from patitas.nodes import Document
@@ -35,7 +36,7 @@ from furatena.catalog.identity import (
 )
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
-from furatena.catalog.record_types import EdgeRecord, NamespaceRecord
+from furatena.catalog.record_types import CatalogGraphRecord, EdgeRecord, NamespaceRecord
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.source_sync_state import SourceSyncStateStore
@@ -227,6 +228,8 @@ class CatalogRegistry:
         self._mount_for_url: list[tuple[str, MountConfig]] = []
         self._edges: list[EdgeRecord] | None = None
         self._namespaces: list[NamespaceRecord] | None = None
+        self._query_graph_cache: dict[tuple[bool, AccessSubject | None], CatalogGraphRecord] = {}
+        self._query_graph_lock = Lock()
         self._federated_backlinks: dict[str, list[dict[str, str]]] = {}
         self._translation_index: dict[str, dict[str, str]] | None = None
         self._inventory_store = None
@@ -530,6 +533,7 @@ class CatalogRegistry:
         self._mount_for_url.sort(key=lambda item: len(item[0]), reverse=True)
         self._edges = None
         self._namespaces = None
+        self._query_graph_cache.clear()
 
     def _prescan_federated_slugs(self) -> dict[str, str]:
         from furatena.catalog.sources import FilesystemScanner
@@ -686,6 +690,24 @@ class CatalogRegistry:
     def frozen_root(self) -> Path | None:
         """Identity-scoped frozen root, or None when no frozen dir is configured."""
         return self.scoped_frozen_dir
+
+    def query_graph_snapshot(
+        self,
+        *,
+        include_private: bool = False,
+        subject: AccessSubject | None = None,
+    ) -> CatalogGraphRecord:
+        """Return one access-scoped graph serialization per catalog generation."""
+        key = (include_private, subject)
+        with self._query_graph_lock:
+            cached = self._query_graph_cache.get(key)
+            if cached is not None:
+                return cached
+            from furatena.catalog.export import catalog_graph
+
+            graph = catalog_graph(cast(Any, self), include_private=include_private, subject=subject)
+            self._query_graph_cache[key] = graph
+            return graph
 
     @property
     def route_prefix(self) -> str:
@@ -844,6 +866,8 @@ class CatalogRegistry:
         if changed:
             self._edges = None
             self._namespaces = None
+            with self._query_graph_lock:
+                self._query_graph_cache.clear()
             self._finalize_federated()
         return changed
 

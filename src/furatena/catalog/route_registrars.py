@@ -37,7 +37,11 @@ from furatena.catalog.export import (
 )
 from furatena.catalog.graph_schema import EdgeKind
 from furatena.catalog.operational_status import operational_status, process_health
-from furatena.catalog.query import query_catalog_graph
+from furatena.catalog.query import (
+    DEFAULT_GRAPH_QUERY_LIMIT,
+    MAX_GRAPH_QUERY_LIMIT,
+    query_catalog_graph,
+)
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.semantic import retrieve_node, semantic_index_json, semantic_search_json
 from furatena.catalog.sitemap import sitemap_xml
@@ -68,6 +72,8 @@ _CATALOG_QUERY_FILTERS = frozenset(
         "source",
         "from",
         "linked_from",
+        "limit",
+        "offset",
     }
 )
 _GRAPH_EDGE_KINDS = frozenset(item.value for item in EdgeKind)
@@ -81,6 +87,18 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
     normalized_edge = str(edge_kind or "").strip().lower()
     if normalized_edge and normalized_edge not in _GRAPH_EDGE_KINDS:
         invalid["edge_kind"] = normalized_edge
+    for name, default, minimum, maximum in (
+        ("limit", DEFAULT_GRAPH_QUERY_LIMIT, 1, MAX_GRAPH_QUERY_LIMIT),
+        ("offset", 0, 0, None),
+    ):
+        raw = request.query.get(name)
+        try:
+            value = int(raw) if raw not in (None, "") else default
+        except (TypeError, ValueError):
+            invalid[name] = raw
+            continue
+        if value < minimum or (maximum is not None and value > maximum):
+            invalid[name] = value
     if not invalid:
         return None
     return Response(
@@ -737,6 +755,8 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             source=source,
             target=target,
             subject=self._output_access_subject(request),
+            limit=int(request.query.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
+            offset=int(request.query.get("offset") or 0),
         )
         return Response(
             json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"

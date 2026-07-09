@@ -39,7 +39,7 @@ default to `anonymous`, apply actor, tenant, burst, and sensitive-tool limits pl
 |---|---|---|---|---|
 | `semantic_search` | `query` | `edition`, `limit`, `mount`, `query`, `tag`, `url_prefix` | `query`, `ranking`, `filters`, `count`, `results` | Hybrid keyword and semantic retrieval; `limit` is 1–50 and filters are echoed in the result. |
 | `retrieve_node` | `node_id` | `node_id` | `node_id`, `chunks`, `backlinks`, `api_operation` | Retrieve one accessible catalog node and its context. |
-| `query_graph` | none | `edge`, `edge_kind`, `format`, `from`, `include_private`, `kind`, `lang`, `link_edge`, `linked_from`, `linked_to`, `locale`, `mount`, `owner`, `source`, `tag`, `target`, `team`, `to` | `query`, `page_count`, `edge_count`, `pages`, `edges`, `graph_nodes` | Filter pages and DCP edges; private inclusion is bounded by session policy. |
+| `query_graph` | none | `edge`, `edge_kind`, `format`, `from`, `include_private`, `kind`, `lang`, `limit`, `link_edge`, `linked_from`, `linked_to`, `locale`, `mount`, `offset`, `owner`, `source`, `tag`, `target`, `team`, `to` | `query`, `page_count`, `edge_count`, `total`, `edge_total`, `limit`, `offset`, `next_offset`, `pages`, `edges`, `graph_nodes` | Filter and paginate pages plus their DCP edges; private inclusion is bounded by session policy. |
 | `traverse_graph` | none | `direction`, `limit`, `node_id`, `url` | `node`, `direction`, `results` | Traverse `neighbors`, `backlinks`, `children`, or `outbound`; limit is 1–100. |
 | `inspect_source_health` | none | `mount` | `mount_count`, `mounts` | Return source sync, index, file, page, and channel health per mount. |
 | `run_checks` | none | none | `ok`, `errors`, `warnings` | Run content, link, schema, theme, and view checks. |
@@ -128,7 +128,7 @@ configured base path.
 | `/catalog/artifacts.json` | `json` | Freeze/export presence, manifest validity, generation time, age, upstream freshness, counts, and paths. |
 | `/catalog/freshness.json` | `json` | Source, index, freeze, and export freshness signals plus remediation. |
 | `/catalog/operational-status.json` | `json` | Combined health, readiness, freshness, and artifact contracts from one observation. |
-| `/catalog/query.json` | `json` | Query echo plus `page_count`, `edge_count`, `pages`, `edges`, and `graph_nodes`. |
+| `/catalog/query.json` | `json` | Paginated query echo plus returned counts, totals, `next_offset`, pages, edges, and graph nodes. |
 | `/catalog/retrieve` | `json` | Retrieved node, chunks, backlinks, related context, and API operation metadata. |
 | `/catalog/source-health.json` | `json` | `ok`, `mount_count`, `active_channel`, `serve_mode`, and `mounts`. |
 | `/channels.json` | `json` | Active/default channel and per-mount channel manifests. |

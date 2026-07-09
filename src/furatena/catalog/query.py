@@ -9,6 +9,9 @@ from furatena.catalog.export import catalog_graph
 from furatena.catalog.graph_schema import graph_node_records
 from furatena.catalog.record_types import EdgeRecord, GraphQueryRecord, PageRecord
 
+DEFAULT_GRAPH_QUERY_LIMIT = 100
+MAX_GRAPH_QUERY_LIMIT = 500
+
 
 def _clean(value: str | None) -> str:
     return (value or "").strip()
@@ -102,6 +105,8 @@ def query_catalog_graph(
     target: str | None = None,
     include_private: bool = False,
     subject: Any | None = None,
+    limit: int = DEFAULT_GRAPH_QUERY_LIMIT,
+    offset: int = 0,
 ) -> GraphQueryRecord:
     """Filter the DCP catalog graph for headless consumers.
 
@@ -109,10 +114,15 @@ def query_catalog_graph(
     neighborhood and return only participating pages, so callers can traverse
     relationships without downloading the full catalog.
     """
-    graph = catalog_graph(
-        catalog,
-        include_private=include_private,
-        subject=subject,
+    if isinstance(limit, bool) or not 1 <= limit <= MAX_GRAPH_QUERY_LIMIT:
+        raise ValueError(f"limit must be between 1 and {MAX_GRAPH_QUERY_LIMIT}")
+    if isinstance(offset, bool) or offset < 0:
+        raise ValueError("offset must be zero or greater")
+    snapshot = getattr(catalog, "query_graph_snapshot", None)
+    graph = (
+        snapshot(include_private=include_private, subject=subject)
+        if callable(snapshot)
+        else catalog_graph(catalog, include_private=include_private, subject=subject)
     )
     mount_value = _clean(mount)
     tag_value = _clean_lower(tag)
@@ -164,6 +174,13 @@ def query_catalog_graph(
         )
         pages = [page for page in pages if str(page.get("node_id") or "") in participating]
 
+    total = len(pages)
+    edge_total = len(edges)
+    pages = pages[offset : offset + limit]
+    page_ids = {str(page.get("node_id") or "") for page in pages}
+    edges = [edge for edge in edges if str(edge.get("source") or "") in page_ids]
+    next_offset = offset + len(pages) if offset + len(pages) < total else None
+
     return {
         "schema_version": graph.get("schema_version", 3),
         "version": graph.get("version", graph.get("schema_version", 3)),
@@ -179,9 +196,16 @@ def query_catalog_graph(
             "source": source_value or None,
             "target": target_value or None,
             "include_private": include_private,
+            "limit": limit,
+            "offset": offset,
         },
         "page_count": len(pages),
         "edge_count": len(edges),
+        "total": total,
+        "edge_total": edge_total,
+        "limit": limit,
+        "offset": offset,
+        "next_offset": next_offset,
         "pages": pages,
         "edges": edges,
         "graph_nodes": graph_node_records(edges),

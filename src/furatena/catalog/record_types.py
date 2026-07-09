@@ -119,6 +119,8 @@ class GraphQuerySpec(TypedDict):
     source: str | None
     target: str | None
     include_private: bool
+    limit: int
+    offset: int
 
 
 class GraphQueryRecord(TypedDict, total=False):
@@ -129,6 +131,11 @@ class GraphQueryRecord(TypedDict, total=False):
     query: GraphQuerySpec
     page_count: int
     edge_count: int
+    total: int
+    edge_total: int
+    limit: int
+    offset: int
+    next_offset: int | None
     pages: list[PageRecord]
     edges: list[EdgeRecord]
     graph_nodes: list[GraphNodeRecord]
