@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import dataclasses
 import hashlib
 from collections.abc import Callable
 from datetime import UTC, datetime
-from email.utils import format_datetime, parsedate_to_datetime
+from email.utils import format_datetime
 
 from chirp.http.request import Request
 from chirp.http.response import Response
 from chirp.middleware.protocol import Next
+from chirp.server.conditional import evaluate_conditional_response
 
 LastModifiedResolver = Callable[[Request], float | None]
 
@@ -30,6 +30,13 @@ class ConditionalResponseMiddleware:
         if response.status != 200:
             return response
 
+        etag = _response_etag(response)
+        if etag is None:
+            # HTML contains a per-request CSP nonce, so its rendered bytes are
+            # not stable and must never advertise a reusable validator.
+            return response
+
+        response = response.with_header("ETag", etag)
         last_modified_epoch = self._last_modified(request)
         if last_modified_epoch is not None:
             last_modified = format_datetime(
@@ -38,19 +45,7 @@ class ConditionalResponseMiddleware:
             )
             response = response.with_header("Last-Modified", last_modified)
 
-        etag = _response_etag(response)
-        if etag is not None:
-            response = response.with_header("ETag", etag)
-
-        if etag is not None and _etag_matches(request.headers.get("if-none-match"), etag):
-            return dataclasses.replace(response, body="", status=304)
-        if (
-            not request.headers.get("if-none-match")
-            and last_modified_epoch is not None
-            and _not_modified_since(request.headers.get("if-modified-since"), last_modified_epoch)
-        ):
-            return dataclasses.replace(response, body="", status=304)
-        return response
+        return evaluate_conditional_response(request, response)
 
 
 def _response_etag(response: Response) -> str | None:
@@ -62,21 +57,3 @@ def _response_etag(response: Response) -> str | None:
     body = response.body.encode("utf-8") if isinstance(response.body, str) else response.body
     digest = hashlib.sha256(body).hexdigest()
     return f'"{digest}"'
-
-
-def _etag_matches(value: str | None, etag: str) -> bool:
-    if not value:
-        return False
-    return any(candidate.strip().removeprefix("W/") in {"*", etag} for candidate in value.split(","))
-
-
-def _not_modified_since(value: str | None, last_modified_epoch: float) -> bool:
-    if not value:
-        return False
-    try:
-        requested = parsedate_to_datetime(value)
-    except (TypeError, ValueError, OverflowError):
-        return False
-    if requested.tzinfo is None:
-        requested = requested.replace(tzinfo=UTC)
-    return int(last_modified_epoch) <= int(requested.timestamp())
