@@ -80,6 +80,8 @@ def test_response_shape_matrix(
     forbidden: tuple[str, ...],
 ) -> None:
     async def _fetch():
+        if headers.get("HX-Boosted") == "true":
+            return await docs_client.boosted(url, target="page-root")
         return await docs_client.get(url, headers=headers)
 
     response = asyncio.run(_fetch())
@@ -88,6 +90,20 @@ def test_response_shape_matrix(
         assert marker in response.text
     for marker in forbidden:
         assert marker not in response.text
+
+
+def test_content_route_head_matches_get_metadata(
+    docs_client: TestClient,
+) -> None:
+    async def _fetch():
+        get_response = await docs_client.get("/docs/get-started/installation/")
+        head_response = await docs_client.request("HEAD", "/docs/get-started/installation/")
+        return get_response, head_response
+
+    get_response, head_response = asyncio.run(_fetch())
+    assert head_response.status == get_response.status == 200
+    assert head_response.content_type == get_response.content_type
+    assert head_response.header("Last-Modified") == get_response.header("Last-Modified")
 
 
 @pytest.mark.parametrize(
