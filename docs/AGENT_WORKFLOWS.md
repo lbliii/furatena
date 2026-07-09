@@ -125,7 +125,7 @@ MCP tools return both text content and `structuredContent` payloads:
 
 - `semantic_search` — hybrid keyword and semantic search over pages and chunks.
 - `retrieve_node` — node metadata, chunks, backlinks, and similar chunks.
-- `query_graph` — filtered DCP graph projection by mount, tag, format, owner, locale, edge kind, source, and target.
+- `query_graph` — paginated DCP graph projection by mount, tag, format, owner, locale, edge kind, source, and target (`limit` defaults to 100; continue from `next_offset`).
 - `traverse_graph` — backlinks, child pages, outbound links, and neighboring pages.
 - `inspect_source_health` — mount roots, tracked extensions, page counts, and channels.
 - `run_checks` — structured validation errors and warnings.

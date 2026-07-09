@@ -28,7 +28,11 @@ from furatena.catalog.check import check_catalog
 from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
-from furatena.catalog.query import query_catalog_graph
+from furatena.catalog.query import (
+    DEFAULT_GRAPH_QUERY_LIMIT,
+    MAX_GRAPH_QUERY_LIMIT,
+    query_catalog_graph,
+)
 from furatena.catalog.rate_limit import (
     InMemoryRateLimitStore,
     RateLimitRequest,
@@ -371,10 +375,31 @@ class FuraMCPServer:
                         "include_private": _boolean_schema(
                             "Include private nodes only when this MCP session allows private content.",
                         ),
+                        "limit": _integer_schema(
+                            "Maximum number of graph pages to return.",
+                            default=DEFAULT_GRAPH_QUERY_LIMIT,
+                            minimum=1,
+                            maximum=MAX_GRAPH_QUERY_LIMIT,
+                        ),
+                        "offset": _integer_schema(
+                            "Zero-based page offset for pagination.",
+                            default=0,
+                            minimum=0,
+                        ),
                     },
                 },
                 "outputSchema": _object_schema(
-                    "query", "page_count", "edge_count", "pages", "edges", "graph_nodes"
+                    "query",
+                    "page_count",
+                    "edge_count",
+                    "total",
+                    "edge_total",
+                    "limit",
+                    "offset",
+                    "next_offset",
+                    "pages",
+                    "edges",
+                    "graph_nodes",
                 ),
             },
             {
@@ -1204,6 +1229,13 @@ class FuraMCPServer:
                 ),
                 include_private=False,
                 subject=self.access_subject,
+                limit=_bounded_int(
+                    arguments.get("limit"),
+                    default=DEFAULT_GRAPH_QUERY_LIMIT,
+                    low=1,
+                    high=MAX_GRAPH_QUERY_LIMIT,
+                ),
+                offset=_bounded_int(arguments.get("offset"), default=0, low=0, high=1_000_000),
             ),
         )
 
@@ -1477,6 +1509,8 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
         target: str = "",
         linked_to: str = "",
         include_private: bool = False,
+        limit: int = DEFAULT_GRAPH_QUERY_LIMIT,
+        offset: int = 0,
     ) -> dict:
         return _milo_tool_payload(
             server,
@@ -1498,6 +1532,8 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
                 "target": target,
                 "linked_to": linked_to,
                 "include_private": include_private,
+                "limit": limit,
+                "offset": offset,
             },
         )
 

@@ -273,13 +273,16 @@ event identity or requiring a telemetry vendor in the base runtime.
 | `edge_kind` / `edge` / `kind` / `link_edge` | Match graph edge kind such as `link`, `requires`, or `owned_by` |
 | `source` / `from` / `linked_from` | Match an edge source by node id, slug, or URL |
 | `target` / `to` / `linked_to` | Match an edge target by node id, slug, URL, or external target id |
+| `limit` | Maximum source pages returned; defaults to 100 and is capped at 500 |
+| `offset` | Zero-based source-page offset; defaults to 0 |
 | `include_private=1` | Author-mode only; include private and draft nodes |
 
 The response is DCP-shaped and contains `schema_version`, `channel`, `query`,
-`page_count`, `edge_count`, `pages`, `edges`, `graph_nodes`, and `namespaces`. Page
-filters narrow the source page set. Edge filters then return the matching graph
-neighborhood so a head or agent can traverse relationships without downloading the
-full catalog.
+`page_count`, `edge_count`, `total`, `edge_total`, `limit`, `offset`, `next_offset`,
+`pages`, `edges`, `graph_nodes`, and `namespaces`. Counts describe the returned page;
+totals describe all filter matches. Page filters narrow the source page set, then
+pagination bounds source pages and their outgoing edge neighborhood so a head or agent
+can traverse relationships without downloading the full catalog.
 
 `/meta.json` keeps the page index compact but preserves the same impact-routing
 provenance needed by static/offline consumers: `source_path`, `source_provider`,
