@@ -261,6 +261,45 @@ def test_json_sidecars_support_etag_revalidation(docs_client: TestClient) -> Non
     assert not cached.body
 
 
+def test_preview_public_reads_are_stateless_and_share_cacheable(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Public Cache"])
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+    frozen = app_root / "frozen"
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.PREVIEW, frozen, True, False),
+    )
+    first_client = TestClient(docs.create_app())
+    second_client = TestClient(docs.create_app())
+
+    async def _fetch():
+        first_catalog = await first_client.get("/catalog.json")
+        second_page = await second_client.get("/docs/get-started/")
+        second_catalog = await second_client.get("/catalog.json")
+        return first_catalog, second_page, second_catalog
+
+    first_catalog, second_page, second_catalog = asyncio.run(_fetch())
+
+    assert first_catalog.status == second_catalog.status == 200
+    assert second_page.status == 200
+    for response in (first_catalog, second_page, second_catalog):
+        assert response.header("Set-Cookie") is None
+
+    assert first_catalog.header("Cache-Control") == "public, max-age=0, must-revalidate"
+    assert first_catalog.header("ETag")
+    assert second_catalog.body == first_catalog.body
+    assert second_catalog.header("ETag") == first_catalog.header("ETag")
+
+
 def test_frozen_bulk_sidecars_serve_exact_bytes_in_preview_and_hybrid(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
