@@ -7,6 +7,7 @@ from importlib.resources import files
 VENDOR_FILES = (
     "htmx.min.js",
     "htmx-ext-sse.js",
+    "htmx-ext-preload.js",
     "mermaid.min.js",
 )
 
