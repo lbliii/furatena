@@ -58,7 +58,19 @@ def _write_author_fixture(app_root: Path) -> Path:
     docs = content / "docs"
     docs.mkdir(parents=True)
     page = docs / "page.md"
-    page.write_text("---\ntitle: Page\n---\n# Page\n\nHello from browser SSE.\n", encoding="utf-8")
+    page.write_text(
+        "---\ntitle: Page\n---\n# Page\n\n"
+        "Hello from browser SSE.\n\n"
+        "[Target](/docs/target/)\n"
+        "[Catalog](/catalog.json)\n"
+        "[LLMs](/llms.txt)\n"
+        "[Sitemap](/sitemap.xml)\n",
+        encoding="utf-8",
+    )
+    (docs / "target.md").write_text(
+        "---\ntitle: Target\n---\n# Target\n\nPreloaded target response.\n",
+        encoding="utf-8",
+    )
     write_mounts_yaml(app_root / "mounts.yaml", content)
     return page
 
@@ -466,7 +478,78 @@ async def test_search_result_navigates_to_document(
         result = results.locator('a[href="/docs/page/"]').first
         await result.wait_for()
         await result.click()
-        await page.wait_for_url(f"{base_url}/docs/page/")
+        # Boosted navigation updates history with pushState instead of a full load event.
+        await page.wait_for_function(
+            "url => window.location.href === url",
+            arg=f"{base_url}/docs/page/",
+        )
         await page.locator("#page-root").get_by_text("Hello from browser SSE.").wait_for()
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_smoke
+@pytest.mark.browser_full
+async def test_hover_preloads_boosted_link_and_click_uses_cached_response(
+    browser: Browser,
+    author_server: tuple[str, Path],
+) -> None:
+    base_url, _page_path = author_server
+    context = await browser.new_context(viewport={"width": 1280, "height": 900})
+    page = await context.new_page()
+    target_url = f"{base_url}/docs/target/"
+    target_requests: list[Any] = []
+    devtools = await context.new_cdp_session(page)
+    await devtools.send("Network.enable")
+    target_response_sources: list[dict[str, Any]] = []
+
+    def record_request(request: Any) -> None:
+        if request.url == target_url:
+            target_requests.append(request)
+
+    def record_response(event: dict[str, Any]) -> None:
+        if event["response"]["url"] == target_url:
+            target_response_sources.append(
+                {
+                    "fromDiskCache": event["response"].get("fromDiskCache"),
+                    "fromPrefetchCache": event["response"].get("fromPrefetchCache"),
+                    "fromServiceWorker": event["response"].get("fromServiceWorker"),
+                }
+            )
+
+    page.on("request", record_request)
+    devtools.on("Network.responseReceived", record_response)
+    try:
+        await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
+        target = page.locator('#page-content a[href="/docs/target/"]').first
+        await target.wait_for()
+        await page.wait_for_function(
+            "document.querySelector('#page-content a[href=\\\"/docs/target/\\\"]').preloadState === 'READY'"
+        )
+        assert await target.get_attribute("hx-boost") == "true"
+        assert await target.get_attribute("preload") == "mouseover"
+
+        async with page.expect_response(
+            lambda response: response.url == target_url
+            and response.request.headers.get("hx-preloaded") == "true",
+            timeout=10_000,
+        ) as response_info:
+            await target.hover()
+        preload_response = await response_info.value
+        assert preload_response.ok
+        assert preload_response.headers.get("cache-control") == "private, max-age=60"
+        await page.wait_for_function(
+            "document.querySelector('#page-content a[href=\\\"/docs/target/\\\"]').preloadState === 'DONE'"
+        )
+        assert len(target_requests) == 1
+
+        await target.click()
+        await page.wait_for_url(target_url)
+        await page.locator("#page-root").get_by_text("Preloaded target response.").wait_for()
+        assert len(target_requests) == 2
+        # Playwright emits a request event for the cache read; Chromium confirms
+        # that the click response was served from disk without a second network fetch.
+        assert [source["fromDiskCache"] for source in target_response_sources] == [False, True]
     finally:
         await context.close()

@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
@@ -31,4 +33,17 @@ class TestShellBoostHrefs:
         )
         text = str(html)
         assert 'href="/docs/foo"' in text and 'hx-boost="true"' in text
+        assert 'href="/docs/foo"' in text and 'preload="mouseover"' in text
         assert 'href="/llms.txt"' in text and 'hx-boost="false"' in text
+        asset_tag = text.split('href="/llms.txt"', 1)[1].split(">", 1)[0]
+        assert "preload=" not in asset_tag
+
+    def test_boosted_links_get_hover_preload(self) -> None:
+        attrs = shell_link_attrs("/docs/foo")
+        assert attrs["hx-boost"] == "true"
+        assert attrs["preload"] == "mouseover"
+
+    @pytest.mark.parametrize("href", ("/catalog.json", "/llms.txt", "/sitemap.xml"))
+    def test_machine_readable_links_do_not_get_preload(self, href: str) -> None:
+        attrs = shell_link_attrs(href)
+        assert attrs == {"hx-boost": "false"}
