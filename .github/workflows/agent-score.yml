@@ -149,7 +149,7 @@ jobs:
 
       - name: Upload score evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: agent-score-${{ github.run_id }}-${{ github.run_attempt }}
           path: agent-score-results/*.json

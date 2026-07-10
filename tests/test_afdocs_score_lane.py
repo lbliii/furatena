@@ -195,6 +195,6 @@ def test_workflow_runs_after_deploy_and_on_schedule_with_retained_json() -> None
     )
     upload = steps["Upload score evidence"]
     assert upload["if"] == "always()"
-    assert upload["uses"] == "actions/upload-artifact@v4"
+    assert upload["uses"] == "actions/upload-artifact@v7"
     assert upload["with"]["path"] == "agent-score-results/*.json"
     assert upload["with"]["retention-days"] == 90
