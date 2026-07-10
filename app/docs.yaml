@@ -65,6 +65,7 @@ catalog:
       pages:
         - operations/consume-agent-outputs
         - operations/agent-readiness-score
+        - concepts/static-vs-live-agent-readiness
 
 site:
   name: Furatena

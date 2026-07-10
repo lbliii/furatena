@@ -58,5 +58,6 @@ regressions in the GitHub job summary.
 
 See the repository's `docs/AGENT_SCORE.md` for operator commands and baseline
 update procedure. For the delivery capabilities behind the score, continue to
+[[docs/concepts/static-vs-live-agent-readiness|Static versus live agent readiness]],
 [[docs/operations/deploy|Deploy]] and
 [[docs/operations/consume-agent-outputs|Consume agent outputs and MCP]].

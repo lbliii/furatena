@@ -10,6 +10,10 @@ The committed baseline at `config/afdocs-baseline.json` was recorded by GitHub
 Actions run `29110881180` on 2026-07-10. Six equivalent curated pages were
 checked on each channel against Agent-Friendly Documentation Spec v0.5.0.
 
+See [`STATIC_VS_LIVE_AGENT_READINESS.md`](STATIC_VS_LIVE_AGENT_READINESS.md)
+for the channel capability analysis and publishing recommendation behind this
+scorecard.
+
 | Channel | URL | Score | Grade | Pass | Fail | Skip |
 | --- | --- | ---: | --- | ---: | ---: | ---: |
 | Static | `https://lbliii.github.io/furatena` | 96 | A | 19 | 1 | 3 |
