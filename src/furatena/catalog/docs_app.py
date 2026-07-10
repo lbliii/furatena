@@ -1364,8 +1364,7 @@ class DocsApp:
                     return self._render_node(node, request)
                 raise NotFound(f"Document not found: /{lang}/{slug}/")
 
-    @staticmethod
-    def _register_contract_refs(app: App) -> None:
+    def _register_contract_refs(self, app: App) -> None:
         directive_templates = (
             "accordion",
             "callout",
@@ -1389,22 +1388,19 @@ class DocsApp:
         for name in directive_templates:
             app.declare_template(f"directives/{name}.html")
 
-        for template in (
-            "views/doc.html",
-            "views/doc_list.html",
-            "views/page.html",
-            "views/home.html",
-            "views/collection.html",
-            "views/changelog.html",
-            "views/api_reference.html",
-            "views/portal.html",
-            "views/author_dashboard.html",
-            "views/author_studio.html",
-            "error.html",
-            "partials/error_suggest_panel.html",
-            "partials/error_meta_oob.html",
-            "search.html",
-        ):
+        dynamic_templates = {
+            *self.config.views.values(),
+            *self.config.overrides.values(),
+        }
+        dynamic_templates.update(
+            {
+                "error.html",
+                "layout.html",
+                "partials/author_sse.html",
+                "partials/error_meta_oob.html",
+            }
+        )
+        for template in sorted(dynamic_templates):
             app.declare_template(template)
 
     @classmethod

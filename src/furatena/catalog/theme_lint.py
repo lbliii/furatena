@@ -30,6 +30,13 @@ _REQUIRED_JS = (
 )
 
 _CSS_IMPORT_RE = re.compile(r"@import\s+url\(['\"]?(?P<path>[^'\")]+)")
+_CSS_CLASS_RE = re.compile(r"(?<![\w-])\.([A-Za-z_][A-Za-z0-9_-]*)")
+_CSS_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+_TEMPLATE_CLASS_ATTR_RE = re.compile(
+    r"\bclass\s*=\s*(?P<quote>['\"])(?P<classes>.*?)(?P=quote)",
+    re.DOTALL,
+)
+_LOCAL_TEMPLATE_CLASS_RE = re.compile(r"(?:chirp-theme-[A-Za-z0-9_-]+|visually-hidden)")
 _UNDOCUMENTED_SAFE_RE = re.compile(r"\|\s*safe\b(?!\s*\()")
 
 
@@ -112,6 +119,27 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
             if legacy in imports:
                 warnings.append(f"packaged bundle still imports superseded module: {legacy}")
 
+    css_entries = (bundled, skin.tokens, skin.styles, skin.directives)
+    css_classes = _effective_css_classes(css_entries)
+    template_roots = tuple(
+        path
+        for path in (
+            docs.templates_dir,
+            skin.templates,
+            docs.theme_dir,
+            docs.framework_templates_dir,
+        )
+        if path is not None and path.is_dir()
+    )
+    for class_name, source_paths in _local_template_class_usages(template_roots).items():
+        if class_name in css_classes:
+            continue
+        sources = ", ".join(_display_path(path, docs.root) for path in source_paths)
+        errors.append(
+            f"theme local CSS class .{class_name} has no selector in resolved theme CSS "
+            f"(used by {sources})"
+        )
+
     cache_dir = docs.root / ".docs-cache"
     preset_path = write_theme_preset(docs.theme, cache_dir=cache_dir)
     if not preset_path.is_file():
@@ -141,6 +169,62 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
         warnings.append("theme/assets/branding/favicon.ico or favicon.svg missing")
 
     return sorted(errors), sorted(warnings)
+
+
+def _effective_css_classes(entrypoints: tuple[Path, ...]) -> frozenset[str]:
+    """Return class selectors reachable from the effective CSS entrypoints."""
+    classes: set[str] = set()
+    pending = [path.resolve() for path in entrypoints if path.is_file()]
+    visited: set[Path] = set()
+    while pending:
+        path = pending.pop()
+        if path in visited or not path.is_file():
+            continue
+        visited.add(path)
+        source = path.read_text(encoding="utf-8")
+        contract_source = _CSS_COMMENT_RE.sub("", source)
+        classes.update(_CSS_CLASS_RE.findall(contract_source))
+        for match in _CSS_IMPORT_RE.finditer(contract_source):
+            raw = match.group("path").strip()
+            if not raw or raw.startswith(("/", "#", "data:")) or "://" in raw:
+                continue
+            relative = raw.split("?", 1)[0].split("#", 1)[0]
+            imported = (path.parent / relative).resolve()
+            if imported.suffix == ".css" and imported.is_file():
+                pending.append(imported)
+    return frozenset(classes)
+
+
+def _local_template_class_usages(
+    template_roots: tuple[Path, ...],
+) -> dict[str, tuple[Path, ...]]:
+    """Map literal theme-owned classes to deduplicated physical templates."""
+    usages: dict[str, set[Path]] = {}
+    visited: set[Path] = set()
+    for root in template_roots:
+        for candidate in root.rglob("*.html"):
+            path = candidate.resolve()
+            if path in visited or not path.is_file():
+                continue
+            visited.add(path)
+            source = path.read_text(encoding="utf-8")
+            for attr in _TEMPLATE_CLASS_ATTR_RE.finditer(source):
+                for raw_token in attr.group("classes").split():
+                    if "{" in raw_token or "}" in raw_token:
+                        continue
+                    match = _LOCAL_TEMPLATE_CLASS_RE.fullmatch(raw_token)
+                    if match is None:
+                        continue
+                    class_name = match.group(0)
+                    usages.setdefault(class_name, set()).add(path)
+    return {class_name: tuple(sorted(paths)) for class_name, paths in sorted(usages.items())}
+
+
+def _display_path(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 def check_safe_filter_reasons(docs: DocsConfig) -> list[str]:

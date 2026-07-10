@@ -86,6 +86,7 @@ class TestDevelopExports:
 
         html = asyncio.run(_fetch())
         assert "chirp-theme-develop" in html
+        assert "chirpui-hero--page-editorial" not in html
         assert 'href="/develop/catalog/"' in html
         assert 'href="/develop/llms/"' in html
         assert 'href="/develop/channels/"' in html

@@ -90,7 +90,6 @@ def check_search_shell_templates(
         "partials/search_mount_rail.html",
         "partials/search_scope_rail.html",
         "partials/search_workspace_panel.html",
-        "partials/search_spotlight.html",
         "partials/search_results.html",
         "partials/search_discovery.html",
         "partials/search_facets.html",

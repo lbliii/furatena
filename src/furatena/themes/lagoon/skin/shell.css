@@ -186,13 +186,13 @@
    * Mega-menus use div+button (not <details>) so panels can open on :hover.
    * Closed <details> hides children via UA styles, which breaks hover flyouts.
    */
-  .chirp-theme-shell__nav-dropdown .chirpui-navbar-dropdown__menu {
+  .chirp-theme-shell__nav-dropdown .chirp-theme-shell__nav-dropdown-menu {
     display: none;
   }
 
-  .chirp-theme-shell__nav-dropdown:hover > .chirpui-navbar-dropdown__menu,
-  .chirp-theme-shell__nav-dropdown:focus-within > .chirpui-navbar-dropdown__menu,
-  .chirp-theme-shell__nav-dropdown[data-open] > .chirpui-navbar-dropdown__menu {
+  .chirp-theme-shell__nav-dropdown:hover > .chirp-theme-shell__nav-dropdown-menu,
+  .chirp-theme-shell__nav-dropdown:focus-within > .chirp-theme-shell__nav-dropdown-menu,
+  .chirp-theme-shell__nav-dropdown[data-open] > .chirp-theme-shell__nav-dropdown-menu {
     display: block;
   }
 
