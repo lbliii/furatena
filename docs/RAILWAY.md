@@ -17,11 +17,10 @@ on-request responses agree.
 
 `PYTHON_GIL=0`, `FURA_MODE=preview`, and `FURA_WORKERS=1` are fixed in the image.
 The start script refuses to boot if the imported application stack has enabled
-the GIL. It also sets `FURA_KEEP_ALIVE_TIMEOUT=75` as a temporary mitigation for
-Pounce [#231](https://github.com/lbliii/pounce/issues/231) and
-[#232](https://github.com/lbliii/pounce/issues/232), which can otherwise close
-slow HTTP/2 bulk responses at the five-second default. Remove the override once
-those fixes are in the deployed Pounce release.
+the GIL. Pounce 0.9.0 fixes active HTTP/2 response reaping and slow flow-control
+drains, so the service uses its normal idle keep-alive behavior without the old
+75-second workaround. Railway overlaps replacements for five seconds and gives
+the retiring deployment 15 seconds to drain before termination.
 
 ## Deploy
 
