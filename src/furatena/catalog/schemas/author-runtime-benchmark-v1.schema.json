@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/author-runtime-benchmark-v1.schema.json",
+  "title": "Furatena author-runtime benchmark report v1",
+  "type": "object",
+  "required": ["schema_version", "profile", "environment", "corpus", "methodology", "operations", "elapsed_seconds"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "profile": {"const": "author-runtime"},
+    "environment": {
+      "type": "object",
+      "required": ["python", "implementation", "platform", "gil_enabled", "free_threaded", "cpu_count", "dependencies"]
+    },
+    "corpus": {
+      "type": "object",
+      "required": ["kind", "page_count", "mount_count", "source_file_count"],
+      "properties": {
+        "kind": {"enum": ["synthetic", "dogfood"]},
+        "page_count": {"type": "integer", "minimum": 2},
+        "mount_count": {"type": "integer", "minimum": 1},
+        "source_file_count": {"type": "integer", "minimum": 2}
+      }
+    },
+    "methodology": {"type": "object"},
+    "operations": {
+      "type": "object",
+      "required": ["docs_app_construction", "startup_contract_checks", "author_page_request", "author_page_status", "author_page_validation", "docs_validation"],
+      "properties": {
+        "docs_app_construction": {"$ref": "#/$defs/coldOperation"},
+        "startup_contract_checks": {"$ref": "#/$defs/coldWarmOperation"},
+        "author_page_request": {"$ref": "#/$defs/coldWarmOperation"},
+        "author_page_status": {"$ref": "#/$defs/coldWarmOperation"},
+        "author_page_validation": {"$ref": "#/$defs/coldWarmOperation"},
+        "docs_validation": {
+          "type": "object",
+          "required": ["warm", "profiled_phases_ms"],
+          "properties": {
+            "warm": {"$ref": "#/$defs/measurement"},
+            "profiled_phases_ms": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}}
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "elapsed_seconds": {"type": "number", "minimum": 0}
+  },
+  "$defs": {
+    "coldOperation": {
+      "type": "object",
+      "required": ["cold"],
+      "properties": {"cold": {"$ref": "#/$defs/measurement"}}
+    },
+    "coldWarmOperation": {
+      "type": "object",
+      "required": ["cold", "warm"],
+      "properties": {
+        "cold": {"$ref": "#/$defs/measurement"},
+        "warm": {"$ref": "#/$defs/measurement"}
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "required": ["timing_ms", "call_counts"],
+      "properties": {
+        "timing_ms": {"$ref": "#/$defs/samples"},
+        "call_counts": {
+          "type": "object",
+          "required": ["secondary_docs_app_constructions", "full_validation_calls"],
+          "properties": {
+            "secondary_docs_app_constructions": {"$ref": "#/$defs/samples"},
+            "full_validation_calls": {"$ref": "#/$defs/samples"}
+          }
+        }
+      }
+    },
+    "samples": {
+      "type": "object",
+      "required": ["median", "samples", "unit"],
+      "properties": {
+        "median": {"type": "number", "minimum": 0},
+        "samples": {"type": "array", "minItems": 1, "items": {"type": "number", "minimum": 0}},
+        "unit": {"enum": ["ms", "calls"]}
+      }
+    }
+  }
+}

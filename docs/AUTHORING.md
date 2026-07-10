@@ -61,6 +61,24 @@ filters are applied.
 
 Author-mode JSON routes such as `/catalog.json`, `/search.json`, `/catalog/retrieve`, and `/llms.txt` exclude non-public pages by default. Add `include_private=1` only for trusted local authoring tools; results remain constrained by the server-signed subject's role, team, and mount policy.
 
+## Validation snapshots
+
+Author chrome, the author dashboard, page status JSON, and MCP validation reports read
+one immutable validation snapshot for the current catalog generation and
+docs/theme/template fingerprint. Ordinary page and status requests reuse that snapshot.
+A successful content reindex increments the catalog generation and publishes fresh
+content diagnostics; template changes invalidate the configuration-dependent portion.
+Publication is serialized so concurrent free-threaded requests cannot publish duplicate
+or mixed-generation results.
+
+`GET /docs/_author/page.json?slug=docs/page` reads the current snapshot. Add
+`validate=1` to force a complete refresh. The author dashboard supports the same query,
+and the MCP `author_validate` tool always forces a refresh because it is an explicit
+validation action. Reports include `catalog_generation` and
+`configuration_fingerprint` so callers can verify that browser, dashboard, and MCP
+results describe the same state. `fura check` remains an explicit fresh CLI check and
+uses the same content/configuration check functions.
+
 ## CLI Lifecycle Commands
 
 `fura author` exposes deterministic local source operations:

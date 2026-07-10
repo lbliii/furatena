@@ -352,9 +352,14 @@ def register_author_routes(docs: Any, app: App) -> None:
         denied = self._browser_node_denial(node, "status")
         if denied is not None:
             return denied
+        force_validation = _query_bool(request, "validate", default=False)
         if request.is_htmx:
-            return self._author_page_chrome_fragment(node)
-        return _json_response(self._author_page_chrome(node))
+            return self._author_page_chrome_fragment(
+                node, force_validation=force_validation
+            )
+        return _json_response(
+            self._author_page_chrome(node, force_validation=force_validation)
+        )
 
     @app.route("/docs/_author/source")
     def author_page_source(request: Request):

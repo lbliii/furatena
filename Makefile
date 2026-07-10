@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
+.PHONY: help install test lint benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
@@ -36,6 +36,7 @@ help:
 	@echo "  make test         pytest"
 	@echo "  make lint         ruff check"
 	@echo "  make benchmark    index/freeze/query/search timing report"
+	@echo "  make author-benchmark  author startup/request/validation timing report"
 	@echo "  make retrieval-benchmark  known-answer ranking quality/cost report"
 	@echo ""
 	@echo "CI lanes (see docs/CI.md)"
@@ -81,6 +82,9 @@ lint:
 benchmark:
 	$(UV_RUN) python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)
 
+author-benchmark:
+	$(UV_RUN) python scripts/benchmark_author_runtime.py $(BENCHMARK_ARGS)
+
 retrieval-benchmark:
 	$(UV_RUN) python scripts/benchmark_retrieval.py $(BENCHMARK_ARGS)
 
@@ -118,9 +122,11 @@ ci-fast:
 		src/furatena/catalog/source_sync_state.py \
 		src/furatena/catalog/operation_lease.py \
 		src/furatena/catalog/atomic_directory.py \
+		src/furatena/catalog/author_benchmarks.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
+		src/furatena/catalog/validation.py \
 		src/furatena/catalog/sources/types.py
 	$(PYTEST) \
 		tests/test_catalog_nav.py \
@@ -140,6 +146,8 @@ ci-fast:
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \
+		tests/test_author_benchmark_harness.py \
+		tests/test_validation_snapshots.py \
 		tests/test_chirp_docs_incremental.py \
 		tests/test_docs_core.py \
 		tests/test_domain_errors.py \
