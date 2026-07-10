@@ -113,6 +113,7 @@ ci-fast:
 		src/furatena/catalog/retrieval_metrics.py \
 		src/furatena/catalog/audit_store.py \
 		src/furatena/catalog/rate_limit.py \
+		src/furatena/catalog/safe_html.py \
 		src/furatena/catalog/operational_status.py \
 		src/furatena/catalog/observability.py \
 		src/furatena/catalog/source_sync_state.py \
@@ -151,6 +152,7 @@ ci-fast:
 		tests/test_retrieval_feedback.py \
 		tests/test_retrieval_metrics.py \
 		tests/test_search_hot_paths.py \
+		tests/test_safe_html_boundaries.py \
 		tests/test_site_config.py \
 		tests/test_theme_lint.py \
 		tests/test_theme_pack.py \

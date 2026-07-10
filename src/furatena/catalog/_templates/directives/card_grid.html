@@ -1,5 +1,5 @@
 {% from "chirpui/layout.html" import grid %}
 {% set grid_class = "chirp-theme-directive-cards" ~ (" " ~ extra_class if extra_class else "") %}
 {% call grid(cols=cols | int if cols.isdigit() else none, gap=gap, cls=grid_class) %}
-{{ body | safe }}
+{{ body }}
 {% end %}

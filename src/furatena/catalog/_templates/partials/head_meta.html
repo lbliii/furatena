@@ -13,7 +13,7 @@
 <meta id="chirpui-doc-og-image" property="og:image" content="{{ og_image_url }}"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>
 {% end %}
 {% if json_ld is defined and json_ld %}
-<script id="chirpui-doc-jsonld" type="application/ld+json"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>{{ json_ld | safe }}</script>
+<script id="chirpui-doc-jsonld" type="application/ld+json"{% if oob | default(false) %} hx-swap-oob="true"{% end %}>{{ json_ld }}</script>
 {% end %}
 {% if alternate_links is defined %}
 {% for link in alternate_links %}

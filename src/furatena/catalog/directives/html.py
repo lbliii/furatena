@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 from html import escape
 
+from kida.template import Markup
+
+from furatena.catalog.safe_html import trusted_escaped_markup
+
 GAP_CHIRPUI = {"small": "sm", "medium": "md", "large": "lg"}
 
 
@@ -27,16 +31,16 @@ def rewrite_doc_links(html: str) -> str:
 _CODE_PLACEHOLDER = "\x00CODE{index}\x00"
 
 
-def render_inline_text(text: str) -> str:
+def render_inline_text(text: str) -> Markup:
     """Render directive titles and labels with basic inline markdown."""
-    return _render_inline_markdown(text)
+    return trusted_escaped_markup(_render_inline_markdown(text))
 
 
-def render_inline_cell(cell_content: str) -> str:
+def render_inline_cell(cell_content: str) -> Markup:
     """Render list-table cell text with basic inline markdown."""
     if cell_content.strip() == "-":
-        return '<span class="table-empty">—</span>'
-    return _render_inline_markdown(cell_content)
+        return trusted_escaped_markup('<span class="table-empty">—</span>')
+    return trusted_escaped_markup(_render_inline_markdown(cell_content))
 
 
 def _render_inline_markdown(cell_content: str) -> str:

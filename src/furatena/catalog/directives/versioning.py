@@ -10,7 +10,7 @@ from patitas.nodes import Directive
 
 from furatena.catalog.context import get_render_context
 from furatena.catalog.directives.html import render_inline_text
-from furatena.catalog.directives.kida_render import as_markup, render_directive
+from furatena.catalog.directives.kida_render import render_directive, trusted_renderer_html
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -57,7 +57,7 @@ class SinceHandler:
                 "version_callout",
                 kind="since",
                 badge_label=f"Since {version}".strip(),
-                body=rendered_children,
+                body=trusted_renderer_html(rendered_children),
             )
         )
 
@@ -95,7 +95,7 @@ class DeprecatedHandler:
                 "version_callout",
                 kind=kind,
                 badge_label=f"{node.name.capitalize()} {version}".strip(),
-                body=rendered_children,
+                body=trusted_renderer_html(rendered_children),
             )
         )
 
@@ -146,7 +146,7 @@ class RelatedHandler:
                     if opts.limit > 0:
                         links = links[: opts.limit]
 
-        title = as_markup(render_inline_text(opts.section_title or node.title or "Related"))
+        title = render_inline_text(opts.section_title or node.title or "Related")
         sb.append(
             render_directive(
                 "related",

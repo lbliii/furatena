@@ -5,6 +5,8 @@ Furatena treats source front matter as the contract for local drafting, private 
 Author mutation trust boundaries, confirmation requirements, unresolved risks,
 and the remote-exposure policy are defined in
 [AUTHOR_MUTATION_THREAT_MODEL.md](AUTHOR_MUTATION_THREAT_MODEL.md).
+Template and rendered-content trust boundaries are inventoried in
+[SAFE_HTML_BOUNDARIES.md](SAFE_HTML_BOUNDARIES.md).
 
 ## Fields
 
