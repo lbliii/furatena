@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/capability/v1/policy.schema.json",
+  "title": "Furatena capability policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "policy_version", "policy_digest", "rules", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.capability.policy"},
+    "policy_version": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "policy_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "rules": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/rule"}
+    },
+    "extensions": {"type": "object"}
+  }
+}
