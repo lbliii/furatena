@@ -1,0 +1,13 @@
+{# Typed version/lifecycle notice with an explicit trusted-content region. #}
+{% def directive_version_notice(kind: str, badge_label: str, has_content: bool = false) %}
+<div class="version-directive version-{{ kind }} chirp-theme-directive-version chirp-theme-directive-version--{{ kind }}">
+  <div class="version-directive-header">
+    <span class="version-badge version-badge-{{ kind }}">{{ badge_label }}</span>
+  </div>
+  {% if has_content %}
+  <div class="version-directive-content">
+    {% slot content %}
+  </div>
+  {% end %}
+</div>
+{% end %}

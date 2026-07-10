@@ -301,6 +301,34 @@ mechanisms compose markup — each with different **context scoping**:
    (`page_root`, `page_content`, `catalog_article`, …) for boosted navigation.
    See [Kida framework integration](https://lbliii.github.io/kida/docs/usage/framework-integration/).
 
+### Component seam inventory
+
+Kida components are most valuable at repeated composition boundaries with a
+small prop contract and distinct content regions. They are not a replacement
+for every include or inheritance block. This inventory records the Kida 0.11
+audit and keeps that choice explicit.
+
+| Seam | Dynamic inputs | Trust boundary | Validation benefit | Decision |
+| --- | --- | --- | --- | --- |
+| directive callout + related wrappers | title, variant, directive kind, extra class, rendered body or links | Patitas-rendered body remains the wrapper's explicit trusted `content` slot; link fields stay escaped | one typed prop contract replaces duplicated class assembly; named content is visible in metadata | Convert to `components/directive_callout.html` |
+| version lifecycle notice | kind, badge label, optional rendered body | only the named `content` slot accepts rendered body markup | required string props and an optional named region make empty-body behavior statically visible | Convert to `components/directive_version_notice.html` |
+| app-shell mega navigation | href, labels, description, icon, active-path policy, dropdown body | all values remain escaped; the dropdown default slot owns navigation markup | required/unknown props and literal boolean/string types are checked across imports | Keep the existing defs and add typed props |
+| card, tabs, accordion, steps, and table directive skins | renderer-specific records plus trusted rendered fragments | each adapter currently owns different sanitized/escaped fragments | a shared component would need broad unions or push trust decisions downward | Retain dedicated directive templates |
+| recursive catalog/sidebar navigation | nested nodes, active path, mount/edition state | links and labels are escaped at each recursive include | recursive includes preserve a simple override path; component props would not add useful literal checking | Retain includes |
+| document/view layouts and project theme shadows | full render context and overridable blocks | `doc_body` and project-provided templates are the boundary | inheritance is the public customization contract | Retain inheritance and loader precedence |
+| page actions and author chrome | node, canonical/LLM URLs, CSRF, authorization-derived actions | server authorization and CSRF helpers own trust | one route-specific consumer and a large contextual contract offer little reusable validation | Retain include |
+
+For selected conversions, keep the renderer-facing template name stable so
+ejected and project/theme overrides continue to win through the existing loader
+order. Import one component through a literal path, annotate scalar props, and
+use named slots for rendered markup or other distinct regions. Escaping or
+trusted-markup conversion stays in the wrapper/producer that already owns it;
+a component must not broaden that boundary. Kida's external-def call signature
+and literal-type analyzers run against the real directive and application loader
+stacks. Component files under `catalog/_templates/components/` are included by
+the existing recursive package-data rule, so wheels and source checkouts expose
+the same contract.
+
 ### When macros *are* appropriate
 
 Layout macros work when the def is self-contained (explicit parameters) or when
