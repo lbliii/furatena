@@ -1,10 +1,8 @@
-<div class="version-directive version-{{ kind }} chirp-theme-directive-version chirp-theme-directive-version--{{ kind }}">
-  <div class="version-directive-header">
-    <span class="version-badge version-badge-{{ kind }}">{{ badge_label }}</span>
-  </div>
-  {% if body %}
-  <div class="version-directive-content">
-    {{ body | safe }}
-  </div>
-  {% end %}
-</div>
+{% from "components/directive_version_notice.html" import directive_version_notice %}
+{% if body %}
+{% call directive_version_notice(kind=kind, badge_label=badge_label, has_content=true) %}
+{% slot content %}{{ body | safe }}{% end %}
+{% end %}
+{% else %}
+{{ directive_version_notice(kind=kind, badge_label=badge_label) }}
+{% end %}

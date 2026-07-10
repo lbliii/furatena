@@ -1,7 +1,6 @@
-{% from "chirpui/callout.html" import callout %}
-{% set callout_class = "chirp-theme-directive-related" %}
-{% if extra_class | default('') %}{% set callout_class = callout_class ~ " " ~ extra_class %}{% end %}
-{% call callout(variant="neutral", title=title, cls=callout_class) %}
+{% from "components/directive_callout.html" import directive_callout %}
+{% call directive_callout(title=title, variant="neutral", kind="related", extra_class=(extra_class | default(''))) %}
+{% slot content %}
 {% if body %}
 {{ body | safe }}
 {% else %}
@@ -10,5 +9,6 @@
 <li><a href="{{ link.href }}">{{ link.title }}</a></li>
 {% end %}
 </ul>
+{% end %}
 {% end %}
 {% end %}

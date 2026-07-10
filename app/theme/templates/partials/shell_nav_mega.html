@@ -1,7 +1,7 @@
 {# Mega-menu panel items for the app-surface site nav. #}
 {% from "partials/docs_nav_icons.html" import docs_icon %}
 
-{% def shell_mega_overview(href, eyebrow, title, description) %}
+{% def shell_mega_overview(href: str, eyebrow: str, title: str, description: str) %}
 <a class="chirp-theme-shell__mega-header chirp-theme-shell__mega-overview"
    href="{{ href }}"{{ route_link_attrs(href) | html_attrs }}>
   <span class="chirp-theme-shell__mega-eyebrow">{{ eyebrow }}</span>
@@ -14,7 +14,7 @@
 </a>
 {% end %}
 
-{% def shell_mega_item(href, title, description, icon="book-open") %}
+{% def shell_mega_item(href: str, title: str, description: str, icon: str = "book-open") %}
 <a class="chirpui-dropdown__item chirp-theme-shell__mega-item"
    href="{{ href }}"{{ route_link_attrs(href) | html_attrs }}>
   <span class="chirp-theme-shell__mega-item-mark" aria-hidden="true">{{ docs_icon(icon, 16) }}</span>
@@ -25,7 +25,7 @@
 </a>
 {% end %}
 
-{% def shell_nav_dropdown(label, current_path="", match="", href="", active=false) %}
+{% def shell_nav_dropdown(label: str, current_path: str = "", match: str = "", href: str = "", active: bool = false) %}
 {% set _cp = current_path if match else "" %}
 {% set _active = active if not match else ((_cp == href) if match == "exact" else (_cp == href or _cp.startswith(href ~ "/")) if match == "prefix" else active) %}
 <div class="chirpui-navbar-dropdown chirp-theme-shell__nav-dropdown" data-fura-shell-mega>

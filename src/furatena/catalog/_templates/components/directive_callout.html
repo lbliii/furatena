@@ -1,0 +1,9 @@
+{# Typed adapter between directive contexts and the chirp-ui callout component. #}
+{% from "chirpui/callout.html" import callout %}
+
+{% def directive_callout(title: str | None = none, variant: str = "info", kind: str = "admonition", modifier: str = "", extra_class: str = "") %}
+{% set component_class = "chirp-theme-directive-" ~ kind ~ (" chirp-theme-directive-admonition--" ~ (modifier or variant) if kind == "admonition" else "") ~ (" " ~ extra_class if extra_class else "") %}
+{% call callout(variant=variant, title=title, cls=component_class) %}
+{% yield content %}
+{% end %}
+{% end %}
