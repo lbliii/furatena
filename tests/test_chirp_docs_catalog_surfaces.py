@@ -255,7 +255,7 @@ mounts:
             load_docs_config(app_root / "docs.yaml"),
             repo_root=tmp_path,
             autodoc=False,
-            serve=ServeConfig(ServeMode.PREVIEW, None, True, False),
+            serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
         )
         client = TestClient(docs.create_app())
 
@@ -273,6 +273,32 @@ mounts:
         assert live_mounts["shared"]["head"] == "embedded-fragment"
         assert live_mounts["shared"]["theme"] == {"id": "furatena", "use": "lagoon"}
 
+        async def _fetch_catalog_surfaces() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+            merged = await client.get("/catalog.json")
+            shard = await client.get("/catalog/mounts/shared.json")
+            channels = await client.get("/channels.json")
+            assert merged.status == 200
+            assert shard.status == 200
+            assert channels.status == 200
+            return (
+                json.loads(merged.text),
+                json.loads(shard.text),
+                json.loads(channels.text),
+            )
+
+        merged_graph, shared_graph, live_channels = asyncio.run(_fetch_catalog_surfaces())
+        assert merged_graph == catalog_graph(docs.catalog)
+        expected_shared = catalog_graph(docs.catalog._shards["shared"])
+        expected_shared["mount"] = "shared"
+        assert shared_graph == expected_shared
+        live_agent = next(item for item in live_channels["channels"] if item["id"] == "agent")
+        live_source = next(item for item in live_channels["sources"] if item["mount"] == "shared")
+        live_shard_output = next(
+            item for item in live_agent["outputs"] if item.get("mount") == "shared"
+        )
+        assert live_shard_output["url"].endswith("/catalog/mounts/shared.json")
+        assert live_shard_output["fingerprint"] == live_source["fingerprint"]
+
         out = tmp_path / "public"
         export_static_site(
             docs,
@@ -289,6 +315,19 @@ mounts:
         assert static_mounts["shared"]["theme"] == live_mounts["shared"]["theme"]
         static_html = (out / "shared/docs/ref/index.html").read_text(encoding="utf-8")
         assert 'data-fura-rendering-head="embedded-fragment"' in static_html
+        for mount_id in ("furatena", "shared"):
+            shard_path = out / "catalog" / "mounts" / f"{mount_id}.json"
+            assert shard_path.is_file()
+            assert json.loads(shard_path.read_text(encoding="utf-8"))["mount"] == mount_id
+        static_channels = json.loads((out / "channels.json").read_text(encoding="utf-8"))
+        static_agent = next(item for item in static_channels["channels"] if item["id"] == "agent")
+        static_shard = next(
+            item for item in static_agent["outputs"] if item.get("mount") == "shared"
+        )
+        assert static_shard["url"].endswith("/catalog/mounts/shared.json")
+        assert "catalog/mounts/shared.json" in next(
+            item for item in static_channels["channels"] if item["id"] == "static"
+        )["artifacts"]
 
 
 class TestAutodoc:
