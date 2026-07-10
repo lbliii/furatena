@@ -43,6 +43,7 @@ class RenderContextService:
     views: Any
     locale_service: LocaleResolutionService
     theme: Any = None
+    validation: Any = None
 
     def request_language(self, request: Any | None = None, *, node: Any = None) -> str:
         return self.locale_service.request_language(
@@ -194,14 +195,28 @@ class RenderContextService:
             **self.theme_effects_context(),
         }
 
-    def author_dashboard_context(self, request: Any, *, source_info: Any) -> dict[str, Any]:
-        errors, warnings = check_catalog(
-            self.catalog,
-            views=getattr(self, "views", None),
-            docs=getattr(self, "config", None),
-            theme=getattr(self, "theme", None),
-            inventory_store=self.catalog.inventory_store,
+    def author_dashboard_context(
+        self,
+        request: Any,
+        *,
+        source_info: Any,
+        force_validation: bool = False,
+    ) -> dict[str, Any]:
+        snapshot = (
+            self.validation.snapshot(force=force_validation)
+            if self.validation is not None
+            else None
         )
+        if snapshot is None:
+            errors, warnings = check_catalog(
+                self.catalog,
+                views=getattr(self, "views", None),
+                docs=getattr(self, "config", None),
+                theme=getattr(self, "theme", None),
+                inventory_store=self.catalog.inventory_store,
+            )
+        else:
+            errors, warnings = list(snapshot.errors), list(snapshot.warnings)
         source_to_node = {
             str(getattr(node, "source_path", "") or ""): node
             for node in self.catalog.nodes
@@ -307,6 +322,10 @@ class RenderContextService:
             "catalog_subtitle": "Import, freshness, and lint status",
             "breadcrumb_items": [{"label": "Author dashboard", "href": "/docs/_author/dashboard"}],
             "author_dashboard": {
+                "catalog_generation": snapshot.catalog_generation if snapshot else None,
+                "configuration_fingerprint": (
+                    snapshot.configuration_fingerprint if snapshot else None
+                ),
                 "mounts": mount_cards,
                 "diagnostics": diagnostics,
                 "blocking": blocking[:12],

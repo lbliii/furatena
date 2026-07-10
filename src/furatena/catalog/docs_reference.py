@@ -101,11 +101,13 @@ def _literal(node: ast.AST | None) -> object:
         return None
     try:
         return ast.literal_eval(node)
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return ast.unparse(node)
 
 
-def environment_reference_records(package_root: Path | None = None) -> tuple[dict[str, object], ...]:
+def environment_reference_records(
+    package_root: Path | None = None,
+) -> tuple[dict[str, object], ...]:
     """Derive Furatena/Chirp environment controls and defaults from source usage."""
 
     root = package_root or Path(__file__).resolve().parents[1]
@@ -114,7 +116,9 @@ def environment_reference_records(package_root: Path | None = None) -> tuple[dic
     def add(name: str, *, default: object, source: str, mode: str) -> None:
         if not name.startswith(("FURA_", "CHIRP_")):
             return
-        item = found.setdefault(name, {"name": name, "defaults": set(), "sources": set(), "modes": set()})
+        item = found.setdefault(
+            name, {"name": name, "defaults": set(), "sources": set(), "modes": set()}
+        )
         item["defaults"].add(repr(default))
         item["sources"].add(source)
         item["modes"].add(mode)

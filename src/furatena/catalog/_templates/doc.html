@@ -15,7 +15,7 @@
 
 <div class="fura-layout{{ ' fura-layout--with-toc' if node.toc | length > 0 else '' }}">
   <article class="fura-body">
-    {{ node | doc_body | boost_doc_links | safe }}
+    {{ node | doc_body | boost_doc_links }}
   </article>
 
   {% if node.toc | length > 0 %}

@@ -7,7 +7,7 @@ for scheduling, not as enforced performance thresholds.
 
 | Lane | Local command | Scope | Extra dependency | Expected runtime |
 | --- | --- | --- | --- | --- |
-| Fast | `make ci-fast` | Ruff (including public return annotations), zero-diagnostic typed boundaries, owned ty diagnostic ratchets, and core catalog/config/theme unit tests | None beyond `make install` | ~30 seconds |
+| Fast | `make ci-fast` | Ruff 0.15.20 formatting and lint (including public return annotations), zero-diagnostic typed boundaries, owned ty diagnostic ratchets, and core catalog/config/theme unit tests | None beyond `make install` | ~30 seconds |
 | Contract | `make ci-contract` | Structured `fura check`, authorization, content, response-shape, template, CSP, and boost contracts | None beyond `make install` | ~60 seconds |
 | Coverage | `make ci-coverage` | Branch coverage and per-module ratchets for graph, access, export, and loader foundations | None beyond `make install` | ~60 seconds |
 | Export | `make ci-export` | Static-export and DCP worker tests, a production-shaped Pages build, and an artifact URL crawl | None beyond `make install` | ~3 minutes |
@@ -53,6 +53,15 @@ When a wave fixes findings, lower the affected module and rule budgets in the
 same change. Never raise a budget merely to make CI pass. A ty upgrade requires
 a fresh categorized broad audit and an intentional baseline review because
 diagnostic semantics can change between versions.
+
+## Formatter contract
+
+Contributors must use Ruff 0.15.20, pinned exactly in both development dependency
+sets. Run `make format` to apply the formatter to the repository's Python files
+and `make format-check` for a read-only local check. The Fast CI lane owns this
+scope: `make ci-fast` depends on `format-check`, so formatting drift fails before
+lint, typing, or unit tests run. Formatter upgrades must remain isolated from
+semantic changes and regenerate line-number-derived references before review.
 
 ## Branch gates and artifacts
 

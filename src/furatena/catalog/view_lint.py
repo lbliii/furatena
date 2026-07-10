@@ -16,6 +16,8 @@ from furatena.catalog.view_kinds import VIEW_KINDS, ViewKindSpec
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from kida import Environment
+
     from furatena.catalog.config import DocsConfig
     from furatena.catalog.registry import CatalogRegistry
     from furatena.catalog.theme import DocsTheme
@@ -41,11 +43,12 @@ def check_view_templates(
     strict: bool = False,
     repo_root: Path | None = None,
     catalog: CatalogRegistry | None = None,
+    env: Environment | None = None,
 ) -> tuple[list[str], list[str]]:
     """Validate view templates declare required blocks and context."""
     errors: list[str] = []
     warnings: list[str] = []
-    env = build_docs_template_env(docs, theme, repo_root=repo_root)
+    env = env or build_docs_template_env(docs, theme, repo_root=repo_root)
     template_globals = registered_template_globals(env)
 
     for template_name, kind_spec in sorted(_registered_view_templates(docs).items()):

@@ -22,7 +22,9 @@ _JSX_BLOCK = re.compile(
 
 def _jsx_attrs(raw: str) -> dict[str, str]:
     options: dict[str, str] = {}
-    for match in re.finditer(r'([A-Za-z_:][\w:-]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|(\{[^}]+\}))', raw):
+    for match in re.finditer(
+        r'([A-Za-z_:][\w:-]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|(\{[^}]+\}))', raw
+    ):
         key = match.group(1)
         value = match.group(2) or match.group(3) or match.group(4) or ""
         options[key] = value.strip()

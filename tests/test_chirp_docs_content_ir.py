@@ -59,7 +59,9 @@ class TestCatalogContentIR:
 
     def test_catalog_export_includes_content_block(self, catalog: DocCatalog) -> None:
         graph = catalog_graph(catalog)
-        page = next(item for item in graph["pages"] if item["slug"] == "docs/get-started/installation")
+        page = next(
+            item for item in graph["pages"] if item["slug"] == "docs/get-started/installation"
+        )
         assert "content" in page
         assert page["content"]["headings"]
 

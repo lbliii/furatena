@@ -220,9 +220,7 @@ def _artifact(
         "detail": detail,
         "generated_at": _iso(generated_at) if generated_at else None,
         "generated_at_epoch": generated_at or None,
-        "age_seconds": round(max(observed_at - generated_at, 0.0), 3)
-        if generated_at
-        else None,
+        "age_seconds": round(max(observed_at - generated_at, 0.0), 3) if generated_at else None,
         "page_count": manifest.page_count if manifest is not None else None,
         "artifact_count": len(manifest.artifacts) if manifest is not None else 0,
         "file_count": _file_count(root),

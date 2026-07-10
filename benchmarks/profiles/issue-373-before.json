@@ -1,0 +1,361 @@
+{
+  "corpus": {
+    "kind": "synthetic",
+    "mount_count": 1,
+    "page_count": 12,
+    "source_file_count": 12
+  },
+  "elapsed_seconds": 14.52105,
+  "environment": {
+    "cpu_count": 11,
+    "dependencies": {
+      "bengal-chirp": "0.9.0",
+      "chirp-ui": "0.11.0",
+      "furatena": "0.1.0",
+      "kida-templates": "0.11.0",
+      "milo-cli": "0.4.1",
+      "patitas": "0.4.0"
+    },
+    "free_threaded": true,
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "methodology": {
+    "autodoc": false,
+    "clock": "time.perf_counter",
+    "cold_definition": "first operation on fresh state",
+    "repeats": 3,
+    "statistic": "median",
+    "wall_clock_policy": "informational across machines",
+    "warm_definition": "same operation repeated after one completed sample",
+    "workers": 1
+  },
+  "operations": {
+    "author_page_request": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 413.080208,
+          "samples": [
+            413.080208
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 495.309917,
+          "samples": [
+            364.473375,
+            503.930292,
+            495.309917
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "author_page_status": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 380.5835,
+          "samples": [
+            380.5835
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 324.057375,
+          "samples": [
+            405.214458,
+            324.057375,
+            312.589584
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "author_page_validation": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 354.664625,
+          "samples": [
+            354.664625
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 316.635292,
+          "samples": [
+            316.635292,
+            308.380042,
+            324.26175
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "docs_app_construction": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 42.919583,
+          "samples": [
+            49.572625,
+            42.919583,
+            31.882625
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "docs_validation": {
+      "profiled_phases_ms": {
+        "ast_roundtrip": 3.938917,
+        "body_link_boost": 0.461083,
+        "broken_internal_links": 0.413084,
+        "content_lint": 2.960125,
+        "cross_edition_links": 0.413417,
+        "dcp_schema": 14.668833,
+        "delivery_config": 0.010917,
+        "directive_manifest": 0.518875,
+        "directive_template_hrefs": 0.6985,
+        "front_matter": 0.027708,
+        "lifecycle": 11.181709,
+        "rendering_heads": 0.036,
+        "theme_assets": 6.621417,
+        "unresolved_references": 0.016125,
+        "view_config": 0.004875,
+        "view_templates": 831.356375
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 307.76725,
+          "samples": [
+            307.76725,
+            305.860541,
+            350.756916
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "startup_contract_checks": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 1504.199416,
+          "samples": [
+            1989.567333,
+            1445.1265,
+            1504.199416
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 971.265167,
+          "samples": [
+            928.392542,
+            1015.690583,
+            971.265167
+          ],
+          "unit": "ms"
+        }
+      }
+    }
+  },
+  "profile": "author-runtime",
+  "schema_version": 1
+}

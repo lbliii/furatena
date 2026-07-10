@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint ty-audit ty-ratchet benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
+.PHONY: help install test lint format format-check ty-audit ty-ratchet benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
@@ -37,7 +37,10 @@ help:
 	@echo "  make lint         ruff check"
 	@echo "  make ty-audit     report repo-wide ty diagnostics without blocking"
 	@echo "  make ty-ratchet   enforce owned ty diagnostic budgets"
+	@echo "  make format       apply Ruff 0.15.20 formatting"
+	@echo "  make format-check verify Ruff 0.15.20 formatting"
 	@echo "  make benchmark    index/freeze/query/search timing report"
+	@echo "  make author-benchmark  author startup/request/validation timing report"
 	@echo "  make retrieval-benchmark  known-answer ranking quality/cost report"
 	@echo ""
 	@echo "CI lanes (see docs/CI.md)"
@@ -80,6 +83,12 @@ test:
 lint:
 	$(UV_RUN) ruff check src tests app
 
+format:
+	$(UV_RUN) ruff format .
+
+format-check:
+	$(UV_RUN) ruff format --check .
+
 ty-audit:
 	$(UV_RUN) python scripts/check_ty_diagnostics.py --report-only --json
 
@@ -88,6 +97,9 @@ ty-ratchet:
 
 benchmark:
 	$(UV_RUN) python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)
+
+author-benchmark:
+	$(UV_RUN) python scripts/benchmark_author_runtime.py $(BENCHMARK_ARGS)
 
 retrieval-benchmark:
 	$(UV_RUN) python scripts/benchmark_retrieval.py $(BENCHMARK_ARGS)
@@ -110,7 +122,7 @@ agent: ci-agent
 
 release: ci-release
 
-ci-fast:
+ci-fast: format-check
 	$(UV_RUN) ruff check src tests app
 	$(MAKE) ty-ratchet
 	$(UV_RUN) ty check \
@@ -122,11 +134,15 @@ ci-fast:
 		src/furatena/catalog/retrieval_metrics.py \
 		src/furatena/catalog/audit_store.py \
 		src/furatena/catalog/rate_limit.py \
+		src/furatena/catalog/safe_html.py \
 		src/furatena/catalog/operational_status.py \
 		src/furatena/catalog/observability.py \
 		src/furatena/catalog/source_sync_state.py \
 		src/furatena/catalog/operation_lease.py \
 		src/furatena/catalog/atomic_directory.py \
+		src/furatena/catalog/publication_contracts.py \
+		src/furatena/catalog/publication_state.py \
+		src/furatena/catalog/author_benchmarks.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
@@ -135,7 +151,8 @@ ci-fast:
 		src/furatena/catalog/lifecycle.py \
 		src/furatena/catalog/models.py \
 		src/furatena/cli/authoring.py \
-		src/furatena/cli/contracts.py
+		src/furatena/cli/contracts.py \
+		src/furatena/catalog/validation.py
 	$(PYTEST) \
 		tests/test_catalog_nav.py \
 		tests/test_docs_journeys.py \
@@ -151,9 +168,15 @@ ci-fast:
 		tests/test_observability.py \
 		tests/test_source_sync_state.py \
 		tests/test_operation_coordination.py \
+		tests/test_publication_contracts.py \
+		tests/test_publication_state.py \
+		tests/test_publication_schemas.py \
+		tests/test_publication_fixtures.py \
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \
+		tests/test_author_benchmark_harness.py \
+		tests/test_validation_snapshots.py \
 		tests/test_chirp_docs_incremental.py \
 		tests/test_docs_core.py \
 		tests/test_domain_errors.py \
@@ -166,6 +189,7 @@ ci-fast:
 		tests/test_retrieval_feedback.py \
 		tests/test_retrieval_metrics.py \
 		tests/test_search_hot_paths.py \
+		tests/test_safe_html_boundaries.py \
 		tests/test_site_config.py \
 		tests/test_theme_lint.py \
 		tests/test_theme_pack.py \

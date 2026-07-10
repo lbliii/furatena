@@ -1,0 +1,11 @@
+{
+  "fixture_version": 1,
+  "scenario": "expiry",
+  "operation": "publish",
+  "required_approvals": 1,
+  "expires_at": "2030-01-01T00:02:00Z",
+  "output": {"kind": "repository_change", "target": "product-docs", "environment": "review"},
+  "decisions": [],
+  "transitions": ["validating", "expired"],
+  "expected_state": "expired"
+}

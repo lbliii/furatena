@@ -230,7 +230,8 @@ def retrieve_node(
     node = catalog.get_by_node_id(node_id)
     if node is None or (
         not include_private
-        and node not in accessible_nodes(
+        and node
+        not in accessible_nodes(
             catalog,
             [node],
             subject=subject,
@@ -249,16 +250,20 @@ def retrieve_node(
         }
         for chunk in chunk_node(node, documents=documents)
     ]
-    similar = [
-        {
-            "chunk_id": hit.chunk.chunk_id,
-            "node_id": hit.chunk.node_id,
-            "title": hit.chunk.title,
-            "url": hit.chunk.url,
-            "score": hit.score,
-        }
-        for hit in index.similar(chunks[0]["chunk_id"], limit=5)
-    ] if chunks else []
+    similar = (
+        [
+            {
+                "chunk_id": hit.chunk.chunk_id,
+                "node_id": hit.chunk.node_id,
+                "title": hit.chunk.title,
+                "url": hit.chunk.url,
+                "score": hit.score,
+            }
+            for hit in index.similar(chunks[0]["chunk_id"], limit=5)
+        ]
+        if chunks
+        else []
+    )
     backlinks = catalog.backlinks_for(node)
     if not include_private:
         public_urls = {

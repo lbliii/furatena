@@ -40,7 +40,6 @@ from furatena.catalog.access import (
 )
 from furatena.catalog.author_store import AuthorMutationStore, FilesystemAuthorMutationStore
 from furatena.catalog.channel_manifest import channel_manifest
-from furatena.catalog.check import check_catalog
 from furatena.catalog.conditional_response import ConditionalResponseMiddleware
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
@@ -101,6 +100,7 @@ from furatena.catalog.seo import (
 )
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_items
+from furatena.catalog.validation import ValidationSnapshotService
 from furatena.catalog.versions import channel_context
 from furatena.catalog.views import ViewRegistry
 from furatena.catalog.workers import resolve_workers
@@ -274,12 +274,20 @@ class DocsApp:
         self.frozen_artifacts = FrozenArtifactStore(
             self.catalog.frozen_root if self.serve.mode != ServeMode.AUTHOR else None
         )
+        self.validation = ValidationSnapshotService(
+            self.catalog,
+            views=self.views,
+            docs=self.config,
+            theme=self.theme,
+            template_env=self._validation_template_env,
+        )
         self.render_context = RenderContextService(
             config,
             self.catalog,
             self.views,
             self.locale_service,
             self.theme,
+            self.validation,
         )
         semantic_root = scoped_frozen_dir(
             frozen or config.root / "frozen", config.identity.to_meta()
@@ -292,6 +300,11 @@ class DocsApp:
         if self.serve.warn_stale_freeze:
             print("Note: content is newer than frozen/ — run `fura freeze` for a fresh export.")
         self.app = self._build_app()
+
+    def _validation_template_env(self):
+        app = getattr(self, "app", None)
+        runtime = getattr(app, "_runtime_state", None)
+        return getattr(runtime, "kida_env", None)
 
     def _build_app(self) -> App:
         component_dirs = tuple(
@@ -519,7 +532,7 @@ class DocsApp:
             if path.endswith("/index.md"):
                 doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
             else:
-                doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+                doc_path = f"{path[: -len('.md')].rstrip('/')}/"
             match = self._resolve_page_from_path(doc_path, requested_lang=requested_lang)
             if not self.catalog.can_access_node(
                 match.node,
@@ -530,9 +543,7 @@ class DocsApp:
             return self._markdown_node_response(match.node)
         match = self._resolve_page_from_path(path, requested_lang=requested_lang)
         subject = (
-            self._browser_author_subject()
-            if self._is_author_mode()
-            else AccessSubject.anonymous()
+            self._browser_author_subject() if self._is_author_mode() else AccessSubject.anonymous()
         )
         if not self.catalog.can_access_node(
             match.node,
@@ -712,9 +723,9 @@ class DocsApp:
             status=403,
         )
 
-    def _author_page_chrome(self, node) -> dict[str, Any]:
+    def _author_page_chrome(self, node, *, force_validation: bool = False) -> dict[str, Any]:
         source = self._author_source_info(node)
-        validation = self._author_validation_status(node)
+        validation = self._author_validation_status(node, force=force_validation)
         visibility = visibility_state(getattr(node, "meta", {}) or {})
         export_included = self.catalog.can_access_node(node, permission=AccessPermission.EXPORT)
         stale_entries = self.catalog.author_stale_entries(node.slug)
@@ -764,18 +775,26 @@ class DocsApp:
             },
         }
 
-    def _author_page_chrome_fragment(self, node, *, status: int = 200):
+    def _author_page_chrome_fragment(
+        self,
+        node,
+        *,
+        status: int = 200,
+        force_validation: bool = False,
+    ):
         return Fragment(
             "partials/author_chrome.html",
             "author_chrome",
             status=status,
-            author_chrome=self._author_page_chrome(node),
+            author_chrome=self._author_page_chrome(node, force_validation=force_validation),
         )
 
     def _author_dashboard_context(self, request: Request) -> dict[str, Any]:
         return self.render_context.author_dashboard_context(
             request,
             source_info=self._author_source_info,
+            force_validation=(request.query.get("validate") or "").strip().lower()
+            in {"1", "true", "yes", "on"},
         )
 
     def _author_source_info(self, node) -> dict[str, Any]:
@@ -822,7 +841,7 @@ class DocsApp:
         elif path.endswith("/index.md"):
             doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
         elif path.endswith(".md"):
-            doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+            doc_path = f"{path[: -len('.md')].rstrip('/')}/"
         elif path.endswith("/index.txt"):
             doc_path = f"{path[: -len('index.txt')].rstrip('/')}/"
         elif "." not in path.rsplit("/", 1)[-1]:
@@ -844,23 +863,19 @@ class DocsApp:
             return source.stat().st_mtime
         return self._author_indexed_mtime(match.node, source)
 
-    def _author_validation_status(self, node) -> dict[str, Any]:
-        errors, warnings = check_catalog(
-            self.catalog,
-            views=getattr(self, "views", None),
-            docs=getattr(self, "config", None),
-            theme=getattr(self, "theme", None),
-            inventory_store=self.catalog.inventory_store,
-        )
+    def _author_validation_status(self, node, *, force: bool = False) -> dict[str, Any]:
+        snapshot = self.validation.snapshot(force=force)
         source = str(getattr(node, "source_path", "") or "")
-        page_errors = _messages_for_source(errors, source)
-        page_warnings = _messages_for_source(warnings, source)
+        page_errors = _messages_for_source(snapshot.errors, source)
+        page_warnings = _messages_for_source(snapshot.warnings, source)
         return {
             "ok": not page_errors,
             "errors": page_errors,
             "warnings": page_warnings,
             "error_count": len(page_errors),
             "warning_count": len(page_warnings),
+            "catalog_generation": snapshot.catalog_generation,
+            "configuration_fingerprint": snapshot.configuration_fingerprint,
         }
 
     def _author_node_from_request(self, request: Request):

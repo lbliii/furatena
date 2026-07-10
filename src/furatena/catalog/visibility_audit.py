@@ -109,11 +109,7 @@ def visibility_canaries(catalog: Any) -> tuple[VisibilityCanary, ...]:
         if is_public_meta(record.meta):
             continue
         tokens = tuple(
-            dict.fromkeys(
-                token
-                for token in _candidate_tokens(record)
-                if token not in public_text
-            )
+            dict.fromkeys(token for token in _candidate_tokens(record) if token not in public_text)
         )
         if tokens:
             canaries.append(
@@ -214,5 +210,7 @@ def scan_visibility_leaks(
         output_dir=root,
         canaries=normalized_canaries,
         scanned_artifacts=scanned,
-        findings=tuple(unique[key] for key in sorted(unique, key=lambda item: tuple(map(str, item)))),
+        findings=tuple(
+            unique[key] for key in sorted(unique, key=lambda item: tuple(map(str, item)))
+        ),
     )

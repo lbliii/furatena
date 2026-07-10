@@ -59,7 +59,9 @@ def configure(sub: Any) -> None:
     )
     scorecard.add_argument("--input", required=True, help="Versioned evidence manifest JSON")
     scorecard.add_argument("--output", default=None, help="Write the scorecard report JSON")
-    scorecard.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
+    scorecard.add_argument(
+        "--json", action="store_true", help="Emit the standard command result JSON"
+    )
     scorecard.set_defaults(handler=_run_scorecard)
 
 

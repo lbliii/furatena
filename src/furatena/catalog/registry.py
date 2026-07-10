@@ -230,6 +230,8 @@ class CatalogRegistry:
         self._namespaces: list[NamespaceRecord] | None = None
         self._query_graph_cache: dict[tuple[bool, AccessSubject | None], CatalogGraphRecord] = {}
         self._query_graph_lock = Lock()
+        self._generation = 0
+        self._generation_lock = Lock()
         self._federated_backlinks: dict[str, list[dict[str, str]]] = {}
         self._translation_index: dict[str, dict[str, str]] | None = None
         self._inventory_store = None
@@ -836,6 +838,14 @@ class CatalogRegistry:
                 catalog=self,
                 inventory_store=self._inventory_store,
             )
+        with self._generation_lock:
+            self._generation += 1
+
+    @property
+    def generation(self) -> int:
+        """Monotonic generation incremented after federated catalog publication."""
+        with self._generation_lock:
+            return self._generation
 
     @property
     def inventory_store(self) -> InventoryStore | None:

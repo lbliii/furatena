@@ -10,10 +10,7 @@ def node_toc_items(node) -> list[dict[str, Any]]:
     if node is None:
         return []
     toc = getattr(node, "toc", None) or ()
-    return [
-        {"id": entry.anchor, "title": entry.text, "level": entry.depth}
-        for entry in toc
-    ]
+    return [{"id": entry.anchor, "title": entry.text, "level": entry.depth} for entry in toc]
 
 
 def collection_toc_items(sections) -> list[dict[str, Any]]:

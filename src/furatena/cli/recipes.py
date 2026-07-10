@@ -78,7 +78,11 @@ RECIPES: tuple[Recipe, ...] = (
                 purpose="Emit startup metadata, then run the live authoring server.",
             ),
         ),
-        verifies=("scaffold files exist", "content check exits 0", "serve startup JSON includes URL"),
+        verifies=(
+            "scaffold files exist",
+            "content check exits 0",
+            "serve startup JSON includes URL",
+        ),
         related_commands=("init", "check", "serve"),
     ),
     Recipe(
@@ -141,7 +145,12 @@ RECIPES: tuple[Recipe, ...] = (
                 dry_run=True,
             ),
         ),
-        verifies=("strict check exits 0", "agent evals pass", "diagnostics are structured", "migration preview is non-mutating"),
+        verifies=(
+            "strict check exits 0",
+            "agent evals pass",
+            "diagnostics are structured",
+            "migration preview is non-mutating",
+        ),
         related_commands=("check", "query", "evals", "migrate"),
     ),
     Recipe(
@@ -217,7 +226,11 @@ RECIPES: tuple[Recipe, ...] = (
                 purpose="Serve the frozen catalog locally for smoke verification before deployment.",
             ),
         ),
-        verifies=("freeze writes catalog IR", "export writes public HTML", "preview serves frozen output"),
+        verifies=(
+            "freeze writes catalog IR",
+            "export writes public HTML",
+            "preview serves frozen output",
+        ),
         related_commands=("freeze", "export", "serve"),
     ),
     Recipe(
@@ -253,7 +266,11 @@ RECIPES: tuple[Recipe, ...] = (
                 purpose="Compare local overrides against upstream templates.",
             ),
         ),
-        verifies=("diagnostics identify files", "dry-run precedes writes", "mutating steps are approval-gated"),
+        verifies=(
+            "diagnostics identify files",
+            "dry-run precedes writes",
+            "mutating steps are approval-gated",
+        ),
         related_commands=("check", "migrate", "theme diff"),
     ),
     Recipe(
@@ -286,7 +303,11 @@ RECIPES: tuple[Recipe, ...] = (
                 purpose="Confirm the source remains draft/private by default.",
             ),
         ),
-        verifies=("dry-run diff reviewed", "draft source written only after approval", "status is draft"),
+        verifies=(
+            "dry-run diff reviewed",
+            "draft source written only after approval",
+            "status is draft",
+        ),
         related_commands=("author new", "author status", "mcp --author --include-private"),
     ),
     Recipe(
@@ -339,7 +360,11 @@ RECIPES: tuple[Recipe, ...] = (
                 requires_confirmation=True,
             ),
         ),
-        verifies=("private source read requires include-private MCP", "edit diff reviewed", "publish is approval-gated"),
+        verifies=(
+            "private source read requires include-private MCP",
+            "edit diff reviewed",
+            "publish is approval-gated",
+        ),
         related_commands=("author status", "author publish", "mcp --author --include-private"),
     ),
     Recipe(
@@ -378,7 +403,11 @@ RECIPES: tuple[Recipe, ...] = (
                 purpose="Confirm stale repair did not introduce catalog errors.",
             ),
         ),
-        verifies=("impact is structured", "repair is diff-first", "validation passes after the edit"),
+        verifies=(
+            "impact is structured",
+            "repair is diff-first",
+            "validation passes after the edit",
+        ),
         related_commands=("check", "mcp --author --include-private"),
     ),
     Recipe(
@@ -425,7 +454,11 @@ RECIPES: tuple[Recipe, ...] = (
                 requires_confirmation=True,
             ),
         ),
-        verifies=("failed publish remains non-mutating", "diagnostics drive repair", "retry is approval-gated"),
+        verifies=(
+            "failed publish remains non-mutating",
+            "diagnostics drive repair",
+            "retry is approval-gated",
+        ),
         related_commands=("author publish", "check", "mcp --author --include-private"),
     ),
     Recipe(
@@ -494,7 +527,11 @@ RECIPES: tuple[Recipe, ...] = (
                 purpose="Persist refreshed registry, mount shards, search, semantic, and structure outputs.",
             ),
         ),
-        verifies=("source sync is explicit", "validation runs after sync", "freeze records refreshed outputs"),
+        verifies=(
+            "source sync is explicit",
+            "validation runs after sync",
+            "freeze records refreshed outputs",
+        ),
         related_commands=("check", "freeze"),
     ),
 )

@@ -39,7 +39,8 @@ def test_route_manifest_matches_pre_refactor_snapshot() -> None:
         "\n".join(entry.handler_origin for entry in entries).encode()
     ).hexdigest()
     origin_header = next(
-        line for line in STRUCTURE_SNAPSHOT.read_text(encoding="utf-8").splitlines()
+        line
+        for line in STRUCTURE_SNAPSHOT.read_text(encoding="utf-8").splitlines()
         if line.startswith("# handler-origins-sha256: ")
     )
     expected = [

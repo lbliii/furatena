@@ -57,7 +57,11 @@ def test_parse_load_access_and_source_errors_include_context(
         author_permission_for("destroy")
     assert access_info.value.context == {"operation": "destroy"}
 
-    monkeypatch.setattr(git_source.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError()))
+    monkeypatch.setattr(
+        git_source.subprocess,
+        "run",
+        lambda *args, **kwargs: (_ for _ in ()).throw(FileNotFoundError()),
+    )
     with pytest.raises(SourceSyncError) as sync_info:
         git_source._run_git("status", mount_id="vendor")
     assert sync_info.value.context == {"mount": "vendor", "operation": "git"}

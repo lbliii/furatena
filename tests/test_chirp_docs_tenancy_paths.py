@@ -44,12 +44,7 @@ def _write_tenant_app(
     copy_app_theme(app_root, APP_ROOT)
     write_minimal_docs_yaml(app_root / "docs.yaml")
     with (app_root / "docs.yaml").open("a", encoding="utf-8") as handle:
-        handle.write(
-            "\nidentity:\n"
-            f"  tenant: {tenant}\n"
-            f"  workspace: {workspace}\n"
-            f"  site: {site}\n"
-        )
+        handle.write(f"\nidentity:\n  tenant: {tenant}\n  workspace: {workspace}\n  site: {site}\n")
     write_mounts_yaml(app_root / "mounts.yaml", content, mount_id="docs")
     (content / "_index.md").write_text(
         f"---\ntitle: {title} Home\n---\n\n# {title} Home\n",

@@ -317,9 +317,7 @@ class FuraMCPServer:
                     },
                     "required": ["query"],
                 },
-                "outputSchema": _object_schema(
-                    "query", "ranking", "filters", "count", "results"
-                ),
+                "outputSchema": _object_schema("query", "ranking", "filters", "count", "results"),
             },
             {
                 "name": "retrieve_node",
@@ -664,15 +662,20 @@ class FuraMCPServer:
         mount_filter = str(mount).strip() if mount else None
         return self.catalog.source_health(mount=mount_filter)
 
-    def validation_report(self) -> dict[str, Any]:
-        errors, warnings = check_catalog(
-            self.catalog,
-            views=getattr(self.docs_app, "views", None),
-            docs=getattr(self.docs_app, "config", None),
-            theme=getattr(self.docs_app, "theme", None),
-            inventory_store=self.catalog.inventory_store,
-        )
-        return {
+    def validation_report(self, *, force: bool = False) -> dict[str, Any]:
+        service = getattr(self.docs_app, "validation", None)
+        snapshot = service.snapshot(force=force) if service is not None else None
+        if snapshot is None:
+            errors, warnings = check_catalog(
+                self.catalog,
+                views=getattr(self.docs_app, "views", None),
+                docs=getattr(self.docs_app, "config", None),
+                theme=getattr(self.docs_app, "theme", None),
+                inventory_store=self.catalog.inventory_store,
+            )
+        else:
+            errors, warnings = snapshot.errors, snapshot.warnings
+        report = {
             "schema_version": 1,
             "ok": not errors,
             "error_count": len(errors),
@@ -680,6 +683,14 @@ class FuraMCPServer:
             "errors": [{"severity": "error", "message": message} for message in errors],
             "warnings": [{"severity": "warning", "message": message} for message in warnings],
         }
+        if snapshot is not None:
+            report.update(
+                {
+                    "catalog_generation": snapshot.catalog_generation,
+                    "configuration_fingerprint": snapshot.configuration_fingerprint,
+                }
+            )
+        return report
 
     def stale_impact_report(self, *, slug: Any | None = None) -> dict[str, Any]:
         return stale_impact_report(
@@ -774,13 +785,10 @@ class FuraMCPServer:
         duration_ms: float | None = None,
     ) -> None:
         audit_payload = payload.get("audit")
-        operation_id = (
-            _optional_str(payload.get("operation_id"))
-            or (
-                _optional_str(audit_payload.get("operation_id"))
-                if isinstance(audit_payload, dict)
-                else None
-            )
+        operation_id = _optional_str(payload.get("operation_id")) or (
+            _optional_str(audit_payload.get("operation_id"))
+            if isinstance(audit_payload, dict)
+            else None
         )
         self.audit_store.append(
             {
@@ -913,7 +921,7 @@ class FuraMCPServer:
         gate = self._author_gate("author_validate", arguments)
         if gate is not None:
             return gate, True
-        report = self.validation_report()
+        report = self.validation_report(force=True)
         target = _optional_str(arguments.get("target"))
         if target:
             result = author_validate(

@@ -77,7 +77,10 @@ class TestMaturityNav:
             return resp.text
 
         html = asyncio.run(_fetch())
-        assert 'href="/portal/"' not in html.split("chirp-theme-shell__desktop-nav")[1].split("</div>")[0]
+        assert (
+            'href="/portal/"'
+            not in html.split("chirp-theme-shell__desktop-nav")[1].split("</div>")[0]
+        )
 
     def test_develop_menu_links_shared_reference(self, docs_client) -> None:
         import asyncio
@@ -120,7 +123,9 @@ class TestMaturityPreviewParity:
         vendor_dest.mkdir(parents=True)
         vendor_src = Path(vendor_dir())
         for name in VENDOR_FILES:
-            (vendor_dest / name).write_text((vendor_src / name).read_text(encoding="utf-8"), encoding="utf-8")
+            (vendor_dest / name).write_text(
+                (vendor_src / name).read_text(encoding="utf-8"), encoding="utf-8"
+            )
         write_assets_manifest(
             frozen,
             theme_href="theme.test.css",

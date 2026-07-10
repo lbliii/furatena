@@ -17,6 +17,7 @@ file would otherwise mix unrelated fixtures or ownership.
 | Templates, themes, and response contracts | `test_chirp_docs_template_stack.py`, `test_chirp_docs_theming.py`, `test_chirp_docs_response_conformance.py` |
 | CLI, agents, and MCP | `test_fura_cli_standalone.py`, `test_cli_command_modules.py`, `test_cli_entrypoint_smoke.py` |
 | Agent contract compatibility | `test_agent_contract_diff.py`, `fixtures/agent-contracts/` |
+| Publication workflow contracts | `test_publication_contracts.py`, `test_publication_state.py`, `test_publication_schemas.py`, `test_publication_fixtures.py`, `fixtures/publication/` |
 
 The seven former wave-named modules contain 62 collected tests. Their behavior-
 named replacements must continue to collect the same 62 tests unless a future

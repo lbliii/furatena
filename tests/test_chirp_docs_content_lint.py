@@ -186,4 +186,6 @@ class TestCheckIntegration:
         catalog = DocCatalog(content, autodoc=False, autodoc_config=None)
         _errors, warnings = check_catalog(catalog)
 
-        assert any("public lifecycle pages should set published_at" in warning for warning in warnings)
+        assert any(
+            "public lifecycle pages should set published_at" in warning for warning in warnings
+        )

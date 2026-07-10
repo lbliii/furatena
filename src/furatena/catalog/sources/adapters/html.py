@@ -160,14 +160,26 @@ class HtmlAdapter:
         document: object | None = None,
         mount: str | None = None,
     ) -> AdaptedContent:
-        _ = (stubs, render_markdown, get_backlinks, content_root, include_stack, include_depth, mount)
-        content_ir = document if isinstance(document, ContentIR) else extract_html_content_ir(source.body)
+        _ = (
+            stubs,
+            render_markdown,
+            get_backlinks,
+            content_root,
+            include_stack,
+            include_depth,
+            mount,
+        )
+        content_ir = (
+            document if isinstance(document, ContentIR) else extract_html_content_ir(source.body)
+        )
         body_html = wrap_html_body(source.body)
         toc = content_ir_to_toc(content_ir)
         body_text = html_body_text(source.body)
         sections = derive_sections(content_ir, None, source=source.body)
         if not body_text:
-            body_text = derive_body_text(content_ir, None, source=source.body, description=source.meta.get("description", ""))
+            body_text = derive_body_text(
+                content_ir, None, source=source.body, description=source.meta.get("description", "")
+            )
         return AdaptedContent(
             body_html=body_html,
             content_ir=content_ir,

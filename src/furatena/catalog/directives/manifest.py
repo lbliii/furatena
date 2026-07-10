@@ -16,7 +16,7 @@ def _default_directives_css() -> Path:
         path = load_theme_pack("lagoon").file("directives.css")
         if path.is_file():
             return path
-    except (LookupError, TypeError, ValueError):
+    except LookupError, TypeError, ValueError:
         pass
     repo = Path(__file__).resolve().parents[4]
     app_css = repo / "app" / "theme" / "directives.css"
@@ -42,7 +42,19 @@ class DirectiveEntry:
 
 DIRECTIVE_MANIFEST: tuple[DirectiveEntry, ...] = (
     DirectiveEntry(
-        names=("note", "tip", "warning", "danger", "error", "info", "important", "example", "success", "caution", "seealso"),
+        names=(
+            "note",
+            "tip",
+            "warning",
+            "danger",
+            "error",
+            "info",
+            "important",
+            "example",
+            "success",
+            "caution",
+            "seealso",
+        ),
         template="callout",
         theme_hook="chirp-theme-directive-admonition",
         handler="AdmonitionHandler",
@@ -188,7 +200,9 @@ def check_manifest_registry_alignment() -> list[str]:
     for name in sorted(manifest_names - registered_names):
         if name == "code_block":
             continue
-        errors.append(f"manifest: directive {name!r} is not registered in create_directive_registry()")
+        errors.append(
+            f"manifest: directive {name!r} is not registered in create_directive_registry()"
+        )
     for name in sorted(registered_names - manifest_names):
         errors.append(f"manifest: registered directive {name!r} is missing from DIRECTIVE_MANIFEST")
 
@@ -197,7 +211,9 @@ def check_manifest_registry_alignment() -> list[str]:
     for handler in sorted(manifest_handlers - registry_handlers):
         errors.append(f"manifest: handler {handler!r} is not registered")
     for handler in sorted(registry_handlers - manifest_handlers):
-        errors.append(f"manifest: registered handler {handler!r} is missing from DIRECTIVE_MANIFEST")
+        errors.append(
+            f"manifest: registered handler {handler!r} is missing from DIRECTIVE_MANIFEST"
+        )
 
     return errors
 
@@ -223,7 +239,9 @@ def validate_directive_manifest() -> tuple[list[str], list[str]]:
         if entry.template:
             template_path = DOCS_TEMPLATES / "directives" / f"{entry.template}.html"
             if not template_path.is_file():
-                errors.append(f"manifest: missing template directives/{entry.template}.html for {entry.handler}")
+                errors.append(
+                    f"manifest: missing template directives/{entry.template}.html for {entry.handler}"
+                )
         if entry.theme_hook and entry.theme_hook not in css_text:
             warnings.append(
                 f"manifest: theme hook {entry.theme_hook!r} not found in theme/directives.css ({entry.handler})"

@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication/v1/plan.schema.json",
+  "title": "Furatena publication plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "plan_id", "plan_digest", "correlation_id",
+    "idempotency_key", "creator", "expires_at", "identity", "request", "bindings",
+    "changeset", "validation", "impact", "approval_requirements", "intended_outputs",
+    "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.plan"},
+    "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{24}$"},
+    "plan_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "correlation_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "idempotency_key": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "creator": {"$ref": "common.schema.json#/$defs/actor"},
+    "expires_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "identity": {"$ref": "common.schema.json#/$defs/identity"},
+    "request": {"$ref": "common.schema.json#/$defs/request"},
+    "bindings": {"$ref": "common.schema.json#/$defs/bindings"},
+    "changeset": {"$ref": "common.schema.json#/$defs/changeset"},
+    "validation": {"$ref": "common.schema.json#/$defs/validation"},
+    "impact": {"$ref": "common.schema.json#/$defs/impact"},
+    "approval_requirements": {"$ref": "common.schema.json#/$defs/approvalRequirements"},
+    "intended_outputs": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/outputIntent"}
+    },
+    "extensions": {"$ref": "common.schema.json#/$defs/extensions"}
+  }
+}

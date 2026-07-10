@@ -25,11 +25,7 @@ def ir_invalidation_regions(
         regions.update({"toc", "body"})
     if old.links != new.links or old.directives != new.directives:
         regions.add("graph")
-    if (
-        old.headings != new.headings
-        or old.links != new.links
-        or old.directives != new.directives
-    ):
+    if old.headings != new.headings or old.links != new.links or old.directives != new.directives:
         regions.add("body")
 
     if not regions:

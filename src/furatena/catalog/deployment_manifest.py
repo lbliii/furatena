@@ -168,7 +168,7 @@ def read_deployment_manifest(
         return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+    except OSError, json.JSONDecodeError, TypeError, ValueError:
         return None
     if not isinstance(payload, Mapping):
         return None
