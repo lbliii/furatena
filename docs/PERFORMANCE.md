@@ -54,6 +54,34 @@ performance work:
 make benchmark BENCHMARK_ARGS="--output benchmarks/catalog-baseline.json"
 ```
 
+## Author-runtime profile
+
+Measure the author-mode paths separately from catalog indexing:
+
+```bash
+make author-benchmark
+make author-benchmark BENCHMARK_ARGS="--synthetic-pages 25 --repeats 5 --output benchmarks/profiles/author-runtime.json"
+```
+
+The default profile uses an isolated deterministic corpus. Add `--dogfood` to use the
+repository's configured mounts. The versioned v1 report independently measures author
+`DocsApp` construction, cold and warm Chirp startup contract checks, the first and warm
+full-page request, page status JSON, explicit validation, and the full docs validation
+pipeline. It also records corpus size, dependency versions, free-threading state, and
+per-phase profiler timings.
+
+Every operation includes structural call counts for secondary `DocsApp` construction and
+full `check_catalog()` execution. These counts are stable CI signals; wall-clock samples
+remain informational across machines. The command requires free-threaded CPython with
+`PYTHON_GIL=0`, like the catalog and retrieval benchmarks. The report contract is
+`author-runtime-benchmark-v1.schema.json` in the packaged catalog schemas.
+
+`benchmarks/profiles/issue-373-before.json` and `issue-374-after.json` are the matched
+pre/post snapshot profiles. Their methodology, medians, and proposed relative diagnostic
+budgets are recorded in `benchmarks/profiles/issue-373-author-runtime.md`. Fast CI guards
+the portable structural contract: unchanged ordinary page/status requests perform zero
+full validation runs and construct zero secondary `DocsApp` instances.
+
 ## Optimization profiles
 
 Profile evidence and methodology for applied optimizations live under

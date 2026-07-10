@@ -51,9 +51,9 @@ def test_repository_docs_quality_gate_is_clean(docs_app: DocsApp) -> None:
     assert report["findings"] == []
     assert report["unused_exemptions"] == []
     assert report["summary"] == {
-        "finding_count": 9,
+        "finding_count": 8,
         "active_count": 0,
-        "exempted_count": 9,
+        "exempted_count": 8,
         "unused_exemption_count": 0,
     }
     assert {item["disposition"] for item in report["exemptions"]} == {
