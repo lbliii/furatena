@@ -1,0 +1,8 @@
+{
+  "fixture_version": 1,
+  "scenario": "external-provider",
+  "profile": "external",
+  "provider_operations": ["prepare", "reconcile"],
+  "signed_bundle": true,
+  "expected_outcome": "handed_off"
+}

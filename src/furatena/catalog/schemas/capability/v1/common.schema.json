@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/capability/v1/common.schema.json",
+  "title": "Furatena capability contract common types v1",
+  "$defs": {
+    "nonEmptyString": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "nullableString": {
+      "oneOf": [{"$ref": "#/$defs/nonEmptyString"}, {"type": "null"}]
+    },
+    "nullableDigest": {
+      "oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]
+    },
+    "stringSet": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/nonEmptyString"},
+      "uniqueItems": true
+    },
+    "capability": {
+      "enum": [
+        "read", "edit", "validate", "request_review", "review", "approve",
+        "publish", "unpublish", "archive", "create_change", "open_pr",
+        "merge_observe", "build", "promote", "deploy", "verify", "roll_back",
+        "waive_warning", "emergency_override", "administer_policy"
+      ]
+    },
+    "cache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "max_age_seconds"],
+      "properties": {
+        "mode": {"enum": ["no_store", "private"]},
+        "max_age_seconds": {"type": "integer", "minimum": 0}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "no_store"}}},
+          "then": {"properties": {"max_age_seconds": {"const": 0}}}
+        },
+        {
+          "if": {"properties": {"mode": {"const": "private"}}},
+          "then": {"properties": {"max_age_seconds": {"minimum": 1}}}
+        }
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor", "identity_source", "identity_fingerprint", "roles", "teams",
+        "tenant", "workspace", "site"
+      ],
+      "properties": {
+        "actor": {"$ref": "#/$defs/nonEmptyString"},
+        "identity_source": {"$ref": "#/$defs/nonEmptyString"},
+        "identity_fingerprint": {"$ref": "#/$defs/nonEmptyString"},
+        "roles": {
+          "allOf": [{"$ref": "#/$defs/stringSet"}, {"minItems": 1}]
+        },
+        "teams": {"$ref": "#/$defs/stringSet"},
+        "tenant": {"$ref": "#/$defs/nonEmptyString"},
+        "workspace": {"$ref": "#/$defs/nonEmptyString"},
+        "site": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant", "workspace", "site", "mount", "path", "lifecycle_state",
+        "resulting_lifecycle", "owners", "owner_teams", "repository", "branch",
+        "environment", "sensitivity", "public_impact"
+      ],
+      "properties": {
+        "tenant": {"$ref": "#/$defs/nonEmptyString"},
+        "workspace": {"$ref": "#/$defs/nonEmptyString"},
+        "site": {"$ref": "#/$defs/nonEmptyString"},
+        "mount": {"$ref": "#/$defs/nullableString"},
+        "path": {"$ref": "#/$defs/nullableString"},
+        "lifecycle_state": {"$ref": "#/$defs/nullableString"},
+        "resulting_lifecycle": {"$ref": "#/$defs/nullableString"},
+        "owners": {"$ref": "#/$defs/stringSet"},
+        "owner_teams": {"$ref": "#/$defs/stringSet"},
+        "repository": {"$ref": "#/$defs/nullableString"},
+        "branch": {"$ref": "#/$defs/nullableString"},
+        "environment": {"$ref": "#/$defs/nullableString"},
+        "sensitivity": {"$ref": "#/$defs/nullableString"},
+        "public_impact": {
+          "oneOf": [{"type": "boolean"}, {"type": "null"}]
+        }
+      }
+    },
+    "approvalRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_version", "policy_digest", "required_count", "eligible_roles",
+        "eligible_teams", "allow_self_approval", "separation_rules"
+      ],
+      "properties": {
+        "policy_version": {"$ref": "#/$defs/nonEmptyString"},
+        "policy_digest": {"$ref": "#/$defs/digest"},
+        "required_count": {"type": "integer", "minimum": 0},
+        "eligible_roles": {"$ref": "#/$defs/stringSet"},
+        "eligible_teams": {"$ref": "#/$defs/stringSet"},
+        "allow_self_approval": {"type": "boolean"},
+        "separation_rules": {"$ref": "#/$defs/stringSet"}
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_id", "effect", "priority", "capabilities", "roles", "teams", "actors",
+        "identity_sources", "require_owner", "require_owner_team", "tenants", "workspaces",
+        "sites", "mounts", "paths", "repositories", "branches", "environments",
+        "lifecycle_states", "resulting_lifecycles", "sensitivities", "public_impact",
+        "required_approvals", "eligible_roles", "eligible_teams", "allow_self_approval",
+        "separation_rules", "cache", "reason", "remediation"
+      ],
+      "properties": {
+        "rule_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+        "effect": {"enum": ["allow", "deny"]},
+        "priority": {"type": "integer"},
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/capability"}
+        },
+        "roles": {"$ref": "#/$defs/stringSet"},
+        "teams": {"$ref": "#/$defs/stringSet"},
+        "actors": {"$ref": "#/$defs/stringSet"},
+        "identity_sources": {"$ref": "#/$defs/stringSet"},
+        "require_owner": {"type": "boolean"},
+        "require_owner_team": {"type": "boolean"},
+        "tenants": {"$ref": "#/$defs/stringSet"},
+        "workspaces": {"$ref": "#/$defs/stringSet"},
+        "sites": {"$ref": "#/$defs/stringSet"},
+        "mounts": {"$ref": "#/$defs/stringSet"},
+        "paths": {"$ref": "#/$defs/stringSet"},
+        "repositories": {"$ref": "#/$defs/stringSet"},
+        "branches": {"$ref": "#/$defs/stringSet"},
+        "environments": {"$ref": "#/$defs/stringSet"},
+        "lifecycle_states": {"$ref": "#/$defs/stringSet"},
+        "resulting_lifecycles": {"$ref": "#/$defs/stringSet"},
+        "sensitivities": {"$ref": "#/$defs/stringSet"},
+        "public_impact": {
+          "oneOf": [{"type": "boolean"}, {"type": "null"}]
+        },
+        "required_approvals": {"type": "integer", "minimum": 0},
+        "eligible_roles": {"$ref": "#/$defs/stringSet"},
+        "eligible_teams": {"$ref": "#/$defs/stringSet"},
+        "allow_self_approval": {"type": "boolean"},
+        "separation_rules": {"$ref": "#/$defs/stringSet"},
+        "cache": {"$ref": "#/$defs/cache"},
+        "reason": {"type": "string"},
+        "remediation": {"type": "string"}
+      }
+    }
+  }
+}

@@ -40,6 +40,8 @@ def sample_plan(
     operation: PublicationOperation = PublicationOperation.PUBLISH,
     required_count: int = 1,
     validation_error_count: int = 0,
+    policy_version: str = "policy-v2",
+    policy_digest_value: str | None = None,
     expires_at: str = "2035-01-01T00:00:00Z",
     outputs: tuple[PublicationOutputIntent, ...] | None = None,
 ) -> PublicationPlan:
@@ -51,6 +53,7 @@ def sample_plan(
         "+visibility: public\n"
     )
     actor = sample_actor()
+    bound_policy_digest = policy_digest_value or digest(policy_version)
     return PublicationPlan.create(
         correlation_id=correlation_id,
         idempotency_key=idempotency_key,
@@ -73,8 +76,8 @@ def sample_plan(
             source_revision=digest("source-old"),
             catalog_generation="generation-42",
             config_digest=digest("config-v3"),
-            policy_version="policy-v2",
-            policy_digest=digest("policy-v2"),
+            policy_version=policy_version,
+            policy_digest=bound_policy_digest,
             validation_snapshot_id="validation-42",
             validation_digest=digest("validation-42"),
         ),
@@ -109,8 +112,8 @@ def sample_plan(
             reasons=("adds_to_public_output",),
         ),
         approval_requirements=PublicationApprovalRequirements(
-            policy_version="policy-v2",
-            policy_digest=digest("policy-v2"),
+            policy_version=policy_version,
+            policy_digest=bound_policy_digest,
             required_count=required_count,
             eligible_roles=("publisher",),
             eligible_teams=("docs",),
