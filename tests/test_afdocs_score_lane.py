@@ -89,6 +89,19 @@ def test_baseline_records_scores_checks_and_required_channel_split() -> None:
     assert baseline["channels"]["live"]["checks"]["content-negotiation"] == "pass"
 
 
+def test_committed_baseline_records_the_observed_static_live_gap() -> None:
+    baseline = json.loads((REPO / "config" / "afdocs-baseline.json").read_text())
+
+    assert baseline["afdocs_version"] == "0.18.7"
+    assert baseline["spec_url"] == "https://agentdocsspec.com/spec/"
+    assert baseline["required_split"] == EXPECTED_SPLIT
+    assert baseline["channels"]["static"]["overall"] == 96
+    assert baseline["channels"]["live"]["overall"] == 98
+    assert baseline["channels"]["static"]["checks"]["content-negotiation"] == "fail"
+    assert baseline["channels"]["live"]["checks"]["content-negotiation"] == "pass"
+    assert all(len(channel["checks"]) == 23 for channel in baseline["channels"].values())
+
+
 def test_score_and_per_check_regressions_fail_without_blocking_improvements() -> None:
     baseline = build_baseline(_evidence())
     improved = _evidence(static_score=82, live_score=91)

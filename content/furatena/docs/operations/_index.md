@@ -26,6 +26,7 @@ Run Furatena locally, build static HTML, publish it, and validate docs in CI.
 | [[docs/operations/docs-quality|Gate documentation completeness]] | Orphans, navigation, links, public coverage, and reasoned exemptions |
 | [[docs/operations/migrate-from-js-docs|Migrate from JS docs]] | MDX lowering and platform migration path |
 | [[docs/operations/consume-agent-outputs|Consume agent outputs and MCP]] | llms, page indexes, sidecars, channels, and MCP |
+| [[docs/operations/agent-readiness-score|Continuous agent-readiness scoring]] | Static/live Agent Score evidence and regression policy |
 | [[docs/operations/deployment-profiles|Deployment profiles]] | Local, static, cloud, and self-hosted operating paths |
 | [[docs/operations/observability-and-recovery|Observability and incident recovery]] | Structured events, telemetry, rollout, rollback, backup, and recovery |
 | [[docs/operations/deploy|Deploy]] | `FURA_BASE_URL`, channels, CI |

@@ -1,0 +1,73 @@
+{
+  "afdocs_version": "0.18.7",
+  "channels": {
+    "live": {
+      "checks": {
+        "auth-alternative-access": "skip",
+        "auth-gate-detection": "pass",
+        "cache-header-hygiene": "fail",
+        "content-negotiation": "pass",
+        "content-start-position": "pass",
+        "http-status-codes": "pass",
+        "llms-txt-coverage": "pass",
+        "llms-txt-directive-html": "pass",
+        "llms-txt-directive-md": "pass",
+        "llms-txt-exists": "pass",
+        "llms-txt-links-markdown": "skip",
+        "llms-txt-links-resolve": "skip",
+        "llms-txt-size": "pass",
+        "llms-txt-valid": "pass",
+        "markdown-code-fence-validity": "pass",
+        "markdown-content-parity": "pass",
+        "markdown-url-support": "pass",
+        "page-size-html": "pass",
+        "page-size-markdown": "pass",
+        "redirect-behavior": "pass",
+        "rendering-strategy": "pass",
+        "section-header-quality": "pass",
+        "tabbed-content-serialization": "pass"
+      },
+      "grade": "A",
+      "overall": 98,
+      "url": "https://furatena-production.up.railway.app"
+    },
+    "static": {
+      "checks": {
+        "auth-alternative-access": "skip",
+        "auth-gate-detection": "pass",
+        "cache-header-hygiene": "pass",
+        "content-negotiation": "fail",
+        "content-start-position": "pass",
+        "http-status-codes": "pass",
+        "llms-txt-coverage": "pass",
+        "llms-txt-directive-html": "pass",
+        "llms-txt-directive-md": "pass",
+        "llms-txt-exists": "pass",
+        "llms-txt-links-markdown": "skip",
+        "llms-txt-links-resolve": "skip",
+        "llms-txt-size": "pass",
+        "llms-txt-valid": "pass",
+        "markdown-code-fence-validity": "pass",
+        "markdown-content-parity": "pass",
+        "markdown-url-support": "pass",
+        "page-size-html": "pass",
+        "page-size-markdown": "pass",
+        "redirect-behavior": "pass",
+        "rendering-strategy": "pass",
+        "section-header-quality": "pass",
+        "tabbed-content-serialization": "pass"
+      },
+      "grade": "A",
+      "overall": 96,
+      "url": "https://lbliii.github.io/furatena"
+    }
+  },
+  "recorded_at": "2026-07-10T17:25:23.852Z",
+  "required_split": {
+    "check_id": "content-negotiation",
+    "live": "pass",
+    "static": "not-pass"
+  },
+  "schema_version": 1,
+  "spec_url": "https://agentdocsspec.com/spec/"
+}
