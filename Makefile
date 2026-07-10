@@ -136,6 +136,7 @@ ci-fast:
 		tests/test_release_publishing.py \
 		tests/test_activation_measurement.py \
 		tests/test_adoption_scorecard.py \
+		tests/test_afdocs_score_lane.py \
 		tests/test_audit_store.py \
 		tests/test_rate_limit.py \
 		tests/test_operational_status.py \

@@ -6,10 +6,6 @@ set -eu
 # false positive.
 python -c 'import sys; from furatena.catalog.docs_app import DocsApp; assert not sys._is_gil_enabled(), "Furatena requires a GIL-disabled runtime"'
 
-# Temporary mitigation for active HTTP/2 responses being closed at Pounce's
-# five-second keep-alive default. Remove after lbliii/pounce#231 and #232 ship.
-export FURA_KEEP_ALIVE_TIMEOUT="${FURA_KEEP_ALIVE_TIMEOUT:-75}"
-
 exec fura --app-root /app/app serve \
   --preview \
   --host 0.0.0.0 \

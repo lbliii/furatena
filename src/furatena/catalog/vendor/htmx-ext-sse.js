@@ -52,6 +52,9 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
             })
             internalData.sseEventSource.close()
           }
+          if (parent.dataset) {
+            delete parent.dataset.furaSseExtensionActive
+          }
 
           return
 
@@ -195,6 +198,9 @@ This extension adds support for Server Sent Events to htmx.  See /www/extensions
 
   function ensureEventSource(elt, url, retryCount) {
     var source = htmx.createEventSource(url)
+    if (elt.dataset) {
+      elt.dataset.furaSseExtensionActive = '1'
+    }
 
     source.onerror = function(err) {
       // Log an error event

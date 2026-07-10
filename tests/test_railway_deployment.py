@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tomllib
+from importlib.metadata import version
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,8 @@ def test_railway_service_is_single_replica_with_readiness_probe() -> None:
     assert config["deploy"]["numReplicas"] == 1
     assert config["deploy"]["healthcheckPath"] == "/readyz"
     assert config["deploy"]["startCommand"] == "/app/scripts/railway-start.sh"
+    assert config["deploy"]["overlapSeconds"] == 5
+    assert config["deploy"]["drainingSeconds"] == 15
 
 
 def test_container_installs_and_enforces_free_threaded_python() -> None:
@@ -38,12 +41,11 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     assert "--workers 1" in start
 
 
-def test_railway_raises_keep_alive_past_slow_h2_drain() -> None:
+def test_railway_uses_pounce_0_9_without_keep_alive_workaround() -> None:
     start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
 
-    assert 'FURA_KEEP_ALIVE_TIMEOUT="${FURA_KEEP_ALIVE_TIMEOUT:-75}"' in start
-    assert "lbliii/pounce#231" in start
-    assert "#232" in start
+    assert version("bengal-pounce") == "0.9.0"
+    assert "FURA_KEEP_ALIVE_TIMEOUT" not in start
 
 
 def test_keep_alive_timeout_reaches_chirp_app_config(monkeypatch: pytest.MonkeyPatch) -> None:

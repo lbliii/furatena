@@ -1,0 +1,157 @@
+name: Track agent-readiness scores
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/agent-score.yml
+      - scripts/check_afdocs_scores.py
+      - config/afdocs-baseline.json
+      - tests/test_afdocs_score_lane.py
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Enforce the committed baseline or record a candidate artifact
+        required: true
+        default: check
+        type: choice
+        options:
+          - check
+          - record
+  workflow_run:
+    workflows: ["Validate and deploy Furatena"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-score-${{ github.event_name }}-${{ github.ref || github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+env:
+  AFDOCS_VERSION: "0.18.7"
+  STATIC_ORIGIN: https://lbliii.github.io/furatena
+  LIVE_ORIGIN: https://furatena-production.up.railway.app
+  STATIC_URLS: >-
+    https://lbliii.github.io/furatena/,
+    https://lbliii.github.io/furatena/docs/get-started/installation/,
+    https://lbliii.github.io/furatena/docs/get-started/quickstart/,
+    https://lbliii.github.io/furatena/docs/concepts/catalog-graph/,
+    https://lbliii.github.io/furatena/docs/operations/consume-agent-outputs/,
+    https://lbliii.github.io/furatena/docs/reference/cli/
+  LIVE_URLS: >-
+    https://furatena-production.up.railway.app/,
+    https://furatena-production.up.railway.app/docs/get-started/installation/,
+    https://furatena-production.up.railway.app/docs/get-started/quickstart/,
+    https://furatena-production.up.railway.app/docs/concepts/catalog-graph/,
+    https://furatena-production.up.railway.app/docs/operations/consume-agent-outputs/,
+    https://furatena-production.up.railway.app/docs/reference/cli/
+
+jobs:
+  score:
+    name: Static and live Agent Score
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Run pinned afdocs checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p agent-score-results
+
+          run_channel() {
+            local channel="$1"
+            local origin="$2"
+            local urls="$3"
+            local output="agent-score-results/${channel}.raw.json"
+
+            set +e
+            npx --yes "afdocs@${AFDOCS_VERSION}" check "${origin}" \
+              --urls "${urls}" \
+              --sampling curated \
+              --max-concurrency 2 \
+              --request-delay 200 \
+              --format json \
+              --score \
+              --fixes \
+              --verbose > "${output}"
+            local exit_code=$?
+            set -e
+
+            printf '{"exit_code":%s}\n' "${exit_code}" \
+              > "agent-score-results/${channel}.exit.json"
+            python -c 'import json,sys; json.load(open(sys.argv[1], encoding="utf-8"))' \
+              "${output}"
+          }
+
+          run_channel static "${STATIC_ORIGIN}" "${STATIC_URLS}"
+          run_channel live "${LIVE_ORIGIN}" "${LIVE_URLS}"
+
+      - name: Normalize evidence and enforce regression baseline
+        id: compare
+        shell: bash
+        env:
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'check' }}
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" && \
+                ! -f config/afdocs-baseline.json ]]; then
+            MODE=record
+          fi
+          args=(
+            --static agent-score-results/static.raw.json
+            --live agent-score-results/live.raw.json
+            --afdocs-version "${AFDOCS_VERSION}"
+            --output agent-score-results/afdocs-report.json
+            --regressions agent-score-results/afdocs-regressions.json
+          )
+          if [[ "${MODE}" == "record" ]]; then
+            args+=(--record-baseline agent-score-results/afdocs-baseline.candidate.json)
+          else
+            args+=(--baseline config/afdocs-baseline.json)
+          fi
+          python scripts/check_afdocs_scores.py "${args[@]}"
+
+      - name: Publish score summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ ! -f agent-score-results/afdocs-report.json ]]; then
+            exit 0
+          fi
+          {
+            echo "## Agent-readiness scores"
+            echo
+            echo "| Channel | Score | Grade | Pass | Warn | Fail |"
+            echo "| --- | ---: | --- | ---: | ---: | ---: |"
+            jq -r '.channels | to_entries[] | "| \(.key) | \(.value.scoring.overall) | \(.value.scoring.grade) | \(.value.summary.pass) | \(.value.summary.warn) | \(.value.summary.fail) |"' \
+              agent-score-results/afdocs-report.json
+            echo
+            jq -r 'if .ok then "No score or per-check regressions." else (.regressions[] | "- **Regression:** " + .) end' \
+              agent-score-results/afdocs-regressions.json
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload score evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: agent-score-${{ github.run_id }}-${{ github.run_attempt }}
+          path: agent-score-results/*.json
+          if-no-files-found: error
+          retention-days: 90

@@ -9,7 +9,13 @@ import re
 from pathlib import Path
 
 import pytest
-from chirp.testing import TestClient
+from chirp.testing import (
+    RouteSmokeCase,
+    TestClient,
+    assert_route_smoke,
+    transition_coverage,
+    transition_observation,
+)
 
 import furatena.catalog.route_registrars as route_registrars
 from furatena.catalog.docs_app import DocsApp
@@ -29,6 +35,126 @@ def docs_client() -> TestClient:
         autodoc=False,
     )
     return TestClient(docs.create_app())
+
+
+@pytest.fixture(scope="module")
+def author_docs_client() -> TestClient:
+    docs = DocsApp.from_paths(
+        APP_ROOT / "docs.yaml",
+        repo_root=REPO,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, True),
+    )
+    return TestClient(docs.create_app())
+
+
+_DOCUMENT_PATH = "/docs/get-started/installation/"
+_SEARCH_PATH = "/search?q=htmx"
+_ERROR_SUGGEST_PATH = "/errors/suggest?q=routing"
+_AUTHOR_DASHBOARD_PATH = "/docs/_author/dashboard"
+_AUTHOR_STATUS_PATH = "/docs/_author/page.json?slug=docs/get-started&validate=1"
+
+_DOCUMENT_ROUTE_ID = "route:GET:%2Fdocs%2F%7Bslug%3Apath%7D"
+_SEARCH_ROUTE_ID = "route:GET:%2Fsearch"
+_ERROR_SUGGEST_ROUTE_ID = "route:GET:%2Ferrors%2Fsuggest"
+_AUTHOR_DASHBOARD_ROUTE_ID = "route:GET:%2Fdocs%2F_author%2Fdashboard"
+_AUTHOR_STATUS_ROUTE_ID = "route:GET:%2Fdocs%2F_author%2Fpage.json"
+
+_DOCUMENT_PAGE_ROOT_TRANSITION = (
+    "transition:template_block:template%3Aviews%252Fdoc.html:"
+    "block%3Aviews%252Fdoc.html%3Apage_root"
+)
+_DOCUMENT_PAGE_CONTENT_TRANSITION = (
+    "transition:template_block:template%3Aviews%252Fdoc.html:"
+    "block%3Aviews%252Fdoc.html%3Apage_content"
+)
+_SEARCH_PAGE_ROOT_TRANSITION = (
+    "transition:template_block:template%3Asearch.html:"
+    "block%3Asearch.html%3Apage_root"
+)
+_ERROR_SUGGEST_TRANSITION = (
+    "transition:template_block:template%3Apartials%252Ferror_suggest_panel.html:"
+    "block%3Apartials%252Ferror_suggest_panel.html%3Aerror_suggest_panel"
+)
+_AUTHOR_DASHBOARD_TRANSITION = (
+    "transition:template_block:template%3Aviews%252Fauthor_dashboard.html:"
+    "block%3Aviews%252Fauthor_dashboard.html%3Apage_root"
+)
+
+_PUBLIC_ROUTE_SMOKE_CASES = (
+    RouteSmokeCase(
+        _DOCUMENT_PATH,
+        mode="full_page",
+        name="document-full",
+        template="views/doc.html",
+        block="page_root",
+    ),
+    RouteSmokeCase(
+        _DOCUMENT_PATH,
+        mode="boosted",
+        name="document-boosted",
+        template="views/doc.html",
+        block="page_root",
+        target="page-root",
+    ),
+    RouteSmokeCase(
+        _DOCUMENT_PATH,
+        mode="fragment",
+        name="document-targeted",
+        template="views/doc.html",
+        block="page_content",
+        target="page-content",
+    ),
+    RouteSmokeCase(
+        _SEARCH_PATH,
+        mode="full_page",
+        name="search-full",
+        template="search.html",
+        block="page_root",
+    ),
+    RouteSmokeCase(
+        _SEARCH_PATH,
+        mode="boosted",
+        name="search-boosted",
+        template="search.html",
+        block="page_root",
+        target="page-root",
+    ),
+    RouteSmokeCase(
+        _SEARCH_PATH,
+        mode="fragment",
+        name="search-targeted",
+        template="search.html",
+        block="search_results_panel",
+        target="search-results-panel",
+    ),
+    RouteSmokeCase(
+        _ERROR_SUGGEST_PATH,
+        mode="fragment",
+        name="error-suggestion-targeted",
+        template="partials/error_suggest_panel.html",
+        block="error_suggest_panel",
+        target="error-suggest-panel",
+    ),
+)
+
+_AUTHOR_ROUTE_SMOKE_CASES = (
+    RouteSmokeCase(
+        _AUTHOR_DASHBOARD_PATH,
+        mode="full_page",
+        name="author-dashboard-full",
+        template="views/author_dashboard.html",
+        block="page_root",
+    ),
+    RouteSmokeCase(
+        _AUTHOR_STATUS_PATH,
+        mode="fragment",
+        name="author-status-targeted",
+        template="partials/author_chrome.html",
+        block="author_chrome",
+        target="author-page-status",
+    ),
+)
 
 
 _RESPONSE_MATRIX = (
@@ -96,6 +222,107 @@ def test_response_shape_matrix(
         assert marker in response.text
     for marker in forbidden:
         assert marker not in response.text
+
+
+def test_public_route_smoke_reports_compiled_transition_evidence(
+    docs_client: TestClient,
+) -> None:
+    responses = asyncio.run(assert_route_smoke(docs_client, _PUBLIC_ROUTE_SMOKE_CASES))
+
+    document_full = transition_observation(responses[(_DOCUMENT_PATH, "full_page")])
+    document_boosted = transition_observation(responses[(_DOCUMENT_PATH, "boosted")])
+    document_targeted = transition_observation(responses[(_DOCUMENT_PATH, "fragment")])
+    search_full = transition_observation(responses[(_SEARCH_PATH, "full_page")])
+    search_boosted = transition_observation(responses[(_SEARCH_PATH, "boosted")])
+    search_targeted = transition_observation(responses[(_SEARCH_PATH, "fragment")])
+    error_targeted = transition_observation(
+        responses[(_ERROR_SUGGEST_PATH, "fragment")]
+    )
+
+    assert document_full.route_id == _DOCUMENT_ROUTE_ID
+    assert document_full.compiled_transition_ids == (_DOCUMENT_PAGE_ROOT_TRANSITION,)
+    assert document_boosted.route_id == _DOCUMENT_ROUTE_ID
+    assert document_boosted.request_mode == "boosted"
+    assert document_boosted.mode_tags == ("boosted", "oob")
+    assert document_targeted.route_id == _DOCUMENT_ROUTE_ID
+    assert document_targeted.compiled_transition_ids == (
+        _DOCUMENT_PAGE_CONTENT_TRANSITION,
+    )
+
+    assert search_full.route_id == _SEARCH_ROUTE_ID
+    assert search_full.compiled_transition_ids == (_SEARCH_PAGE_ROOT_TRANSITION,)
+    assert search_boosted.route_id == _SEARCH_ROUTE_ID
+    assert search_boosted.request_mode == "boosted"
+    assert search_targeted.route_id == _SEARCH_ROUTE_ID
+    assert search_targeted.mode_tags == ("targeted", "oob")
+
+    assert error_targeted.route_id == _ERROR_SUGGEST_ROUTE_ID
+    assert error_targeted.compiled_transition_ids == (_ERROR_SUGGEST_TRANSITION,)
+
+    coverage = transition_coverage(
+        responses,
+        expected_modes=("normal", "boosted", "targeted", "oob"),
+        expected_transition_ids=(
+            _DOCUMENT_PAGE_ROOT_TRANSITION,
+            _DOCUMENT_PAGE_CONTENT_TRANSITION,
+            _SEARCH_PAGE_ROOT_TRANSITION,
+            _ERROR_SUGGEST_TRANSITION,
+        ),
+    )
+    assert coverage.complete, coverage.summary()
+
+
+def test_author_route_smoke_reports_compiled_transition_evidence(
+    author_docs_client: TestClient,
+) -> None:
+    responses = asyncio.run(
+        assert_route_smoke(author_docs_client, _AUTHOR_ROUTE_SMOKE_CASES)
+    )
+
+    dashboard = transition_observation(responses[(_AUTHOR_DASHBOARD_PATH, "full_page")])
+    status = transition_observation(responses[(_AUTHOR_STATUS_PATH, "fragment")])
+
+    assert dashboard.route_id == _AUTHOR_DASHBOARD_ROUTE_ID
+    assert dashboard.compiled_transition_ids == (_AUTHOR_DASHBOARD_TRANSITION,)
+    assert status.route_id == _AUTHOR_STATUS_ROUTE_ID
+    assert status.request_mode == "targeted"
+
+    coverage = transition_coverage(
+        responses,
+        expected_modes=("normal", "targeted"),
+        expected_transition_ids=(_AUTHOR_DASHBOARD_TRANSITION,),
+    )
+    assert coverage.complete, coverage.summary()
+
+
+def test_route_smoke_failure_names_render_context(docs_client: TestClient) -> None:
+    class FullDocumentLeak:
+        async def fragment(self, path: str, **_kwargs: object):
+            return await docs_client.get(path)
+
+    case = RouteSmokeCase(
+        _DOCUMENT_PATH,
+        mode="fragment",
+        name="document-targeted",
+        template="views/doc.html",
+        block="page_content",
+        target="page-content",
+    )
+
+    with pytest.raises(AssertionError) as caught:
+        asyncio.run(assert_route_smoke(FullDocumentLeak(), (case,)))
+
+    failure = str(caught.value)
+    for detail in (
+        f"path={_DOCUMENT_PATH!r}",
+        "intent=fragment",
+        "name='document-targeted'",
+        "template='views/doc.html'",
+        "block='page_content'",
+        "target='page-content'",
+        "observed_shape='full_document'",
+    ):
+        assert detail in failure
 
 
 def test_content_route_head_matches_get_metadata(
@@ -259,6 +486,45 @@ def test_json_sidecars_support_etag_revalidation(docs_client: TestClient) -> Non
     assert response.header("ETag")
     assert cached.status == 304
     assert not cached.body
+
+
+def test_preview_public_reads_are_stateless_and_share_cacheable(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Public Cache"])
+    capsys.readouterr()
+    main(["--app-root", str(app_root), "freeze", "--json"])
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+    frozen = app_root / "frozen"
+    docs = DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=app_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.PREVIEW, frozen, True, False),
+    )
+    first_client = TestClient(docs.create_app())
+    second_client = TestClient(docs.create_app())
+
+    async def _fetch():
+        first_catalog = await first_client.get("/catalog.json")
+        second_page = await second_client.get("/docs/get-started/")
+        second_catalog = await second_client.get("/catalog.json")
+        return first_catalog, second_page, second_catalog
+
+    first_catalog, second_page, second_catalog = asyncio.run(_fetch())
+
+    assert first_catalog.status == second_catalog.status == 200
+    assert second_page.status == 200
+    for response in (first_catalog, second_page, second_catalog):
+        assert response.header("Set-Cookie") is None
+
+    assert first_catalog.header("Cache-Control") == "public, max-age=0, must-revalidate"
+    assert first_catalog.header("ETag")
+    assert second_catalog.body == first_catalog.body
+    assert second_catalog.header("ETag") == first_catalog.header("ETag")
 
 
 def test_frozen_bulk_sidecars_serve_exact_bytes_in_preview_and_hybrid(
