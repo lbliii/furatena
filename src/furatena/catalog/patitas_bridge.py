@@ -55,7 +55,7 @@ def document_for_node(
     if node.ast_json:
         try:
             return document_from_json(node.ast_json)
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             return None
     return None
 

@@ -105,11 +105,7 @@ class CardHandler:
     def render(self, node: Directive[Any], rendered_children: str, sb: StringBuilder) -> None:
         opts = node.options
         title = render_inline_text(node.title or "Card")
-        subtitle = (
-            render_inline_text(opts.description)
-            if opts.description
-            else ""
-        )
+        subtitle = render_inline_text(opts.description) if opts.description else ""
         if opts.link:
             sb.append(
                 render_directive(

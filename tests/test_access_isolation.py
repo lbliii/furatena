@@ -82,9 +82,7 @@ async def _fetch_browser_surfaces(
 ) -> tuple[int | None, str, str]:
     direct = await client.get("/docs/team-alpha/") if fetch_direct else None
     graph = await client.get("/catalog.json?include_private=1")
-    search = await client.get(
-        "/search.json?q=canary&include_private=1&roles=admin&teams=alpha"
-    )
+    search = await client.get("/search.json?q=canary&include_private=1&roles=admin&teams=alpha")
     return direct.status if direct is not None else None, graph.text, search.text
 
 
@@ -106,9 +104,7 @@ def _surface_texts(docs: DocsApp, subject: AccessSubject) -> dict[str, str]:
     server = FuraMCPServer(docs, include_private=True, policy=policy)
     mcp_graph = server.read_resource("fura://catalog/graph")["text"]
     mcp_search = json.dumps(
-        server.call_tool("semantic_search", {"query": "canary"})[
-            "structuredContent"
-        ],
+        server.call_tool("semantic_search", {"query": "canary"})["structuredContent"],
         sort_keys=True,
     )
     return {

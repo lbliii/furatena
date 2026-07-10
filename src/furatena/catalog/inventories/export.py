@@ -14,11 +14,7 @@ if TYPE_CHECKING:
 def inventory_entries_for_id(store: InventoryStore | None, inventory_id: str) -> tuple:
     if store is None:
         return ()
-    return tuple(
-        entry
-        for entry in store.entries.values()
-        if entry.inventory_id == inventory_id
-    )
+    return tuple(entry for entry in store.entries.values() if entry.inventory_id == inventory_id)
 
 
 def inventory_bytes(
@@ -74,7 +70,6 @@ def inventories_json(catalog, *, base_url: str = "", frozen_dir: Path | None = N
         frozen_inv = frozen_dir / "inventories"
         if frozen_inv.is_dir():
             payload["frozen_paths"] = sorted(
-                str(path.relative_to(frozen_dir))
-                for path in frozen_inv.glob("*.inv")
+                str(path.relative_to(frozen_dir)) for path in frozen_inv.glob("*.inv")
             )
     return payload

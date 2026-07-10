@@ -170,7 +170,10 @@ def run_author_runtime_benchmark(
         workspace = Path(raw_workspace).resolve()
         if dogfood:
             docs_yaml = repo_root / "app" / "docs.yaml"
-            source_roots = (repo_root / "content" / "furatena", repo_root / "app" / "content" / "shared")
+            source_roots = (
+                repo_root / "content" / "furatena",
+                repo_root / "app" / "content" / "shared",
+            )
             page_path = "/docs/get-started/installation/"
             page_slug = "get-started/installation"
             corpus_kind = "dogfood"

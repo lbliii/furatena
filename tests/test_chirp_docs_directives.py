@@ -26,10 +26,10 @@ class TestDirectiveTranslation:
         assert "chirpui-tabs" in html
         assert "x-data=" in html
         assert "furaDocsTabSet(" in html
-        assert 'x-data="furaDocsTabSet(' not in html or "tab-a" in html.split('x-data=')[1][:120]
+        assert 'x-data="furaDocsTabSet(' not in html or "tab-a" in html.split("x-data=")[1][:120]
         assert "x-data='furaDocsTabSet(" in html
         assert 'furaDocsTabSet("tab-a"' in html
-        assert ':class="{ \'chirpui-tab--active\'' in html
+        assert ":class=\"{ 'chirpui-tab--active'" in html
         assert 'class="chirpui-tab chirpui-tab--active"' not in html
         assert 'class="tabs"' not in html
         assert 'data-bengal="tabs"' not in html
@@ -153,9 +153,7 @@ class TestDirectiveTranslation:
         repo = REPO
         catalog = DocCatalog(repo / "content/chirp", autodoc=False, autodoc_config=None)
         tab_item_re = re.compile(r":{3,4}\{tab-item\}\s+([^\n]+)", re.MULTILINE)
-        tab_label_re = re.compile(
-            r'<span class="chirp-theme-directive-tabs__label">([^<]+)</span>'
-        )
+        tab_label_re = re.compile(r'<span class="chirp-theme-directive-tabs__label">([^<]+)</span>')
 
         offenders: list[str] = []
         for node in catalog.nodes:
@@ -176,7 +174,7 @@ class TestDirectiveTranslation:
         from furatena.catalog.directives.code_tabs import CodeTabsHandler, CodeTabsOptions
 
         handler = CodeTabsHandler()
-        source = '```python\na = 1\n```\n\n```python\nb = 2\n```'
+        source = "```python\na = 1\n```\n\n```python\nb = 2\n```"
         node_a = handler.parse(
             "code-tabs",
             None,
@@ -303,12 +301,14 @@ class TestDirectiveTranslation:
 
         class _Ctx:
             current_slug = "docs/get-started/installation"
-            stubs = {"docs/get-started/installation": type("S", (), {"url": "/docs/get-started/installation/"})()}
+            stubs = {
+                "docs/get-started/installation": type(
+                    "S", (), {"url": "/docs/get-started/installation/"}
+                )()
+            }
+
             def get_backlinks(self, url):
-                return [
-                    {"href": f"/docs/page-{i}/", "title": f"Page {i}"}
-                    for i in range(5)
-                ]
+                return [{"href": f"/docs/page-{i}/", "title": f"Page {i}"} for i in range(5)]
 
         from furatena.catalog import context as ctx_mod
 
@@ -343,7 +343,7 @@ class TestDirectiveTranslation:
         try:
             html = str(
                 renderer.render(
-                    '```python\nimport chirp\nprint(chirp.__version__)\n```',
+                    "```python\nimport chirp\nprint(chirp.__version__)\n```",
                     _Ctx(),  # type: ignore[arg-type]
                 )[0]
             )

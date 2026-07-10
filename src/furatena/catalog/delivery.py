@@ -55,7 +55,9 @@ def resolve_delivery_for_mount(docs: DocsConfig, mount_id: str) -> ResolvedDeliv
         docs,
         override.theme if override is not None else None,
     )
-    source = "mount" if override and (override.head or _theme_has_override(override.theme)) else "global"
+    source = (
+        "mount" if override and (override.head or _theme_has_override(override.theme)) else "global"
+    )
     return ResolvedDelivery(
         mount=mount_id,
         head=head,
@@ -82,7 +84,9 @@ def delivery_surface_json(docs: DocsConfig, catalog: Any) -> dict[str, Any]:
     }
 
 
-def check_delivery_config(docs: DocsConfig, catalog: Any | None = None) -> tuple[list[str], list[str]]:
+def check_delivery_config(
+    docs: DocsConfig, catalog: Any | None = None
+) -> tuple[list[str], list[str]]:
     """Validate delivery head/theme configuration."""
     errors: list[str] = []
     warnings: list[str] = []
@@ -97,7 +101,9 @@ def check_delivery_config(docs: DocsConfig, catalog: Any | None = None) -> tuple
         if catalog_mounts and mount_id not in catalog_mounts:
             warnings.append(f"delivery.mounts.{mount_id} does not match a configured mount")
         if override.head and override.head not in known_heads:
-            errors.append(f"delivery.mounts.{mount_id}.head unknown rendering head: {override.head!r}")
+            errors.append(
+                f"delivery.mounts.{mount_id}.head unknown rendering head: {override.head!r}"
+            )
         errors.extend(_check_theme(f"delivery.mounts.{mount_id}.theme", override.theme))
 
     return sorted(errors), sorted(warnings)

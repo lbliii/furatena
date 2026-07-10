@@ -95,7 +95,7 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
         raw = request.query.get(name)
         try:
             value = int(raw) if raw not in (None, "") else default
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             invalid[name] = raw
             continue
         if value < minimum or (maximum is not None and value > maximum):
@@ -354,12 +354,8 @@ def register_author_routes(docs: Any, app: App) -> None:
             return denied
         force_validation = _query_bool(request, "validate", default=False)
         if request.is_htmx:
-            return self._author_page_chrome_fragment(
-                node, force_validation=force_validation
-            )
-        return _json_response(
-            self._author_page_chrome(node, force_validation=force_validation)
-        )
+            return self._author_page_chrome_fragment(node, force_validation=force_validation)
+        return _json_response(self._author_page_chrome(node, force_validation=force_validation))
 
     @app.route("/docs/_author/source")
     def author_page_source(request: Request):

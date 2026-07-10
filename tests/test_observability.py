@@ -114,9 +114,7 @@ class _Meter:
 def test_opentelemetry_adapter_emits_span_and_counter() -> None:
     tracer = _Tracer()
     meter = _Meter()
-    emitter = OperationalEventEmitter(
-        telemetry=OpenTelemetrySink(tracer=tracer, meter=meter)
-    )
+    emitter = OperationalEventEmitter(telemetry=OpenTelemetrySink(tracer=tracer, meter=meter))
 
     event = emitter.emit(
         "furatena.export.completed",
@@ -209,9 +207,9 @@ def test_unknown_event_names_and_telemetry_modes_fail_loudly(monkeypatch) -> Non
 
 
 def test_operations_runbook_covers_rollout_rollback_backup_and_recovery() -> None:
-    runbook = (
-        REPO / "content/furatena/docs/operations/observability-and-recovery.md"
-    ).read_text(encoding="utf-8")
+    runbook = (REPO / "content/furatena/docs/operations/observability-and-recovery.md").read_text(
+        encoding="utf-8"
+    )
 
     for heading in ("## Rollout", "## Rollback", "## Backup and restore", "## Incident recovery"):
         assert heading in runbook

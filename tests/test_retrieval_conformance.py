@@ -78,12 +78,8 @@ def test_browser_dcp_sidecars_and_mcp_share_retrieval_contract(docs: DocsApp) ->
     assert dcp_query["query"]["mount"] == "furatena"
 
     dcp_by_id = {str(page["node_id"]): page for page in dcp["pages"]}
-    search_by_id = {
-        str(entry["node_id"]): entry for entry in search_sidecar["entries"]
-    }
-    semantic_chunks = {
-        str(chunk["chunk_id"]): chunk for chunk in semantic_sidecar["chunks"]
-    }
+    search_by_id = {str(entry["node_id"]): entry for entry in search_sidecar["entries"]}
+    semantic_chunks = {str(chunk["chunk_id"]): chunk for chunk in semantic_sidecar["chunks"]}
     mcp_by_id = {str(item["node_id"]): item for item in mcp["results"]}
     observed_chunks = 0
     for hit in browser.hits:
@@ -95,10 +91,7 @@ def test_browser_dcp_sidecars_and_mcp_share_retrieval_contract(docs: DocsApp) ->
         assert hit.score == mcp_hit["score"]
         assert hit.node.mount == dcp_page["mount"] == search_entry["mount"] == mcp_hit["mount"]
         assert (
-            hit.node.edition
-            == dcp_page["edition"]
-            == search_entry["edition"]
-            == mcp_hit["edition"]
+            hit.node.edition == dcp_page["edition"] == search_entry["edition"] == mcp_hit["edition"]
         )
         assert sorted(hit.node.tags) == dcp_page["tags"] == search_entry["tags"] == mcp_hit["tags"]
         assert dcp_page["provenance"] == search_entry["provenance"] == mcp_hit["provenance"]
@@ -188,11 +181,7 @@ def _surface_node_ids(
     return {
         "browser": {hit.node.node_id for hit in browser.hits},
         "dcp": {str(page["node_id"]) for page in dcp["pages"]},
-        "search_sidecar": {
-            str(entry["node_id"]) for entry in search_sidecar["entries"]
-        },
-        "semantic_sidecar": {
-            str(chunk["node_id"]) for chunk in semantic_sidecar["chunks"]
-        },
+        "search_sidecar": {str(entry["node_id"]) for entry in search_sidecar["entries"]},
+        "semantic_sidecar": {str(chunk["node_id"]) for chunk in semantic_sidecar["chunks"]},
         "mcp": {str(item["node_id"]) for item in mcp["results"]},
     }

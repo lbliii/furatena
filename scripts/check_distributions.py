@@ -220,9 +220,7 @@ def _assert_workflow_outputs(app_root: Path) -> None:
     if not list((app_root / "public" / "docs-theme" / "fonts").glob("*.woff2")):
         raise RuntimeError("packaged workflow did not copy theme fonts")
 
-    page = (app_root / "public" / "docs" / "get-started" / "index.html").read_text(
-        encoding="utf-8"
-    )
+    page = (app_root / "public" / "docs" / "get-started" / "index.html").read_text(encoding="utf-8")
     if "Get started" not in page:
         raise RuntimeError("packaged workflow generated an unexpected get-started page")
     for root in (app_root / "frozen", app_root / "public"):
@@ -240,7 +238,9 @@ def _check_isolated_install(
     repo_root: Path,
     uv: str,
 ) -> None:
-    with tempfile.TemporaryDirectory(prefix=f"furatena-{artifact.suffix.removeprefix('.')}-") as raw:
+    with tempfile.TemporaryDirectory(
+        prefix=f"furatena-{artifact.suffix.removeprefix('.')}-"
+    ) as raw:
         workspace = Path(raw)
         environment = workspace / "venv"
         child_env = os.environ.copy()
@@ -343,7 +343,9 @@ def main() -> int:
     expected_version = _project_version(source_root)
     artifacts = [wheels[0], sdists[0]]
     normalized_version = expected_version.replace("-", "_")
-    if any(not artifact.name.startswith(f"furatena-{normalized_version}") for artifact in artifacts):
+    if any(
+        not artifact.name.startswith(f"furatena-{normalized_version}") for artifact in artifacts
+    ):
         raise RuntimeError(
             f"distribution filenames do not match project version {expected_version}: "
             f"{[artifact.name for artifact in artifacts]}"

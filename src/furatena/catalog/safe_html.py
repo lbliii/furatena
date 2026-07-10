@@ -73,9 +73,7 @@ class _RenderedHTMLSanitizer(HTMLParser):
                 continue
             if name in _URL_ATTRIBUTES and not _safe_url(value):
                 continue
-            rendered.append(
-                f' {html.escape(name, quote=True)}="{html.escape(value, quote=True)}"'
-            )
+            rendered.append(f' {html.escape(name, quote=True)}="{html.escape(value, quote=True)}"')
         return "".join(rendered)
 
 

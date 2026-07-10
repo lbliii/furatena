@@ -15,12 +15,9 @@ from furatena.catalog.directives.kida_render import render_directive
 
 
 def test_render_inline_cell_preserves_markers_inside_code() -> None:
-    html = render_inline_cell(
-        "`Template.inline(source, **ctx)` / `InlineTemplate(source, **ctx)`"
-    )
+    html = render_inline_cell("`Template.inline(source, **ctx)` / `InlineTemplate(source, **ctx)`")
     assert html == (
-        "<code>Template.inline(source, **ctx)</code> / "
-        "<code>InlineTemplate(source, **ctx)</code>"
+        "<code>Template.inline(source, **ctx)</code> / <code>InlineTemplate(source, **ctx)</code>"
     )
 
 

@@ -75,7 +75,7 @@ class OperationLease:
             self._acquired = True
             try:
                 self._claim_owner()
-            except (FileExistsError, FileNotFoundError, _OperationLeaseOwnershipLost):
+            except FileExistsError, FileNotFoundError, _OperationLeaseOwnershipLost:
                 # A stale-lease reclaimer may replace the directory after mkdir()
                 # but before the first owner record is published. Treat that as a
                 # lost acquisition and compete for the current directory instead
@@ -114,7 +114,7 @@ class OperationLease:
     def owner(self) -> dict[str, Any]:
         try:
             payload = json.loads(self.owner_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except OSError, json.JSONDecodeError:
             return {}
         return payload if isinstance(payload, dict) else {}
 
@@ -134,7 +134,7 @@ class OperationLease:
         while not self._stop.wait(interval):
             try:
                 self.renew()
-            except (OSError, RuntimeError, ValueError):
+            except OSError, RuntimeError, ValueError:
                 return
 
     def _owner_payload(self, *, acquired_at: float | None = None) -> dict[str, Any]:
@@ -182,9 +182,7 @@ class OperationLease:
         owner = self.owner()
         expires_at = owner.get("expires_at_epoch")
         expires = (
-            float(expires_at)
-            if expires_at is not None
-            else stat.st_mtime + self.lease_seconds
+            float(expires_at) if expires_at is not None else stat.st_mtime + self.lease_seconds
         )
         return (
             stat.st_dev,

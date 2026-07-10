@@ -45,7 +45,7 @@ def payload_schema_version(payload: dict[str, Any]) -> int:
     raw = payload.get("schema_version", payload.get("version"))
     try:
         return int(raw)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return 0
 
 

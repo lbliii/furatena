@@ -145,20 +145,14 @@ def test_author_requests_reuse_snapshot_and_content_edit_refreshes_diagnostics(
 
     with instrument_author_runtime() as cached_counts:
         page = asyncio.run(_request("/docs/page-00001/"))
-        first_status = asyncio.run(
-            _request("/docs/_author/page.json?slug=docs/page-00001")
-        )
-        second_status = asyncio.run(
-            _request("/docs/_author/page.json?slug=docs/page-00001")
-        )
+        first_status = asyncio.run(_request("/docs/_author/page.json?slug=docs/page-00001"))
+        second_status = asyncio.run(_request("/docs/_author/page.json?slug=docs/page-00001"))
     assert page.status == first_status.status == second_status.status == 200
     assert cached_counts.docs_app_constructions == 0
     assert cached_counts.full_validation_calls == 0
 
     with instrument_author_runtime() as forced_counts:
-        forced = asyncio.run(
-            _request("/docs/_author/page.json?slug=docs/page-00001&validate=1")
-        )
+        forced = asyncio.run(_request("/docs/_author/page.json?slug=docs/page-00001&validate=1"))
     assert forced.status == 200
     assert forced_counts.docs_app_constructions == 0
     assert forced_counts.full_validation_calls == 1
@@ -171,13 +165,11 @@ def test_author_requests_reuse_snapshot_and_content_edit_refreshes_diagnostics(
     )
     stamp = source.stat().st_mtime_ns + 1_000_000
     os.utime(source, ns=(stamp, stamp))
-    refreshed_response = asyncio.run(
-        _request("/docs/_author/page.json?slug=docs/page-00001")
-    )
+    refreshed_response = asyncio.run(_request("/docs/_author/page.json?slug=docs/page-00001"))
     refreshed = json.loads(refreshed_response.text)
-    assert refreshed["validation"]["catalog_generation"] > before["validation"][
-        "catalog_generation"
-    ]
+    assert (
+        refreshed["validation"]["catalog_generation"] > before["validation"]["catalog_generation"]
+    )
     assert refreshed["validation"]["error_count"] >= 1
 
     snapshot = docs.validation.snapshot()
