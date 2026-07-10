@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/capability/v1/decision.schema.json",
+  "title": "Furatena capability decision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "allowed", "capability", "reason_code", "reason",
+    "remediation", "matched_rule_id", "matched_effect", "policy_version", "policy_digest",
+    "approval_requirements", "separation_rules", "cacheability", "decision_scope_digest",
+    "evaluated_at", "plan_digest"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.capability.decision"},
+    "allowed": {"type": "boolean"},
+    "capability": {"$ref": "common.schema.json#/$defs/capability"},
+    "reason_code": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "reason": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "remediation": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "matched_rule_id": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "matched_effect": {
+      "oneOf": [{"enum": ["allow", "deny"]}, {"type": "null"}]
+    },
+    "policy_version": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "policy_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "approval_requirements": {"$ref": "common.schema.json#/$defs/approvalRequirements"},
+    "separation_rules": {"$ref": "common.schema.json#/$defs/stringSet"},
+    "cacheability": {"$ref": "common.schema.json#/$defs/cache"},
+    "decision_scope_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "evaluated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "plan_digest": {"$ref": "common.schema.json#/$defs/nullableDigest"}
+  }
+}

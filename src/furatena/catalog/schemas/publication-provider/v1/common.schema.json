@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-provider/v1/common.schema.json",
+  "title": "Furatena publication provider common types v1",
+  "$defs": {
+    "nonEmptyString": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "nullableString": {
+      "oneOf": [{"$ref": "#/$defs/nonEmptyString"}, {"type": "null"}]
+    },
+    "nullableDigest": {
+      "oneOf": [{"$ref": "#/$defs/digest"}, {"type": "null"}]
+    },
+    "stringSet": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/nonEmptyString"},
+      "uniqueItems": true
+    },
+    "profile": {"enum": ["local_only", "commit", "pull_request", "external"]},
+    "operation": {
+      "enum": ["inspect", "prepare", "commit", "propose_review", "observe_review", "reconcile"]
+    },
+    "outcome": {
+      "enum": [
+        "planned", "prepared", "dirty_working_tree", "committed", "review_open",
+        "review_closed", "merged", "handed_off", "no_change", "failed"
+      ]
+    },
+    "reviewState": {"enum": ["none", "draft", "open", "closed", "merged", "rejected"]},
+    "protection": {"enum": ["unknown", "unprotected", "protected"]},
+    "reconciliation": {
+      "enum": ["not_required", "pending", "matched", "diverged", "manual_action_required"]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor", "identity_source", "roles", "teams"],
+      "properties": {
+        "actor": {"$ref": "#/$defs/nonEmptyString"},
+        "identity_source": {"$ref": "#/$defs/nonEmptyString"},
+        "roles": {"$ref": "#/$defs/stringSet"},
+        "teams": {"$ref": "#/$defs/stringSet"}
+      }
+    },
+    "attribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "author_name", "author_email", "committer_name", "committer_email",
+        "workflow_actor", "message"
+      ],
+      "properties": {
+        "author_name": {"$ref": "#/$defs/nonEmptyString"},
+        "author_email": {"$ref": "#/$defs/nonEmptyString"},
+        "committer_name": {"$ref": "#/$defs/nonEmptyString"},
+        "committer_email": {"$ref": "#/$defs/nonEmptyString"},
+        "workflow_actor": {"$ref": "#/$defs/nonEmptyString"},
+        "message": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    },
+    "pathChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "previous_path"],
+      "properties": {
+        "kind": {"enum": ["create", "modify", "delete", "move"]},
+        "path": {"$ref": "#/$defs/nonEmptyString"},
+        "previous_path": {"$ref": "#/$defs/nullableString"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "move"}}},
+          "then": {"properties": {"previous_path": {"$ref": "#/$defs/nonEmptyString"}}},
+          "else": {"properties": {"previous_path": {"type": "null"}}}
+        }
+      ]
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disposition", "code", "safe_message", "remediation", "retry_operation",
+        "effect_may_have_occurred"
+      ],
+      "properties": {
+        "disposition": {
+          "enum": ["retryable", "terminal", "conflict", "authorization", "reconciliation_required"]
+        },
+        "code": {"$ref": "#/$defs/nonEmptyString"},
+        "safe_message": {"$ref": "#/$defs/nonEmptyString"},
+        "remediation": {"$ref": "#/$defs/nonEmptyString"},
+        "retry_operation": {
+          "oneOf": [{"$ref": "#/$defs/operation"}, {"type": "null"}]
+        },
+        "effect_may_have_occurred": {"type": "boolean"}
+      }
+    },
+    "nullableFailure": {
+      "oneOf": [{"$ref": "#/$defs/failure"}, {"type": "null"}]
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "key_id", "signed_digest", "value"],
+      "properties": {
+        "algorithm": {"$ref": "#/$defs/nonEmptyString"},
+        "key_id": {"$ref": "#/$defs/nonEmptyString"},
+        "signed_digest": {"$ref": "#/$defs/digest"},
+        "value": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    },
+    "nullableSignature": {
+      "oneOf": [{"$ref": "#/$defs/signature"}, {"type": "null"}]
+    }
+  }
+}

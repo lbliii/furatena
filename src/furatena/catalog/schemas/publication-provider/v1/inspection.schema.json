@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-provider/v1/inspection.schema.json",
+  "title": "Furatena repository inspection v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "inspection_id", "inspection_digest", "provider_id",
+    "repository_id", "source_repository_id", "base_source_revision", "repository_revision",
+    "current_branch", "detached", "isolated", "fork", "protection", "permissions",
+    "staged_paths", "unstaged_paths", "untracked_paths", "ignored_paths", "conflicted_paths",
+    "observed_at", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication-provider.inspection"},
+    "inspection_id": {"type": "string", "pattern": "^inspection-[0-9a-f]{24}$"},
+    "inspection_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "provider_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "repository_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "source_repository_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "base_source_revision": {"$ref": "common.schema.json#/$defs/digest"},
+    "repository_revision": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "current_branch": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "detached": {"type": "boolean"},
+    "isolated": {"type": "boolean"},
+    "fork": {"type": "boolean"},
+    "protection": {"$ref": "common.schema.json#/$defs/protection"},
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "common.schema.json#/$defs/operation"}
+    },
+    "staged_paths": {"$ref": "common.schema.json#/$defs/stringSet"},
+    "unstaged_paths": {"$ref": "common.schema.json#/$defs/stringSet"},
+    "untracked_paths": {"$ref": "common.schema.json#/$defs/stringSet"},
+    "ignored_paths": {"$ref": "common.schema.json#/$defs/stringSet"},
+    "conflicted_paths": {"$ref": "common.schema.json#/$defs/stringSet"},
+    "observed_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "extensions": {"type": "object"}
+  }
+}

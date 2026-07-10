@@ -1,6 +1,6 @@
 {% from "components/directive_callout.html" import directive_callout %}
 {% call directive_callout(title=title, variant=variant, kind="admonition", modifier=(admonition_name | default(variant)), extra_class=extra_class) %}
 {% slot content %}
-{{ body | safe }}
+{{ body | safe(reason="trusted directive HTML from the typed renderer") }}
 {% end %}
 {% end %}

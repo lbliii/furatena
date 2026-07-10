@@ -1,0 +1,8 @@
+{
+  "fixture_version": 1,
+  "scenario": "solo-local",
+  "profile": "local_only",
+  "provider_operations": ["inspect", "prepare", "reconcile"],
+  "requires_git_credentials": false,
+  "expected_outcome": "dirty_working_tree"
+}

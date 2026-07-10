@@ -1,7 +1,7 @@
 {% from "components/directive_version_notice.html" import directive_version_notice %}
 {% if body %}
 {% call directive_version_notice(kind=kind, badge_label=badge_label, has_content=true) %}
-{% slot content %}{{ body | safe }}{% end %}
+{% slot content %}{{ body | safe(reason="trusted directive HTML from the typed renderer") }}{% end %}
 {% end %}
 {% else %}
 {{ directive_version_notice(kind=kind, badge_label=badge_label) }}
