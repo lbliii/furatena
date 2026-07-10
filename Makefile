@@ -122,6 +122,7 @@ ci-fast:
 		src/furatena/catalog/source_sync_state.py \
 		src/furatena/catalog/operation_lease.py \
 		src/furatena/catalog/atomic_directory.py \
+		src/furatena/catalog/publication_provider.py \
 		src/furatena/catalog/author_benchmarks.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
@@ -143,6 +144,8 @@ ci-fast:
 		tests/test_observability.py \
 		tests/test_source_sync_state.py \
 		tests/test_operation_coordination.py \
+		tests/test_publication_provider_contracts.py \
+		tests/test_publication_provider_schemas.py \
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \

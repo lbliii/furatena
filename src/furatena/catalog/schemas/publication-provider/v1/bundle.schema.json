@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-provider/v1/bundle.schema.json",
+  "title": "Furatena publication change bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "bundle_id", "bundle_digest", "plan_id", "plan_digest",
+    "profile", "provider_id", "target", "approved_paths", "diff_digest", "unified_diff",
+    "base_source_revision", "resulting_source_revision", "created_at", "signature", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication-provider.bundle"},
+    "bundle_id": {"type": "string", "pattern": "^bundle-[0-9a-f]{24}$"},
+    "bundle_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{24}$"},
+    "plan_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "profile": {"$ref": "common.schema.json#/$defs/profile"},
+    "provider_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "target": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "approved_paths": {
+      "allOf": [{"$ref": "common.schema.json#/$defs/stringSet"}, {"minItems": 1}]
+    },
+    "diff_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "unified_diff": {"type": "string"},
+    "base_source_revision": {"$ref": "common.schema.json#/$defs/digest"},
+    "resulting_source_revision": {"$ref": "common.schema.json#/$defs/digest"},
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "signature": {"$ref": "common.schema.json#/$defs/nullableSignature"},
+    "extensions": {"type": "object"}
+  }
+}
