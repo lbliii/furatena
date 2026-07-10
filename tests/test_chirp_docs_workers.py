@@ -88,7 +88,9 @@ def test_dcp_compatibility_fixtures_validate():
 def test_dcp_compatibility_fixtures_cover_policy_surfaces():
     from furatena.catalog.dcp_validate import dcp_fixture_paths
 
-    fixtures = {path.name: json.loads(path.read_text(encoding="utf-8")) for path in dcp_fixture_paths()}
+    fixtures = {
+        path.name: json.loads(path.read_text(encoding="utf-8")) for path in dcp_fixture_paths()
+    }
     v2 = fixtures["catalog-v2.json"]
     v3 = fixtures["catalog-v3.json"]
 
@@ -110,7 +112,9 @@ def test_dcp_compatibility_fixtures_cover_policy_surfaces():
             "edition": "latest",
         }
     ]
-    assert any(edge["kind"] == "api_schema" and edge["target"] == "schema:User" for edge in v3["edges"])
+    assert any(
+        edge["kind"] == "api_schema" and edge["target"] == "schema:User" for edge in v3["edges"]
+    )
 
 
 def test_dcp_validator_rejects_unsupported_version(tmp_path: Path):

@@ -65,7 +65,7 @@ def _junit(result: CommandResult, diagnostics: tuple[Diagnostic, ...]) -> str:
                 f'    <failure message="{escape(item.message)}">{escape(_diagnostic_detail(item))}</failure>'
             )
         elif item.severity in {"warning", "info"}:
-            lines.append(f'    <system-out>{escape(_diagnostic_detail(item))}</system-out>')
+            lines.append(f"    <system-out>{escape(_diagnostic_detail(item))}</system-out>")
         lines.append("  </testcase>")
     lines.append("</testsuite>")
     return "\n".join(lines)

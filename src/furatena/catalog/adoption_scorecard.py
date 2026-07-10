@@ -210,25 +210,39 @@ def _validated_manifest(raw: dict[str, Any]) -> dict[str, Any]:
     _exact_keys(evidence, set(AREAS), "evidence")
     expected = {
         "activation": {
-            "owner", "remediation", "new_site_first_edit_median_seconds",
-            "imported_site_first_edit_median_seconds", "first_publish_sample_count",
+            "owner",
+            "remediation",
+            "new_site_first_edit_median_seconds",
+            "imported_site_first_edit_median_seconds",
+            "first_publish_sample_count",
             "clean_migration_sample_count",
         },
         "migration": {
-            "owner", "remediation", "clean_page_ratio",
+            "owner",
+            "remediation",
+            "clean_page_ratio",
             "blockers_grouped_by_owner_source",
         },
         "build": {
-            "owner", "remediation", "check_p95_seconds",
-            "static_export_p95_seconds", "pdf_batch_documented",
+            "owner",
+            "remediation",
+            "check_p95_seconds",
+            "static_export_p95_seconds",
+            "pdf_batch_documented",
         },
         "retrieval": {"owner", "remediation", "recall_at_3", "private_leaks"},
         "agent": {
-            "owner", "remediation", "error_count", "private_leaks",
+            "owner",
+            "remediation",
+            "error_count",
+            "private_leaks",
             "warnings_with_remediation",
         },
         "buyer_confidence": {
-            "owner", "remediation", "deployment_profile", "approval_blockers_named",
+            "owner",
+            "remediation",
+            "deployment_profile",
+            "approval_blockers_named",
         },
     }
     numeric = {
@@ -317,7 +331,12 @@ def _maximum_gate(
     gate_id: str, area: str, definition: str, observed: float | None, target: float
 ) -> dict[str, Any]:
     return _gate(
-        gate_id, area, definition, observed, "<=", target,
+        gate_id,
+        area,
+        definition,
+        observed,
+        "<=",
+        target,
         observed is not None and float(observed) <= target,
     )
 
@@ -326,7 +345,12 @@ def _strict_maximum_gate(
     gate_id: str, area: str, definition: str, observed: float | None, target: float
 ) -> dict[str, Any]:
     return _gate(
-        gate_id, area, definition, observed, "<", target,
+        gate_id,
+        area,
+        definition,
+        observed,
+        "<",
+        target,
         observed is not None and float(observed) < target,
     )
 
@@ -335,7 +359,12 @@ def _minimum_gate(
     gate_id: str, area: str, definition: str, observed: float | None, target: float
 ) -> dict[str, Any]:
     return _gate(
-        gate_id, area, definition, observed, ">=", target,
+        gate_id,
+        area,
+        definition,
+        observed,
+        ">=",
+        target,
         observed is not None and float(observed) >= target,
     )
 

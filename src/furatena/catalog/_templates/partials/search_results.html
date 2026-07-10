@@ -8,14 +8,14 @@
     <div class="search-product-card__meta">
       <p class="search-product-card__path">{{ node.mount }} / {{ node.section }}</p>
       <h3 class="search-product-card__title">
-        <a href="{{ page_href }}"{{ route_link_attrs(page_href) | html_attrs }}>{{ node.title | highlight_search(query) | safe }}</a>
+        <a href="{{ page_href }}"{{ route_link_attrs(page_href) | html_attrs }}>{{ node.title | highlight_search(query) }}</a>
       </h3>
     </div>
     <a class="search-product-card__open" href="{{ page_href }}" aria-label="Open {{ node.title }}"{{ route_link_attrs(page_href) | html_attrs }}>↗</a>
   </header>
 
   {% if card.snippet %}
-  <p class="search-product-card__snippet">{{ card.snippet | highlight_search(query) | safe }}</p>
+  <p class="search-product-card__snippet">{{ card.snippet | highlight_search(query) }}</p>
   {% end %}
 
   <div class="search-product-card__stats">
@@ -32,9 +32,9 @@
   <footer class="search-product-card__matches">
     {% for match in card.matches %}
     <a class="search-product-card__match" href="{{ match.url }}"{{ route_link_attrs(match.url) | html_attrs }}>
-      <span class="search-product-card__match-label">{{ match.label | highlight_search(query) | safe }}</span>
+      <span class="search-product-card__match-label">{{ match.label | highlight_search(query) }}</span>
       {% if match.snippet %}
-      <span class="search-product-card__match-snippet">{{ match.snippet | highlight_search(query) | safe }}</span>
+      <span class="search-product-card__match-snippet">{{ match.snippet | highlight_search(query) }}</span>
       {% end %}
     </a>
     {% end %}
@@ -51,15 +51,15 @@
   <div class="search-result__main">
     <p class="search-result__path">{{ hit.node.mount }} / {{ hit.node.section }}</p>
     <h3 class="search-result__title">
-      <a href="{{ hit_href }}"{{ route_link_attrs(hit_href) | html_attrs }}>{{ hit.node.title | highlight_search(query) | safe }}</a>
+      <a href="{{ hit_href }}"{{ route_link_attrs(hit_href) | html_attrs }}>{{ hit.node.title | highlight_search(query) }}</a>
     </h3>
     {% if hit.snippet or hit.node.description %}
-    <p class="search-result__snippet">{{ (hit.snippet or hit.node.description) | highlight_search(query) | safe }}</p>
+    <p class="search-result__snippet">{{ (hit.snippet or hit.node.description) | highlight_search(query) }}</p>
     {% end %}
     {% if hit_heading %}
     <p class="search-result__match">
       <a href="{{ hit_href }}"{{ route_link_attrs(hit_href) | html_attrs }}>
-        <span class="search-result__match-label">Match</span>{{ hit_heading | highlight_search(query) | safe }}
+        <span class="search-result__match-label">Match</span>{{ hit_heading | highlight_search(query) }}
       </a>
     </p>
     {% end %}

@@ -10,7 +10,9 @@ import yaml
 HTTP_METHODS = {"delete", "get", "head", "options", "patch", "post", "put", "trace"}
 
 
-def lint_openapi_autodoc_config(config_path: Path | None, *, repo_root: Path) -> tuple[list[str], list[str]]:
+def lint_openapi_autodoc_config(
+    config_path: Path | None, *, repo_root: Path
+) -> tuple[list[str], list[str]]:
     """Lint OpenAPI specs referenced by an autodoc config."""
     if config_path is None or not config_path.is_file():
         return [], []
@@ -135,10 +137,7 @@ def _operation_records(spec: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _operation_map(spec: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
-    return {
-        (record["method"], record["path"]): record
-        for record in _operation_records(spec)
-    }
+    return {(record["method"], record["path"]): record for record in _operation_records(spec)}
 
 
 def _operation_summary(record: dict[str, Any]) -> dict[str, Any]:

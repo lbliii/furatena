@@ -13,8 +13,6 @@ _LITERAL_A_TAG_RE = re.compile(r"<a\s+([^>]*?)>", re.IGNORECASE | re.DOTALL)
 _HREF_ATTR_RE = re.compile(r"""href\s*=\s*["'](/[^"'#]+)["']""", re.IGNORECASE)
 
 
-
-
 def check_body_link_boost(
     catalog,
     *,
@@ -32,7 +30,7 @@ def check_body_link_boost(
         for match in _OPENING_A_RE.finditer(boosted):
             href = match.group(1)
             tag = match.group(0)
-            if "hx-boost=\"false\"" in tag or "data-hx-boost=\"false\"" in tag:
+            if 'hx-boost="false"' in tag or 'data-hx-boost="false"' in tag:
                 continue
             normalized = normalize_internal_url(href)
             if normalized is None or not should_validate_catalog_link(normalized, catalog):

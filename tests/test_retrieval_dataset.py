@@ -52,7 +52,9 @@ def test_known_answer_dataset_covers_required_query_and_content_classes(dataset)
     }
     assert any("/api/" in target.url for case in dataset.cases for target in case.targets)
     assert any(target.url == "/releases/" for case in dataset.cases for target in case.targets)
-    assert any("/docs/operations/" in target.url for case in dataset.cases for target in case.targets)
+    assert any(
+        "/docs/operations/" in target.url for case in dataset.cases for target in case.targets
+    )
 
 
 def test_known_answer_dataset_provenance_matches_repository_and_fixture(dataset) -> None:
@@ -64,8 +66,7 @@ def test_known_answer_dataset_provenance_matches_repository_and_fixture(dataset)
     drifted_dataset = replace(
         dataset,
         corpora=tuple(
-            drifted_corpus if item.id == drifted_corpus.id else item
-            for item in dataset.corpora
+            drifted_corpus if item.id == drifted_corpus.id else item for item in dataset.corpora
         ),
     )
     findings = verify_dataset_provenance(drifted_dataset, repo_root=REPO)
@@ -80,11 +81,14 @@ def test_dogfood_targets_and_sections_resolve_against_active_catalog(dataset) ->
         autodoc=True,
     )
 
-    assert validate_dataset_against_catalog(
-        dataset,
-        docs.catalog,
-        corpus_id="furatena-dogfood",
-    ) == ()
+    assert (
+        validate_dataset_against_catalog(
+            dataset,
+            docs.catalog,
+            corpus_id="furatena-dogfood",
+        )
+        == ()
+    )
 
 
 def test_access_boundary_fixture_is_private_and_has_unique_sentinel(dataset) -> None:
@@ -105,9 +109,7 @@ def test_access_boundary_fixture_is_private_and_has_unique_sentinel(dataset) -> 
 def test_dataset_validation_rejects_duplicate_case_identity(dataset) -> None:
     invalid = replace(dataset, cases=(dataset.cases[0], dataset.cases[0]))
 
-    assert validate_known_answer_dataset(invalid) == (
-        "duplicate case id: navigate-installation",
-    )
+    assert validate_known_answer_dataset(invalid) == ("duplicate case id: navigate-installation",)
 
 
 def test_dataset_validation_rejects_unknown_access_level(dataset) -> None:

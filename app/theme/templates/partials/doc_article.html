@@ -3,7 +3,7 @@
 
 <article class="prose chirp-theme-docs-layout__article">
   <div class="docs-content chirp-theme-docs-layout__content">
-    {{ node | doc_body | boost_doc_links | safe }}
+    {{ node | doc_body | boost_doc_links }}
   </div>
 
   {% if backlinks %}

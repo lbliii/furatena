@@ -115,9 +115,7 @@ def test_broken_link_and_orphan_detectors_are_actionable(monkeypatch: pytest.Mon
         source_path="docs/concepts/lonely.md",
         meta={},
     )
-    fake_docs = SimpleNamespace(
-        catalog=SimpleNamespace(nodes=[lonely], nav_tree=lambda: [])
-    )
+    fake_docs = SimpleNamespace(catalog=SimpleNamespace(nodes=[lonely], nav_tree=lambda: []))
     monkeypatch.setattr(docs_quality, "accessible_nodes", lambda *args, **kwargs: [lonely])
     monkeypatch.setattr(docs_quality, "build_federated_backlinks", lambda *args, **kwargs: {})
     orphan = _orphan_findings(fake_docs)

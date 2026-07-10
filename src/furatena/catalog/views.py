@@ -65,9 +65,7 @@ class ViewRegistry:
     def __init__(self, config: DocsConfig) -> None:
         self.config = config
         self._collections_path = (
-            config.compose.get("collection").data
-            if "collection" in config.compose
-            else None
+            config.compose.get("collection").data if "collection" in config.compose else None
         )
         self._collections = self._load_collections(self._collections_path)
 
@@ -122,7 +120,9 @@ class ViewRegistry:
                 if doc_list:
                     return doc_list
 
-        return self.config.views.get(view_kind) or self.config.views.get("default") or "views/doc.html"
+        return (
+            self.config.views.get(view_kind) or self.config.views.get("default") or "views/doc.html"
+        )
 
     def surface(self, view_template: str) -> Surface:
         """Return ``app`` or ``catalog`` surface for a resolved view template."""
@@ -157,7 +157,9 @@ class ViewRegistry:
                     f"views.{key} is a custom entry — document its surface and compose needs in VIEWS.md"
                 )
         for slug, template in self.config.overrides.items():
-            if template not in self.config.views.values() and not str(template).startswith("views/"):
+            if template not in self.config.views.values() and not str(template).startswith(
+                "views/"
+            ):
                 warnings.append(f"overrides.{slug} points to unknown template: {template}")
         collection = self.config.compose.get("collection")
         if collection is not None and collection.data is not None and not collection.data.is_file():

@@ -1,6 +1,6 @@
 <div class="steps chirp-theme-directive-steps{{ ' steps-' ~ style if style and style != 'default' else '' }}{{ ' ' ~ extra_class if extra_class else '' }}"
      {% if start != 1 %}style="counter-reset: step {{ start - 1 }}"{% end %}>
 <ol{% if start != 1 %} start="{{ start }}"{% end %}>
-{{ body | safe }}
+{{ body }}
 </ol>
 </div>

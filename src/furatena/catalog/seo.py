@@ -7,6 +7,8 @@ import os
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
+from kida.template import Markup
+
 if TYPE_CHECKING:
     from furatena.catalog.models import DocNode
 
@@ -63,6 +65,14 @@ def json_ld_article(*, node: DocNode, page_url: str, site_name: str = "Furatena"
     return payload
 
 
-def json_ld_script(payload: dict[str, Any]) -> str:
+def json_ld_script(payload: dict[str, Any]) -> Markup:
     """Serialize JSON-LD for embedding in ``<script type=\"application/ld+json\">``."""
-    return json.dumps(payload, indent=2, ensure_ascii=False)
+    serialized = json.dumps(payload, indent=2, ensure_ascii=False)
+    serialized = (
+        serialized.replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+    return Markup(serialized)

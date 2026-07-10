@@ -206,7 +206,7 @@ def check_ast_roundtrip(catalog: CatalogLike) -> list[str]:
             continue
         source = node.source_path or node.slug or node.url
         warnings.append(
-            f"{source}: frozen AST incompatible with Patitas { _patitas_version() }: {error}"
+            f"{source}: frozen AST incompatible with Patitas {_patitas_version()}: {error}"
         )
     return sorted(warnings)
 
@@ -321,9 +321,7 @@ def check_catalog_content(
     """Run checks whose results depend on the indexed catalog generation."""
     edition_strict = strict_edition_links or strict_views
     errors = check_broken_internal_links(catalog)
-    errors.extend(
-        check_unresolved_references(catalog, inventory_store=inventory_store)
-    )
+    errors.extend(check_unresolved_references(catalog, inventory_store=inventory_store))
     lint_errors, lint_warnings = check_content_lint(catalog)
     errors.extend(lint_errors)
     fm_errors, fm_warnings = check_front_matter(catalog, views=views)
@@ -497,8 +495,7 @@ def _page_links(node: DocNode) -> list[dict[str, object]]:
         from furatena.catalog.content_ir import collect_content_ir_urls
 
         links = [
-            {"href": link.href, "text": link.text, "line": link.line}
-            for link in content_ir.links
+            {"href": link.href, "text": link.text, "line": link.line} for link in content_ir.links
         ]
         markdown_hrefs = {
             normalized

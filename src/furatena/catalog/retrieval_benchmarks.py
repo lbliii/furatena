@@ -59,8 +59,7 @@ def run_retrieval_algorithm(
     if algorithm == "keyword":
         documents = catalog.ast_documents() if hasattr(catalog, "ast_documents") else None
         return tuple(
-            hit.node.node_id
-            for hit in search_nodes(nodes, query, limit=limit, documents=documents)
+            hit.node.node_id for hit in search_nodes(nodes, query, limit=limit, documents=documents)
         )
     if algorithm == "tfidf":
         ranked: list[str] = []
@@ -195,9 +194,7 @@ def _matches_filters(node: Any, filters: RetrievalFilters) -> bool:
         return False
     if filters.tag is not None and filters.tag not in node.tags:
         return False
-    return not (
-        filters.url_prefix is not None and not node.url.startswith(filters.url_prefix)
-    )
+    return not (filters.url_prefix is not None and not node.url.startswith(filters.url_prefix))
 
 
 def _quality_metrics(
@@ -210,9 +207,7 @@ def _quality_metrics(
     recalled = 0
     details: list[dict[str, Any]] = []
     for case in retrieval_cases:
-        relevant = {
-            target.node_id for target in (*case.targets, *case.acceptable_alternatives)
-        }
+        relevant = {target.node_id for target in (*case.targets, *case.acceptable_alternatives)}
         rank = next(
             (
                 index
@@ -356,8 +351,7 @@ def _deep_size(value: Any, seen: set[int] | None = None) -> int:
     size = sys.getsizeof(value)
     if isinstance(value, dict):
         return size + sum(
-            _deep_size(key, visited) + _deep_size(item, visited)
-            for key, item in value.items()
+            _deep_size(key, visited) + _deep_size(item, visited) for key, item in value.items()
         )
     if isinstance(value, (list, tuple, set, frozenset)):
         return size + sum(_deep_size(item, visited) for item in value)

@@ -162,13 +162,17 @@ def evaluate_retrieval_observations(
     if set(by_case) != expected_ids or len(by_case) != len(observations):
         missing = sorted(expected_ids - set(by_case))
         extra = sorted(set(by_case) - expected_ids)
-        raise ValueError(f"retrieval observations do not match dataset; missing={missing}, extra={extra}")
+        raise ValueError(
+            f"retrieval observations do not match dataset; missing={missing}, extra={extra}"
+        )
 
     results = tuple(_score_case(case, by_case[case.id]) for case in dataset.cases)
     metrics = {
         "overall": _metric_slice(results).to_dict(),
         "by_corpus": {
-            corpus.id: _metric_slice(tuple(item for item in results if item.corpus == corpus.id)).to_dict()
+            corpus.id: _metric_slice(
+                tuple(item for item in results if item.corpus == corpus.id)
+            ).to_dict()
             for corpus in dataset.corpora
         },
         "by_query_class": {
@@ -243,9 +247,7 @@ def _observe_cases(
             if case.result_policy == "excluded_public_included_trusted"
             else public_ids
         )
-        observations.append(
-            RetrievalObservation(case.id, public_ids, trusted_ids, stale_node_ids)
-        )
+        observations.append(RetrievalObservation(case.id, public_ids, trusted_ids, stale_node_ids))
     return tuple(observations)
 
 
@@ -311,9 +313,7 @@ def _stale_node_ids(catalog: Any) -> frozenset[str]:
 
 
 def _score_case(case: KnownAnswerCase, observed: RetrievalObservation) -> RetrievalCaseResult:
-    relevant = {
-        target.node_id for target in (*case.targets, *case.acceptable_alternatives)
-    }
+    relevant = {target.node_id for target in (*case.targets, *case.acceptable_alternatives)}
     ranked = (
         observed.trusted_node_ids
         if case.result_policy == "excluded_public_included_trusted"
@@ -347,9 +347,7 @@ def _metric_slice(results: Sequence[RetrievalCaseResult]) -> RetrievalMetricSlic
     retrieval = tuple(item for item in results if item.recalled_at_3 is not None)
     negative = tuple(item for item in results if item.no_result is not None)
     recall = (
-        sum(bool(item.recalled_at_3) for item in retrieval) / len(retrieval)
-        if retrieval
-        else None
+        sum(bool(item.recalled_at_3) for item in retrieval) / len(retrieval) if retrieval else None
     )
     mrr = (
         sum(1.0 / item.relevant_rank if item.relevant_rank else 0.0 for item in retrieval)
@@ -377,7 +375,10 @@ def _threshold_regressions(
     metrics: Mapping[str, Any],
     policy: Mapping[str, Any],
 ) -> tuple[str, ...]:
-    if policy.get("dataset_id") != dataset.dataset_id or policy.get("dataset_version") != dataset.version:
+    if (
+        policy.get("dataset_id") != dataset.dataset_id
+        or policy.get("dataset_version") != dataset.version
+    ):
         raise ValueError("retrieval threshold policy does not match the dataset identity")
     findings: list[str] = []
     _compare_slice(findings, "overall", metrics["overall"], policy.get("overall"))

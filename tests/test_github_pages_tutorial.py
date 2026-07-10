@@ -13,9 +13,7 @@ BASE_PATH = "/example-docs"
 SITE_URL = "https://example.github.io/example-docs"
 
 
-def test_tutorial_commands_build_and_verify_pages_artifact(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_tutorial_commands_build_and_verify_pages_artifact(tmp_path: Path, monkeypatch) -> None:
     app_root = tmp_path / "app"
     frozen = app_root / "frozen"
     public = app_root / "public"

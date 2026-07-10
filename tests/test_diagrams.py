@@ -24,7 +24,7 @@ class TestMermaidDiagrams:
         assert "code-block-wrapper" not in out
 
     def test_mermaid_fence_html_escapes_markup(self) -> None:
-        out = mermaid_fence_html('graph TD\n  A[<note>]')
+        out = mermaid_fence_html("graph TD\n  A[<note>]")
         assert "&lt;note&gt;" not in out
         assert "&lt;note>" in out
         assert "A --> B" in mermaid_fence_html("A --> B")

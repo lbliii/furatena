@@ -18,7 +18,12 @@ _JSON_OUTPUTS = (
     ("catalog", "/catalog.json", "Catalog graph", "application/json"),
     ("search", "/search.json", "Search index", "application/json"),
     ("tools", "/tools.json", "Agent tool manifest", "application/json"),
-    ("api-operations", "/catalog/api-operations.json", "API operation inventory", "application/json"),
+    (
+        "api-operations",
+        "/catalog/api-operations.json",
+        "API operation inventory",
+        "application/json",
+    ),
     ("meta", "/meta.json", "Metadata index", "application/json"),
     ("semantic", "/semantic.json", "Semantic search index", "application/json"),
     ("structure", "/structure.json", "Content structure index", "application/json"),
@@ -270,7 +275,9 @@ def _output(
     }
 
 
-def _source_fingerprints(catalog: Any, *, mount_status: dict[str, dict[str, Any]] | None) -> list[dict[str, Any]]:
+def _source_fingerprints(
+    catalog: Any, *, mount_status: dict[str, dict[str, Any]] | None
+) -> list[dict[str, Any]]:
     mounts = list(getattr(catalog, "mounts", ()))
     nodes = list(getattr(catalog, "nodes", ()))
     records: list[dict[str, Any]] = []
@@ -291,7 +298,8 @@ def _source_fingerprints(catalog: Any, *, mount_status: dict[str, dict[str, Any]
             {
                 "mount": mount.id,
                 "label": mount.label,
-                "provider": status.get("provider") or getattr(getattr(mount, "source", None), "kind", "filesystem"),
+                "provider": status.get("provider")
+                or getattr(getattr(mount, "source", None), "kind", "filesystem"),
                 "fingerprint": fingerprint,
                 "status": status.get("status") or "available",
                 "page_count": len(mount_nodes),
@@ -372,7 +380,10 @@ def _to_plain(value: Any) -> Any:
     if isinstance(value, Path):
         return value.as_posix()
     if isinstance(value, dict):
-        return {str(key): _to_plain(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+        return {
+            str(key): _to_plain(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
     if isinstance(value, (list, tuple, set, frozenset)):
         return [_to_plain(item) for item in value]
     return value

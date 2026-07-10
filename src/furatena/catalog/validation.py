@@ -45,9 +45,7 @@ class ValidationSnapshotService:
         self._template_env = template_env or (lambda: None)
         self._lock = RLock()
         self._content_results: dict[int, tuple[tuple[str, ...], tuple[str, ...]]] = {}
-        self._configuration_results: dict[
-            str, tuple[tuple[str, ...], tuple[str, ...]]
-        ] = {}
+        self._configuration_results: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {}
         self._snapshots: dict[tuple[int, str], ValidationSnapshot] = {}
 
     def snapshot(self, *, force: bool = False) -> ValidationSnapshot:
@@ -69,9 +67,7 @@ class ValidationSnapshotService:
                     generation == int(self.catalog.generation)
                     and fingerprint == self.configuration_fingerprint()
                 ):
-                    self._content_results = {
-                        generation: self._content_results[generation]
-                    }
+                    self._content_results = {generation: self._content_results[generation]}
                     self._configuration_results = {
                         fingerprint: self._configuration_results[fingerprint]
                     }

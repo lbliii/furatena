@@ -27,6 +27,7 @@ _CODE_BLOCK_RE = re.compile(
 )
 _FENCE_TITLE_RE = re.compile(r"""title=(["'])(.*?)\1""", re.IGNORECASE)
 
+
 def _sync_slug(key: str) -> str:
     slug = re.sub(r"[^\w-]", "-", key.lower()).strip("-")
     return slug or "sync"

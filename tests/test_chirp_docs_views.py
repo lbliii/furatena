@@ -90,12 +90,16 @@ class TestViewResolution:
         )
         assert node.view_kind == "collection"
 
-    def test_section_root_doc_resolves_to_doc_list(self, views: ViewRegistry, catalog: DocCatalog) -> None:
+    def test_section_root_doc_resolves_to_doc_list(
+        self, views: ViewRegistry, catalog: DocCatalog
+    ) -> None:
         node = catalog.get_by_slug("docs/tutorials")
         assert node is not None
         assert views.resolve(node, catalog) == "views/doc_list.html"
 
-    def test_compose_only_for_collection_kind(self, views: ViewRegistry, catalog: DocCatalog) -> None:
+    def test_compose_only_for_collection_kind(
+        self, views: ViewRegistry, catalog: DocCatalog
+    ) -> None:
         doc = catalog.get_by_slug("docs/get-started/installation")
         collection = catalog.get_by_slug("docs/get-started/read-through")
         assert doc is not None and collection is not None

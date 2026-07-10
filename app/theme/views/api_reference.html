@@ -164,7 +164,7 @@
     </section>
     {% end %}
 
-    {{ node | doc_body | boost_doc_links | safe }}
+    {{ node | doc_body | boost_doc_links }}
 
     {% if operation.external_docs %}
     <section aria-labelledby="api-related-docs">
@@ -179,7 +179,7 @@
   </div>
   {% else %}
   <div class="docs-content chirp-theme-docs-layout__content fura-api-reference__index">
-    {{ node | doc_body | boost_doc_links | safe }}
+    {{ node | doc_body | boost_doc_links }}
   </div>
   {% end %}
 

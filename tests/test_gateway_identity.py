@@ -39,9 +39,7 @@ def test_oidc_style_claims_map_to_subject_and_catalog_identity() -> None:
     )
 
     assert identity.subject.actor == "user-123"
-    assert identity.subject.roles == frozenset(
-        {AccessRole.READER, AccessRole.PUBLISHER}
-    )
+    assert identity.subject.roles == frozenset({AccessRole.READER, AccessRole.PUBLISHER})
     assert identity.subject.teams == frozenset({"docs", "platform"})
     assert (identity.tenant, identity.workspace, identity.site) == (
         "acme",
@@ -96,9 +94,7 @@ def test_transport_trust_is_not_accepted_from_spoofable_claims() -> None:
         )
 
     assert caught.value.code == "untrusted_transport"
-    assert caught.value.to_diagnostic()["rule_id"] == (
-        "fura.identity.untrusted_transport"
-    )
+    assert caught.value.to_diagnostic()["rule_id"] == ("fura.identity.untrusted_transport")
 
 
 @pytest.mark.parametrize(
