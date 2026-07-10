@@ -88,13 +88,9 @@ def _sync_git_source_locked(
             )
         else:
             _run_git("clone", config.repo, str(staging), mount_id=mount_id)
-        _run_git(
-            "-C", str(staging), "fetch", "--all", "--tags", "--prune", mount_id=mount_id
-        )
+        _run_git("-C", str(staging), "fetch", "--all", "--tags", "--prune", mount_id=mount_id)
         _run_git("-C", str(staging), "checkout", "--force", config.ref, mount_id=mount_id)
-        resolved_ref = _run_git(
-            "-C", str(staging), "rev-parse", "HEAD", mount_id=mount_id
-        ).strip()
+        resolved_ref = _run_git("-C", str(staging), "rev-parse", "HEAD", mount_id=mount_id).strip()
         staged_content = (staging / config.path).resolve() if config.path else staging.resolve()
         if not staged_content.is_dir():
             raise SourceSyncError(

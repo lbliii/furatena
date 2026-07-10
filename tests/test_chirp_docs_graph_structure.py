@@ -251,9 +251,7 @@ class TestStructureIndex:
             (),
             {
                 "active_channel": "latest",
-                "nodes": (
-                    _node(slug="docs/page", url="/docs/page/", content_ir=content_ir),
-                ),
+                "nodes": (_node(slug="docs/page", url="/docs/page/", content_ir=content_ir),),
                 "backlinks_for": lambda _self, _node: [],
                 "graph_edges": lambda _self: [],
                 "namespaces": lambda _self: [],

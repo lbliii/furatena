@@ -132,11 +132,18 @@ class TestDevelopExports:
             assert resp.status == 200
             return resp.text
 
-        payload = json.loads(asyncio.run(_fetch("/deployment-profiles.json")).split("<script", 1)[0])
+        payload = json.loads(
+            asyncio.run(_fetch("/deployment-profiles.json")).split("<script", 1)[0]
+        )
         profile_ids = {item["id"] for item in payload["profiles"]}
         assert payload["schema_version"] == 1
         assert payload["default_profile"] == "local-author"
-        assert {"local-author", "static-pages", "cloud-live", "self-hosted-enterprise"} <= profile_ids
+        assert {
+            "local-author",
+            "static-pages",
+            "cloud-live",
+            "self-hosted-enterprise",
+        } <= profile_ids
         assert payload["agent_modes"]["local_mcp"]
         assert payload["links"]["docs"].endswith("/develop/deployment-profiles/")
         local = next(item for item in payload["profiles"] if item["id"] == "local-author")

@@ -15,9 +15,7 @@ _QUERY_CLASSES = frozenset(
 )
 _SURFACES = frozenset({"browser", "dcp", "sidecar", "mcp"})
 _ACCESS_LEVELS = frozenset({"public", "reader", "contributor", "publisher", "admin"})
-_RESULT_POLICIES = frozenset(
-    {"any_target", "no_results", "excluded_public_included_trusted"}
-)
+_RESULT_POLICIES = frozenset({"any_target", "no_results", "excluded_public_included_trusted"})
 
 
 class RetrievalDatasetError(ValueError):
@@ -146,9 +144,7 @@ def validate_known_answer_dataset(dataset: KnownAnswerDataset) -> tuple[str, ...
             findings.append(f"{prefix} requires at least one target")
         if case.result_policy == "no_results" and (case.targets or case.acceptable_alternatives):
             findings.append(f"{prefix} no_results policy cannot declare targets")
-        target_ids = [
-            target.node_id for target in (*case.targets, *case.acceptable_alternatives)
-        ]
+        target_ids = [target.node_id for target in (*case.targets, *case.acceptable_alternatives)]
         _append_duplicate_findings(findings, f"{prefix} target", target_ids)
         for target in (*case.targets, *case.acceptable_alternatives):
             if not target.node_id or not target.url or not target.source_path:
@@ -207,8 +203,7 @@ def validate_dataset_against_catalog(
                 findings.append(f"case {case.id} target URL drifted: {target.node_id}")
             source_path = str(getattr(node, "source_path", "") or "")
             if source_path and not (
-                source_path.endswith(target.source_path)
-                or target.source_path.endswith(source_path)
+                source_path.endswith(target.source_path) or target.source_path.endswith(source_path)
             ):
                 findings.append(f"case {case.id} target source drifted: {target.node_id}")
             content_ir = getattr(node, "content_ir", None)

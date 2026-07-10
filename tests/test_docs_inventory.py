@@ -49,7 +49,9 @@ def test_inventory_collects_every_public_surface_kind(inventory_docs: DocsApp) -
     assert "mcp_resource:fura://catalog/graph" in by_id
     assert "sidecar:/catalog.json" in by_id
     assert "deployment_profile:static-pages" in by_id
-    assert all(not surface.name.endswith(".") for surface in surfaces if surface.kind == "diagnostic")
+    assert all(
+        not surface.name.endswith(".") for surface in surfaces if surface.kind == "diagnostic"
+    )
     assert str(REPO) not in json.dumps([surface.contract for surface in surfaces])
 
 

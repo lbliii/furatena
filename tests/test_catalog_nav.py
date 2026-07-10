@@ -60,7 +60,7 @@ class TestParseCatalogNav:
                     "pages": ["operations/deploy"],
                     "href": "/docs/operations/deploy/",
                 },
-            ]
+            ],
         }
         config = parse_catalog_nav(raw)
         assert config.sections == (
@@ -120,7 +120,9 @@ class TestResolveDocSections:
         }
         indexes = {
             "docs/about": _node(slug="docs/about", title="About", section="about", weight=90),
-            "docs/concepts": _node(slug="docs/concepts", title="Concepts", section="concepts", weight=20),
+            "docs/concepts": _node(
+                slug="docs/concepts", title="Concepts", section="concepts", weight=20
+            ),
             "docs/authoring": _node(
                 slug="docs/authoring",
                 title="Authoring",

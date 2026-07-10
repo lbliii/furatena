@@ -17,7 +17,9 @@ class TestGoogleFontsCSP:
         extended = extend_csp_for_google_fonts(_SAMPLE_CSP)
         assert "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com" in extended
         assert "font-src 'self' https://fonts.gstatic.com data:" in extended
-        assert "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com" in extended
+        assert (
+            "connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com" in extended
+        )
 
     def test_idempotent_when_already_extended(self) -> None:
         once = extend_csp_for_google_fonts(_SAMPLE_CSP)

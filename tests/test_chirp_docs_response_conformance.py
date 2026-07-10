@@ -61,16 +61,14 @@ _AUTHOR_DASHBOARD_ROUTE_ID = "route:GET:%2Fdocs%2F_author%2Fdashboard"
 _AUTHOR_STATUS_ROUTE_ID = "route:GET:%2Fdocs%2F_author%2Fpage.json"
 
 _DOCUMENT_PAGE_ROOT_TRANSITION = (
-    "transition:template_block:template%3Aviews%252Fdoc.html:"
-    "block%3Aviews%252Fdoc.html%3Apage_root"
+    "transition:template_block:template%3Aviews%252Fdoc.html:block%3Aviews%252Fdoc.html%3Apage_root"
 )
 _DOCUMENT_PAGE_CONTENT_TRANSITION = (
     "transition:template_block:template%3Aviews%252Fdoc.html:"
     "block%3Aviews%252Fdoc.html%3Apage_content"
 )
 _SEARCH_PAGE_ROOT_TRANSITION = (
-    "transition:template_block:template%3Asearch.html:"
-    "block%3Asearch.html%3Apage_root"
+    "transition:template_block:template%3Asearch.html:block%3Asearch.html%3Apage_root"
 )
 _ERROR_SUGGEST_TRANSITION = (
     "transition:template_block:template%3Apartials%252Ferror_suggest_panel.html:"
@@ -235,9 +233,7 @@ def test_public_route_smoke_reports_compiled_transition_evidence(
     search_full = transition_observation(responses[(_SEARCH_PATH, "full_page")])
     search_boosted = transition_observation(responses[(_SEARCH_PATH, "boosted")])
     search_targeted = transition_observation(responses[(_SEARCH_PATH, "fragment")])
-    error_targeted = transition_observation(
-        responses[(_ERROR_SUGGEST_PATH, "fragment")]
-    )
+    error_targeted = transition_observation(responses[(_ERROR_SUGGEST_PATH, "fragment")])
 
     assert document_full.route_id == _DOCUMENT_ROUTE_ID
     assert document_full.compiled_transition_ids == (_DOCUMENT_PAGE_ROOT_TRANSITION,)
@@ -245,9 +241,7 @@ def test_public_route_smoke_reports_compiled_transition_evidence(
     assert document_boosted.request_mode == "boosted"
     assert document_boosted.mode_tags == ("boosted", "oob")
     assert document_targeted.route_id == _DOCUMENT_ROUTE_ID
-    assert document_targeted.compiled_transition_ids == (
-        _DOCUMENT_PAGE_CONTENT_TRANSITION,
-    )
+    assert document_targeted.compiled_transition_ids == (_DOCUMENT_PAGE_CONTENT_TRANSITION,)
 
     assert search_full.route_id == _SEARCH_ROUTE_ID
     assert search_full.compiled_transition_ids == (_SEARCH_PAGE_ROOT_TRANSITION,)
@@ -275,9 +269,7 @@ def test_public_route_smoke_reports_compiled_transition_evidence(
 def test_author_route_smoke_reports_compiled_transition_evidence(
     author_docs_client: TestClient,
 ) -> None:
-    responses = asyncio.run(
-        assert_route_smoke(author_docs_client, _AUTHOR_ROUTE_SMOKE_CASES)
-    )
+    responses = asyncio.run(assert_route_smoke(author_docs_client, _AUTHOR_ROUTE_SMOKE_CASES))
 
     dashboard = transition_observation(responses[(_AUTHOR_DASHBOARD_PATH, "full_page")])
     status = transition_observation(responses[(_AUTHOR_STATUS_PATH, "fragment")])
@@ -455,9 +447,7 @@ def test_content_pages_support_http_conditional_requests(docs_client: TestClient
     assert html_cached.header("Last-Modified") is None
     assert html_cached.header("ETag") is None
 
-    initial_csp_nonce = re.search(
-        r"'nonce-([^']+)'", html.header("Content-Security-Policy") or ""
-    )
+    initial_csp_nonce = re.search(r"'nonce-([^']+)'", html.header("Content-Security-Policy") or "")
     refreshed_csp_nonce = re.search(
         r"'nonce-([^']+)'", html_cached.header("Content-Security-Policy") or ""
     )

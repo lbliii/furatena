@@ -11,7 +11,7 @@ from patitas.nodes import Directive
 
 from furatena.catalog.directives.html import GAP_CHIRPUI, render_inline_text, rewrite_href
 from furatena.catalog.directives.icons import render_icon_html
-from furatena.catalog.directives.kida_render import as_markup, render_directive
+from furatena.catalog.directives.kida_render import render_directive, trusted_renderer_html
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -71,7 +71,7 @@ class CardsHandler:
                 "card_grid",
                 cols=opts.columns,
                 gap=GAP_CHIRPUI.get(opts.gap, "md"),
-                body=rendered_children,
+                body=trusted_renderer_html(rendered_children),
                 extra_class=opts.class_ or "",
             )
         )
@@ -104,12 +104,8 @@ class CardHandler:
 
     def render(self, node: Directive[Any], rendered_children: str, sb: StringBuilder) -> None:
         opts = node.options
-        title = as_markup(render_inline_text(node.title or "Card"))
-        subtitle = (
-            as_markup(render_inline_text(opts.description))
-            if opts.description
-            else ""
-        )
+        title = render_inline_text(node.title or "Card")
+        subtitle = render_inline_text(opts.description) if opts.description else ""
         if opts.link:
             sb.append(
                 render_directive(
@@ -119,7 +115,7 @@ class CardHandler:
                     subtitle=subtitle,
                     badge_text=opts.badge,
                     icon_html=render_icon_html(opts.icon),
-                    body=rendered_children,
+                    body=trusted_renderer_html(rendered_children),
                     extra_class=opts.class_ or "",
                 )
             )
@@ -130,7 +126,7 @@ class CardHandler:
                     title=title,
                     subtitle=subtitle,
                     icon_html=render_icon_html(opts.icon),
-                    body=rendered_children,
+                    body=trusted_renderer_html(rendered_children),
                     extra_class=opts.class_ or "",
                 )
             )

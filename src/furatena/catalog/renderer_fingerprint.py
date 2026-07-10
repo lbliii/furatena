@@ -85,8 +85,7 @@ def read_renderer_fingerprint(frozen_dir: Path) -> str | None:
     if deployment is not None:
         statuses = deployment.sync.get("mount_status")
         if isinstance(statuses, list) and any(
-            isinstance(status, dict) and status.get("status") == "failed"
-            for status in statuses
+            isinstance(status, dict) and status.get("status") == "failed" for status in statuses
         ):
             manifest_value = None
     path = frozen_dir / "renderer.fingerprint"

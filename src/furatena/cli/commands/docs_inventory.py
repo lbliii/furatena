@@ -69,7 +69,9 @@ def configure(sub: Any) -> None:
     )
     parser.add_argument("--docs-root", action="append", default=[], help="Documentation root")
     parser.add_argument("--baseline", default=None, help="Prior JSON inventory for stale detection")
-    parser.add_argument("--output", default=None, help="Write the plain inventory JSON to this path")
+    parser.add_argument(
+        "--output", default=None, help="Write the plain inventory JSON to this path"
+    )
     parser.add_argument("--json", action="store_true", help="Emit the standard command result JSON")
     parser.set_defaults(handler=_run_docs_inventory)
 

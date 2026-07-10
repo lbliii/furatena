@@ -56,9 +56,7 @@ def test_every_existing_docs_url_has_exactly_one_journey(catalog) -> None:
         if url.startswith("/docs/")
     )
     public_docs = {
-        node.url
-        for node in catalog.nodes
-        if node.url.startswith("/docs/") and node.url != "/docs/"
+        node.url for node in catalog.nodes if node.url.startswith("/docs/") and node.url != "/docs/"
     }
 
     assert set(ownership) == public_docs

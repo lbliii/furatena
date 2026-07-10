@@ -14,9 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TAG_COMPONENT = r"(?:0|[1-9]\d*)"
-TAG_PATTERN = re.compile(
-    rf"^v(?P<version>{TAG_COMPONENT}\.{TAG_COMPONENT}\.{TAG_COMPONENT})$"
-)
+TAG_PATTERN = re.compile(rf"^v(?P<version>{TAG_COMPONENT}\.{TAG_COMPONENT}\.{TAG_COMPONENT})$")
 
 
 def project_version(root: Path = ROOT) -> str:

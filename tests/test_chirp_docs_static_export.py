@@ -239,9 +239,7 @@ class TestMiniStaticExport:
         assert "static-pages" in profile_ids
         assert profiles["links"]["self"] == "http://127.0.0.1:8080/deployment-profiles.json"
         channels = json.loads((out / "channels.json").read_text(encoding="utf-8"))
-        deployment = json.loads(
-            (out / "export.manifest.json").read_text(encoding="utf-8")
-        )
+        deployment = json.loads((out / "export.manifest.json").read_text(encoding="utf-8"))
         channel_ids = {item["id"] for item in channels["channels"]}
         assert {"static", "agent", "pdf"} <= channel_ids
         assert deployment["schema_version"] == 3

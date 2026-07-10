@@ -384,9 +384,7 @@ def _prepare_body(
         return _finalize_static_html(body, base_path)
     if "json" in content_type:
         return prefix_root_paths(body, base_path)
-    if (
-        "text/plain" in content_type and rel.suffix == ".txt"
-    ) or "text/markdown" in content_type:
+    if ("text/plain" in content_type and rel.suffix == ".txt") or "text/markdown" in content_type:
         return prefix_markdown_links(body, base_path)
     return body
 
@@ -829,7 +827,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                 if url_path.endswith("/index.md"):
                     doc_path = f"{url_path[: -len('index.md')].rstrip('/')}/"
                 else:
-                    doc_path = f"{url_path[:-len('.md')].rstrip('/')}/"
+                    doc_path = f"{url_path[: -len('.md')].rstrip('/')}/"
                 node = docs_app.catalog.get_path(doc_path)
                 fp = (
                     _node_source_fingerprint(

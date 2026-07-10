@@ -31,7 +31,9 @@ def build_backlinks(nodes: list[DocNode], catalog=None) -> dict[str, list[dict[s
     return build_federated_backlinks(nodes, catalog=catalog)
 
 
-def build_federated_backlinks(nodes: list[DocNode], catalog=None) -> dict[str, list[dict[str, str]]]:
+def build_federated_backlinks(
+    nodes: list[DocNode], catalog=None
+) -> dict[str, list[dict[str, str]]]:
     """Map target URL → referring pages across federated mounts (same edition)."""
     by_url = {node.url: node for node in nodes}
     incoming: dict[str, list[dict[str, str]]] = {}

@@ -23,8 +23,7 @@ def _require_docutils():
         from docutils.utils import new_document
     except ImportError as exc:  # pragma: no cover - optional dep
         raise ImportError(
-            "docutils is required for .rst ingestion. "
-            "Install with: pip install 'furatena[formats]'"
+            "docutils is required for .rst ingestion. Install with: pip install 'furatena[formats]'"
         ) from exc
     return nodes, publish_parts, get_default_settings, Parser, new_document
 
@@ -174,8 +173,18 @@ class RstAdapter:
         document: object | None = None,
         mount: str | None = None,
     ) -> AdaptedContent:
-        _ = (stubs, render_markdown, get_backlinks, content_root, include_stack, include_depth, mount)
-        content_ir = document if isinstance(document, ContentIR) else extract_rst_content_ir(source.body)
+        _ = (
+            stubs,
+            render_markdown,
+            get_backlinks,
+            content_root,
+            include_stack,
+            include_depth,
+            mount,
+        )
+        content_ir = (
+            document if isinstance(document, ContentIR) else extract_rst_content_ir(source.body)
+        )
         body_html = render_rst_html(source.body)
         toc = content_ir_to_toc(content_ir)
         body_text = rst_body_text(source.body)

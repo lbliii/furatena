@@ -77,9 +77,7 @@ def test_health_and_readiness_are_distinct_http_contracts(tmp_path: Path) -> Non
 
     assert degraded_status == 503
     assert degraded["status"] == "not_ready"
-    assert degraded["remediation"] == [
-        "Restore source access or repair the provider sync error."
-    ]
+    assert degraded["remediation"] == ["Restore source access or repair the provider sync error."]
     assert health_after_status == 200
     assert health_after["status"] == "healthy"
 

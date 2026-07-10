@@ -10,7 +10,7 @@ from patitas.directives.options import DirectiveOptions
 from patitas.nodes import Directive
 
 from furatena.catalog.directives.html import render_inline_cell, render_inline_text
-from furatena.catalog.directives.kida_render import as_markup, render_directive
+from furatena.catalog.directives.kida_render import render_directive
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -74,9 +74,7 @@ class ListTableHandler:
             except ValueError:
                 widths = []
 
-        rendered_rows = [
-            [as_markup(render_inline_cell(cell)) for cell in row] for row in rows
-        ]
+        rendered_rows = [[render_inline_cell(cell) for cell in row] for row in rows]
         headers = rendered_rows[0] if header_rows > 0 else None
         body_rows = rendered_rows[header_rows:] if header_rows > 0 else rendered_rows
 
@@ -86,7 +84,7 @@ class ListTableHandler:
                 headers=headers,
                 body_rows=body_rows,
                 widths=widths or None,
-                caption=as_markup(render_inline_text(node.title)) if node.title else "",
+                caption=render_inline_text(node.title) if node.title else "",
                 extra_class=opts.css_class or "",
             )
         )

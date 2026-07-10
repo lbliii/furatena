@@ -146,7 +146,7 @@ class _ThreadWorkerServer:
                 status, _ = self.get("/readyz")
                 if status == 200:
                     return self
-            except (ConnectionError, OSError):
+            except ConnectionError, OSError:
                 pass
             time.sleep(0.01)
         self.server.shutdown()
@@ -209,10 +209,7 @@ def test_thread_worker_reload_hands_off_listener_without_failed_requests() -> No
     assert not failures
     assert len(observations) >= 5
     assert all(status == 200 for _, status, _ in observations)
-    assert all(
-        earlier < later
-        for (earlier, _, _), (later, _, _) in pairwise(observations)
-    )
+    assert all(earlier < later for (earlier, _, _), (later, _, _) in pairwise(observations))
     assert any(generation > initial_generation for _, _, generation in observations)
 
 
@@ -224,7 +221,9 @@ def test_thread_worker_shutdown_returns_bounded_draining_503() -> None:
     runtime = _ThreadWorkerServer()
     runtime.__enter__()
     try:
-        slow = threading.Thread(target=lambda: slow_result.append(runtime.get("/slow")), daemon=True)
+        slow = threading.Thread(
+            target=lambda: slow_result.append(runtime.get("/slow")), daemon=True
+        )
         slow.start()
         assert _SLOW_STARTED.wait(timeout=2.0)
         runtime.server.shutdown()
@@ -235,7 +234,7 @@ def test_thread_worker_shutdown_returns_bounded_draining_503() -> None:
                 observed.append((time.time_ns(), status, body))
                 if status == 503:
                     break
-            except (ConnectionError, OSError):
+            except ConnectionError, OSError:
                 pass
             time.sleep(0.005)
         slow.join(timeout=2.0)

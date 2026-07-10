@@ -532,7 +532,7 @@ class DocsApp:
             if path.endswith("/index.md"):
                 doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
             else:
-                doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+                doc_path = f"{path[: -len('.md')].rstrip('/')}/"
             match = self._resolve_page_from_path(doc_path, requested_lang=requested_lang)
             if not self.catalog.can_access_node(
                 match.node,
@@ -543,9 +543,7 @@ class DocsApp:
             return self._markdown_node_response(match.node)
         match = self._resolve_page_from_path(path, requested_lang=requested_lang)
         subject = (
-            self._browser_author_subject()
-            if self._is_author_mode()
-            else AccessSubject.anonymous()
+            self._browser_author_subject() if self._is_author_mode() else AccessSubject.anonymous()
         )
         if not self.catalog.can_access_node(
             match.node,
@@ -725,9 +723,7 @@ class DocsApp:
             status=403,
         )
 
-    def _author_page_chrome(
-        self, node, *, force_validation: bool = False
-    ) -> dict[str, Any]:
+    def _author_page_chrome(self, node, *, force_validation: bool = False) -> dict[str, Any]:
         source = self._author_source_info(node)
         validation = self._author_validation_status(node, force=force_validation)
         visibility = visibility_state(getattr(node, "meta", {}) or {})
@@ -790,9 +786,7 @@ class DocsApp:
             "partials/author_chrome.html",
             "author_chrome",
             status=status,
-            author_chrome=self._author_page_chrome(
-                node, force_validation=force_validation
-            ),
+            author_chrome=self._author_page_chrome(node, force_validation=force_validation),
         )
 
     def _author_dashboard_context(self, request: Request) -> dict[str, Any]:
@@ -847,7 +841,7 @@ class DocsApp:
         elif path.endswith("/index.md"):
             doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
         elif path.endswith(".md"):
-            doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+            doc_path = f"{path[: -len('.md')].rstrip('/')}/"
         elif path.endswith("/index.txt"):
             doc_path = f"{path[: -len('index.txt')].rstrip('/')}/"
         elif "." not in path.rsplit("/", 1)[-1]:
@@ -869,9 +863,7 @@ class DocsApp:
             return source.stat().st_mtime
         return self._author_indexed_mtime(match.node, source)
 
-    def _author_validation_status(
-        self, node, *, force: bool = False
-    ) -> dict[str, Any]:
+    def _author_validation_status(self, node, *, force: bool = False) -> dict[str, Any]:
         snapshot = self.validation.snapshot(force=force)
         source = str(getattr(node, "source_path", "") or "")
         page_errors = _messages_for_source(snapshot.errors, source)

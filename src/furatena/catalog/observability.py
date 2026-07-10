@@ -211,7 +211,9 @@ def _otel_attributes(event: Mapping[str, Any]) -> dict[str, Any]:
     }
     for key, value in (event.get("attributes") or {}).items():
         name = f"furatena.{key}"
-        attributes[name] = value if isinstance(value, bool | int | float | str) else json.dumps(value)
+        attributes[name] = (
+            value if isinstance(value, bool | int | float | str) else json.dumps(value)
+        )
     return attributes
 
 

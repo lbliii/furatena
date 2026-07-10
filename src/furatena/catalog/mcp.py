@@ -317,9 +317,7 @@ class FuraMCPServer:
                     },
                     "required": ["query"],
                 },
-                "outputSchema": _object_schema(
-                    "query", "ranking", "filters", "count", "results"
-                ),
+                "outputSchema": _object_schema("query", "ranking", "filters", "count", "results"),
             },
             {
                 "name": "retrieve_node",
@@ -787,13 +785,10 @@ class FuraMCPServer:
         duration_ms: float | None = None,
     ) -> None:
         audit_payload = payload.get("audit")
-        operation_id = (
-            _optional_str(payload.get("operation_id"))
-            or (
-                _optional_str(audit_payload.get("operation_id"))
-                if isinstance(audit_payload, dict)
-                else None
-            )
+        operation_id = _optional_str(payload.get("operation_id")) or (
+            _optional_str(audit_payload.get("operation_id"))
+            if isinstance(audit_payload, dict)
+            else None
         )
         self.audit_store.append(
             {

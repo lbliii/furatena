@@ -46,8 +46,7 @@ def _render_tags(tags: list[str]) -> str:
     if not tags:
         return ""
     chips = "".join(
-        f'<span class="chirp-theme-directive-glossary__tag">{escape(tag)}</span>'
-        for tag in tags
+        f'<span class="chirp-theme-directive-glossary__tag">{escape(tag)}</span>' for tag in tags
     )
     return f'<div class="chirp-theme-directive-glossary__tags">{chips}</div>'
 

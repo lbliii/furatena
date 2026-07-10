@@ -39,7 +39,10 @@ class EmbeddingIndex:
         self._build()
 
     def _build(self) -> None:
-        tokenized = [self._tokens(chunk.text + " " + chunk.title + " " + chunk.heading) for chunk in self.chunks]
+        tokenized = [
+            self._tokens(chunk.text + " " + chunk.title + " " + chunk.heading)
+            for chunk in self.chunks
+        ]
         doc_count = max(len(tokenized), 1)
         df: Counter[str] = Counter()
         for tokens in tokenized:

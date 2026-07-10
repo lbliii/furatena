@@ -131,11 +131,7 @@ def resolve_doc_sections(
             continue
         index_slug = _section_index_slug(slug_prefix, section_id)
         index_node = get_index_node(index_slug)
-        label = (
-            index_node.title
-            if index_node is not None
-            else section_id.replace("-", " ").title()
-        )
+        label = index_node.title if index_node is not None else section_id.replace("-", " ").title()
         sort_weight = (
             float(index_node.weight)
             if index_node is not None
@@ -196,7 +192,9 @@ def resolve_doc_sections(
         icon = (
             override.icon
             if override and override.icon
-            else base.icon if base is not None else _DEFAULT_SECTION_ICONS.get(section_id)
+            else base.icon
+            if base is not None
+            else _DEFAULT_SECTION_ICONS.get(section_id)
         )
         mark = (
             override.mark
@@ -244,8 +242,4 @@ def _node_icon(node: DocNode | None) -> str | None:
 def _string_tuple(value: object) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
-    return tuple(
-        text
-        for item in value
-        if (text := str(item).strip())
-    )
+    return tuple(text for item in value if (text := str(item).strip()))

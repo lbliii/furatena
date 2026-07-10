@@ -131,7 +131,9 @@ class TestDevReloadWiring:
         dirs = process_reload_dirs(REPO)
         assert dirs == ()
 
-    def test_process_reload_dirs_include_src_when_env_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_process_reload_dirs_include_src_when_env_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setenv("FURA_RELOAD_SRC", "1")
         dirs = process_reload_dirs(REPO)
         assert (REPO / "src" / "furatena").resolve().as_posix() in dirs

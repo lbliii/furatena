@@ -129,7 +129,9 @@ def content_ir_to_toc(content_ir: ContentIR) -> tuple[TocEntry, ...]:
     )
 
 
-def content_ir_record(content_ir: ContentIR | None, *, schema_version: int = 2) -> dict[str, Any] | None:
+def content_ir_record(
+    content_ir: ContentIR | None, *, schema_version: int = 2
+) -> dict[str, Any] | None:
     """JSON-serializable summary for catalog export."""
     if content_ir is None:
         return None
@@ -156,25 +158,15 @@ def content_ir_record(content_ir: ContentIR | None, *, schema_version: int = 2) 
                 "href": link.href,
                 "text": link.text,
                 "line": link.line,
-                **(
-                    {"mount": link.mount}
-                    if schema_version >= 3 and link.mount
-                    else {}
-                ),
-                **(
-                    {"domain": link.domain}
-                    if schema_version >= 3 and link.domain
-                    else {}
-                ),
+                **({"mount": link.mount} if schema_version >= 3 and link.mount else {}),
+                **({"domain": link.domain} if schema_version >= 3 and link.domain else {}),
                 **(
                     {"inventory_id": link.inventory_id}
                     if schema_version >= 3 and link.inventory_id
                     else {}
                 ),
                 **(
-                    {"resolved": link.resolved}
-                    if schema_version >= 3 and not link.resolved
-                    else {}
+                    {"resolved": link.resolved} if schema_version >= 3 and not link.resolved else {}
                 ),
             }
             for link in content_ir.links
