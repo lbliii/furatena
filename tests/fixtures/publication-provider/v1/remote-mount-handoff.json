@@ -1,0 +1,8 @@
+{
+  "fixture_version": 1,
+  "scenario": "remote-mount-handoff",
+  "profile": "external",
+  "provider_operations": ["prepare", "reconcile"],
+  "source_repository_differs_from_target": true,
+  "expected_outcome": "handed_off"
+}

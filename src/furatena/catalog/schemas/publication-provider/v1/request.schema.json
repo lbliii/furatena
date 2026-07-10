@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-provider/v1/request.schema.json",
+  "title": "Furatena publication change request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "request_id", "request_digest", "change_id", "profile",
+    "profile_digest", "operation", "plan_id", "plan_digest", "changeset_digest",
+    "approved_paths", "path_changes", "base_source_revision", "resulting_source_revision",
+    "provider_id", "repository_id", "target_repository_id", "repository_base_revision",
+    "branch_name", "review_target", "external_target", "attribution", "actor", "dry_run",
+    "idempotency_key", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication-provider.request"},
+    "request_id": {"type": "string", "pattern": "^provider-request-[0-9a-f]{24}$"},
+    "request_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "change_id": {"type": "string", "pattern": "^change-[0-9a-f]{24}$"},
+    "profile": {"$ref": "common.schema.json#/$defs/profile"},
+    "profile_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "operation": {"$ref": "common.schema.json#/$defs/operation"},
+    "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{24}$"},
+    "plan_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "changeset_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "approved_paths": {
+      "allOf": [{"$ref": "common.schema.json#/$defs/stringSet"}, {"minItems": 1}]
+    },
+    "path_changes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "common.schema.json#/$defs/pathChange"}
+    },
+    "base_source_revision": {"$ref": "common.schema.json#/$defs/digest"},
+    "resulting_source_revision": {"$ref": "common.schema.json#/$defs/digest"},
+    "provider_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "repository_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "target_repository_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "repository_base_revision": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "branch_name": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "review_target": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "external_target": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "attribution": {"$ref": "common.schema.json#/$defs/attribution"},
+    "actor": {"$ref": "common.schema.json#/$defs/actor"},
+    "dry_run": {"type": "boolean"},
+    "idempotency_key": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "extensions": {"type": "object"}
+  }
+}

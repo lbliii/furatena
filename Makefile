@@ -140,6 +140,7 @@ ci-fast: format-check
 		src/furatena/catalog/source_sync_state.py \
 		src/furatena/catalog/operation_lease.py \
 		src/furatena/catalog/atomic_directory.py \
+		src/furatena/catalog/publication_provider.py \
 		src/furatena/catalog/publication_contracts.py \
 		src/furatena/catalog/publication_state.py \
 		src/furatena/catalog/author_benchmarks.py \
@@ -168,6 +169,8 @@ ci-fast: format-check
 		tests/test_observability.py \
 		tests/test_source_sync_state.py \
 		tests/test_operation_coordination.py \
+		tests/test_publication_provider_contracts.py \
+		tests/test_publication_provider_schemas.py \
 		tests/test_publication_contracts.py \
 		tests/test_publication_state.py \
 		tests/test_publication_schemas.py \
