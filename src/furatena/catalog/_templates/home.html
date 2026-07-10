@@ -14,7 +14,7 @@
 <span class="fura-badge">Furatena App · {{ page_count }} pages loaded at startup</span>
 
 <article class="fura-body">
-  {{ node | doc_body | boost_doc_links | safe }}
+  {{ node | doc_body | boost_doc_links }}
 </article>
 
 {% call grid(cols=2, gap="md") %}

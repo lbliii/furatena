@@ -11,7 +11,7 @@ from patitas.directives.options import DirectiveOptions
 from patitas.nodes import Directive
 
 from furatena.catalog.context import get_render_context
-from furatena.catalog.directives.kida_render import render_directive
+from furatena.catalog.directives.kida_render import render_directive, trusted_renderer_html
 from furatena.catalog.files import read_bounded_text, resolve_content_path, slice_lines
 from furatena.catalog.highlight import highlight_code_block
 
@@ -111,7 +111,7 @@ class LiteralIncludeHandler:
             render_directive(
                 "literalinclude",
                 caption=opts.caption,
-                body=panel,
+                body=trusted_renderer_html(panel),
             )
         )
 

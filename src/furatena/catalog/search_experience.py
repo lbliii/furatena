@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from kida.template import Markup
+
 from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.safe_html import trusted_escaped_markup
 from furatena.catalog.semantic import HybridHit, HybridSearchResult, hybrid_search
 
 if TYPE_CHECKING:
@@ -1001,13 +1004,13 @@ def group_search_hits(hits: list[HybridHit]) -> list[SearchHitGroup]:
     return [SearchHitGroup(label=label, hits=tuple(groups[label])) for label in order]
 
 
-def highlight_search_terms(text: str, query: str) -> str:
+def highlight_search_terms(text: str, query: str) -> Markup:
     """Wrap query term matches in ``<mark>`` for search result snippets."""
     import html
     import re
 
     if not text or not query.strip():
-        return html.escape(text)
+        return trusted_escaped_markup(html.escape(text))
 
     safe = html.escape(text)
     terms = sorted(
@@ -1026,4 +1029,4 @@ def highlight_search_terms(text: str, query: str) -> str:
             return f"<mark>{match.group(0)}</mark>"
 
         highlighted = pattern.sub(_mark, highlighted)
-    return highlighted
+    return trusted_escaped_markup(highlighted)

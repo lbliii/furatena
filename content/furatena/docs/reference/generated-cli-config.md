@@ -753,7 +753,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
 | `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1437`, `furatena/cli/commands/serve.py:41` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:188`, `furatena/catalog/static_export.py:315`, `furatena/catalog/static_export.py:321`, `furatena/cli/commands/export.py:28` |
-| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:16`, `furatena/catalog/static_export.py:192`, `furatena/catalog/static_export.py:314`, `furatena/catalog/static_export.py:319`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
+| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:18`, `furatena/catalog/static_export.py:192`, `furatena/catalog/static_export.py:314`, `furatena/catalog/static_export.py:319`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:45` |
 | `FURA_BUILD_GIT_SHA` | read | None | `furatena/catalog/build_identity.py:24` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:43` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:165` |
