@@ -70,13 +70,24 @@ _DOCUMENT_PAGE_CONTENT_TRANSITION = (
 _SEARCH_PAGE_ROOT_TRANSITION = (
     "transition:template_block:template%3Asearch.html:block%3Asearch.html%3Apage_root"
 )
+_SEARCH_ROUTE_TEMPLATE_TRANSITION = (
+    "transition:route_template:route%3AGET%3A%252Fsearch:template%3Asearch.html"
+)
 _ERROR_SUGGEST_TRANSITION = (
     "transition:template_block:template%3Apartials%252Ferror_suggest_panel.html:"
     "block%3Apartials%252Ferror_suggest_panel.html%3Aerror_suggest_panel"
 )
+_ERROR_SUGGEST_ROUTE_TEMPLATE_TRANSITION = (
+    "transition:route_template:route%3AGET%3A%252Ferrors%252Fsuggest:"
+    "template%3Apartials%252Ferror_suggest_panel.html"
+)
 _AUTHOR_DASHBOARD_TRANSITION = (
     "transition:template_block:template%3Aviews%252Fauthor_dashboard.html:"
     "block%3Aviews%252Fauthor_dashboard.html%3Apage_root"
+)
+_AUTHOR_DASHBOARD_ROUTE_TEMPLATE_TRANSITION = (
+    "transition:route_template:route%3AGET%3A%252Fdocs%252F_author%252Fdashboard:"
+    "template%3Aviews%252Fauthor_dashboard.html"
 )
 
 _PUBLIC_ROUTE_SMOKE_CASES = (
@@ -244,14 +255,20 @@ def test_public_route_smoke_reports_compiled_transition_evidence(
     assert document_targeted.compiled_transition_ids == (_DOCUMENT_PAGE_CONTENT_TRANSITION,)
 
     assert search_full.route_id == _SEARCH_ROUTE_ID
-    assert search_full.compiled_transition_ids == (_SEARCH_PAGE_ROOT_TRANSITION,)
+    assert search_full.compiled_transition_ids == (
+        _SEARCH_ROUTE_TEMPLATE_TRANSITION,
+        _SEARCH_PAGE_ROOT_TRANSITION,
+    )
     assert search_boosted.route_id == _SEARCH_ROUTE_ID
     assert search_boosted.request_mode == "boosted"
     assert search_targeted.route_id == _SEARCH_ROUTE_ID
     assert search_targeted.mode_tags == ("targeted", "oob")
 
     assert error_targeted.route_id == _ERROR_SUGGEST_ROUTE_ID
-    assert error_targeted.compiled_transition_ids == (_ERROR_SUGGEST_TRANSITION,)
+    assert error_targeted.compiled_transition_ids == (
+        _ERROR_SUGGEST_ROUTE_TEMPLATE_TRANSITION,
+        _ERROR_SUGGEST_TRANSITION,
+    )
 
     coverage = transition_coverage(
         responses,
@@ -275,7 +292,10 @@ def test_author_route_smoke_reports_compiled_transition_evidence(
     status = transition_observation(responses[(_AUTHOR_STATUS_PATH, "fragment")])
 
     assert dashboard.route_id == _AUTHOR_DASHBOARD_ROUTE_ID
-    assert dashboard.compiled_transition_ids == (_AUTHOR_DASHBOARD_TRANSITION,)
+    assert dashboard.compiled_transition_ids == (
+        _AUTHOR_DASHBOARD_ROUTE_TEMPLATE_TRANSITION,
+        _AUTHOR_DASHBOARD_TRANSITION,
+    )
     assert status.route_id == _AUTHOR_STATUS_ROUTE_ID
     assert status.request_mode == "targeted"
 
