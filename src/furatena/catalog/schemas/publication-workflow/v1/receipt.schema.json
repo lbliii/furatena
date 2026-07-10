@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-workflow/v1/receipt.schema.json",
+  "title": "Furatena publication operation receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "idempotency_key", "command", "plan_id",
+    "plan_digest", "expected_state_version", "input_digest", "status", "started_at",
+    "completed_at", "response"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.operation-receipt"},
+    "idempotency_key": {"type": "string", "minLength": 1},
+    "command": {"type": "string", "minLength": 1},
+    "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{24}$"},
+    "plan_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "expected_state_version": {"type": "integer", "minimum": 1},
+    "input_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"enum": ["started", "succeeded", "failed", "reconciliation_required"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": ["string", "null"], "format": "date-time"},
+    "response": {"type": ["object", "null"]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "started"}}},
+      "then": {"properties": {"completed_at": {"type": "null"}, "response": {"type": "null"}}},
+      "else": {"properties": {"completed_at": {"type": "string"}, "response": {"type": "object"}}}
+    }
+  ]
+}
