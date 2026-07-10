@@ -19,7 +19,9 @@ def stale_impact_report(
     normalized = str(slug).strip("/") if slug else None
     entries = list(catalog.author_stale_entries(normalized))
     entries.extend(_stale_public_entries(catalog, stale_public_outputs, slug=normalized))
-    impact = [_stale_impact_entry(catalog, entry, include_private=include_private) for entry in entries]
+    impact = [
+        _stale_impact_entry(catalog, entry, include_private=include_private) for entry in entries
+    ]
     output_channel_groups = _group_impact(impact, "output_channel")
     repair_tasks = [_repair_task(item) for item in impact]
     return {
@@ -90,14 +92,21 @@ def _stale_impact_entry(
     ref = _first_meta_value(meta, "source_ref", "ref", "commit", "branch")
     path = getattr(node, "source_path", None) if node is not None else entry.get("source_path")
     source_key = _source_group_key(provider=provider, repo=repo, ref=ref, path=path)
-    output_channel = str(getattr(catalog, "active_channel", "") or getattr(node, "edition", "") or "default")
+    output_channel = str(
+        getattr(catalog, "active_channel", "") or getattr(node, "edition", "") or "default"
+    )
     tenant = _first_meta_value(meta, "tenant") or "default"
     workspace = _first_meta_value(meta, "workspace") or "default"
     site = _first_meta_value(meta, "site") or "default"
     refresh_targets = list(entry.get("hints") or ())
     graph_context = _graph_context(catalog, node, include_private=include_private)
     affected_chunks = _affected_chunks(node)
-    affected_channels = sorted({output_channel, *(str(target) for target in refresh_targets if target in {"agent", "export", "search"})})
+    affected_channels = sorted(
+        {
+            output_channel,
+            *(str(target) for target in refresh_targets if target in {"agent", "export", "search"}),
+        }
+    )
     return {
         "slug": slug,
         "mount": mount,
@@ -261,11 +270,7 @@ def _group_impact(impact: list[dict[str, Any]], field: str) -> list[dict[str, An
             "count": len(items),
             "slugs": sorted(str(item.get("slug") or "") for item in items),
             "refresh_targets": sorted(
-                {
-                    str(target)
-                    for item in items
-                    for target in (item.get("refresh_targets") or [])
-                }
+                {str(target) for item in items for target in (item.get("refresh_targets") or [])}
             ),
         }
         for key, items in sorted(groups.items())

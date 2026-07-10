@@ -13,14 +13,7 @@ from furatena.catalog.docs_inventory import collect_public_surfaces
 from furatena.catalog.runtime import ServeConfig, ServeMode
 
 REPO = Path(__file__).resolve().parents[1]
-REFERENCE = (
-    REPO
-    / "content"
-    / "furatena"
-    / "docs"
-    / "reference"
-    / "integrator-operations.md"
-)
+REFERENCE = REPO / "content" / "furatena" / "docs" / "reference" / "integrator-operations.md"
 
 
 @pytest.fixture(scope="module")

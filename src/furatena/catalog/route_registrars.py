@@ -10,6 +10,7 @@ from chirp import OOB, App, EventStream, FormAction, Fragment, Page, Request, Re
 from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
 
 from furatena.catalog.build_identity import deployed_build_identity
+from furatena.catalog.catalog_shards import catalog_shard_path, is_safe_mount_id
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.develop_exports import DEVELOP_EXPORTS, develop_export
@@ -94,7 +95,7 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
         raw = request.query.get(name)
         try:
             value = int(raw) if raw not in (None, "") else default
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             invalid[name] = raw
             continue
         if value < minimum or (maximum is not None and value > maximum):
@@ -351,9 +352,10 @@ def register_author_routes(docs: Any, app: App) -> None:
         denied = self._browser_node_denial(node, "status")
         if denied is not None:
             return denied
+        force_validation = _query_bool(request, "validate", default=False)
         if request.is_htmx:
-            return self._author_page_chrome_fragment(node)
-        return _json_response(self._author_page_chrome(node))
+            return self._author_page_chrome_fragment(node, force_validation=force_validation)
+        return _json_response(self._author_page_chrome(node, force_validation=force_validation))
 
     @app.route("/docs/_author/source")
     def author_page_source(request: Request):
@@ -722,6 +724,46 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             indent=2,
         )
         return Response(body, content_type="application/json; charset=utf-8")
+
+    @app.route("/catalog/mounts/{mount_id}", referenced=True)
+    def catalog_mount_json(request: Request, mount_id: str):
+        self._ensure_catalog()
+        if not mount_id.endswith(".json"):
+            raise NotFound(f"Catalog shard not found: {mount_id}")
+        mount_id = mount_id[: -len(".json")]
+        if not is_safe_mount_id(mount_id):
+            raise NotFound(f"Catalog shard not found: {mount_id}")
+        subject = self._output_access_subject(request)
+        shard = getattr(self.catalog, "_shards", {}).get(mount_id)
+        if shard is None or not self.catalog.can_access_mount(
+            mount_id,
+            subject,
+            permission="export",
+        ):
+            raise NotFound(f"Catalog shard not found: {mount_id}")
+
+        route_path = catalog_shard_path(mount_id)
+        if route_path is not None:
+            frozen = self._frozen_artifact_response(
+                route_path.as_posix(),
+                content_type="application/json; charset=utf-8",
+            )
+            if frozen is not None:
+                return frozen
+        # Older freezes keep the canonical shard under mounts/<id>/catalog.json.
+        frozen = self._frozen_artifact_response(
+            f"mounts/{mount_id}/catalog.json",
+            content_type="application/json; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
+
+        graph = catalog_graph(shard, subject=subject)
+        graph["mount"] = mount_id
+        return Response(
+            json.dumps(graph, indent=2),
+            content_type="application/json; charset=utf-8",
+        )
 
     @app.route("/catalog/query.json", referenced=True)
     @app.route("/graph/query.json", referenced=True)

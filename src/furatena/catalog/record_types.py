@@ -100,6 +100,7 @@ class CatalogGraphRecord(TypedDict, total=False):
     version: int
     channel: str
     edition: str
+    mount: str
     page_count: int
     pages: list[PageRecord]
     edges: list[EdgeRecord]

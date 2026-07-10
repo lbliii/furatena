@@ -99,7 +99,9 @@ def resolve_theme_paths(docs: DocsConfig) -> ResolvedThemePaths:
         templates = _resolve_dir(docs.root, theme.templates)
 
     if tokens is None or styles is None or directives is None or js_dir is None:
-        raise FileNotFoundError("theme skin paths could not be resolved (check theme.use and overrides)")
+        raise FileNotFoundError(
+            "theme skin paths could not be resolved (check theme.use and overrides)"
+        )
 
     for label, path in (
         ("tokens", tokens),

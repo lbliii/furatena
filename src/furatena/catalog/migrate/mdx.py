@@ -131,9 +131,7 @@ def migrate_mdx_paths(
 ) -> list[MigrateReport]:
     reports: list[MigrateReport] = []
     for path in paths:
-        reports.append(
-            migrate_mdx_file(path, write=write, remove_source=remove_source)
-        )
+        reports.append(migrate_mdx_file(path, write=write, remove_source=remove_source))
     return reports
 
 
@@ -150,7 +148,5 @@ def migrate_mounts(
         if not root.is_dir():
             continue
         for path in sorted(root.rglob("*.mdx")):
-            reports.append(
-                migrate_mdx_file(path, write=write, remove_source=remove_source)
-            )
+            reports.append(migrate_mdx_file(path, write=write, remove_source=remove_source))
     return reports

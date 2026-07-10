@@ -2,7 +2,7 @@
 {% call directive_callout(title=title, variant="neutral", kind="related", extra_class=(extra_class | default(''))) %}
 {% slot content %}
 {% if body %}
-{{ body | safe }}
+{{ body }}
 {% else %}
 <ul class="chirpui-list chirp-theme-directive-related__links">
 {% for link in links %}

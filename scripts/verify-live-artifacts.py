@@ -52,8 +52,7 @@ def _decode_json(path: str, body: bytes) -> dict[str, Any]:
 def verify_live_artifacts(origin: str, *, timeout: float = 120.0) -> dict[str, int]:
     """Fetch and validate every bulk response affected by slow origin drains."""
     payloads = {
-        path: _decode_json(path, _fetch(origin, path, timeout=timeout))
-        for path in _JSON_PATHS
+        path: _decode_json(path, _fetch(origin, path, timeout=timeout)) for path in _JSON_PATHS
     }
     catalog = payloads["/catalog.json"]
     page_count = catalog.get("page_count")

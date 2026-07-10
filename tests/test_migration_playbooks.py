@@ -29,7 +29,7 @@ def test_playbook_groups_findings_by_ecosystem_risk_source_and_owner() -> None:
             SimpleNamespace(
                 source_path="docs/legacy.mdx",
                 content_format="mdx",
-                body_md="<ApiTable endpoint=\"/v1\" />\n",
+                body_md='<ApiTable endpoint="/v1" />\n',
                 meta={"owner": "platform-docs"},
             ),
         )
@@ -87,7 +87,7 @@ def test_playbook_never_automates_part_of_a_source_with_manual_blockers() -> Non
             SimpleNamespace(
                 source_path="docs/mixed.mdx",
                 content_format="mdx",
-                body_md="<Note>Mapped</Note>\n<ApiTable endpoint=\"/v1\" />\n",
+                body_md='<Note>Mapped</Note>\n<ApiTable endpoint="/v1" />\n',
                 meta={"owner": "devrel"},
             ),
         )
@@ -105,7 +105,7 @@ def test_safe_remediation_refuses_unmapped_components_and_target_conflicts(
     tmp_path: Path,
 ) -> None:
     unmapped = tmp_path / "unmapped.mdx"
-    unmapped.write_text("<ApiTable endpoint=\"/v1\" />\n", encoding="utf-8")
+    unmapped.write_text('<ApiTable endpoint="/v1" />\n', encoding="utf-8")
     conflict = tmp_path / "conflict.mdx"
     conflict.write_text("<Note>Converted</Note>\n", encoding="utf-8")
     conflict_target = conflict.with_suffix(".md")
@@ -151,7 +151,7 @@ def test_cli_applies_safe_sources_and_reports_manual_blockers(
     manual = app_root / "content/docs/manual.mdx"
     safe.write_text("---\ntitle: Safe\nowner: devrel\n---\n\n<Note>Safe</Note>\n", encoding="utf-8")
     manual.write_text(
-        "---\ntitle: Manual\nowner: platform-docs\n---\n\n<ApiTable endpoint=\"/v1\" />\n",
+        '---\ntitle: Manual\nowner: platform-docs\n---\n\n<ApiTable endpoint="/v1" />\n',
         encoding="utf-8",
     )
     capsys.readouterr()
@@ -167,5 +167,7 @@ def test_cli_applies_safe_sources_and_reports_manual_blockers(
     assert payload["data"]["overwrite_existing"] is False
     assert safe.is_file() and safe.with_suffix(".md").is_file()
     assert manual.is_file() and not manual.with_suffix(".md").exists()
-    statuses = {Path(item["source_path"]).name: item["status"] for item in payload["data"]["remediations"]}
+    statuses = {
+        Path(item["source_path"]).name: item["status"] for item in payload["data"]["remediations"]
+    }
     assert statuses == {"manual.mdx": "manual", "safe.mdx": "applied"}

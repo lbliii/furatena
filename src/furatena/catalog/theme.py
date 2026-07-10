@@ -85,7 +85,9 @@ class DocsTheme:
             static_mounts.append(ThemeAssets(url_prefix="/docs-assets", directory=cache_dir))
             stylesheet_hrefs.append(f"/docs-assets/theme.{digest}.css")
             if fonts_dir is not None and skin.fonts_dir is None:
-                static_mounts.append(ThemeAssets(url_prefix="/docs-theme/fonts", directory=fonts_dir))
+                static_mounts.append(
+                    ThemeAssets(url_prefix="/docs-theme/fonts", directory=fonts_dir)
+                )
             if branding_dir is not None:
                 static_mounts.append(
                     ThemeAssets(url_prefix="/docs-theme/branding", directory=branding_dir)
@@ -153,7 +155,9 @@ class DocsTheme:
 
 
 # Re-export for freeze/tests that import the legacy private helpers.
-def _packaged_theme_assets(theme_id: str, docs_root: Path | None = None) -> tuple[Path, Path | None, Path | None] | None:
+def _packaged_theme_assets(
+    theme_id: str, docs_root: Path | None = None
+) -> tuple[Path, Path | None, Path | None] | None:
     if docs_root is None:
         return None
     return packaged_theme_assets_from_root(theme_id, docs_root / "theme" / "assets")

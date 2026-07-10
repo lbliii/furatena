@@ -788,8 +788,7 @@ def tools_manifest(
         if (operation := _api_agent_operation(catalog, node, base_url=base_url)) is not None
     ]
     trusted_subject = bool(
-        subject is not None
-        and subject.roles != frozenset({AccessRole.ANONYMOUS})
+        subject is not None and subject.roles != frozenset({AccessRole.ANONYMOUS})
     )
     payload: dict[str, Any] = {
         "schema_version": 1,

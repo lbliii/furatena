@@ -352,9 +352,7 @@ def _sampled(rate: float, key: str) -> bool:
 def _sanitize(value: Any) -> Any:
     if isinstance(value, Mapping):
         return {
-            str(key): "<redacted>"
-            if str(key).lower() in _SENSITIVE_KEYS
-            else _sanitize(item)
+            str(key): "<redacted>" if str(key).lower() in _SENSITIVE_KEYS else _sanitize(item)
             for key, item in value.items()
         }
     if isinstance(value, (list, tuple, set, frozenset)):

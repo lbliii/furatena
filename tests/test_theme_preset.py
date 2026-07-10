@@ -40,7 +40,9 @@ class TestThemePreset:
     def test_render_preset_css(self) -> None:
         css = render_theme_preset(
             ThemeConfig(
-                measure=ThemeMeasureConfig(prose="72ch", reading="68ch", docs="72ch", container="84rem"),
+                measure=ThemeMeasureConfig(
+                    prose="72ch", reading="68ch", docs="72ch", container="84rem"
+                ),
                 fonts=ThemeFontsConfig(sans="Inter", display="Outfit"),
             )
         )

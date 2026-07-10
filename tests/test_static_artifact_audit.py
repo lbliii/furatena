@@ -23,9 +23,7 @@ def _write_valid_artifact(root: Path) -> None:
 """,
         encoding="utf-8",
     )
-    (root / "docs/guide/index.html").write_text(
-        '<a href="/furatena/">Home</a>\n', encoding="utf-8"
-    )
+    (root / "docs/guide/index.html").write_text('<a href="/furatena/">Home</a>\n', encoding="utf-8")
     (root / "static/app.css").write_text("body {}\n", encoding="utf-8")
     (root / "catalog.json").write_text(
         json.dumps(
@@ -63,8 +61,7 @@ def test_audit_accepts_valid_html_sitemap_json_assets_and_text(tmp_path: Path) -
 def test_audit_reports_repeated_and_escaped_prefix_with_referrer(tmp_path: Path) -> None:
     _write_valid_artifact(tmp_path)
     (tmp_path / "index.html").write_text(
-        '<a href="/furatena/furatena/docs/guide/">Double</a>'
-        '<a href="/docs/guide/">Escape</a>',
+        '<a href="/furatena/furatena/docs/guide/">Double</a><a href="/docs/guide/">Escape</a>',
         encoding="utf-8",
     )
 
@@ -109,9 +106,7 @@ def test_module_cli_fails_with_source_and_referrer(tmp_path: Path, capsys) -> No
     _write_valid_artifact(tmp_path)
     (tmp_path / "index.html").write_text('<img src="/furatena/static/missing.png">')
 
-    exit_code = main(
-        [str(tmp_path), "--base-path", BASE_PATH, "--site-url", SITE_URL]
-    )
+    exit_code = main([str(tmp_path), "--base-path", BASE_PATH, "--site-url", SITE_URL])
 
     assert exit_code == 1
     stderr = capsys.readouterr().err

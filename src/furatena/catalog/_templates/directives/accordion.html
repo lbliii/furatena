@@ -1,15 +1,15 @@
 <details class="chirpui-collapse chirp-theme-directive-dropdown{{ ' chirp-theme-directive-dropdown--' ~ color if color else '' }}{{ ' ' ~ extra_class if extra_class else '' }}"
          {% if open %}open{% end %}>
   <summary class="chirpui-collapse__trigger">
-    {% if icon %}<span class="chirp-theme-directive-dropdown__icon" aria-hidden="true">{{ icon | safe }}</span>{% end %}
+    {% if icon %}<span class="chirp-theme-directive-dropdown__icon" aria-hidden="true">{{ icon }}</span>{% end %}
     <span class="chirp-theme-directive-dropdown__copy">
-      <span class="chirpui-collapse__trigger-text">{{ title | safe }}</span>
-      {% if description %}<span class="chirp-theme-directive-dropdown__description">{{ description | safe }}</span>{% end %}
+      <span class="chirpui-collapse__trigger-text">{{ title }}</span>
+      {% if description %}<span class="chirp-theme-directive-dropdown__description">{{ description }}</span>{% end %}
     </span>
     {% if badge %}<span class="chirp-theme-directive-dropdown__badge">{{ badge }}</span>{% end %}
     <span class="chirp-theme-directive-dropdown__chevron" aria-hidden="true">›</span>
   </summary>
   <div class="chirpui-collapse__content">
-    {{ body | safe }}
+    {{ body }}
   </div>
 </details>

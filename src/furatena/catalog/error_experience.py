@@ -87,7 +87,9 @@ def error_allowed_methods(exc: Exception | None) -> tuple[str, ...]:
     return ()
 
 
-def split_recovery_hits(hits: tuple[HybridHit, ...] | list[HybridHit]) -> tuple[tuple[HybridHit, ...], tuple[HybridHit, ...]]:
+def split_recovery_hits(
+    hits: tuple[HybridHit, ...] | list[HybridHit],
+) -> tuple[tuple[HybridHit, ...], tuple[HybridHit, ...]]:
     """Split hybrid hits into keyword and semantic-only suggestion groups."""
     keyword: list[HybridHit] = []
     semantic: list[HybridHit] = []
@@ -104,7 +106,9 @@ def split_recovery_hits(hits: tuple[HybridHit, ...] | list[HybridHit]) -> tuple[
     return tuple(keyword), tuple(semantic)
 
 
-def recovery_hits_for_query(app: DocsApp, query: str, *, limit: int = 6) -> tuple[tuple[HybridHit, ...], tuple[HybridHit, ...]]:
+def recovery_hits_for_query(
+    app: DocsApp, query: str, *, limit: int = 6
+) -> tuple[tuple[HybridHit, ...], tuple[HybridHit, ...]]:
     """Keyword + semantic recovery hits for a free-text or path-derived query."""
     if not query:
         return (), ()

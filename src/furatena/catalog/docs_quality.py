@@ -112,9 +112,7 @@ def _owner(node: Any | None) -> str:
 
 
 def _broken_link_findings(catalog: Any) -> list[DocsQualityFinding]:
-    by_source = {
-        str(node.source_path or node.slug or node.url): node for node in catalog.nodes
-    }
+    by_source = {str(node.source_path or node.slug or node.url): node for node in catalog.nodes}
     findings: list[DocsQualityFinding] = []
     for message in check_broken_internal_links(catalog):
         source = message.split(":", 1)[0]
@@ -222,9 +220,7 @@ def _shell_blocks(path: Path) -> list[tuple[int, str, str]]:
         if line.strip() == "```":
             text = "\n".join(body)
             if language == "console":
-                text = "\n".join(
-                    item[2:] for item in body if item.startswith(("$ ", "> "))
-                )
+                text = "\n".join(item[2:] for item in body if item.startswith(("$ ", "> ")))
             blocks.append((start, language, text))
             language = ""
             body = []
@@ -290,17 +286,12 @@ def _snippet_semantic_errors(text: str, *, make_targets: set[str]) -> list[str]:
                 unknown = [
                     token.split("=", 1)[0]
                     for token in tail
-                    if token.startswith("--")
-                    and token.split("=", 1)[0] not in root_options
+                    if token.startswith("--") and token.split("=", 1)[0] not in root_options
                 ]
                 errors.extend(f"unknown root fura option {option}" for option in unknown)
                 continue
             command_tail = tail[command_index:]
-            matches = [
-                path
-                for path in commands
-                if tuple(command_tail[: len(path)]) == path
-            ]
+            matches = [path for path in commands if tuple(command_tail[: len(path)]) == path]
             command = max(matches, key=len) if matches else (command_tail[0],)
             allowed = commands.get(command, root_options)
             for token in tail:
@@ -321,9 +312,11 @@ def _snippet_findings(
     documentation_roots: tuple[Path, ...],
 ) -> tuple[list[DocsQualityFinding], dict[str, int]]:
     makefile = Path.cwd() / "Makefile"
-    make_targets = set(
-        re.findall(r"^([A-Za-z0-9_.-]+):", makefile.read_text(encoding="utf-8"), re.MULTILINE)
-    ) if makefile.is_file() else set()
+    make_targets = (
+        set(re.findall(r"^([A-Za-z0-9_.-]+):", makefile.read_text(encoding="utf-8"), re.MULTILINE))
+        if makefile.is_file()
+        else set()
+    )
     findings: list[DocsQualityFinding] = []
     file_count = 0
     block_count = 0

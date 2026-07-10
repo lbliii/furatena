@@ -1,0 +1,11 @@
+{
+  "fixture_version": 1,
+  "scenario": "deploy",
+  "operation": "publish",
+  "required_approvals": 1,
+  "expires_at": "2035-01-01T00:00:00Z",
+  "output": {"kind": "deployment", "target": "developer-docs", "environment": "production"},
+  "decisions": [{"decision": "approve", "actor": "release@example.com", "reason": "Production deployment approved."}],
+  "transitions": ["validating", "reviewable", "awaiting_approval", "approved", "executing", "applied"],
+  "expected_state": "applied"
+}

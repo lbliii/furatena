@@ -213,8 +213,10 @@ def _python_nodes(
             "",
             "## Modules",
             "",
-            *[f"- [{m.qualified_name}](/{output_prefix}/{m.qualified_name.replace('.', '/')}/)"
-              for m in sorted(modules, key=lambda m: m.qualified_name)],
+            *[
+                f"- [{m.qualified_name}](/{output_prefix}/{m.qualified_name.replace('.', '/')}/)"
+                for m in sorted(modules, key=lambda m: m.qualified_name)
+            ],
         ]
     )
     nodes.append(
@@ -299,7 +301,9 @@ def _openapi_nodes(
                 spec_prefix=spec_prefix,
                 display_name=display_name,
                 config=config,
-                try_it_config=openapi_cfg.get("try_it") if isinstance(openapi_cfg.get("try_it"), dict) else {},
+                try_it_config=openapi_cfg.get("try_it")
+                if isinstance(openapi_cfg.get("try_it"), dict)
+                else {},
             )
         )
 
@@ -383,11 +387,22 @@ def _openapi_operation_nodes(
             continue
         for method, operation in sorted(item.items()):
             method_l = str(method).lower()
-            if method_l not in {"get", "put", "post", "delete", "patch", "options", "head", "trace"}:
+            if method_l not in {
+                "get",
+                "put",
+                "post",
+                "delete",
+                "patch",
+                "options",
+                "head",
+                "trace",
+            }:
                 continue
             if not isinstance(operation, dict):
                 continue
-            operation_id = str(operation.get("operationId") or _operation_id_from_path(method_l, str(path)))
+            operation_id = str(
+                operation.get("operationId") or _operation_id_from_path(method_l, str(path))
+            )
             tags = [str(tag) for tag in operation.get("tags") or [] if str(tag).strip()]
             schemas = sorted(_collect_schema_refs(operation))
             examples = sorted(_collect_example_names(operation))
@@ -395,7 +410,9 @@ def _openapi_operation_nodes(
             responses = sorted(str(key) for key in operation.get("responses") or {})
             auth = _openapi_auth(operation.get("security")) or global_security
             external_docs = _openapi_external_docs(operation.get("externalDocs"))
-            summary = str(operation.get("summary") or operation.get("description") or operation_id).strip()
+            summary = str(
+                operation.get("summary") or operation.get("description") or operation_id
+            ).strip()
             description = summary.split("\n", 1)[0][:240]
             api_operation = {
                 "operation_id": operation_id,
@@ -548,7 +565,9 @@ def _openapi_server_records(spec: dict[str, Any]) -> list[dict[str, str]]:
     return sorted(records, key=lambda item: item["label"])
 
 
-def _try_it_boundary_value(config: dict[str, Any], try_it_config: dict[str, Any], key: str, default: str) -> str:
+def _try_it_boundary_value(
+    config: dict[str, Any], try_it_config: dict[str, Any], key: str, default: str
+) -> str:
     value = try_it_config.get(key) or config.get(key)
     return str(value).strip() if value not in (None, "") else default
 
@@ -587,7 +606,9 @@ def _openapi_try_it_contract(
     token_refs = _try_it_token_refs(try_it_config)
     live_cfg = try_it_config.get("live") if isinstance(try_it_config.get("live"), dict) else {}
     proxy_path = str(live_cfg.get("proxy_path") or try_it_config.get("proxy_path") or "").strip()
-    live_enabled = bool(live_cfg.get("enabled") or try_it_config.get("live_enabled")) and bool(proxy_path)
+    live_enabled = bool(live_cfg.get("enabled") or try_it_config.get("live_enabled")) and bool(
+        proxy_path
+    )
     fallback_mode = "mock" if examples else "static"
     auth_records = [
         {
@@ -614,7 +635,9 @@ def _openapi_try_it_contract(
                 "available": bool(examples),
                 "request_behavior": "local_sample",
                 "requires": ["openapi_examples"] if examples else [],
-                "disabled_reason": "" if examples else "OpenAPI examples are not defined for this operation.",
+                "disabled_reason": ""
+                if examples
+                else "OpenAPI examples are not defined for this operation.",
             },
             {
                 "id": "live",
@@ -622,7 +645,9 @@ def _openapi_try_it_contract(
                 "request_behavior": "authenticated_proxy",
                 "requires": ["server_proxy", *[f"auth:{scheme}" for scheme in auth]],
                 "proxy_path": proxy_path or None,
-                "disabled_reason": "" if live_enabled else "Authenticated live requests require a configured server-side try-it proxy.",
+                "disabled_reason": ""
+                if live_enabled
+                else "Authenticated live requests require a configured server-side try-it proxy.",
             },
         ],
         "boundaries": {

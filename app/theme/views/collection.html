@@ -18,7 +18,7 @@
 <article class="prose chirp-theme-docs-layout__article chirp-theme-track-layout__article">
   {% if node.description or node.body_md %}
   <div class="chirp-theme-track-intro chirp-theme-docs-layout__content">
-    {{ node | doc_body | boost_doc_links | safe }}
+    {{ node | doc_body | boost_doc_links }}
   </div>
   {% end %}
 
@@ -35,7 +35,7 @@
         </div>
       </header>
       <div class="chirp-theme-track-section__body chirp-theme-docs-layout__content">
-        {{ section.body_html | boost_doc_links | safe }}
+        {{ section.body_html | boost_doc_links }}
       </div>
     </section>
     {% end %}

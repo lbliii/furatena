@@ -264,6 +264,7 @@
       pollTimer: null,
       eventSource: null,
       eventSourceSlug: "",
+      sseOwnershipTimer: null,
     };
     window.__furaDocsAuthorReloadState = state;
 
@@ -441,28 +442,76 @@
       state.pollTimer = null;
     }
 
-    function startSseReload() {
+    function closeCustomEventSource() {
+      if (!state.eventSource) return;
+      state.eventSource.close();
+      state.eventSource = null;
+      state.eventSourceSlug = "";
+    }
+
+    function htmxOwnsAuthorSse(marker) {
+      return Boolean(
+        marker &&
+        window.htmx &&
+        marker.dataset.furaSseExtensionActive === "1"
+      );
+    }
+
+    function markerDeclaresHtmxSse(marker) {
+      if (!marker || !window.htmx) return false;
+      var extensions = marker.getAttribute("hx-ext") || marker.getAttribute("data-hx-ext") || "";
+      return extensions.split(/\s*,\s*|\s+/).indexOf("sse") >= 0;
+    }
+
+    function clearSseOwnershipProbe() {
+      if (!state.sseOwnershipTimer) return;
+      window.clearTimeout(state.sseOwnershipTimer);
+      state.sseOwnershipTimer = null;
+    }
+
+    function deferSseOwnershipProbe(marker) {
+      if (state.sseOwnershipTimer) return;
+      window.__furaAuthorReloadMode = "sse-pending";
+      state.sseOwnershipTimer = window.setTimeout(function () {
+        state.sseOwnershipTimer = null;
+        if (!document.body.contains(marker)) return;
+        if (!startSseReload(true)) startPollingFallback();
+      }, 100);
+    }
+
+    function bindHtmxSse(marker) {
+      if (!marker || marker.dataset.furaAuthorSseBound === "1") return;
+      marker.dataset.furaAuthorSseBound = "1";
+      marker.addEventListener("htmx:sseMessage", function (event) {
+        applyAuthorInvalidation(payloadFromSseEvent(event));
+      });
+      marker.addEventListener("htmx:sseOpen", function () {
+        stopPollingFallback();
+        window.__furaAuthorReloadMode = "sse";
+      });
+      marker.addEventListener("htmx:sseError", function () {
+        window.setTimeout(function () {
+          if (document.body.contains(marker)) startPollingFallback();
+        }, 500);
+      });
+    }
+
+    function startSseReload(allowCompatibilityFallback) {
       var marker = authorMarker();
-      var htmxSseReady = false;
-      if (marker && window.htmx) {
-        function bindHtmxSseMessage(target) {
-          if (!target || target.dataset.furaAuthorSseBound === "1") return;
-          target.dataset.furaAuthorSseBound = "1";
-          target.addEventListener("htmx:sseMessage", function (event) {
-            applyAuthorInvalidation(payloadFromSseEvent(event));
-          });
-        }
-        bindHtmxSseMessage(marker);
-        marker.querySelectorAll("[sse-swap], [data-sse-swap]").forEach(bindHtmxSseMessage);
-        htmxSseReady = true;
+      if (htmxOwnsAuthorSse(marker)) {
+        clearSseOwnershipProbe();
+        closeCustomEventSource();
+        bindHtmxSse(marker);
+        stopPollingFallback();
+        window.__furaAuthorReloadMode = "sse";
+        return true;
+      }
+      if (!allowCompatibilityFallback && markerDeclaresHtmxSse(marker)) {
+        deferSseOwnershipProbe(marker);
+        return true;
       }
       var slug = currentSlug();
       if (!slug || !window.EventSource) {
-        if (htmxSseReady) {
-          stopPollingFallback();
-          window.__furaAuthorReloadMode = "sse";
-          return true;
-        }
         return false;
       }
       if (
@@ -474,11 +523,7 @@
         window.__furaAuthorReloadMode = "sse";
         return true;
       }
-      if (state.eventSource) {
-        state.eventSource.close();
-        state.eventSource = null;
-        state.eventSourceSlug = "";
-      }
+      closeCustomEventSource();
       try {
         var source = new EventSource("/docs/_author/events?slug=" + encodeURIComponent(slug));
         state.eventSource = source;
@@ -496,20 +541,24 @@
           }
           window.setTimeout(startPollingFallback, 500);
         };
-        document.body.addEventListener("htmx:beforeCleanupElement", function () {
+        function cleanupSource() {
           source.close();
           if (state.eventSource === source) {
             state.eventSource = null;
             state.eventSourceSlug = "";
           }
-        }, { once: true });
+        }
+        if (marker) {
+          marker.addEventListener("htmx:beforeCleanupElement", cleanupSource, { once: true });
+        }
+        window.addEventListener("pagehide", cleanupSource, { once: true });
         return true;
       } catch (error) {
         return false;
       }
     }
 
-    if (!startSseReload()) {
+    if (!startSseReload(false)) {
       startPollingFallback();
     }
   }

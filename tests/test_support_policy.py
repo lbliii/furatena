@@ -20,9 +20,7 @@ def _policy() -> dict[str, object]:
 def test_python_support_metadata_matches_free_threaded_release_runtime() -> None:
     policy = _policy()
     python_policy = policy["python"]
-    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
-        "project"
-    ]
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
 
     assert project["requires-python"] == python_policy["requires_python"]
     assert sys.implementation.name == python_policy["implementation"].lower()

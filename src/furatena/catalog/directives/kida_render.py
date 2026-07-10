@@ -9,6 +9,9 @@ from pathlib import Path
 from kida import ChoiceLoader, FileSystemLoader
 from kida.template import Markup
 
+from furatena.catalog.directives.icons import render_icon_html
+from furatena.catalog.safe_html import trusted_renderer_fragment
+
 DOCS_TEMPLATES = Path(__file__).resolve().parents[1] / "_templates"
 
 
@@ -40,8 +43,9 @@ def render_directive(template: str, /, **context: object) -> str:
     return tmpl.render(**context)
 
 
-def as_markup(html: str) -> Markup:
-    return Markup(html)
+def trusted_renderer_html(html: str) -> Markup:
+    """Mark Patitas/highlighter child output for nested directive templates."""
+    return trusted_renderer_fragment(html)
 
 
 def render_doc_tabs(
@@ -62,8 +66,8 @@ def render_doc_tabs(
             "id": tab_id,
             "label": label,
             "badge": badge,
-            "icon": icon_list[index] if index < len(icon_list) else "",
-            "panel": panel,
+            "icon": render_icon_html(icon_list[index]) if index < len(icon_list) else "",
+            "panel": trusted_renderer_html(panel),
             "disabled": False,
         }
         for index, ((tab_id, label, badge, _selected), panel) in enumerate(

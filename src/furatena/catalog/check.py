@@ -25,6 +25,8 @@ from furatena.catalog.render import DocsRenderer
 from furatena.catalog.view_lint import check_view_templates
 
 if TYPE_CHECKING:
+    from kida import Environment
+
     from furatena.catalog.config import DocsConfig
     from furatena.catalog.models import DocNode
     from furatena.catalog.registry import CatalogRegistry
@@ -171,6 +173,7 @@ def check_view_templates_for_config(
     strict: bool = False,
     repo_root: Path | None = None,
     catalog: CatalogRegistry | None = None,
+    template_env: Environment | None = None,
 ) -> tuple[list[str], list[str]]:
     """Run Kida block/context checks on registered view templates."""
     return check_view_templates(
@@ -179,6 +182,7 @@ def check_view_templates_for_config(
         strict=strict,
         repo_root=repo_root,
         catalog=catalog,
+        env=template_env,
     )
 
 
@@ -202,7 +206,7 @@ def check_ast_roundtrip(catalog: CatalogLike) -> list[str]:
             continue
         source = node.source_path or node.slug or node.url
         warnings.append(
-            f"{source}: frozen AST incompatible with Patitas { _patitas_version() }: {error}"
+            f"{source}: frozen AST incompatible with Patitas {_patitas_version()}: {error}"
         )
     return sorted(warnings)
 
@@ -281,20 +285,48 @@ def check_catalog(
     strict_views: bool = False,
     strict_edition_links: bool = False,
     inventory_store=None,
+    template_env: Environment | None = None,
 ) -> tuple[list[str], list[str]]:
     """Run docs-specific checks. Returns ``(errors, warnings)``."""
+    content_errors, content_warnings = check_catalog_content(
+        catalog,
+        views=views,
+        strict_views=strict_views,
+        strict_edition_links=strict_edition_links,
+        inventory_store=inventory_store,
+    )
+    config_errors, config_warnings = check_catalog_configuration(
+        catalog,
+        views=views,
+        docs=docs,
+        theme=theme,
+        strict_views=strict_views,
+        strict_directive_links=strict_views or strict_edition_links,
+        template_env=template_env,
+    )
+    return (
+        sorted([*content_errors, *config_errors]),
+        sorted([*content_warnings, *config_warnings]),
+    )
+
+
+def check_catalog_content(
+    catalog: CatalogLike,
+    *,
+    views: ViewRegistry | None = None,
+    strict_views: bool = False,
+    strict_edition_links: bool = False,
+    inventory_store=None,
+) -> tuple[list[str], list[str]]:
+    """Run checks whose results depend on the indexed catalog generation."""
     edition_strict = strict_edition_links or strict_views
     errors = check_broken_internal_links(catalog)
-    errors.extend(
-        check_unresolved_references(catalog, inventory_store=inventory_store)
-    )
-    manifest_errors, manifest_warnings = check_directive_manifest()
-    errors.extend(manifest_errors)
+    errors.extend(check_unresolved_references(catalog, inventory_store=inventory_store))
     lint_errors, lint_warnings = check_content_lint(catalog)
     errors.extend(lint_errors)
     fm_errors, fm_warnings = check_front_matter(catalog, views=views)
     errors.extend(fm_errors)
-    warnings = lint_warnings + fm_warnings + manifest_warnings
+    warnings = lint_warnings + fm_warnings
     lifecycle_errors, lifecycle_warnings = check_lifecycle_sources(catalog)
     errors.extend(lifecycle_errors)
     warnings.extend(lifecycle_warnings)
@@ -304,7 +336,7 @@ def check_catalog(
     )
     errors.extend(cross_errors)
     warnings.extend(cross_warnings)
-    from furatena.catalog.link_lint import check_body_link_boost, check_directive_template_hrefs
+    from furatena.catalog.link_lint import check_body_link_boost
 
     boost_errors, boost_warnings = check_body_link_boost(
         catalog,
@@ -312,17 +344,35 @@ def check_catalog(
     )
     errors.extend(boost_errors)
     warnings.extend(boost_warnings)
-    template_errors, template_warnings = check_directive_template_hrefs(
-        strict=edition_strict,
-    )
-    errors.extend(template_errors)
-    warnings.extend(template_warnings)
     warnings.extend(check_ast_roundtrip(catalog))
     from furatena.catalog.rendering_heads import check_rendering_head_contracts
 
     head_errors, head_warnings = check_rendering_head_contracts(catalog)
     errors.extend(head_errors)
     warnings.extend(head_warnings)
+    errors.extend(check_dcp_schema(catalog))
+    return sorted(errors), sorted(warnings)
+
+
+def check_catalog_configuration(
+    catalog: CatalogLike,
+    *,
+    views: ViewRegistry | None = None,
+    docs: DocsConfig | None = None,
+    theme: DocsTheme | None = None,
+    strict_views: bool = False,
+    strict_directive_links: bool = False,
+    template_env: Environment | None = None,
+) -> tuple[list[str], list[str]]:
+    """Run checks keyed by docs, theme, and template configuration."""
+    from furatena.catalog.link_lint import check_directive_template_hrefs
+
+    errors, warnings = check_directive_manifest()
+    template_errors, template_warnings = check_directive_template_hrefs(
+        strict=strict_directive_links,
+    )
+    errors.extend(template_errors)
+    warnings.extend(template_warnings)
     warnings.extend(check_view_config(views) if views is not None else [])
     if docs is not None and theme is not None:
         view_errors, view_warnings = check_view_templates_for_config(
@@ -331,6 +381,7 @@ def check_catalog(
             strict=strict_views,
             repo_root=catalog.repo_root,
             catalog=catalog,
+            template_env=template_env,
         )
         errors.extend(view_errors)
         warnings.extend(view_warnings)
@@ -344,7 +395,6 @@ def check_catalog(
         delivery_errors, delivery_warnings = check_delivery_config(docs, catalog)
         errors.extend(delivery_errors)
         warnings.extend(delivery_warnings)
-    errors.extend(check_dcp_schema(catalog))
     return sorted(errors), sorted(warnings)
 
 
@@ -445,8 +495,7 @@ def _page_links(node: DocNode) -> list[dict[str, object]]:
         from furatena.catalog.content_ir import collect_content_ir_urls
 
         links = [
-            {"href": link.href, "text": link.text, "line": link.line}
-            for link in content_ir.links
+            {"href": link.href, "text": link.text, "line": link.line} for link in content_ir.links
         ]
         markdown_hrefs = {
             normalized

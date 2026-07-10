@@ -116,8 +116,16 @@ def _compatibility_findings(catalog) -> tuple[MigrationReportFinding, ...]:
         body = getattr(node, "body_md", "")
         if not body:
             continue
-        source = getattr(node, "source_path", "") or getattr(node, "slug", "") or getattr(node, "url", "")
-        owner = str(getattr(node, "meta", {}).get("owner") or getattr(node, "meta", {}).get("team") or "unassigned")
+        source = (
+            getattr(node, "source_path", "")
+            or getattr(node, "slug", "")
+            or getattr(node, "url", "")
+        )
+        owner = str(
+            getattr(node, "meta", {}).get("owner")
+            or getattr(node, "meta", {}).get("team")
+            or "unassigned"
+        )
         content_format = getattr(node, "content_format", "")
         if content_format == "mdx":
             findings.extend(
@@ -184,7 +192,9 @@ def _from_diagnostic(diagnostic: Any, *, owner: str) -> MigrationReportFinding:
         line=getattr(diagnostic, "line", None),
         construct=_diagnostic_construct(rule_id, message),
         message=message,
-        next_action=str(getattr(diagnostic, "next_action", None) or "Review this finding before migration."),
+        next_action=str(
+            getattr(diagnostic, "next_action", None) or "Review this finding before migration."
+        ),
         rule_id=rule_id,
         owner=owner,
     )

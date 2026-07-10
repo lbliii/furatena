@@ -63,7 +63,7 @@ def renderer_is_stale(docs_root: Path, frozen_dir: Path, *, theme_id: str = "chi
         if docs.theme.use:
             try:
                 skin_pack_root = load_theme_pack(docs.theme.use).root
-            except (LookupError, TypeError, ValueError):
+            except LookupError, TypeError, ValueError:
                 skin_pack_root = None
 
     stored = read_renderer_fingerprint(frozen_dir)

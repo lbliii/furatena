@@ -36,6 +36,7 @@ from furatena.catalog.incremental import (
 from furatena.catalog.models import DocNode, SectionChunk, TocEntry
 from furatena.catalog.record_types import EdgeRecord, NamespaceRecord
 from furatena.catalog.render import DocsRenderer
+from furatena.catalog.safe_html import sanitize_rendered_html
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.sources import (
     MountSourceConfig,
@@ -536,6 +537,8 @@ class DocCatalog:
         )
 
     def _register_node(self, node: DocNode) -> None:
+        if node.body_html:
+            node = replace(node, body_html=sanitize_rendered_html(node.body_html))
         self._nodes.append(node)
         self._nodes_by_url[node.url] = node
         if node.url != "/":
@@ -687,7 +690,7 @@ class DocCatalog:
         if node.html_path and self._frozen_pages_dir is not None:
             path = self._frozen_pages_dir / node.html_path
             if path.is_file():
-                html = path.read_text(encoding="utf-8").strip()
+                html = sanitize_rendered_html(path.read_text(encoding="utf-8").strip())
                 self._html_cache[node.node_id] = html
                 return html
         return ""
@@ -904,12 +907,13 @@ class DocCatalog:
                 member_urls = {member_href, *(page.url for page in pages)}
                 section_urls.update(member_urls)
                 member_active = active_url in member_urls or (
-                    active_url is not None
-                    and active_url.startswith(member_href.rstrip("/") + "/")
+                    active_url is not None and active_url.startswith(member_href.rstrip("/") + "/")
                 )
                 member_groups.append(
                     {
-                        "title": index_node.title if index_node else member_id.replace("-", " ").title(),
+                        "title": index_node.title
+                        if index_node
+                        else member_id.replace("-", " ").title(),
                         "href": member_href,
                         "open": member_active,
                         "active": member_href == active_url,
@@ -937,9 +941,8 @@ class DocCatalog:
 
             if not member_groups and not page_items:
                 continue
-            section_href = (
-                section.href
-                or (member_groups[0]["href"] if member_groups else page_items[0]["href"])
+            section_href = section.href or (
+                member_groups[0]["href"] if member_groups else page_items[0]["href"]
             )
             section_active = active_url in section_urls or (
                 active_url is not None and active_url.startswith(section_href.rstrip("/") + "/")
@@ -1080,9 +1083,7 @@ class DocCatalog:
                     "href": href,
                     "mark": section.mark,
                     "icon": section.icon,
-                    "active": bool(
-                        active_url in active_urls
-                    ),
+                    "active": bool(active_url in active_urls),
                 }
             )
         items.append(

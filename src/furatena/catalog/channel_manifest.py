@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.access import AccessPermission, AccessSubject, accessible_nodes
+from furatena.catalog.catalog_shards import catalog_shard_url
 from furatena.catalog.deployment_manifest import DeploymentArtifact, DeploymentManifest
 from furatena.catalog.identity import normalize_identity
 
@@ -17,7 +18,12 @@ _JSON_OUTPUTS = (
     ("catalog", "/catalog.json", "Catalog graph", "application/json"),
     ("search", "/search.json", "Search index", "application/json"),
     ("tools", "/tools.json", "Agent tool manifest", "application/json"),
-    ("api-operations", "/catalog/api-operations.json", "API operation inventory", "application/json"),
+    (
+        "api-operations",
+        "/catalog/api-operations.json",
+        "API operation inventory",
+        "application/json",
+    ),
     ("meta", "/meta.json", "Metadata index", "application/json"),
     ("semantic", "/semantic.json", "Semantic search index", "application/json"),
     ("structure", "/structure.json", "Content structure index", "application/json"),
@@ -91,7 +97,11 @@ def channel_manifest(
                     enabled=mode in {"static", "freeze"},
                     paths=artifact_paths,
                 ),
-                _agent_channel(base, catalog=catalog),
+                _agent_channel(
+                    base,
+                    catalog=catalog,
+                    source_fingerprints=source_fingerprints,
+                ),
                 _pdf_channel(base, paths=pdf_artifact_paths),
             ],
         },
@@ -126,7 +136,12 @@ def _static_channel(base: str, *, enabled: bool, paths: list[str]) -> dict[str, 
     return channel
 
 
-def _agent_channel(base: str, *, catalog: Any) -> dict[str, Any]:
+def _agent_channel(
+    base: str,
+    *,
+    catalog: Any,
+    source_fingerprints: list[dict[str, Any]],
+) -> dict[str, Any]:
     outputs = [
         *[
             _output(output_id, href, label, media_type, base=base, format="json")
@@ -145,6 +160,33 @@ def _agent_channel(base: str, *, catalog: Any) -> dict[str, Any]:
             "visibility": "public",
         },
     ]
+    for source in source_fingerprints:
+        mount_id = str(source.get("mount") or "")
+        href = catalog_shard_url(mount_id)
+        if href is None:
+            continue
+        can_access_mount = getattr(catalog, "can_access_mount", None)
+        if callable(can_access_mount) and not can_access_mount(
+            mount_id,
+            AccessSubject.anonymous(),
+            permission=AccessPermission.EXPORT,
+        ):
+            continue
+        outputs.append(
+            {
+                **_output(
+                    f"catalog-shard-{mount_id}",
+                    href,
+                    f"{source.get('label') or mount_id} catalog shard",
+                    "application/json",
+                    base=base,
+                    format="json",
+                ),
+                "mount": mount_id,
+                "fingerprint": str(source.get("fingerprint") or ""),
+                "page_count": int(source.get("page_count") or 0),
+            }
+        )
     inventory_store = getattr(catalog, "inventory_store", None)
     if inventory_store is not None and inventory_store.specs:
         outputs.extend(
@@ -233,7 +275,9 @@ def _output(
     }
 
 
-def _source_fingerprints(catalog: Any, *, mount_status: dict[str, dict[str, Any]] | None) -> list[dict[str, Any]]:
+def _source_fingerprints(
+    catalog: Any, *, mount_status: dict[str, dict[str, Any]] | None
+) -> list[dict[str, Any]]:
     mounts = list(getattr(catalog, "mounts", ()))
     nodes = list(getattr(catalog, "nodes", ()))
     records: list[dict[str, Any]] = []
@@ -254,7 +298,8 @@ def _source_fingerprints(catalog: Any, *, mount_status: dict[str, dict[str, Any]
             {
                 "mount": mount.id,
                 "label": mount.label,
-                "provider": status.get("provider") or getattr(getattr(mount, "source", None), "kind", "filesystem"),
+                "provider": status.get("provider")
+                or getattr(getattr(mount, "source", None), "kind", "filesystem"),
                 "fingerprint": fingerprint,
                 "status": status.get("status") or "available",
                 "page_count": len(mount_nodes),
@@ -335,7 +380,10 @@ def _to_plain(value: Any) -> Any:
     if isinstance(value, Path):
         return value.as_posix()
     if isinstance(value, dict):
-        return {str(key): _to_plain(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))}
+        return {
+            str(key): _to_plain(item)
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
     if isinstance(value, (list, tuple, set, frozenset)):
         return [_to_plain(item) for item in value]
     return value

@@ -47,15 +47,15 @@ sessions = [
 
 [[package]]
 name = "bengal-pounce"
-version = "0.8.2"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "h11" },
     { name = "milo-cli" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0f/fc/1d80c16564c5156269a3f0b8a5e4472f64fa634090da5893d709e59c75b5/bengal_pounce-0.8.2.tar.gz", hash = "sha256:4b534e47b0e471ba7f03fd3a47e3fdf5e88d572cf1777be1ca290596d1203a31", size = 240155, upload-time = "2026-07-06T16:21:02.438Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/74/e5/848e1ca513db699d12a966908f03ee87544f27195ef9dbb97e86ca560820/bengal_pounce-0.9.0.tar.gz", hash = "sha256:26aef598e9e607e59dc01206c72871f9f85fd97c22a84ed68a7e88b92f25b324", size = 251842, upload-time = "2026-07-09T14:48:47.406Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0f/66/9369184704bcd08acd5f12e4ba59266b25e75f6b6db3a065606f8ed92fe8/bengal_pounce-0.8.2-py3-none-any.whl", hash = "sha256:351da1f439be390a85ce07b0b99860432edea1d8705fcd66f771a382c34d23a0", size = 274404, upload-time = "2026-07-06T16:21:00.878Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/a0/b687cdc5413c259f4cc09daa75ab9dbdf87b8966bb0a913bf407f1e80e30/bengal_pounce-0.9.0-py3-none-any.whl", hash = "sha256:0863d7e63ffd7c483a476a4b67ee9b189e0b67e8b9c0d76f6d9e48998d9a5b78", size = 286289, upload-time = "2026-07-09T14:48:45.956Z" },
 ]
 
 [[package]]
@@ -177,6 +177,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "bengal-chirp", extra = ["forms", "sessions"] },
+    { name = "bengal-pounce" },
     { name = "chirp-ui" },
     { name = "jsonschema" },
     { name = "milo-cli" },
@@ -214,6 +215,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bengal-chirp", extras = ["forms", "sessions"], specifier = ">=0.9.0,<0.10.0" },
+    { name = "bengal-pounce", specifier = ">=0.9.0,<0.10.0" },
     { name = "chirp-ui", specifier = ">=0.11.0" },
     { name = "docutils", marker = "extra == 'dev'", specifier = ">=0.21" },
     { name = "docutils", marker = "extra == 'formats'", specifier = ">=0.21" },
@@ -227,7 +229,7 @@ requires-dist = [
     { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2.3" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "reportlab", specifier = ">=5.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15.20" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = "==0.15.20" },
 ]
 provides-extras = ["formats", "dev"]
 
@@ -239,7 +241,7 @@ dev = [
     { name = "pytest", specifier = ">=9.0" },
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "pytest-timeout", specifier = ">=2.3" },
-    { name = "ruff", specifier = ">=0.15.20" },
+    { name = "ruff", specifier = "==0.15.20" },
     { name = "ty", specifier = ">=0.0.57" },
 ]
 

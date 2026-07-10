@@ -162,8 +162,7 @@ def check_agent_manifest_alignment(server: Any) -> list[AgentLintFinding]:
     meta_nodes = _manifest_node_index(meta_payload.get("pages"))
     search_nodes = _manifest_node_index(search_payload.get("entries"), base_path=base_path)
     llms_urls = {
-        _manifest_llms_page_path(url)
-        for url in re.findall(r"\]\(([^)]+)\)", llms_txt(catalog))
+        _manifest_llms_page_path(url) for url in re.findall(r"\]\(([^)]+)\)", llms_txt(catalog))
     }
     mcp_node_ids = {
         unquote(str(resource.get("uri") or "").removeprefix("fura://catalog/nodes/"))
@@ -384,17 +383,28 @@ def check_agent_safety(
                     )
                 )
 
-    report = stale_report if stale_report is not None else stale_impact_report(catalog, include_private=False)
+    report = (
+        stale_report
+        if stale_report is not None
+        else stale_impact_report(catalog, include_private=False)
+    )
     for item in report.get("impact", []):
-        node_id = str((item.get("provenance") or {}).get("node_id") or item.get("slug") or "unknown")
-        source_path = str((item.get("provenance") or {}).get("path") or item.get("source_key") or node_id)
+        node_id = str(
+            (item.get("provenance") or {}).get("node_id") or item.get("slug") or "unknown"
+        )
+        source_path = str(
+            (item.get("provenance") or {}).get("path") or item.get("source_key") or node_id
+        )
         warnings.append(
             _finding(
                 "warning",
                 "fura.agent_safety.stale_context",
                 f"Stale agent context for {node_id} should be refreshed or withheld from retrieval",
                 source_path,
-                str(item.get("recommended_remediation") or "Refresh affected agent exports before publishing."),
+                str(
+                    item.get("recommended_remediation")
+                    or "Refresh affected agent exports before publishing."
+                ),
             )
         )
 
@@ -499,7 +509,11 @@ def _lint_tool(tool: dict[str, Any]) -> tuple[list[AgentLintFinding], list[Agent
                 )
             )
     elif name in _READ_ONLY_TOOLS and name.startswith("author_") and "read" not in name:
-        if "inspect" not in desc.lower() and "preview" not in desc.lower() and "validation" not in desc.lower():
+        if (
+            "inspect" not in desc.lower()
+            and "preview" not in desc.lower()
+            and "validation" not in desc.lower()
+        ):
             warnings.append(
                 _finding(
                     "warning",
@@ -604,7 +618,11 @@ def _lint_input_schema(name: str, schema: dict[str, Any]) -> list[AgentLintFindi
 def _lint_llms_descriptions(catalog: Any) -> list[AgentLintFinding]:
     findings: list[AgentLintFinding] = []
     for node in catalog.doc_nodes():
-        if node.meta.get("draft") or node.meta.get("visibility") in {"private", "internal", "archived"}:
+        if node.meta.get("draft") or node.meta.get("visibility") in {
+            "private",
+            "internal",
+            "archived",
+        }:
             continue
         description = str(node.description or "").strip()
         if description:
@@ -787,7 +805,7 @@ def _manifest_llms_page_path(value: str) -> str:
     if path.endswith("/index.md"):
         return f"{path[: -len('index.md')]}"
     if path.endswith(".md"):
-        return f"{path[:-len('.md')]}/"
+        return f"{path[: -len('.md')]}/"
     return path
 
 

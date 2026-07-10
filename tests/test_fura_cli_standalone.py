@@ -155,26 +155,30 @@ def test_init_app_passes_strict_content_check(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 
     main(["init", str(app_root), "--name", "Acme Docs"])
-    main([
-        "--app-root",
-        str(app_root),
-        "check",
-        "--content-only",
-        "--warnings-as-errors",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "check",
+            "--content-only",
+            "--warnings-as-errors",
+        ]
+    )
 
 
 def test_check_returns_standard_result_in_process(tmp_path: Path) -> None:
     app_root = tmp_path / "docs-site"
 
     _run_result(["init", str(app_root), "--name", "Acme Docs"])
-    result = _run_result([
-        "--app-root",
-        str(app_root),
-        "check",
-        "--content-only",
-        "--warnings-as-errors",
-    ])
+    result = _run_result(
+        [
+            "--app-root",
+            str(app_root),
+            "check",
+            "--content-only",
+            "--warnings-as-errors",
+        ]
+    )
 
     assert result.ok is True
     assert result.command == "check"
@@ -292,7 +296,7 @@ def test_migrate_report_json_groups_risks(tmp_path: Path, capsys) -> None:
     page.write_text(
         "---\ntitle: Legacy\n---\n\n"
         "# Legacy\n\n"
-        "<ApiTable endpoint=\"/v1\" />\n\n"
+        '<ApiTable endpoint="/v1" />\n\n'
         "[Missing](/docs/missing/)\n",
         encoding="utf-8",
     )
@@ -311,8 +315,7 @@ def test_migrate_report_json_groups_risks(tmp_path: Path, capsys) -> None:
     assert "docs/legacy.mdx" in report["groups"]["by_source_path"]
     assert "internal link" in report["groups"]["by_construct"]
     assert any(
-        finding["construct"] == "MDX JSX component <ApiTable>"
-        and finding["severity"] == "warning"
+        finding["construct"] == "MDX JSX component <ApiTable>" and finding["severity"] == "warning"
         for finding in report["findings"]
     )
 
@@ -323,7 +326,7 @@ def test_migrate_report_text_is_readable(tmp_path: Path, capsys) -> None:
     main(["init", str(app_root), "--name", "Acme Docs"])
     page = app_root / "content" / "docs" / "legacy.mdx"
     page.write_text(
-        "---\ntitle: Legacy\n---\n\n<ApiTable endpoint=\"/v1\" />\n",
+        '---\ntitle: Legacy\n---\n\n<ApiTable endpoint="/v1" />\n',
         encoding="utf-8",
     )
     capsys.readouterr()
@@ -580,15 +583,17 @@ def test_check_reports_stale_public_output_and_deploy_fails(tmp_path: Path, caps
         ("checkstyle", "<checkstyle"),
     ):
         try:
-            main([
-                "--app-root",
-                str(app_root),
-                "check",
-                "--content-only",
-                "--deploy",
-                "--report-format",
-                report_format,
-            ])
+            main(
+                [
+                    "--app-root",
+                    str(app_root),
+                    "check",
+                    "--content-only",
+                    "--deploy",
+                    "--report-format",
+                    report_format,
+                ]
+            )
         except SystemExit as exc:
             assert exc.code == 2
         else:  # pragma: no cover - defensive assertion
@@ -611,14 +616,16 @@ def test_check_json_validates_bundled_dcp_fixtures(tmp_path: Path, capsys) -> No
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
-    main([
-        "--app-root",
-        str(app_root),
-        "check",
-        "--content-only",
-        "--dcp-fixtures",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "check",
+            "--content-only",
+            "--dcp-fixtures",
+            "--json",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
 
     assert payload["ok"] is True
@@ -632,13 +639,15 @@ def test_check_agent_only_json_lints_mcp_contracts(tmp_path: Path, capsys) -> No
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
-    main([
-        "--app-root",
-        str(app_root),
-        "check",
-        "--agent-only",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "check",
+            "--agent-only",
+            "--json",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
 
     assert payload["ok"] is True
@@ -696,9 +705,12 @@ def test_agent_manifest_lint_reports_advertised_url_drift(
     )
     original = export_module.tools_manifest
 
-    assert check_agent_manifest_alignment(
-        FuraMCPServer(docs, base_url="https://docs.example.com/reference")
-    ) == []
+    assert (
+        check_agent_manifest_alignment(
+            FuraMCPServer(docs, base_url="https://docs.example.com/reference")
+        )
+        == []
+    )
 
     def drifted_tools_manifest(*args, **kwargs):
         payload = original(*args, **kwargs)
@@ -767,14 +779,16 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     )
     capsys.readouterr()
 
-    main([
-        "--app-root",
-        str(app_root),
-        "evals",
-        "--include-private",
-        "--json",
-        "--no-autodoc",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "evals",
+            "--include-private",
+            "--json",
+            "--no-autodoc",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
     results = {item["id"]: item for item in payload["data"]["results"]}
 
@@ -819,17 +833,27 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     assert results["author-draft-dry-run"]["status"] == "pass"
     assert results["author-draft-dry-run"]["observed"]["changed_files"] == []
     assert results["author-publish-dry-run"]["status"] == "pass"
-    assert results["author-publish-dry-run"]["observed"]["publication_change"] == "added_to_public_output"
+    assert (
+        results["author-publish-dry-run"]["observed"]["publication_change"]
+        == "added_to_public_output"
+    )
     assert results["author-publish-remediation"]["status"] == "pass"
-    assert results["author-publish-remediation"]["observed"]["source_unchanged_after_failed_publish"] is True
+    assert (
+        results["author-publish-remediation"]["observed"]["source_unchanged_after_failed_publish"]
+        is True
+    )
     assert results["author-validation-repair"]["status"] == "pass"
     assert results["author-validation-repair"]["observed"]["invalid_validation_is_error"] is True
     assert results["author-validation-repair"]["observed"]["clean_validation_is_error"] is False
     assert results["author-validation-repair"]["observed"]["source_restored"] is True
     assert results["author-publish-round-trip"]["status"] == "pass"
     assert results["author-publish-round-trip"]["observed"]["public_before_is_error"] is True
-    assert results["author-publish-round-trip"]["observed"]["public_after_publish_is_error"] is False
-    assert results["author-publish-round-trip"]["observed"]["public_after_unpublish_is_error"] is True
+    assert (
+        results["author-publish-round-trip"]["observed"]["public_after_publish_is_error"] is False
+    )
+    assert (
+        results["author-publish-round-trip"]["observed"]["public_after_unpublish_is_error"] is True
+    )
     assert results["author-publish-round-trip"]["observed"]["restore_is_error"] is False
 
 
@@ -838,15 +862,17 @@ def test_query_json_uses_standard_result_envelope(tmp_path: Path, capsys) -> Non
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
-    main([
-        "--app-root",
-        str(app_root),
-        "query",
-        "--heading",
-        "Get started",
-        "--json",
-        "--no-autodoc",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "query",
+            "--heading",
+            "Get started",
+            "--json",
+            "--no-autodoc",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
 
     assert payload["ok"] is True
@@ -872,8 +898,12 @@ def test_freeze_and_export_json_report_outputs(tmp_path: Path, capsys) -> None:
     assert export_payload["command"] == "export"
     assert export_payload["data"]["base_path"] == "/"
     assert (app_root / "public" / "docs" / "get-started" / "index.html").is_file()
-    frozen_channels = json.loads((app_root / "frozen" / "channels.json").read_text(encoding="utf-8"))
-    public_channels = json.loads((app_root / "public" / "channels.json").read_text(encoding="utf-8"))
+    frozen_channels = json.loads(
+        (app_root / "frozen" / "channels.json").read_text(encoding="utf-8")
+    )
+    public_channels = json.loads(
+        (app_root / "public" / "channels.json").read_text(encoding="utf-8")
+    )
     assert frozen_channels["mode"] == "freeze"
     assert public_channels["mode"] == "static"
     assert {item["id"] for item in public_channels["channels"]} >= {"static", "agent", "pdf"}
@@ -919,25 +949,29 @@ def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) ->
     )
     capsys.readouterr()
 
-    main([
-        "--app-root",
-        str(app_root),
-        "pdf",
-        "--page",
-        "/docs/pdf-source/",
-        "--json",
-        "--no-autodoc",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "pdf",
+            "--page",
+            "/docs/pdf-source/",
+            "--json",
+            "--no-autodoc",
+        ]
+    )
     page_payload = json.loads(capsys.readouterr().out)
-    main([
-        "--app-root",
-        str(app_root),
-        "pdf",
-        "--collection",
-        "docs",
-        "--json",
-        "--no-autodoc",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "pdf",
+            "--collection",
+            "docs",
+            "--json",
+            "--no-autodoc",
+        ]
+    )
     collection_payload = json.loads(capsys.readouterr().out)
     main(["--app-root", str(app_root), "pdf", "--json", "--no-autodoc"])
     site_payload = json.loads(capsys.readouterr().out)
@@ -985,7 +1019,9 @@ def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, caps
     assert initial_payload["ok"] is True
 
     registry = json.loads((app_root / "frozen" / "registry.json").read_text(encoding="utf-8"))
-    manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8")
+    )
     mount = registry["mounts"][0]
     status = mount["source_status"]
     manifest_status = manifest["mount_status"][0]
@@ -1004,7 +1040,9 @@ def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, caps
 
     main(["--app-root", str(app_root), "freeze", "--json"])
     skipped_payload = json.loads(capsys.readouterr().out)
-    skipped_manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    skipped_manifest = json.loads(
+        (app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8")
+    )
     skipped_status = skipped_manifest["mount_status"][0]
     assert skipped_payload["data"]["status"] == "up_to_date"
     assert skipped_manifest["dirty_mounts"] == []
@@ -1018,7 +1056,9 @@ def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, caps
     )
     main(["--app-root", str(app_root), "freeze", "--json"])
     content_payload = json.loads(capsys.readouterr().out)
-    content_manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    content_manifest = json.loads(
+        (app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8")
+    )
     content_status = content_manifest["mount_status"][0]
     assert content_payload["data"]["status"] == "updated"
     assert content_status["status"] == "frozen"
@@ -1027,7 +1067,9 @@ def test_freeze_records_source_sync_state_and_drift_reasons(tmp_path: Path, caps
     (app_root / "frozen" / "renderer.fingerprint").write_text("stale-renderer\n", encoding="utf-8")
     main(["--app-root", str(app_root), "freeze", "--json"])
     renderer_payload = json.loads(capsys.readouterr().out)
-    renderer_manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    renderer_manifest = json.loads(
+        (app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8")
+    )
     renderer_status = renderer_manifest["mount_status"][0]
     assert renderer_payload["data"]["status"] == "updated"
     assert renderer_status["status"] == "frozen"
@@ -1059,7 +1101,9 @@ def test_freeze_records_failed_mount_status_without_refreshing_renderer(
     assert failure["data"]["error"]["context"]["mount"] == "docs"
 
     registry = json.loads((app_root / "frozen" / "registry.json").read_text(encoding="utf-8"))
-    manifest = json.loads((app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (app_root / "frozen" / "freeze.manifest.json").read_text(encoding="utf-8")
+    )
     registry_status = registry["mounts"][0]["source_status"]
     manifest_status = manifest["mount_status"][0]
     assert registry_status["status"] == "failed"
@@ -1110,16 +1154,18 @@ def test_export_json_blocks_lifecycle_errors_without_override(tmp_path: Path, ca
         for diagnostic in payload["diagnostics"]
     )
 
-    main([
-        "--app-root",
-        str(app_root),
-        "export",
-        "--fresh",
-        "--base-path",
-        "",
-        "--allow-lifecycle-errors",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "export",
+            "--fresh",
+            "--base-path",
+            "",
+            "--allow-lifecycle-errors",
+            "--json",
+        ]
+    )
     override_payload = json.loads(capsys.readouterr().out)
     assert override_payload["ok"] is True
 
@@ -1348,7 +1394,9 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
         meta_public = await client.get("/meta.json")
         meta_private = await client.get("/meta.json?include_private=1")
         retrieve_public = await client.get(f"/catalog/retrieve?id={node.node_id}")
-        retrieve_private = await client.get(f"/catalog/retrieve?id={node.node_id}&include_private=1")
+        retrieve_private = await client.get(
+            f"/catalog/retrieve?id={node.node_id}&include_private=1"
+        )
         return {
             "direct_status": direct.status,
             "direct_text": direct.text,
@@ -1510,16 +1558,16 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     private_revision = _source_revision_context(author_payload["private_page"])
 
     assert author_payload["page"].status == 200
-    assert 'data-fura-author-chrome' in author_payload["page"].text
+    assert "data-fura-author-chrome" in author_payload["page"].text
     assert 'id="fura-author-sse"' in author_payload["page"].text
     assert 'sse-connect="/docs/_author/events?slug=docs/get-started"' in author_payload["page"].text
     assert 'sse-swap="author-invalidate"' in author_payload["page"].text
     assert 'hx-disinherit="hx-target hx-swap"' in author_payload["page"].text
     assert 'hx-swap="none"' in author_payload["page"].text
     assert 'hx-trigger="sse:author-invalidate"' in author_payload["page"].text
-    assert 'HX-Docs-Author-Reload' in author_payload["page"].text
+    assert "HX-Docs-Author-Reload" in author_payload["page"].text
     assert author_payload["boosted_page"].status == 200
-    assert 'data-fura-author-chrome' in author_payload["boosted_page"].text
+    assert "data-fura-author-chrome" in author_payload["boosted_page"].text
     assert "Open source" in author_payload["page"].text
     assert "Copy source path" in author_payload["page"].text
     assert "Inspect public" in author_payload["page"].text
@@ -1533,9 +1581,10 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert 'name="operation" value="publish"' in author_payload["page"].text
     assert 'name="_csrf_token"' in author_payload["page"].text
     assert 'hx-get="/docs/_author/transition' not in author_payload["page"].text
-    assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" in author_payload[
-        "page"
-    ].text
+    assert (
+        "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1"
+        in author_payload["page"].text
+    )
     assert status_payload["source_path"].endswith("content/docs/get-started.md")
     assert status_payload["content_format"] == "patitas-markdown"
     assert {"public", "valid", "clean", "public-output"} <= set(status_payload["states"])
@@ -1693,13 +1742,14 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
         return {"page": page, "status": status, "source": source}
 
     public_payload = asyncio.run(_fetch_public())
-    assert 'data-fura-author-chrome' not in public_payload["page"].text
+    assert "data-fura-author-chrome" not in public_payload["page"].text
     assert 'id="fura-author-sse"' not in public_payload["page"].text
     assert "author-invalidate" not in public_payload["page"].text
     assert "HX-Docs-Author-Reload" not in public_payload["page"].text
-    assert "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1" not in public_payload[
-        "page"
-    ].text
+    assert (
+        "/docs/_author/page.json?slug=docs/get-started&amp;inspect_public=1"
+        not in public_payload["page"].text
+    )
     assert public_payload["status"].status == 404
     assert public_payload["source"].status == 404
     assert "Author controls" not in public_payload["page"].text
@@ -1764,7 +1814,9 @@ def test_author_dashboard_lists_mount_status_and_lint_drilldown(tmp_path: Path) 
     assert mount["status"] in {"blocked", "stale"}
     assert mount["dirty_count"] + mount["stale_count"] >= 1
     assert any(item["format"] == "patitas-markdown" for item in mount["formats"])
-    assert any("broken internal link" in item["message"] for item in data_payload["data"]["blocking"])
+    assert any(
+        "broken internal link" in item["message"] for item in data_payload["data"]["blocking"]
+    )
 
     public_docs = DocsApp.from_paths(
         app_root / "docs.yaml",
@@ -1918,17 +1970,19 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "new",
-        "docs/release-notes",
-        "--title",
-        "Release notes",
-        "--dry-run",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "new",
+            "docs/release-notes",
+            "--title",
+            "Release notes",
+            "--dry-run",
+            "--json",
+        ]
+    )
     dry_payload = json.loads(capsys.readouterr().out)
     target = app_root / "content" / "docs" / "release-notes.md"
     dry_data = _assert_author_json_envelope(
@@ -1944,17 +1998,19 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert dry_data["changed_files"] == []
     assert not target.exists()
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "new",
-        "docs/release-notes",
-        "--title",
-        "Release notes",
-        "--yes",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "new",
+            "docs/release-notes",
+            "--title",
+            "Release notes",
+            "--yes",
+            "--json",
+        ]
+    )
     create_payload = json.loads(capsys.readouterr().out)
     create_data = _assert_author_json_envelope(
         create_payload,
@@ -2010,15 +2066,17 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert confirm_payload["ok"] is False
     assert confirm_payload["diagnostics"][0]["rule_id"] == "fura.author"
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "publish",
-        "docs/release-notes",
-        "--dry-run",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "publish",
+            "docs/release-notes",
+            "--dry-run",
+            "--json",
+        ]
+    )
     publish_dry = json.loads(capsys.readouterr().out)
     publish_dry_data = _assert_author_json_envelope(
         publish_dry,
@@ -2038,17 +2096,19 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert all(surface["affected"] is True for surface in impact["surfaces"])
     assert "visibility: public" not in target.read_text(encoding="utf-8")
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "publish",
-        "docs/release-notes",
-        "--source-revision",
-        _source_revision(target),
-        "--yes",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "publish",
+            "docs/release-notes",
+            "--source-revision",
+            _source_revision(target),
+            "--yes",
+            "--json",
+        ]
+    )
     publish_payload = json.loads(capsys.readouterr().out)
     publish_data = _assert_author_json_envelope(
         publish_payload,
@@ -2064,15 +2124,17 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert "visibility: public" in source
     assert "published_at:" in source
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "unpublish",
-        "docs/release-notes",
-        "--dry-run",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "unpublish",
+            "docs/release-notes",
+            "--dry-run",
+            "--json",
+        ]
+    )
     unpublish_dry = json.loads(capsys.readouterr().out)
     unpublish_data = _assert_author_json_envelope(
         unpublish_dry,
@@ -2125,17 +2187,19 @@ def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, caps
     capsys.readouterr()
     target = app_root / "content" / "docs" / "get-started.md"
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "archive",
-        "docs/get-started",
-        "--source-revision",
-        _source_revision(target),
-        "--yes",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "archive",
+            "docs/get-started",
+            "--source-revision",
+            _source_revision(target),
+            "--yes",
+            "--json",
+        ]
+    )
     archive_payload = json.loads(capsys.readouterr().out)
     archive_data = _assert_author_json_envelope(
         archive_payload,
@@ -2150,7 +2214,17 @@ def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, caps
     assert "visibility: archived" in archived_source
     assert "archived_at:" in archived_source
 
-    main(["--app-root", str(app_root), "author", "publish", "docs/get-started", "--dry-run", "--json"])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "publish",
+            "docs/get-started",
+            "--dry-run",
+            "--json",
+        ]
+    )
     preview_payload = json.loads(capsys.readouterr().out)
     preview_data = _assert_author_json_envelope(
         preview_payload,
@@ -2164,17 +2238,19 @@ def test_author_publish_clears_archived_visibility_conflict(tmp_path: Path, caps
     assert "-archived_at:" in preview_data["diff"]
     assert "archived_at:" in target.read_text(encoding="utf-8")
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "publish",
-        "docs/get-started",
-        "--source-revision",
-        _source_revision(target),
-        "--yes",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "publish",
+            "docs/get-started",
+            "--source-revision",
+            _source_revision(target),
+            "--yes",
+            "--json",
+        ]
+    )
     publish_payload = json.loads(capsys.readouterr().out)
     _assert_author_json_envelope(
         publish_payload,
@@ -2212,19 +2288,21 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     old_text = "Run the local docs server:"
     new_text = "Run the local author preview:"
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "edit",
-        "docs/get-started",
-        "--old-text",
-        old_text,
-        "--new-text",
-        new_text,
-        "--dry-run",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "edit",
+            "docs/get-started",
+            "--old-text",
+            old_text,
+            "--new-text",
+            new_text,
+            "--dry-run",
+            "--json",
+        ]
+    )
     dry_payload = json.loads(capsys.readouterr().out)
     dry_data = _assert_author_json_envelope(
         dry_payload,
@@ -2241,18 +2319,20 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     assert target.read_text(encoding="utf-8") == original
 
     try:
-        main([
-            "--app-root",
-            str(app_root),
-            "author",
-            "edit",
-            "docs/get-started",
-            "--old-text",
-            old_text,
-            "--new-text",
-            new_text,
-            "--json",
-        ])
+        main(
+            [
+                "--app-root",
+                str(app_root),
+                "author",
+                "edit",
+                "docs/get-started",
+                "--old-text",
+                old_text,
+                "--new-text",
+                new_text,
+                "--json",
+            ]
+        )
     except SystemExit as exc:
         assert exc.code == 3
     else:  # pragma: no cover - defensive assertion
@@ -2271,19 +2351,21 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     assert target.read_text(encoding="utf-8") == original
 
     try:
-        main([
-            "--app-root",
-            str(app_root),
-            "author",
-            "edit",
-            "docs/get-started",
-            "--old-text",
-            "Repeat marker.",
-            "--new-text",
-            "Unique marker.",
-            "--dry-run",
-            "--json",
-        ])
+        main(
+            [
+                "--app-root",
+                str(app_root),
+                "author",
+                "edit",
+                "docs/get-started",
+                "--old-text",
+                "Repeat marker.",
+                "--new-text",
+                "Unique marker.",
+                "--dry-run",
+                "--json",
+            ]
+        )
     except SystemExit as exc:
         assert exc.code == 3
     else:  # pragma: no cover - defensive assertion
@@ -2301,21 +2383,23 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     assert "old_text matches multiple source spans" in multiple_payload["diagnostics"][0]["message"]
     assert target.read_text(encoding="utf-8") == original
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "edit",
-        "docs/get-started",
-        "--old-text",
-        old_text,
-        "--new-text",
-        new_text,
-        "--source-revision",
-        _source_revision(target),
-        "--yes",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "edit",
+            "docs/get-started",
+            "--old-text",
+            old_text,
+            "--new-text",
+            new_text,
+            "--source-revision",
+            _source_revision(target),
+            "--yes",
+            "--json",
+        ]
+    )
     edit_payload = json.loads(capsys.readouterr().out)
     edit_data = _assert_author_json_envelope(
         edit_payload,
@@ -2330,19 +2414,21 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     assert new_text in target.read_text(encoding="utf-8")
 
     try:
-        main([
-            "--app-root",
-            str(app_root),
-            "author",
-            "edit",
-            "docs/get-started",
-            "--old-text",
-            old_text,
-            "--new-text",
-            "Should not apply.",
-            "--dry-run",
-            "--json",
-        ])
+        main(
+            [
+                "--app-root",
+                str(app_root),
+                "author",
+                "edit",
+                "docs/get-started",
+                "--old-text",
+                old_text,
+                "--new-text",
+                "Should not apply.",
+                "--dry-run",
+                "--json",
+            ]
+        )
     except SystemExit as exc:
         assert exc.code == 3
     else:  # pragma: no cover - defensive assertion
@@ -2366,7 +2452,9 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
     main(["init", str(app_root), "--name", "Acme Docs"])
     shared = app_root / "shared"
     (shared / "docs").mkdir(parents=True)
-    (shared / "docs" / "same.md").write_text("---\ntitle: Shared Same\n---\n# Shared\n", encoding="utf-8")
+    (shared / "docs" / "same.md").write_text(
+        "---\ntitle: Shared Same\n---\n# Shared\n", encoding="utf-8"
+    )
     (app_root / "content" / "docs" / "same.md").write_text(
         "---\ntitle: Default Same\n---\n# Default\n",
         encoding="utf-8",
@@ -2390,16 +2478,18 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
     capsys.readouterr()
 
     try:
-        main([
-            "--app-root",
-            str(app_root),
-            "author",
-            "status",
-            "docs/same",
-            "--mount",
-            "missing",
-            "--json",
-        ])
+        main(
+            [
+                "--app-root",
+                str(app_root),
+                "author",
+                "status",
+                "docs/same",
+                "--mount",
+                "missing",
+                "--json",
+            ]
+        )
     except SystemExit as exc:
         assert exc.code == 3
     else:  # pragma: no cover - defensive assertion
@@ -2417,17 +2507,19 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
     assert "unknown mount" in missing_payload["diagnostics"][0]["message"]
 
     try:
-        main([
-            "--app-root",
-            str(app_root),
-            "author",
-            "new",
-            "../outside",
-            "--title",
-            "Outside",
-            "--yes",
-            "--json",
-        ])
+        main(
+            [
+                "--app-root",
+                str(app_root),
+                "author",
+                "new",
+                "../outside",
+                "--title",
+                "Outside",
+                "--yes",
+                "--json",
+            ]
+        )
     except SystemExit as exc:
         assert exc.code == 3
     else:  # pragma: no cover - defensive assertion
@@ -2465,16 +2557,18 @@ def test_author_lifecycle_reports_missing_mount_and_ambiguous_slug(tmp_path: Pat
     assert ambiguous_payload["ok"] is False
     assert "ambiguous author target" in ambiguous_payload["diagnostics"][0]["message"]
 
-    main([
-        "--app-root",
-        str(app_root),
-        "author",
-        "status",
-        "docs/same",
-        "--mount",
-        "shared",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "status",
+            "docs/same",
+            "--mount",
+            "shared",
+            "--json",
+        ]
+    )
     shared_payload = json.loads(capsys.readouterr().out)
     shared_target = shared / "docs" / "same.md"
     shared_data = _assert_author_json_envelope(
@@ -2559,13 +2653,17 @@ def test_author_recipes_encode_safe_mutation_flow() -> None:
     assert "confirmed=true dry_run=false" in edit_publish_steps["publish"]["command"]
 
     repair_steps = {step["id"]: step for step in recipes["author-stale-repair"]["steps"]}
-    assert repair_steps["inspect-impact"]["command"].startswith("MCP author_inspect_publication_impact")
+    assert repair_steps["inspect-impact"]["command"].startswith(
+        "MCP author_inspect_publication_impact"
+    )
     assert repair_steps["preview-fix"]["dry_run"] is True
     assert repair_steps["apply-fix"]["requires_confirmation"] is True
     assert "confirmed=true dry_run=false" in repair_steps["apply-fix"]["command"]
     assert "check --content-only --json" in repair_steps["validate"]["command"]
 
-    remediation_steps = {step["id"]: step for step in recipes["author-publish-remediation"]["steps"]}
+    remediation_steps = {
+        step["id"]: step for step in recipes["author-publish-remediation"]["steps"]
+    }
     assert remediation_steps["publish-preview"]["dry_run"] is True
     assert "author_validate" in remediation_steps["validate-target"]["command"]
     assert remediation_steps["repair-preview"]["dry_run"] is True
@@ -2592,7 +2690,9 @@ def test_query_recipe_covers_dcp_and_mcp_graph_queries() -> None:
     recipe = result.data["recipes"][0]
     steps = {step["id"]: step for step in recipe["steps"]}
 
-    assert {"by-heading", "by-directive", "by-namespace", "by-dcp-edge", "by-mcp-graph"} <= set(steps)
+    assert {"by-heading", "by-directive", "by-namespace", "by-dcp-edge", "by-mcp-graph"} <= set(
+        steps
+    )
     assert "/catalog/query.json" in steps["by-dcp-edge"]["command"]
     assert "edge_kind=<EDGE_KIND>" in steps["by-dcp-edge"]["command"]
     assert "target=<TARGET>" in steps["by-dcp-edge"]["command"]
@@ -2727,7 +2827,12 @@ def test_mcp_json_rpc_tools_return_structured_content(tmp_path: Path) -> None:
     )
     tools_response = server.handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     resource_response = server.handle_request(
-        {"jsonrpc": "2.0", "id": 3, "method": "resources/read", "params": {"uri": "fura://catalog/nodes"}}
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "resources/read",
+            "params": {"uri": "fura://catalog/nodes"},
+        }
     )
     search_response = server.handle_request(
         {
@@ -2844,7 +2949,11 @@ def test_mcp_agent_contract_covers_required_resources_tools_and_schemas(tmp_path
     required_tools = {
         "semantic_search": {"query": "contract", "limit": 5},
         "retrieve_node": {"node_id": contract_node.node_id},
-        "query_graph": {"owner": "docs-platform", "edge_kind": "api_schema", "target": "schema:Invoice"},
+        "query_graph": {
+            "owner": "docs-platform",
+            "edge_kind": "api_schema",
+            "target": "schema:Invoice",
+        },
         "traverse_graph": {"url": "/docs/contract-source/"},
         "inspect_source_health": {},
         "run_checks": {},
@@ -2981,7 +3090,9 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
 
     denied = call("author_read_source", {"target": "docs/get-started"})
     search = call("semantic_search", {"query": "Get started", "limit": 3})
-    allowed = call("author_read_source", {"target": "docs/get-started", "privileged_token": "secret"})
+    allowed = call(
+        "author_read_source", {"target": "docs/get-started", "privileged_token": "secret"}
+    )
     milo_allowed = MCPClient(build_milo_cli(server)).call(
         "author_read_source",
         target="docs/get-started",
@@ -3002,7 +3113,10 @@ def test_mcp_remote_policy_denies_sensitive_tools_and_audits(tmp_path: Path) -> 
     assert audit["backend"] == "jsonl"
     assert audit["count"] == 4
     assert restarted_audit["entries"] == audit["entries"]
-    assert {entry["tool"] for entry in audit["entries"]} == {"author_read_source", "semantic_search"}
+    assert {entry["tool"] for entry in audit["entries"]} == {
+        "author_read_source",
+        "semantic_search",
+    }
     assert audit["entries"][0]["actor"] == "agent-ci"
     assert audit["entries"][0]["tenant"] == "acme"
     assert audit["entries"][0]["site"] == "docs"
@@ -3168,7 +3282,9 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     )
     target = app_root / "content" / "docs" / "mcp-draft.md"
 
-    def raw_call(server: FuraMCPServer, name: str, arguments: dict[str, object]) -> dict[str, object]:
+    def raw_call(
+        server: FuraMCPServer, name: str, arguments: dict[str, object]
+    ) -> dict[str, object]:
         return server.handle_request(
             {
                 "jsonrpc": "2.0",
@@ -3214,7 +3330,9 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert "visibility: draft" in target.read_text(encoding="utf-8")
     draft_node = docs.catalog.get_by_slug("docs/mcp-draft")
     assert draft_node is not None
-    public_draft_retrieve = raw_call(public_server, "retrieve_node", {"node_id": draft_node.node_id})
+    public_draft_retrieve = raw_call(
+        public_server, "retrieve_node", {"node_id": draft_node.node_id}
+    )
     assert public_draft_retrieve["error"]["code"] == -32602
 
     read = call(private_server, "author_read_source", {"target": "docs/mcp-draft"})
@@ -3247,7 +3365,10 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
         },
     )
     assert unsafe_edit["isError"] is True
-    assert "require --yes or --dry-run" in unsafe_edit["structuredContent"]["diagnostics"][0]["message"]
+    assert (
+        "require --yes or --dry-run"
+        in unsafe_edit["structuredContent"]["diagnostics"][0]["message"]
+    )
 
     edit = call(
         private_server,
@@ -3313,7 +3434,10 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
         "retrieve_node",
         {"node_id": published_node.node_id},
     )
-    assert public_published_retrieve["result"]["structuredContent"]["node_id"] == published_node.node_id
+    assert (
+        public_published_retrieve["result"]["structuredContent"]["node_id"]
+        == published_node.node_id
+    )
 
     unsafe_unpublish = call(
         private_server,
@@ -3327,7 +3451,10 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert unpublish_preview["isError"] is False
     assert unpublish_preview["structuredContent"]["dry_run"] is True
     assert unpublish_preview["structuredContent"]["resulting_visibility"] == "draft"
-    assert unpublish_preview["structuredContent"]["publication_impact"]["change"] == "removed_from_public_output"
+    assert (
+        unpublish_preview["structuredContent"]["publication_impact"]["change"]
+        == "removed_from_public_output"
+    )
 
     unpublish = call(
         private_server,
@@ -3357,7 +3484,10 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert archive_preview["isError"] is False
     assert archive_preview["structuredContent"]["dry_run"] is True
     assert archive_preview["structuredContent"]["resulting_visibility"] == "archived"
-    assert archive_preview["structuredContent"]["publication_impact"]["change"] == "private_metadata_updated"
+    assert (
+        archive_preview["structuredContent"]["publication_impact"]["change"]
+        == "private_metadata_updated"
+    )
     assert "visibility: archived" not in target.read_text(encoding="utf-8")
 
     unsafe_archive = call(
@@ -3514,14 +3644,16 @@ def test_theme_inspect_json_reports_resolution(tmp_path: Path, capsys) -> None:
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     capsys.readouterr()
-    main([
-        "--app-root",
-        str(app_root),
-        "theme",
-        "inspect",
-        "directives/callout.html",
-        "--json",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "theme",
+            "inspect",
+            "directives/callout.html",
+            "--json",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
 
     assert payload["ok"] is True
@@ -3559,13 +3691,15 @@ def test_ejected_template_keeps_check_and_export_working(tmp_path: Path) -> None
 
     main(["init", str(app_root), "--name", "Acme Docs"])
     main(["--app-root", str(app_root), "theme", "eject", "directives/callout.html"])
-    main([
-        "--app-root",
-        str(app_root),
-        "check",
-        "--content-only",
-        "--warnings-as-errors",
-    ])
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "check",
+            "--content-only",
+            "--warnings-as-errors",
+        ]
+    )
     main(["--app-root", str(app_root), "export", "--fresh", "--base-path", ""])
 
     assert (app_root / "public" / "docs" / "get-started" / "index.html").is_file()

@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication/v1/common.schema.json",
+  "title": "Furatena publication contract common types v1",
+  "$defs": {
+    "nonEmptyString": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "nullableTimestamp": {
+      "oneOf": [
+        {"$ref": "#/$defs/timestamp"},
+        {"type": "null"}
+      ]
+    },
+    "extensions": {"type": "object"},
+    "stringSet": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/nonEmptyString"},
+      "uniqueItems": true
+    },
+    "state": {
+      "enum": [
+        "proposed", "validating", "reviewable", "awaiting_approval",
+        "approved", "executing", "applied", "failed", "expired",
+        "cancelled", "superseded"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor", "identity_source", "roles", "teams"],
+      "properties": {
+        "actor": {"$ref": "#/$defs/nonEmptyString"},
+        "identity_source": {"$ref": "#/$defs/nonEmptyString"},
+        "roles": {"$ref": "#/$defs/stringSet"},
+        "teams": {"$ref": "#/$defs/stringSet"}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant", "workspace", "site", "mount", "node_id", "source_path"],
+      "properties": {
+        "tenant": {"$ref": "#/$defs/nonEmptyString"},
+        "workspace": {"$ref": "#/$defs/nonEmptyString"},
+        "site": {"$ref": "#/$defs/nonEmptyString"},
+        "mount": {"$ref": "#/$defs/nonEmptyString"},
+        "node_id": {"$ref": "#/$defs/nonEmptyString"},
+        "source_path": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "previous_visibility", "resulting_visibility"],
+      "properties": {
+        "operation": {"enum": ["draft", "publish", "unpublish", "archive", "rollback"]},
+        "previous_visibility": {"$ref": "#/$defs/nonEmptyString"},
+        "resulting_visibility": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_revision", "catalog_generation", "config_digest", "policy_version",
+        "policy_digest", "validation_snapshot_id", "validation_digest"
+      ],
+      "properties": {
+        "source_revision": {"$ref": "#/$defs/digest"},
+        "catalog_generation": {"$ref": "#/$defs/nonEmptyString"},
+        "config_digest": {"$ref": "#/$defs/digest"},
+        "policy_version": {"$ref": "#/$defs/nonEmptyString"},
+        "policy_digest": {"$ref": "#/$defs/digest"},
+        "validation_snapshot_id": {"$ref": "#/$defs/nonEmptyString"},
+        "validation_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "fieldChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "previous", "resulting"],
+      "properties": {
+        "field": {"$ref": "#/$defs/nonEmptyString"},
+        "previous": true,
+        "resulting": true
+      }
+    },
+    "changeset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "paths", "unified_diff", "diff_sha256", "previous_source_revision",
+        "resulting_source_revision", "front_matter_changes"
+      ],
+      "properties": {
+        "paths": {"$ref": "#/$defs/stringSet"},
+        "unified_diff": {"type": "string"},
+        "diff_sha256": {"$ref": "#/$defs/digest"},
+        "previous_source_revision": {"$ref": "#/$defs/digest"},
+        "resulting_source_revision": {"$ref": "#/$defs/digest"},
+        "front_matter_changes": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/fieldChange"}
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id", "snapshot_id", "catalog_generation", "error_count", "warning_count",
+        "info_count", "diagnostic_ids", "waivable_warning_ids", "diagnostics_digest"
+      ],
+      "properties": {
+        "run_id": {"$ref": "#/$defs/nonEmptyString"},
+        "snapshot_id": {"$ref": "#/$defs/nonEmptyString"},
+        "catalog_generation": {"$ref": "#/$defs/nonEmptyString"},
+        "error_count": {"type": "integer", "minimum": 0},
+        "warning_count": {"type": "integer", "minimum": 0},
+        "info_count": {"type": "integer", "minimum": 0},
+        "diagnostic_ids": {"$ref": "#/$defs/stringSet"},
+        "waivable_warning_ids": {"$ref": "#/$defs/stringSet"},
+        "diagnostics_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affected_projections", "risk", "reasons"],
+      "properties": {
+        "affected_projections": {"$ref": "#/$defs/stringSet"},
+        "risk": {"enum": ["low", "medium", "high", "critical"]},
+        "reasons": {"$ref": "#/$defs/stringSet"}
+      }
+    },
+    "approvalRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "policy_version", "policy_digest", "required_count", "eligible_roles",
+        "eligible_teams", "allow_self_approval", "separation_rules"
+      ],
+      "properties": {
+        "policy_version": {"$ref": "#/$defs/nonEmptyString"},
+        "policy_digest": {"$ref": "#/$defs/digest"},
+        "required_count": {"type": "integer", "minimum": 0},
+        "eligible_roles": {"$ref": "#/$defs/stringSet"},
+        "eligible_teams": {"$ref": "#/$defs/stringSet"},
+        "allow_self_approval": {"type": "boolean"},
+        "separation_rules": {"$ref": "#/$defs/stringSet"}
+      }
+    },
+    "outputIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "target", "environment"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/nonEmptyString"},
+        "target": {"$ref": "#/$defs/nonEmptyString"},
+        "environment": {
+          "oneOf": [
+            {"$ref": "#/$defs/nonEmptyString"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "code", "safe_message", "remediation", "retry_target"],
+      "properties": {
+        "disposition": {
+          "enum": ["retryable", "terminal", "conflict", "authorization", "reconciliation_required"]
+        },
+        "code": {"$ref": "#/$defs/nonEmptyString"},
+        "safe_message": {"$ref": "#/$defs/nonEmptyString"},
+        "remediation": {"$ref": "#/$defs/nonEmptyString"},
+        "retry_target": {
+          "oneOf": [
+            {"$ref": "#/$defs/state"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "nullableFailure": {
+      "oneOf": [
+        {"$ref": "#/$defs/failure"},
+        {"type": "null"}
+      ]
+    },
+    "outputReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "identifier", "status", "revision", "url"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/nonEmptyString"},
+        "identifier": {"$ref": "#/$defs/nonEmptyString"},
+        "status": {"$ref": "#/$defs/nonEmptyString"},
+        "revision": {
+          "oneOf": [
+            {"$ref": "#/$defs/nonEmptyString"},
+            {"type": "null"}
+          ]
+        },
+        "url": {
+          "oneOf": [
+            {"$ref": "#/$defs/nonEmptyString"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "recordReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["record_id", "record_digest"],
+      "properties": {
+        "record_id": {"$ref": "#/$defs/nonEmptyString"},
+        "record_digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

@@ -49,7 +49,9 @@ class PDFExportResult:
     byte_count: int
 
 
-def export_pdfs(catalog: Any, *, config: Any | None = None, options: PDFExportOptions) -> PDFExportResult:
+def export_pdfs(
+    catalog: Any, *, config: Any | None = None, options: PDFExportOptions
+) -> PDFExportResult:
     """Render the selected catalog scope to one PDF artifact."""
     output_dir = options.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -106,8 +108,12 @@ def _selected_nodes(
         ]
         if not selected:
             raise ValueError(f"unknown or empty public collection: {collection}")
-        return "collection", sorted(selected, key=lambda item: (item.mount, item.section, item.weight, item.title))
-    return "site", sorted(nodes, key=lambda item: (item.mount, item.section, item.weight, item.title))
+        return "collection", sorted(
+            selected, key=lambda item: (item.mount, item.section, item.weight, item.title)
+        )
+    return "site", sorted(
+        nodes, key=lambda item: (item.mount, item.section, item.weight, item.title)
+    )
 
 
 def _resolve_page(catalog: Any, target: str) -> Any | None:
@@ -196,7 +202,9 @@ def _node_story(node: Any, styles: dict[str, Any]) -> list[Any]:
             if section.text:
                 items.extend(_paragraphs(section.text, styles))
     else:
-        body = getattr(node, "body_text", "") or _markdown_without_code(getattr(node, "body_md", ""))
+        body = getattr(node, "body_text", "") or _markdown_without_code(
+            getattr(node, "body_md", "")
+        )
         items.extend(_paragraphs(body, styles))
     code_blocks = _code_blocks(getattr(node, "body_md", ""))
     for code in code_blocks:
@@ -289,7 +297,9 @@ def _safe_name(value: str) -> str:
     return text.strip(".-_") or "export"
 
 
-def _write_pdf_manifest(output_dir: Path, *, target: str, paths: tuple[Path, ...], nodes: list[Any]) -> None:
+def _write_pdf_manifest(
+    output_dir: Path, *, target: str, paths: tuple[Path, ...], nodes: list[Any]
+) -> None:
     artifact_fingerprints = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()[:16] for path in paths
     }

@@ -23,19 +23,22 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     makefile = (REPO / "Makefile").read_text(encoding="utf-8")
 
     assert "FREE_THREADED = env PYTHON_GIL=0" in makefile
+    assert "format-check:" in makefile
+    assert "$(UV_RUN) ruff format --check ." in makefile
+    assert "ci-fast: format-check" in makefile
     assert "$(UV_RUN) ruff check src tests app" in makefile
     assert "$(UV_RUN) fura check" in makefile
     assert "$(COVERAGE) run --branch" in makefile
     assert 'FURA_TEST_FROZEN_DIR="$$(mktemp -d)/frozen"' in makefile
     assert "scripts/check_core_coverage.py" in makefile
     assert "$(MAKE) pages-build" in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/smoke.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/smoke.xml" in makefile
     assert '-m "browser and browser_smoke" $(BROWSER_TESTS)' in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/authoring.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/authoring.xml" in makefile
     assert '-m "browser and browser_authoring" $(BROWSER_TESTS)' in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/responsive.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/responsive.xml" in makefile
     assert '-m "browser and browser_responsive" $(BROWSER_TESTS)' in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/full.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/full.xml" in makefile
     assert '-m "browser and browser_full" $(BROWSER_TESTS)' in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
     assert "fura docs-reference" in makefile
@@ -62,6 +65,8 @@ def test_dead_spikes_are_removed_and_public_returns_are_linted() -> None:
     config = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
 
     assert "ANN201" in config["tool"]["ruff"]["lint"]["select"]
+    assert config["dependency-groups"]["dev"].count("ruff==0.15.20") == 1
+    assert config["project"]["optional-dependencies"]["dev"].count("ruff==0.15.20") == 1
     for relative_path in (
         "app/spike_threading.py",
         "app/export_catalog.py",

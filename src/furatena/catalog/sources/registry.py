@@ -25,7 +25,9 @@ def register_adapter(adapter: ContentAdapter) -> None:
     _ADAPTERS[adapter.content_format] = adapter
 
 
-def get_content_adapter(content_format: str, *, renderer: DocsRenderer | None = None) -> ContentAdapter:
+def get_content_adapter(
+    content_format: str, *, renderer: DocsRenderer | None = None
+) -> ContentAdapter:
     cached = _ADAPTERS.get(content_format)
     if cached is not None:
         return cached

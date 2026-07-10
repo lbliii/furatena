@@ -51,9 +51,9 @@ def test_repository_docs_quality_gate_is_clean(docs_app: DocsApp) -> None:
     assert report["findings"] == []
     assert report["unused_exemptions"] == []
     assert report["summary"] == {
-        "finding_count": 9,
+        "finding_count": 8,
         "active_count": 0,
-        "exempted_count": 9,
+        "exempted_count": 8,
         "unused_exemption_count": 0,
     }
     assert {item["disposition"] for item in report["exemptions"]} == {
@@ -115,9 +115,7 @@ def test_broken_link_and_orphan_detectors_are_actionable(monkeypatch: pytest.Mon
         source_path="docs/concepts/lonely.md",
         meta={},
     )
-    fake_docs = SimpleNamespace(
-        catalog=SimpleNamespace(nodes=[lonely], nav_tree=lambda: [])
-    )
+    fake_docs = SimpleNamespace(catalog=SimpleNamespace(nodes=[lonely], nav_tree=lambda: []))
     monkeypatch.setattr(docs_quality, "accessible_nodes", lambda *args, **kwargs: [lonely])
     monkeypatch.setattr(docs_quality, "build_federated_backlinks", lambda *args, **kwargs: {})
     orphan = _orphan_findings(fake_docs)

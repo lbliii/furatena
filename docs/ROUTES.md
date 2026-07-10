@@ -15,6 +15,36 @@ The contract test runs on free-threaded CPython with `PYTHON_GIL=0` as part of
 the normal test lane. The manifest only inspects immutable registration metadata
 after app construction; it does not add shared mutable runtime state.
 
+## Runtime transition evidence
+
+`tests/test_chirp_docs_response_conformance.py` complements the structural
+manifest with Chirp's `RouteSmokeCase` and compiled-transition trace helpers.
+The contract lane exercises representative document, search, author, and error
+recovery routes as full-page, boosted, and narrow-target requests. It preserves
+the Furatena-specific response marker assertions while also pinning the stable
+compiled route and template/block transition identities returned by the frozen
+application.
+
+When a smoke assertion fails, its message includes the route, request mode,
+target, expected template and block, response status, and observed render shape.
+This makes full-document leakage into an HTMX target diagnosable from the CI log.
+For deeper inspection, run the focused test with the same free-threaded posture:
+
+```console
+PYTHON_GIL=0 uv run pytest -q -vv \
+  tests/test_chirp_docs_response_conformance.py \
+  -k 'route_smoke or transition_evidence'
+```
+
+In debug mode, typed Chirp responses carry a bounded
+`X-Chirp-Return-Trace` header. `transition_observation()` decodes one response;
+`transition_coverage()` reports missing request modes or compiled transition
+IDs. OOB responses may intentionally have no template transition, but still
+must expose their stable route identity and `boosted`, `targeted`, or `oob`
+mode tags. An unmatched 404 has no compiled route identity, so the error-recovery
+transition assertion uses the typed `/errors/suggest` fragment while the
+existing 404 full-page and boosted response-shape tests remain authoritative.
+
 Route definitions are grouped in `furatena.catalog.route_registrars` by public,
 author, search, catalog/export, media, and error surfaces. `DocsApp` composes
 those registrars with its dynamic mount and localized routes before app freeze.

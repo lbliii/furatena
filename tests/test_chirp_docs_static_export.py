@@ -15,6 +15,7 @@ FROZEN_DIR = Path(os.environ.get("FURA_TEST_FROZEN_DIR", APP_ROOT / "frozen"))
 
 sys.path.insert(0, str(REPO / "src"))
 
+from furatena.catalog.catalog_shards import catalog_shard_path, catalog_shard_url
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.registry import CatalogRegistry, MountConfig
 from furatena.catalog.runtime import ServeConfig, ServeMode
@@ -31,6 +32,12 @@ from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_
 
 
 class TestStaticExportHelpers:
+    def test_catalog_shard_paths_reject_traversal(self) -> None:
+        assert catalog_shard_url("shared") == "/catalog/mounts/shared.json"
+        assert catalog_shard_path("shared") == Path("catalog/mounts/shared.json")
+        assert catalog_shard_url("../escape") is None
+        assert catalog_shard_path("shared/../escape") is None
+
     def test_url_path_to_output_file(self) -> None:
         assert url_path_to_output_file("/") == Path("index.html")
         assert url_path_to_output_file("/docs/foo/") == Path("docs/foo/index.html")
@@ -214,6 +221,9 @@ class TestMiniStaticExport:
         assert "http://127.0.0.1:8080/docs/hello.md" in hello_html
         assert 'id="fura-agent-discovery"' in hello_html
         assert (out / "catalog.json").is_file()
+        shard_path = out / "catalog" / "mounts" / "chirp.json"
+        assert shard_path.is_file()
+        assert json.loads(shard_path.read_text(encoding="utf-8"))["mount"] == "chirp"
         assert (out / "channels.json").is_file()
         assert (out / "deployment-profiles.json").is_file()
         assert (out / "routes.json").is_file()
@@ -229,9 +239,7 @@ class TestMiniStaticExport:
         assert "static-pages" in profile_ids
         assert profiles["links"]["self"] == "http://127.0.0.1:8080/deployment-profiles.json"
         channels = json.loads((out / "channels.json").read_text(encoding="utf-8"))
-        deployment = json.loads(
-            (out / "export.manifest.json").read_text(encoding="utf-8")
-        )
+        deployment = json.loads((out / "export.manifest.json").read_text(encoding="utf-8"))
         channel_ids = {item["id"] for item in channels["channels"]}
         assert {"static", "agent", "pdf"} <= channel_ids
         assert deployment["schema_version"] == 3
@@ -246,6 +254,11 @@ class TestMiniStaticExport:
         assert channels["mode"] == "static"
         assert channels["base_url"] == "http://127.0.0.1:8080"
         assert "catalog.json" in channels["channels"][1]["artifacts"]
+        agent = next(item for item in channels["channels"] if item["id"] == "agent")
+        shard_output = next(item for item in agent["outputs"] if item.get("mount") == "chirp")
+        assert shard_output["url"].endswith("/catalog/mounts/chirp.json")
+        assert shard_output["fingerprint"]
+        assert "catalog/mounts/chirp.json" in channels["channels"][1]["artifacts"]
         routes = json.loads((out / "routes.json").read_text(encoding="utf-8"))
         assert routes["schema_version"] == 1
         assert routes["route_count"] >= 40

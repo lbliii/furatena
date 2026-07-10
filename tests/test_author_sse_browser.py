@@ -210,10 +210,12 @@ def _dirty_page(page_path: Path, body: str) -> None:
     os.utime(page_path, (future, future))
 
 
-async def _wait_for_request_count(items: list[str], *, timeout: float = 10.0) -> None:
+async def _wait_for_request_count(
+    items: list[str], *, count: int = 1, timeout: float = 10.0
+) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if items:
+        if len(items) >= count:
             return
         await asyncio.sleep(0.05)
     raise AssertionError("expected browser request was not observed")
@@ -255,13 +257,15 @@ async def test_journey_rail_is_complete_active_and_responsive(
                 wait_until="domcontentloaded",
             )
             rail = page.locator(
-                ".chirp-theme-doc-catalog-rail__group--sections "
-                ".chirp-theme-doc-catalog-rail__item"
+                ".chirp-theme-doc-catalog-rail__group--sections .chirp-theme-doc-catalog-rail__item"
             )
             assert await rail.count() == 5
-            assert await rail.evaluate_all(
-                "items => items.map(item => item.getAttribute('aria-label'))"
-            ) == expected
+            assert (
+                await rail.evaluate_all(
+                    "items => items.map(item => item.getAttribute('aria-label'))"
+                )
+                == expected
+            )
             assert await rail.filter(has=page.locator("[aria-hidden='true']")).count() == 5
             assert await rail.filter(has_text="Integrate").get_attribute("aria-current") == "page"
             assert await page.evaluate("document.documentElement.scrollWidth") <= viewport["width"]
@@ -298,6 +302,8 @@ async def test_author_sse_updates_preview_without_polling(
         await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
         await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
         await _wait_for_request_count(event_requests)
+        await asyncio.sleep(0.25)
+        assert len(event_requests) == 1
         await page.locator("#page-root").get_by_text("Hello from browser SSE.").wait_for()
 
         await page.evaluate(
@@ -322,11 +328,15 @@ async def test_author_sse_updates_preview_without_polling(
         await _wait_for_request_count(author_reload_requests, timeout=10.0)
         await page.wait_for_function("window.__furaAuthorLastReloadStatus !== undefined")
         assert await page.evaluate("window.__furaAuthorLastReloadStatus") == 200
-        await page.locator("#page-root").get_by_text(
-            "Updated through a real browser SSE event."
-        ).wait_for(timeout=10_000)
+        await (
+            page.locator("#page-root")
+            .get_by_text("Updated through a real browser SSE event.")
+            .wait_for(timeout=10_000)
+        )
 
         assert await page.evaluate("window.__furaAuthorReloadMode") == "sse"
+        assert await page.evaluate("window.__furaAuthorReloadCount") == 1
+        assert len(event_requests) == 1
         await page.wait_for_function(
             "document.activeElement && document.activeElement.id === 'fura-e2e-focus-probe'",
             timeout=5_000,
@@ -343,6 +353,114 @@ async def test_author_sse_updates_preview_without_polling(
             """
         ) == [2, 8]
         assert await page.evaluate("window.scrollY") >= 300
+        assert stale_requests == []
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_authoring
+@pytest.mark.browser_full
+async def test_author_eventsource_fallback_owns_one_stream_without_htmx_sse(
+    browser: Browser,
+    author_server: tuple[str, Path],
+) -> None:
+    base_url, page_path = author_server
+    context = await browser.new_context(viewport={"width": 1280, "height": 900})
+    page = await context.new_page()
+    stale_requests: list[str] = []
+    event_requests: list[str] = []
+
+    def record_request(request: Any) -> None:
+        if "/docs/_author/stale" in request.url:
+            stale_requests.append(request.url)
+        if "/docs/_author/events" in request.url:
+            event_requests.append(request.url)
+
+    page.on("request", record_request)
+    await page.route("**/htmx-ext-sse.js", lambda route: route.abort())
+
+    try:
+        await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
+        await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
+        await _wait_for_request_count(event_requests)
+        await asyncio.sleep(0.25)
+        assert len(event_requests) == 1
+        assert (
+            await page.locator("#fura-author-sse").get_attribute("data-fura-sse-extension-active")
+            is None
+        )
+
+        _dirty_page(page_path, "Updated through the EventSource compatibility fallback.")
+        await page.wait_for_function("window.__furaAuthorReloadCount === 1", timeout=20_000)
+        await (
+            page.locator("#page-root")
+            .get_by_text("Updated through the EventSource compatibility fallback.")
+            .wait_for(timeout=10_000)
+        )
+
+        assert stale_requests == []
+        assert len(event_requests) == 1
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_authoring
+@pytest.mark.browser_full
+async def test_htmx_cleanup_closes_author_sse_before_the_next_page_stream(
+    browser: Browser,
+    author_server: tuple[str, Path],
+) -> None:
+    base_url, _page_path = author_server
+    context = await browser.new_context(viewport={"width": 1280, "height": 900})
+    page = await context.new_page()
+    event_requests: list[str] = []
+    ended_event_requests: list[str] = []
+    stale_requests: list[str] = []
+
+    def record_request(request: Any) -> None:
+        if "/docs/_author/events" in request.url:
+            event_requests.append(request.url)
+        if "/docs/_author/stale" in request.url:
+            stale_requests.append(request.url)
+
+    def record_end(request: Any) -> None:
+        if "/docs/_author/events" in request.url:
+            ended_event_requests.append(request.url)
+
+    page.on("request", record_request)
+    page.on("requestfinished", record_end)
+    page.on("requestfailed", record_end)
+
+    try:
+        await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
+        await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
+        await _wait_for_request_count(event_requests)
+        assert len(event_requests) == 1
+
+        await page.evaluate(
+            """
+            () => {
+              const marker = document.getElementById("fura-author-sse");
+              htmx.trigger(marker, "htmx:beforeCleanupElement", { elt: marker });
+              marker.remove();
+            }
+            """
+        )
+        await _wait_for_request_count(ended_event_requests)
+        assert len(ended_event_requests) == 1
+        assert "slug=docs/page" in ended_event_requests[0]
+
+        await page.goto(f"{base_url}/docs/target/", wait_until="domcontentloaded")
+        await page.locator("#page-root").get_by_text("Preloaded target response.").wait_for()
+        await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
+        await _wait_for_request_count(event_requests, count=2)
+        await asyncio.sleep(0.25)
+
+        assert len(event_requests) == 2
+        assert len(ended_event_requests) == 1
+        assert "slug=docs/target" in event_requests[1]
         assert stale_requests == []
     finally:
         await context.close()
@@ -423,16 +541,18 @@ async def test_author_studio_save_and_create_refresh_preview(
         )
         await _wait_for_htmx(page)
         await page.locator("#author-studio-workspace").wait_for()
-        await page.get_by_label("Rendered preview").get_by_text(
-            "Hello from browser SSE."
-        ).wait_for()
+        await (
+            page.get_by_label("Rendered preview").get_by_text("Hello from browser SSE.").wait_for()
+        )
 
         edited = "---\ntitle: Page\n---\n# Page\n\nSaved through the browser studio.\n"
         await page.locator("#author-studio-source").fill(edited)
         await _submit_studio(page, button_name="Save source")
-        await page.get_by_label("Rendered preview").get_by_text(
-            "Saved through the browser studio."
-        ).wait_for()
+        await (
+            page.get_by_label("Rendered preview")
+            .get_by_text("Saved through the browser studio.")
+            .wait_for()
+        )
         assert page_path.read_text(encoding="utf-8") == edited
 
         await page.goto(
@@ -441,16 +561,19 @@ async def test_author_studio_save_and_create_refresh_preview(
         )
         await _wait_for_htmx(page)
         await page.locator("#author-studio-workspace").wait_for()
-        assert await page.locator("#author-studio-workspace").get_attribute(
-            "data-author-studio-mode"
-        ) == "create"
+        assert (
+            await page.locator("#author-studio-workspace").get_attribute("data-author-studio-mode")
+            == "create"
+        )
         await page.locator("#author-studio-source").fill(
             "# Studio Draft\n\nCreated as a private draft.\n"
         )
         await _submit_studio(page, button_name="Create draft")
-        await page.get_by_label("Rendered preview").get_by_text(
-            "Created as a private draft."
-        ).wait_for()
+        await (
+            page.get_by_label("Rendered preview")
+            .get_by_text("Created as a private draft.")
+            .wait_for()
+        )
 
         assert draft_path.is_file()
         draft_source = draft_path.read_text(encoding="utf-8")
@@ -531,8 +654,10 @@ async def test_hover_preloads_boosted_link_and_click_uses_cached_response(
         assert await target.get_attribute("preload") == "mouseover"
 
         async with page.expect_response(
-            lambda response: response.url == target_url
-            and response.request.headers.get("hx-preloaded") == "true",
+            lambda response: (
+                response.url == target_url
+                and response.request.headers.get("hx-preloaded") == "true"
+            ),
             timeout=10_000,
         ) as response_info:
             await target.hover()

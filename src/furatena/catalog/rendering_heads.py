@@ -37,7 +37,14 @@ RENDERING_HEADS: tuple[RenderingHeadSpec, ...] = (
         label="Static document",
         output="static",
         description="Standalone HTML document exported from the same catalog graph with sidecar JSON and static-safe enhancement scripts.",
-        required_catalog_fields=("node_id", "url", "title", "body_html", "source_path", "provenance"),
+        required_catalog_fields=(
+            "node_id",
+            "url",
+            "title",
+            "body_html",
+            "source_path",
+            "provenance",
+        ),
         required_assets=("theme-css", "static-search", "catalog-json", "search-json"),
         navigation=("pre-rendered-links", "static-search", "toc"),
         notes=("Interactive API try-it behavior must degrade to static or mock modes.",),
@@ -51,14 +58,23 @@ RENDERING_HEADS: tuple[RenderingHeadSpec, ...] = (
         required_assets=("scoped-css",),
         navigation=("host-controlled-links",),
         unsupported_directives=("gist", "youtube"),
-        notes=("Fragments must not rely on persistent shell state, OOB swaps, or document-level scripts.",),
+        notes=(
+            "Fragments must not rely on persistent shell state, OOB swaps, or document-level scripts.",
+        ),
     ),
     RenderingHeadSpec(
         id="paged-output",
         label="Paged output",
         output="pdf",
         description="Future paged/PDF head driven by catalog text, sections, links, and directive fallbacks.",
-        required_catalog_fields=("node_id", "title", "body_text", "sections", "source_path", "provenance"),
+        required_catalog_fields=(
+            "node_id",
+            "title",
+            "body_text",
+            "sections",
+            "source_path",
+            "provenance",
+        ),
         required_assets=("print-css",),
         navigation=("page-breaks", "toc", "resolved-links"),
         unsupported_directives=("gist", "youtube", "iframe"),
@@ -120,7 +136,9 @@ def _has_required_catalog_field(node: Any, field: str) -> bool:
     if field == "content":
         return getattr(node, "content_ir", None) is not None
     if field == "provenance":
-        return bool(getattr(node, "source_path", "")) or bool(getattr(node, "meta", {}).get("source_provider"))
+        return bool(getattr(node, "source_path", "")) or bool(
+            getattr(node, "meta", {}).get("source_provider")
+        )
     value = getattr(node, field, None)
     if field == "sections":
         return bool(value) or bool(getattr(node, "body_text", ""))

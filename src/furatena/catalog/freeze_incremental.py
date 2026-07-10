@@ -62,7 +62,9 @@ def mount_source_statuses(
         mount_dir = out_dir / "mounts" / mount.id
         shard = registry._shards.get(mount.id)
         health = health_by_mount.get(mount.id, {})
-        current = mount_content_fingerprint(shard, mount.content_root) if shard is not None else None
+        current = (
+            mount_content_fingerprint(shard, mount.content_root) if shard is not None else None
+        )
         previous = read_mount_fingerprint(mount_dir)
         drift_reasons: list[str] = []
         if full_rebuild:
@@ -154,9 +156,7 @@ def write_freeze_manifest(
     renderer_changed: bool = False,
 ) -> None:
     mounts = [
-        mount_dir.name
-        for mount_dir in sorted((out_dir / "mounts").glob("*"))
-        if mount_dir.is_dir()
+        mount_dir.name for mount_dir in sorted((out_dir / "mounts").glob("*")) if mount_dir.is_dir()
     ]
     public_statuses = (
         [_public_status(status) for _mount_id, status in sorted(mount_statuses.items())]

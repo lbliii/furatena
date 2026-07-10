@@ -1,0 +1,11 @@
+{
+  "fixture_version": 1,
+  "scenario": "rejection",
+  "operation": "publish",
+  "required_approvals": 1,
+  "expires_at": "2035-01-01T00:00:00Z",
+  "output": {"kind": "repository_change", "target": "product-docs", "environment": "review"},
+  "decisions": [{"decision": "reject", "actor": "reviewer@example.com", "reason": "Required evidence is missing."}],
+  "transitions": ["validating", "reviewable", "awaiting_approval", "cancelled"],
+  "expected_state": "cancelled"
+}
