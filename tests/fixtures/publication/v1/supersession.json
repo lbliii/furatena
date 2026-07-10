@@ -1,0 +1,11 @@
+{
+  "fixture_version": 1,
+  "scenario": "supersession",
+  "operation": "publish",
+  "required_approvals": 1,
+  "expires_at": "2035-01-01T00:00:00Z",
+  "output": {"kind": "repository_change", "target": "product-docs", "environment": "review"},
+  "decisions": [{"decision": "supersede", "actor": "publisher@example.com", "reason": "A newer source revision replaced this plan."}],
+  "transitions": ["superseded"],
+  "expected_state": "superseded"
+}
