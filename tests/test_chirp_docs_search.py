@@ -75,12 +75,16 @@ class TestHybridSearchCore:
     ) -> None:
         result = hybrid_search(registry, embedding_index, "htmx navigation", limit=12)
         hits = result.hits
-        anchored = [hit for hit in hits if hit.chunk_id and "#" in search_hit_url(hit, embedding_index)]
+        anchored = [
+            hit for hit in hits if hit.chunk_id and "#" in search_hit_url(hit, embedding_index)
+        ]
         if not anchored:
             # Fall back to keyword-heavy query when semantic rank lacks chunk anchors.
             result = hybrid_search(registry, embedding_index, "hypermedia", limit=12)
             hits = result.hits
-            anchored = [hit for hit in hits if hit.chunk_id and "#" in search_hit_url(hit, embedding_index)]
+            anchored = [
+                hit for hit in hits if hit.chunk_id and "#" in search_hit_url(hit, embedding_index)
+            ]
         assert anchored, "expected at least one chunk-aware deep link"
 
     def test_section_filter(
@@ -180,7 +184,9 @@ class TestHybridSearchCore:
         from furatena.catalog.search_experience import build_search_page_cards
 
         result = hybrid_search_hits(registry, embedding_index, "htmx", limit=8)
-        cards = build_search_page_cards(result.hits, result.semantic_hits, "htmx", index=embedding_index)
+        cards = build_search_page_cards(
+            result.hits, result.semantic_hits, "htmx", index=embedding_index
+        )
         assert cards
         node_ids = [card.node.node_id for card in cards]
         assert len(node_ids) == len(set(node_ids))
@@ -259,7 +265,11 @@ class TestHybridSearchRoutes:
             return resp.text
 
         html = asyncio.run(_fetch())
-        assert "search-product-card" in html or "search-result" in html or "search-results-group" in html
+        assert (
+            "search-product-card" in html
+            or "search-result" in html
+            or "search-results-group" in html
+        )
         assert "search-scope-rail-panel" in html
         assert "search-workspace-panel" in html or "search-workspace__panel" in html
         assert "search-discovery-panel" in html

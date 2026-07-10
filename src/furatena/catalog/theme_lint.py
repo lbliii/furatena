@@ -37,6 +37,7 @@ _TEMPLATE_CLASS_ATTR_RE = re.compile(
     re.DOTALL,
 )
 _LOCAL_TEMPLATE_CLASS_RE = re.compile(r"(?:chirp-theme-[A-Za-z0-9_-]+|visually-hidden)")
+_UNDOCUMENTED_SAFE_RE = re.compile(r"\|\s*safe\b(?!\s*\()")
 
 
 def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
@@ -84,6 +85,8 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
     except FileNotFoundError as exc:
         errors.append(str(exc))
         return sorted(errors), sorted(warnings)
+
+    errors.extend(check_safe_filter_reasons(docs))
 
     for name in _REQUIRED_JS:
         if not (skin.js_dir / name).is_file():
@@ -222,3 +225,29 @@ def _display_path(path: Path, root: Path) -> str:
         return path.relative_to(root.resolve()).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def check_safe_filter_reasons(docs: DocsConfig) -> list[str]:
+    """Reject template ``safe`` filters that omit a reviewable reason."""
+    roots = {
+        docs.framework_templates_dir.resolve(),
+        docs.templates_dir.resolve(),
+        docs.theme_dir.resolve(),
+    }
+    errors: list[str] = []
+    seen: set[Path] = set()
+    for root in sorted(roots, key=str):
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*.html")):
+            resolved = path.resolve()
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if _UNDOCUMENTED_SAFE_RE.search(line):
+                    errors.append(
+                        f"{path}:{line_number}: undocumented |safe filter; "
+                        'use escaping, a trusted producer type, or safe(reason="...")'
+                    )
+    return errors

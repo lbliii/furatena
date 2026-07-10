@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication/v1/state.schema.json",
+  "title": "Furatena publication state snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "plan_id", "plan_digest", "state_version", "state",
+    "created_at", "updated_at", "terminal", "decision_refs", "failure", "outputs", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.state"},
+    "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{24}$"},
+    "plan_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "state_version": {"type": "integer", "minimum": 1},
+    "state": {"$ref": "common.schema.json#/$defs/state"},
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "terminal": {"type": "boolean"},
+    "decision_refs": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/recordReference"}
+    },
+    "failure": {"$ref": "common.schema.json#/$defs/nullableFailure"},
+    "outputs": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/outputReference"}
+    },
+    "extensions": {"$ref": "common.schema.json#/$defs/extensions"}
+  }
+}

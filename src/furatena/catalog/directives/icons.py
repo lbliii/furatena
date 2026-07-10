@@ -6,6 +6,8 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
+from kida.template import Markup
+
 _ICONS_DIR = Path(__file__).resolve().parents[1] / "theme" / "assets" / "icons"
 
 _RE_WIDTH_HEIGHT = re.compile(r'\s+(width|height)="[^"]*"')
@@ -110,14 +112,14 @@ def _load_icon_svg(name: str) -> str | None:
     return path.read_text(encoding="utf-8")
 
 
-def render_icon_html(icon_name: str, *, size: int = 18) -> str:
+def render_icon_html(icon_name: str, *, size: int = 18) -> Markup:
     """Inline SVG icon markup from the vendored Furatena icon set."""
-    if not icon_name:
-        return ""
+    if not icon_name or re.fullmatch(r"[a-z0-9][a-z0-9-]*", icon_name) is None:
+        return Markup("")
     mapped = ICON_MAP.get(icon_name, icon_name)
     svg_content = _load_icon_svg(mapped)
     if not svg_content:
-        return ""
+        return Markup("")
     classes = ["fura-icon", f"icon-{icon_name}"]
     class_attr = " ".join(classes)
     svg_modified = _RE_WIDTH_HEIGHT.sub("", svg_content)
@@ -127,4 +129,4 @@ def render_icon_html(icon_name: str, *, size: int = 18) -> str:
         svg_modified,
         count=1,
     )
-    return svg_modified
+    return Markup(svg_modified)

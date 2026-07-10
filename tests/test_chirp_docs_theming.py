@@ -44,7 +44,9 @@ class TestViewRegistry:
         assert node is not None
         assert views.resolve(node, catalog) == "views/doc.html"
 
-    def test_section_index_uses_doc_list_view(self, views: ViewRegistry, catalog: DocCatalog) -> None:
+    def test_section_index_uses_doc_list_view(
+        self, views: ViewRegistry, catalog: DocCatalog
+    ) -> None:
         node = catalog.get_by_slug("docs/tutorials")
         assert node is not None
         assert views.resolve(node, catalog) == "views/doc_list.html"
@@ -159,9 +161,9 @@ class TestThemeHeroContract:
             return resp.text
 
         css = asyncio.run(_fetch())
-        assert "@import url(\"skin/fonts.css\")" in css
-        assert "@import url(\"skin/hero.css\")" in css
-        assert "@import url(\"effects.css\")" in css
+        assert '@import url("skin/fonts.css")' in css
+        assert '@import url("skin/hero.css")' in css
+        assert '@import url("effects.css")' in css
 
     def test_generated_preset_css(self, docs_client) -> None:
         import asyncio
@@ -272,8 +274,7 @@ class TestNativeShell:
 class TestThemeHtmlContract:
     def test_catalog_source_order_has_explicit_visual_grid_placement(self) -> None:
         css = (
-            REPO / "src" / "furatena" / "themes" / "furatena" / "assets" / "css"
-            / "chirp-theme.css"
+            REPO / "src" / "furatena" / "themes" / "furatena" / "assets" / "css" / "chirp-theme.css"
         ).read_text(encoding="utf-8")
         assert ".chirp-theme-docs-layout__sidebar {\n    grid-column: 1;" in css
         assert ".chirp-theme-docs-layout__main {\n    display: grid;\n    grid-column: 2;" in css

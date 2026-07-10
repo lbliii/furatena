@@ -28,17 +28,23 @@ def test_collection_is_disabled_by_default() -> None:
     sink = MemoryRetrievalFeedbackSink()
     collector = RetrievalFeedbackCollector(sink=sink)
 
-    assert collector.record_query(
-        "private words",
-        tenant="acme",
-        surface="browser",
-        result_count=0,
-    ) == ()
-    assert collector.record_selection(
-        tenant="acme",
-        surface="browser",
-        node_id="docs:latest:index",
-    ) is None
+    assert (
+        collector.record_query(
+            "private words",
+            tenant="acme",
+            surface="browser",
+            result_count=0,
+        )
+        == ()
+    )
+    assert (
+        collector.record_selection(
+            tenant="acme",
+            surface="browser",
+            node_id="docs:latest:index",
+        )
+        is None
+    )
     assert sink.events("acme") == ()
 
 
@@ -93,12 +99,15 @@ def test_sampling_and_raw_query_collection_require_explicit_opt_in() -> None:
         policy=RetrievalFeedbackPolicy(enabled=True, sample_rate=0.0),
         sink=sink,
     )
-    assert dropped.record_query(
-        "never stored",
-        tenant="acme",
-        surface="browser",
-        result_count=1,
-    ) == ()
+    assert (
+        dropped.record_query(
+            "never stored",
+            tenant="acme",
+            surface="browser",
+            result_count=1,
+        )
+        == ()
+    )
 
     raw = RetrievalFeedbackCollector(
         policy=RetrievalFeedbackPolicy(enabled=True, query_mode="raw"),
@@ -147,9 +156,7 @@ def test_jsonl_sink_is_tenant_isolated_retained_and_free_thread_safe(tmp_path: P
 
     stored = sink.events("acme/../../unsafe")
     assert len(stored) == 64
-    assert {event.data["node_id"] for event in stored} == {
-        f"node-{index}" for index in range(64)
-    }
+    assert {event.data["node_id"] for event in stored} == {f"node-{index}" for index in range(64)}
     assert len({event.event_id for event in events if event is not None}) == 64
     assert sink.events("other") == ()
     assert list((tmp_path / "feedback").glob("tenant-*.jsonl"))

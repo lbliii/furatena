@@ -13,9 +13,7 @@ from furatena.catalog.access import AccessRole, AccessSubject
 from furatena.catalog.identity import normalize_identity
 
 _VALUE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:@/+\-]{0,255}$")
-_CANONICAL_CLAIMS = frozenset(
-    {"actor", "roles", "teams", "tenant", "workspace", "site"}
-)
+_CANONICAL_CLAIMS = frozenset({"actor", "roles", "teams", "tenant", "workspace", "site"})
 
 
 class GatewayIdentityError(ValueError):
@@ -122,9 +120,7 @@ def map_gateway_claims(
         values[canonical] = _claim_value(claims, canonical=canonical, aliases=aliases)
 
     missing = sorted(
-        name
-        for name in active_policy.required_claims
-        if values.get(name) in (None, "", ())
+        name for name in active_policy.required_claims if values.get(name) in (None, "", ())
     )
     if missing:
         raise GatewayIdentityError(
@@ -292,9 +288,7 @@ def _validate_expected_identity(
         return
     normalized = normalize_identity(expected)
     observed = {"tenant": tenant, "workspace": workspace, "site": site}
-    conflicts = [
-        name for name, value in observed.items() if normalized.get(name) != value
-    ]
+    conflicts = [name for name, value in observed.items() if normalized.get(name) != value]
     if conflicts:
         raise GatewayIdentityError(
             "identity_conflict",

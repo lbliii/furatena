@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from kida.template import Markup
+
 from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.safe_html import trusted_escaped_markup
 from furatena.catalog.semantic import HybridHit, HybridSearchResult, hybrid_search
 
 if TYPE_CHECKING:
@@ -432,9 +435,7 @@ def search_spotlight_stats(
     global_search: bool = False,
 ) -> SearchSpotlight:
     snap = snapshot or build_search_catalog_snapshot(catalog)
-    scoped_nodes = list(
-        snap.filtered(mount=mount, section=section, tag=tag)
-    )
+    scoped_nodes = list(snap.filtered(mount=mount, section=section, tag=tag))
     hit_nodes = [hit.node for hit in hits]
     tags: dict[str, int] = {}
     sections: dict[str, int] = {}
@@ -444,7 +445,9 @@ def search_spotlight_stats(
         label = node.section.strip() or "Documentation"
         sections[label] = sections.get(label, 0) + 1
 
-    top_tags = tuple(tag_name for tag_name, _ in sorted(tags.items(), key=lambda item: (-item[1], item[0]))[:8])
+    top_tags = tuple(
+        tag_name for tag_name, _ in sorted(tags.items(), key=lambda item: (-item[1], item[0]))[:8]
+    )
     top_sections = tuple(
         label for label, _ in sorted(sections.items(), key=lambda item: (-item[1], item[0]))[:4]
     )
@@ -498,7 +501,9 @@ def search_spotlight_stats(
         result_count=len(hits),
         match_count=len(hits),
         visible_pages=unique_pages,
-        section_count=len(sections) if sections else len({node.section for node in scoped_nodes if node.section}),
+        section_count=len(sections)
+        if sections
+        else len({node.section for node in scoped_nodes if node.section}),
         top_tags=top_tags,
         top_sections=top_sections,
         scoped=scoped,
@@ -910,9 +915,7 @@ def build_search_workspace_context(
         "search_channel": channel,
         "search_global": global_search,
         "search_global_expand_url": expand_url,
-        "search_global_expand_nav_attrs": (
-            search_nav_attrs(expand_url) if expand_url else {}
-        ),
+        "search_global_expand_nav_attrs": (search_nav_attrs(expand_url) if expand_url else {}),
         "search_reset_nav_attrs": search_nav_attrs("/search"),
         "search_popular_links": search_popular_links(
             section=section,
@@ -1001,13 +1004,13 @@ def group_search_hits(hits: list[HybridHit]) -> list[SearchHitGroup]:
     return [SearchHitGroup(label=label, hits=tuple(groups[label])) for label in order]
 
 
-def highlight_search_terms(text: str, query: str) -> str:
+def highlight_search_terms(text: str, query: str) -> Markup:
     """Wrap query term matches in ``<mark>`` for search result snippets."""
     import html
     import re
 
     if not text or not query.strip():
-        return html.escape(text)
+        return trusted_escaped_markup(html.escape(text))
 
     safe = html.escape(text)
     terms = sorted(
@@ -1026,4 +1029,4 @@ def highlight_search_terms(text: str, query: str) -> str:
             return f"<mark>{match.group(0)}</mark>"
 
         highlighted = pattern.sub(_mark, highlighted)
-    return highlighted
+    return trusted_escaped_markup(highlighted)

@@ -11,7 +11,7 @@ from patitas.directives.options import StyledOptions
 from patitas.nodes import Directive
 
 from furatena.catalog.directives.html import render_inline_text
-from furatena.catalog.directives.kida_render import as_markup, render_directive
+from furatena.catalog.directives.kida_render import render_directive, trusted_renderer_html
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -97,7 +97,7 @@ class StepsHandler:
         sb.append(
             render_directive(
                 "steps",
-                body=rendered_children,
+                body=trusted_renderer_html(rendered_children),
                 start=opts.start,
                 style=opts.style or "default",
                 extra_class=opts.class_ or "",
@@ -136,17 +136,13 @@ class StepHandler:
         step_number = opts.step_number if opts.step_number is not None else 1
         heading_level = opts.heading_level if opts.heading_level is not None else 2
         step_id = _slugify_step_id(title) if title else f"step-{step_number}"
-        title_html = as_markup(render_inline_text(title)) if title else ""
-        description_html = (
-            as_markup(render_inline_text(opts.description))
-            if opts.description
-            else ""
-        )
+        title_html = render_inline_text(title) if title else ""
+        description_html = render_inline_text(opts.description) if opts.description else ""
         sb.append(
             render_directive(
                 "step",
                 title=title_html,
-                body=rendered_children,
+                body=trusted_renderer_html(rendered_children),
                 description=description_html,
                 duration=opts.duration or "",
                 optional=opts.optional,

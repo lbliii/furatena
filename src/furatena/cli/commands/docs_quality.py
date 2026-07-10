@@ -43,9 +43,7 @@ def _run_docs_quality(args: argparse.Namespace) -> CommandResult:
         else repo_root / "docs" / "public-surface-inventory.json"
     )
     previous = (
-        json.loads(baseline_path.read_text(encoding="utf-8"))
-        if baseline_path.is_file()
-        else None
+        json.loads(baseline_path.read_text(encoding="utf-8")) if baseline_path.is_file() else None
     )
     docs = DocsApp.from_paths(
         _docs_yaml(args),

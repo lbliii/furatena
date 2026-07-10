@@ -319,9 +319,9 @@ def test_manifest_write_failure_preserves_previous_manifest(tmp_path: Path, monk
 
 def test_recovery_runbook_documents_lease_timeout_and_partial_write_repair() -> None:
     repo = Path(__file__).resolve().parents[1]
-    runbook = (
-        repo / "content/furatena/docs/operations/observability-and-recovery.md"
-    ).read_text(encoding="utf-8")
+    runbook = (repo / "content/furatena/docs/operations/observability-and-recovery.md").read_text(
+        encoding="utf-8"
+    )
 
     for contract in (
         "FURA_OPERATION_LOCK_TIMEOUT",

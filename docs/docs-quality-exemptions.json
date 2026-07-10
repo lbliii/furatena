@@ -12,11 +12,6 @@
       "reason": "Dynamic develop preview dispatch is an implementation route; the /develop/ surface and each exported contract are the public interface."
     },
     {
-      "finding": "public_feature:route:GET /docs/_author/page.json",
-      "disposition": "internal",
-      "reason": "This author-shell transport is internal; supported author UI, CLI, and MCP contracts are documented instead."
-    },
-    {
       "finding": "public_feature:route:GET /docs/_author/source",
       "disposition": "internal",
       "reason": "This author-shell source transport is internal; supported author UI, CLI, and MCP contracts are documented instead."

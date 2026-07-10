@@ -1,0 +1,361 @@
+{
+  "corpus": {
+    "kind": "synthetic",
+    "mount_count": 1,
+    "page_count": 12,
+    "source_file_count": 12
+  },
+  "elapsed_seconds": 8.077259,
+  "environment": {
+    "cpu_count": 11,
+    "dependencies": {
+      "bengal-chirp": "0.9.0",
+      "chirp-ui": "0.11.0",
+      "furatena": "0.1.0",
+      "kida-templates": "0.11.0",
+      "milo-cli": "0.4.1",
+      "patitas": "0.4.0"
+    },
+    "free_threaded": true,
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "methodology": {
+    "autodoc": false,
+    "clock": "time.perf_counter",
+    "cold_definition": "first operation on fresh state",
+    "repeats": 3,
+    "statistic": "median",
+    "wall_clock_policy": "informational across machines",
+    "warm_definition": "same operation repeated after one completed sample",
+    "workers": 1
+  },
+  "operations": {
+    "author_page_request": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 66.214333,
+          "samples": [
+            66.214333
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 25.94925,
+          "samples": [
+            23.703125,
+            25.94925,
+            26.26875
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "author_page_status": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 8.147334,
+          "samples": [
+            8.147334
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 7.4755,
+          "samples": [
+            9.309917,
+            7.4755,
+            6.835584
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "author_page_validation": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 38.597584,
+          "samples": [
+            38.597584
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 32.699333,
+          "samples": [
+            32.699333,
+            32.029917,
+            39.12125
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "docs_app_construction": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 35.368833,
+          "samples": [
+            96.98425,
+            35.368833,
+            18.074458
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "docs_validation": {
+      "profiled_phases_ms": {
+        "ast_roundtrip": 3.762792,
+        "body_link_boost": 0.454333,
+        "broken_internal_links": 0.520542,
+        "content_lint": 2.786833,
+        "cross_edition_links": 0.170834,
+        "dcp_schema": 14.313333,
+        "delivery_config": 0.009791,
+        "directive_manifest": 0.545709,
+        "directive_template_hrefs": 0.644916,
+        "front_matter": 0.021917,
+        "lifecycle": 11.284291,
+        "rendering_heads": 0.032667,
+        "theme_assets": 6.786,
+        "unresolved_references": 0.020083,
+        "view_config": 0.004791,
+        "view_templates": 817.362417
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 307.554125,
+          "samples": [
+            346.37625,
+            307.554125,
+            306.330875
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "startup_contract_checks": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1,
+              1,
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 1123.940708,
+          "samples": [
+            1708.237458,
+            1123.940708,
+            1099.9325
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0,
+              0,
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 574.510334,
+          "samples": [
+            574.510334,
+            572.270875,
+            577.250333
+          ],
+          "unit": "ms"
+        }
+      }
+    }
+  },
+  "profile": "author-runtime",
+  "schema_version": 1
+}

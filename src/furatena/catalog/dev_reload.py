@@ -48,7 +48,7 @@ def read_dev_server_record(path: Path) -> DevServerRecord | None:
         if len(lines) < 3:
             return None
         return DevServerRecord(pid=int(lines[0]), host=lines[1], port=int(lines[2]))
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
 
 
@@ -150,9 +150,7 @@ def stop_dev_server(
 
     explicit_endpoint = host is not None or port is not None
     record_matches_request = (
-        record is not None
-        and record.host == resolved_host
-        and record.port == resolved_port
+        record is not None and record.host == resolved_host and record.port == resolved_port
     )
 
     stopped = False

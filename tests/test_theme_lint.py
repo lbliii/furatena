@@ -20,7 +20,11 @@ from furatena.catalog.config import (
     ThemeMeasureConfig,
     load_docs_config,
 )
-from furatena.catalog.theme_lint import _local_template_class_usages, check_theme_assets
+from furatena.catalog.theme_lint import (
+    _local_template_class_usages,
+    check_safe_filter_reasons,
+    check_theme_assets,
+)
 
 
 @pytest.fixture(scope="module")
@@ -92,3 +96,20 @@ class TestThemeLint:
         )
         errors, _warnings = check_theme_assets(config)
         assert any("theme.measure.prose invalid" in item for item in errors)
+
+    def test_undocumented_safe_filter_is_rejected(self, tmp_path: Path) -> None:
+        template = tmp_path / "theme" / "templates" / "unsafe.html"
+        template.parent.mkdir(parents=True)
+        template.write_text("{{ value | safe }}\n", encoding="utf-8")
+        config = DocsConfig(root=tmp_path)
+
+        errors = check_safe_filter_reasons(config)
+
+        assert len(errors) == 1
+        assert "undocumented |safe filter" in errors[0]
+
+        template.write_text(
+            '{{ value | safe(reason="sanitized by test producer") }}\n',
+            encoding="utf-8",
+        )
+        assert check_safe_filter_reasons(config) == []

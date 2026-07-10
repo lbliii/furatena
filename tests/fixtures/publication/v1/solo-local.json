@@ -1,0 +1,11 @@
+{
+  "fixture_version": 1,
+  "scenario": "solo-local",
+  "operation": "publish",
+  "required_approvals": 0,
+  "expires_at": "2035-01-01T00:00:00Z",
+  "output": {"kind": "local_write", "target": "docs/guide.md", "environment": null},
+  "decisions": [],
+  "transitions": ["validating", "reviewable", "approved", "executing", "applied"],
+  "expected_state": "applied"
+}

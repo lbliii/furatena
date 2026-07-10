@@ -51,10 +51,7 @@ class ArtifactAuditFinding:
     target: str
 
     def format(self) -> str:
-        return (
-            f"{self.code}: {self.source} ({self.referrer}) -> {self.target}: "
-            f"{self.message}"
-        )
+        return f"{self.code}: {self.source} ({self.referrer}) -> {self.target}: {self.message}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +83,9 @@ class _HTMLReferenceParser(HTMLParser):
             if name in _HTML_URL_ATTRS:
                 if name == "hx-push-url" and value.lower() in {"true", "false"}:
                     continue
-                kind = "canonical" if tag == "link" and "canonical" in rel_tokens else f"html:{name}"
+                kind = (
+                    "canonical" if tag == "link" and "canonical" in rel_tokens else f"html:{name}"
+                )
                 self._append(value, kind=kind)
             elif name == "srcset":
                 for candidate in value.split(","):
@@ -164,15 +163,17 @@ def _walk_json(
     if not isinstance(value, str) or planned:
         return references
     target = value.strip()
-    if parent_key in _ARTIFACT_KEYS and target and not target.startswith(("/", "http://", "https://")):
+    if (
+        parent_key in _ARTIFACT_KEYS
+        and target
+        and not target.startswith(("/", "http://", "https://"))
+    ):
         kind = "artifact"
     elif parent_key in _URL_KEYS or parent_key.endswith(("_href", "_url")):
         kind = f"json:{trail}"
     else:
         return references
-    references.append(
-        ArtifactReference(source=source, referrer=referrer, target=target, kind=kind)
-    )
+    references.append(ArtifactReference(source=source, referrer=referrer, target=target, kind=kind))
     return references
 
 
@@ -270,7 +271,11 @@ def _audit_reference(
     target = reference.target
     if reference.kind == "artifact":
         path = root / target
-        return [] if path.is_file() else [_finding(reference, "missing-artifact", "artifact does not exist")]
+        return (
+            []
+            if path.is_file()
+            else [_finding(reference, "missing-artifact", "artifact does not exist")]
+        )
     if target.startswith(("#", "data:", "mailto:", "tel:", "javascript:")):
         return []
     if any(char.isspace() for char in target) or "\\" in target:
@@ -311,10 +316,14 @@ def _audit_reference(
     findings: list[ArtifactAuditFinding] = []
     doubled = f"{base_path}{base_path}" if base_path else ""
     if doubled and (path == doubled or path.startswith(f"{doubled}/")):
-        findings.append(_finding(reference, "repeated-base-path", f"base path {base_path} appears twice"))
+        findings.append(
+            _finding(reference, "repeated-base-path", f"base path {base_path} appears twice")
+        )
         return findings
     if base_path and path != base_path and not path.startswith(f"{base_path}/"):
-        findings.append(_finding(reference, "escaped-base-path", f"URL must remain under {base_path}"))
+        findings.append(
+            _finding(reference, "escaped-base-path", f"URL must remain under {base_path}")
+        )
         return findings
     target_file = _target_file(root, path, base_path=base_path)
     if target_file is not None and not target_file.is_file():
@@ -352,14 +361,17 @@ def audit_static_artifacts(
             )
         )
     unique = {
-        (item.code, item.source, item.referrer, item.target, item.message): item for item in findings
+        (item.code, item.source, item.referrer, item.target, item.message): item
+        for item in findings
     }
     return ArtifactAuditReport(
         output_dir=root,
         base_path=normalized_base,
         site_url=site_url.rstrip("/"),
         references=tuple(references),
-        findings=tuple(unique[key] for key in sorted(unique, key=lambda item: tuple(map(str, item)))),
+        findings=tuple(
+            unique[key] for key in sorted(unique, key=lambda item: tuple(map(str, item)))
+        ),
     )
 
 
@@ -379,7 +391,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     for finding in report.findings:
         print(f"error: {finding.format()}", file=sys.stderr)
-    print(f"Static artifact URL audit failed with {len(report.findings)} finding(s)", file=sys.stderr)
+    print(
+        f"Static artifact URL audit failed with {len(report.findings)} finding(s)", file=sys.stderr
+    )
     return 1
 
 

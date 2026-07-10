@@ -43,7 +43,9 @@ def _replace_role(match: re.Match[str]) -> str:
         href = target if target.startswith(("#", "/", "http://", "https://")) else f"#{target}"
         return f"[{label}]({href})"
     if name == "doc":
-        href = target if target.startswith(("/", "http://", "https://")) else f"/{target.strip('/')}/"
+        href = (
+            target if target.startswith(("/", "http://", "https://")) else f"/{target.strip('/')}/"
+        )
         return f"[{label}]({href})"
     return match.group(0)
 

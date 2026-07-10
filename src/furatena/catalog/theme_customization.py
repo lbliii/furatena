@@ -78,7 +78,9 @@ def normalize_theme_logical_path(raw: str) -> str:
     return path.as_posix()
 
 
-def _template_candidates(docs: DocsConfig, theme: DocsTheme, logical_path: str) -> list[ThemeCandidate]:
+def _template_candidates(
+    docs: DocsConfig, theme: DocsTheme, logical_path: str
+) -> list[ThemeCandidate]:
     candidates: list[ThemeCandidate] = [
         ThemeCandidate(
             logical_path=logical_path,
@@ -90,7 +92,9 @@ def _template_candidates(docs: DocsConfig, theme: DocsTheme, logical_path: str) 
     ]
     for root in theme.template_roots:
         label = "theme"
-        rel_root = root.relative_to(docs.root).as_posix() if _is_relative_to(root, docs.root) else ""
+        rel_root = (
+            root.relative_to(docs.root).as_posix() if _is_relative_to(root, docs.root) else ""
+        )
         if rel_root == docs.theme.templates:
             label = "theme-template"
         elif root != docs.theme_dir:
@@ -205,10 +209,7 @@ def list_theme_customizations(docs: DocsConfig) -> tuple[ThemeResolution, ...]:
         resolution = resolve_theme_customization(docs, rel)
         if any(candidate.exists for candidate in resolution.candidates):
             logical_paths.add(rel)
-    return tuple(
-        resolve_theme_customization(docs, logical)
-        for logical in sorted(logical_paths)
-    )
+    return tuple(resolve_theme_customization(docs, logical) for logical in sorted(logical_paths))
 
 
 def eject_theme_path(
@@ -233,7 +234,9 @@ def eject_theme_path(
                 skipped=True,
             )
         raise FileExistsError(f"{target} already exists (use --force to overwrite)")
-    copied = _copy_with_provenance(active.path, target, resolution.logical_path, source_label=active.label)
+    copied = _copy_with_provenance(
+        active.path, target, resolution.logical_path, source_label=active.label
+    )
     return ThemeEjectResult(
         logical_path=resolution.logical_path,
         source_path=active.path,
@@ -269,7 +272,10 @@ def diff_theme_path(docs: DocsConfig, logical_path: str) -> str:
 
 
 def _template_override_path(docs: DocsConfig, logical_path: str) -> Path:
-    if logical_path.startswith(("views/", "layouts/")) or logical_path in {"shell.html", "search.html"}:
+    if logical_path.startswith(("views/", "layouts/")) or logical_path in {
+        "shell.html",
+        "search.html",
+    }:
         return (docs.theme_dir / logical_path).resolve()
     return (docs.theme_dir / "templates" / logical_path).resolve()
 
@@ -290,7 +296,9 @@ def _next_upstream(resolution: ThemeResolution, target: Path) -> ThemeCandidate 
     return None
 
 
-def _copy_with_provenance(source: Path, target: Path, logical_path: str, *, source_label: str) -> int:
+def _copy_with_provenance(
+    source: Path, target: Path, logical_path: str, *, source_label: str
+) -> int:
     if source.is_dir():
         copied = 0
         for path in source.rglob("*"):
@@ -307,14 +315,17 @@ def _copy_with_provenance(source: Path, target: Path, logical_path: str, *, sour
     return _copy_file_with_provenance(source, target, logical_path, source_label=source_label)
 
 
-def _copy_file_with_provenance(source: Path, target: Path, logical_path: str, *, source_label: str) -> int:
+def _copy_file_with_provenance(
+    source: Path, target: Path, logical_path: str, *, source_label: str
+) -> int:
     target.parent.mkdir(parents=True, exist_ok=True)
     if source.suffix not in _TEXT_SUFFIXES:
         shutil.copy2(source, target)
         return 1
     body = source.read_text(encoding="utf-8")
     target.write_text(
-        _provenance_header(source.suffix, source_label=source_label, logical_path=logical_path) + body,
+        _provenance_header(source.suffix, source_label=source_label, logical_path=logical_path)
+        + body,
         encoding="utf-8",
     )
     return 1
@@ -337,10 +348,7 @@ def _provenance_header(suffix: str, *, source_label: str, logical_path: str) -> 
             f"<!-- Ejected from {source}. "
             f"Compare with upstream via: fura theme diff {logical_path} -->\n"
         )
-    return (
-        f"# Ejected from {source}. "
-        f"Compare with upstream via: fura theme diff {logical_path}\n"
-    )
+    return f"# Ejected from {source}. Compare with upstream via: fura theme diff {logical_path}\n"
 
 
 def _strip_provenance_header(lines: list[str]) -> list[str]:

@@ -73,7 +73,9 @@ class SiteHomeVisualConfig:
     aria_label: str = "Product preview"
     eyebrow: str = "Example interface"
     title: str = "Docs as data, HTML on demand."
-    description: str = "Your markdown becomes a live, queryable catalog — pages update instantly, no rebuild loop."
+    description: str = (
+        "Your markdown becomes a live, queryable catalog — pages update instantly, no rebuild loop."
+    )
     proof_tags: tuple[str, ...] = ("htmx", "catalog", "freeze")
     feature_title: str = "Author reload"
     feature_body: str = "Edit markdown and see partial swaps on the open page — no export loop."
@@ -502,7 +504,9 @@ def _parse_home_features(raw: object) -> tuple[SiteHomeFeatureConfig, ...]:
         action_raw = item.get("action")
         action = None
         if isinstance(action_raw, dict):
-            action = _parse_cta(action_raw, default=SiteCtaConfig(label="Learn more", href="/docs/"))
+            action = _parse_cta(
+                action_raw, default=SiteCtaConfig(label="Learn more", href="/docs/")
+            )
         features.append(
             SiteHomeFeatureConfig(
                 eyebrow=eyebrow,
@@ -572,7 +576,7 @@ def _parse_home_pipeline(raw: object) -> SiteHomePipelineConfig | None:
     current = raw.get("current_step", len(steps))
     try:
         current_step = int(current)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         current_step = len(steps)
     return SiteHomePipelineConfig(
         eyebrow=str(raw.get("eyebrow") or "Delivery modes"),
@@ -798,7 +802,9 @@ def _parse_home_explore(raw: object) -> SiteHomeExploreConfig | None:
     )
 
 
-def _parse_home_cta_band(raw: object, *, default_secondary: SiteCtaConfig) -> SiteHomeCtaBandConfig | None:
+def _parse_home_cta_band(
+    raw: object, *, default_secondary: SiteCtaConfig
+) -> SiteHomeCtaBandConfig | None:
     if not isinstance(raw, dict):
         return None
     title = str(raw.get("title") or "").strip()
@@ -818,9 +824,15 @@ def _parse_home_config(raw: object, *, site_name: str, app_root: Path) -> SiteHo
     defaults = SiteHomeConfig(
         hero_points=(),
         metrics=(
-            SiteMetricConfig("1", "markdown corpus", "Index pages from content/ mounts at serve time."),
-            SiteMetricConfig("0", "export loop", "Author mode reloads the open page via htmx partial swaps."),
-            SiteMetricConfig("∞", "graph edges", "Links, nav, search, and agents read the same catalog."),
+            SiteMetricConfig(
+                "1", "markdown corpus", "Index pages from content/ mounts at serve time."
+            ),
+            SiteMetricConfig(
+                "0", "export loop", "Author mode reloads the open page via htmx partial swaps."
+            ),
+            SiteMetricConfig(
+                "∞", "graph edges", "Links, nav, search, and agents read the same catalog."
+            ),
         ),
         visual=SiteHomeVisualConfig(
             aria_label=f"Preview of {site_name} documentation surfaces",
@@ -891,7 +903,9 @@ def _parse_nav_section(raw: object, *, defaults: SiteNavSectionConfig) -> SiteNa
     return SiteNavSectionConfig(
         menu_label=str(raw.get("menu_label") or defaults.menu_label),
         dropdown_href=str(raw.get("dropdown_href") or defaults.dropdown_href),
-        overview_href=str(overview_raw.get("href") or raw.get("overview_href") or defaults.overview_href),
+        overview_href=str(
+            overview_raw.get("href") or raw.get("overview_href") or defaults.overview_href
+        ),
         overview_kicker=str(overview_raw.get("kicker") or defaults.overview_kicker),
         overview_title=str(overview_raw.get("title") or defaults.overview_title),
         overview_blurb=str(overview_raw.get("blurb") or defaults.overview_blurb),
@@ -962,13 +976,25 @@ def default_site_navigation(site_name: str) -> SiteNavigationConfig:
             overview_title="Developer tools",
             overview_blurb="Structured outputs for search, references, and AI tools.",
             links=(
-                SiteNavLinkConfig("/api/", "Autodoc API", "Python modules indexed from the repo.", "code"),
-                SiteNavLinkConfig("/shared/", "Shared reference", "Cross-mount glossary and formats.", "globe"),
-                SiteNavLinkConfig("/releases/", "Releases", "Version notes and channel history.", "rocket"),
-                SiteNavLinkConfig("/develop/catalog/", "Catalog JSON", "Structured page metadata.", "file-code"),
+                SiteNavLinkConfig(
+                    "/api/", "Autodoc API", "Python modules indexed from the repo.", "code"
+                ),
+                SiteNavLinkConfig(
+                    "/shared/", "Shared reference", "Cross-mount glossary and formats.", "globe"
+                ),
+                SiteNavLinkConfig(
+                    "/releases/", "Releases", "Version notes and channel history.", "rocket"
+                ),
+                SiteNavLinkConfig(
+                    "/develop/catalog/", "Catalog JSON", "Structured page metadata.", "file-code"
+                ),
                 SiteNavLinkConfig("/develop/llms/", "llms.txt", "AI-ready page index.", "article"),
-                SiteNavLinkConfig("/develop/search/", "search.json", "Keyword search index.", "magnifying-glass"),
-                SiteNavLinkConfig("/develop/tools/", "tools.json", "Tool metadata for integrations.", "stack"),
+                SiteNavLinkConfig(
+                    "/develop/search/", "search.json", "Keyword search index.", "magnifying-glass"
+                ),
+                SiteNavLinkConfig(
+                    "/develop/tools/", "tools.json", "Tool metadata for integrations.", "stack"
+                ),
             ),
         ),
     )
@@ -1053,7 +1079,9 @@ def _parse_site_config(raw: object, *, app_root: Path) -> SiteConfig:
     navigation = default_site_navigation(name)
     if isinstance(nav_raw, dict):
         navigation = SiteNavigationConfig(
-            documentation=_parse_nav_section(nav_raw.get("documentation"), defaults=navigation.documentation),
+            documentation=_parse_nav_section(
+                nav_raw.get("documentation"), defaults=navigation.documentation
+            ),
             develop=_parse_nav_section(nav_raw.get("develop"), defaults=navigation.develop),
         )
     return SiteConfig(
@@ -1092,7 +1120,9 @@ def load_docs_config(path: Path) -> DocsConfig:
     effects_raw = theme_raw.get("effects") if isinstance(theme_raw.get("effects"), dict) else {}
     measure_raw = theme_raw.get("measure") if isinstance(theme_raw.get("measure"), dict) else {}
     fonts_raw = theme_raw.get("fonts") if isinstance(theme_raw.get("fonts"), dict) else {}
-    overrides_raw = theme_raw.get("overrides") if isinstance(theme_raw.get("overrides"), dict) else {}
+    overrides_raw = (
+        theme_raw.get("overrides") if isinstance(theme_raw.get("overrides"), dict) else {}
+    )
     use_raw = theme_raw.get("use")
     use = str(use_raw).strip() if use_raw else None
     has_local_skin = any(key in theme_raw for key in ("tokens", "styles")) or bool(overrides_raw)

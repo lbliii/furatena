@@ -123,10 +123,7 @@ def _route_mount(path: str, handler: str, catalog: Any | None) -> str:
     if handler == "prefixed_mount":
         for mount in getattr(catalog, "mounts", ()):
             prefix = str(getattr(mount, "url_prefix", "")).rstrip("/")
-            if prefix and (
-                path in {f"{prefix}/", f"{prefix}.md"}
-                or path.startswith(f"{prefix}/")
-            ):
+            if prefix and (path in {f"{prefix}/", f"{prefix}.md"} or path.startswith(f"{prefix}/")):
                 return str(mount.id)
         return "mounted"
     return "application"

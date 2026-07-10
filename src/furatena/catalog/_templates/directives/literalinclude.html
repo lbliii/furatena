@@ -1,8 +1,8 @@
 {% if caption %}
 <figure class="chirp-theme-directive-figure chirp-theme-directive-figure--code fura-code-figure">
 <figcaption class="chirp-theme-directive-figure__caption">{{ caption }}</figcaption>
-{{ body | safe }}
+{{ body }}
 </figure>
 {% else %}
-{{ body | safe }}
+{{ body }}
 {% end %}

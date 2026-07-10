@@ -10,7 +10,7 @@ from patitas.nodes import Directive
 
 from furatena.catalog.directives.html import render_inline_text
 from furatena.catalog.directives.icons import render_icon_html
-from furatena.catalog.directives.kida_render import as_markup, render_directive
+from furatena.catalog.directives.kida_render import render_directive, trusted_renderer_html
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -63,17 +63,13 @@ class DropdownHandler:
     def render(self, node: Directive[Any], rendered_children: str, sb: StringBuilder) -> None:
         opts = node.options
         color = opts.color if opts.color in DROPDOWN_COLORS else ""
-        title = as_markup(render_inline_text(node.title or "Details"))
-        description = (
-            as_markup(render_inline_text(opts.description))
-            if opts.description
-            else ""
-        )
+        title = render_inline_text(node.title or "Details")
+        description = render_inline_text(opts.description) if opts.description else ""
         sb.append(
             render_directive(
                 "accordion",
                 title=title,
-                body=rendered_children,
+                body=trusted_renderer_html(rendered_children),
                 open=opts.open,
                 description=description,
                 badge=opts.badge or "",

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication/v1/event.schema.json",
+  "title": "Furatena publication event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "event_id", "event_digest", "plan_digest",
+    "state_version", "from_state", "to_state", "event_type", "actor", "correlation_id",
+    "timestamp", "failure", "outputs", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.event"},
+    "event_id": {"type": "string", "pattern": "^event-[0-9a-f]{24}$"},
+    "event_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "plan_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "state_version": {"type": "integer", "minimum": 1},
+    "from_state": {"$ref": "common.schema.json#/$defs/state"},
+    "to_state": {"$ref": "common.schema.json#/$defs/state"},
+    "event_type": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "actor": {"$ref": "common.schema.json#/$defs/actor"},
+    "correlation_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "timestamp": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "failure": {"$ref": "common.schema.json#/$defs/nullableFailure"},
+    "outputs": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/outputReference"}
+    },
+    "extensions": {"$ref": "common.schema.json#/$defs/extensions"}
+  }
+}

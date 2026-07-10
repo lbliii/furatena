@@ -538,7 +538,7 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
                 </form>
                 <section aria-label="Rendered preview">
                   {% if author_studio.preview_html %}
-                  {{ author_studio.preview_html | safe }}
+                  {{ author_studio.preview_html }}
                   {% else %}
                   <h1>{{ author_studio.title }}</h1>
                   {% end %}
