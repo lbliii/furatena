@@ -120,6 +120,7 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
 def register_public_routes(docs: Any, app: App) -> None:
     """Register one cohesive route surface."""
     self = docs
+    portal_view = self.config.views.get("portal") or "views/portal.html"
 
     @app.route("/healthz", referenced=True)
     def healthz(request: Request):
@@ -150,7 +151,7 @@ def register_public_routes(docs: Any, app: App) -> None:
         body = operational_status(self)["artifacts"]
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
-    @app.route("/portal/", referenced=True)
+    @app.route("/portal/", referenced=True, template=portal_view)
     def portal(request: Request):
         self._ensure_catalog()
         ctx = {
@@ -158,12 +159,11 @@ def register_public_routes(docs: Any, app: App) -> None:
             "mounts": self.catalog.portal_mounts(),
             "page_count": len(self.catalog.nodes),
         }
-        view_name = self.config.views.get("portal") or "views/portal.html"
-        ctx["chirp_docs_surface"] = self.views.surface(view_name)
-        ctx.update(self._view_chrome_context(view_name, ctx.get("node"), ctx))
-        return self._render_view(view_name, request, **ctx)
+        ctx["chirp_docs_surface"] = self.views.surface(portal_view)
+        ctx.update(self._view_chrome_context(portal_view, ctx.get("node"), ctx))
+        return self._render_view(portal_view, request, **ctx)
 
-    @app.route("/develop/", referenced=True)
+    @app.route("/develop/", referenced=True, template="views/develop.html")
     def develop_index(request: Request):
         ctx = {
             **self._shell_context(request=request),
@@ -171,7 +171,11 @@ def register_public_routes(docs: Any, app: App) -> None:
         }
         return self._render_view("views/develop.html", request, **ctx)
 
-    @app.route("/develop/{export_id}/", referenced=True)
+    @app.route(
+        "/develop/{export_id}/",
+        referenced=True,
+        template="views/develop_export.html",
+    )
     def develop_export_preview(request: Request, export_id: str):
         item = develop_export(export_id)
         if item is None:
@@ -220,7 +224,11 @@ def register_author_routes(docs: Any, app: App) -> None:
 
         return EventStream(stream(), heartbeat_interval=5.0)
 
-    @app.route("/docs/_author/dashboard", referenced=True)
+    @app.route(
+        "/docs/_author/dashboard",
+        referenced=True,
+        template="views/author_dashboard.html",
+    )
     def author_dashboard(request: Request):
         if not self._is_author_mode():
             return Response("author dashboard is available only in author mode", status=404)
@@ -233,7 +241,11 @@ def register_author_routes(docs: Any, app: App) -> None:
             return _json_response({"ok": True, "data": ctx["author_dashboard"]})
         return Page.mounted("views/author_dashboard.html", **ctx)
 
-    @app.route("/docs/_author/studio", referenced=True)
+    @app.route(
+        "/docs/_author/studio",
+        referenced=True,
+        template="views/author_studio.html",
+    )
     def author_studio(request: Request):
         if not self._is_author_mode():
             return Response("author studio is available only in author mode", status=404)
@@ -258,7 +270,12 @@ def register_author_routes(docs: Any, app: App) -> None:
         )
         return Page.mounted("views/author_studio.html", **ctx)
 
-    @app.route("/docs/_author/studio/save", methods=["POST"], referenced=True)
+    @app.route(
+        "/docs/_author/studio/save",
+        methods=["POST"],
+        referenced=True,
+        template="views/author_studio.html",
+    )
     async def author_studio_save(request: Request):
         if not self._is_author_mode():
             return _json_response(
@@ -463,7 +480,7 @@ def register_search_routes(docs: Any, app: App) -> None:
     """Register one cohesive route surface."""
     self = docs
 
-    @app.route("/search")
+    @app.route("/search", template="search.html")
     def search(request: Request):
         self._ensure_catalog()
         query = (request.query.get("q") or "").strip()
@@ -514,7 +531,7 @@ def register_search_routes(docs: Any, app: App) -> None:
             )
         return Page.mounted("search.html", **ctx)
 
-    @app.route("/errors/suggest")
+    @app.route("/errors/suggest", template="partials/error_suggest_panel.html")
     def error_suggest(request: Request):
         self._ensure_catalog()
         query = (request.query.get("q") or "").strip()
@@ -530,7 +547,7 @@ def register_search_routes(docs: Any, app: App) -> None:
             hits=keyword_hits,
         )
 
-    @app.route("/search/suggest")
+    @app.route("/search/suggest", template="partials/search_suggest.html")
     def search_suggest(request: Request):
         self._ensure_catalog()
         query = (request.query.get("q") or "").strip()

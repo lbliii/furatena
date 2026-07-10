@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -19,7 +20,7 @@ from furatena.catalog.config import (
     ThemeMeasureConfig,
     load_docs_config,
 )
-from furatena.catalog.theme_lint import check_theme_assets
+from furatena.catalog.theme_lint import _local_template_class_usages, check_theme_assets
 
 
 @pytest.fixture(scope="module")
@@ -32,6 +33,45 @@ class TestThemeLint:
         errors, warnings = check_theme_assets(docs_config)
         assert errors == []
         assert not any("theme js/" in item and "missing" in item for item in warnings)
+
+    def test_local_class_contract_uses_resolved_css_and_physical_sources(
+        self,
+        docs_config: DocsConfig,
+        tmp_path: Path,
+    ) -> None:
+        theme_dir = tmp_path / "theme"
+        shadow_dir = theme_dir / "templates" / "partials"
+        shadow_dir.mkdir(parents=True)
+        template = shadow_dir / "local_contract.html"
+        template.write_text(
+            '<div class="chirp-theme-test-backed chirp-theme-test-commented '
+            'chirp-theme-test-missing"></div>',
+            encoding="utf-8",
+        )
+        styles = theme_dir / "styles.css"
+        styles.write_text(
+            ".chirp-theme-test-backed { display: block; }\n"
+            "/* .chirp-theme-test-commented { display: block; } */\n",
+            encoding="utf-8",
+        )
+        config = replace(
+            docs_config,
+            root=tmp_path,
+            theme=replace(
+                docs_config.theme,
+                overrides=replace(docs_config.theme.overrides, styles="theme/styles.css"),
+            ),
+        )
+
+        errors, _warnings = check_theme_assets(config)
+
+        assert not any(".chirp-theme-test-backed" in item for item in errors)
+        assert any(".chirp-theme-test-commented" in item for item in errors)
+        missing = [item for item in errors if ".chirp-theme-test-missing" in item]
+        assert len(missing) == 1
+        assert "theme/templates/partials/local_contract.html" in missing[0]
+        usages = _local_template_class_usages((theme_dir / "templates", theme_dir))
+        assert usages["chirp-theme-test-missing"] == (template.resolve(),)
 
     def test_invalid_effect_preset(self) -> None:
         config = DocsConfig(

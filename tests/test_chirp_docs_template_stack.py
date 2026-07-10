@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -88,3 +89,26 @@ class TestTemplateStack:
         fw = docs_config.framework_templates_dir
         assert fw.is_dir()
         assert (fw / "partials" / "head_meta.html").is_file()
+
+    def test_configured_views_and_overrides_are_declared(self, docs_config) -> None:
+        custom = replace(
+            docs_config,
+            views={**docs_config.views, "custom": "views/custom.html"},
+            overrides={"docs/custom": "views/custom_override.html"},
+        )
+        app = DocsApp(custom, repo_root=REPO, autodoc=False).app
+        declared = {
+            declaration.template for declaration in app._mutable_state.template_declarations
+        }
+
+        assert set(custom.views.values()) <= declared
+        assert set(custom.overrides.values()) <= declared
+
+    def test_fixed_view_routes_publish_template_metadata(self) -> None:
+        app, _env = _app_env()
+        templates = {route.path: route.template for route in app._pending_routes}
+
+        assert templates["/develop/"] == "views/develop.html"
+        assert templates["/develop/{export_id}/"] == "views/develop_export.html"
+        assert templates["/portal/"] == "views/portal.html"
+        assert templates["/search"] == "search.html"

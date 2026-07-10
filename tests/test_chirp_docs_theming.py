@@ -146,7 +146,8 @@ class TestThemeHeroContract:
             return resp.text
 
         html = asyncio.run(_fetch())
-        assert "chirpui-hero--page-editorial chirpui-hero--solid chirp-theme-docs-layout__hero" in html
+        assert "chirpui-hero--page chirpui-hero--solid chirp-theme-docs-layout__hero" in html
+        assert "chirpui-hero--page-editorial" not in html
         assert "chirpui-hero__inner" in html
         assert "chirpui-hero__metadata" in html
 
@@ -371,6 +372,8 @@ class TestThemeHtmlContract:
         assert "fura-shell-nav" not in html
         assert "docs-version-select" in html
         assert "version-selector__select" in html
+        assert 'class="version-selector__label visually-hidden"' in html
+        assert ">Documentation version</label>" in html
 
     def test_home_page_has_site_nav(self, docs_client) -> None:
         import asyncio
@@ -385,6 +388,8 @@ class TestThemeHtmlContract:
         assert 'brand-word">Chirp' not in html
         assert "chirp-theme-shell__header" in html
         assert "chirp-theme-shell__nav-dropdown" in html
+        assert "chirp-theme-shell__nav-dropdown-menu" in html
+        assert "chirpui-navbar-dropdown__menu" not in html
         assert "chirp-theme-shell__mega" in html
         assert "chirp-theme-home__hero-title" in html
         assert "chirpui-surface--glass" in html

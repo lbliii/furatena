@@ -1,7 +1,7 @@
 {# Docs version channel switcher — Chirp-native (not Bengal build-time URLs). #}
 {% if doc_channels is defined and doc_channels | length > 1 %}
-<div class="version-selector chirp-theme-docs-nav__version">
-  <label class="version-selector__label chirpui-sr-only" for="docs-version-select">Documentation version</label>
+<div class="version-selector">
+  <label class="version-selector__label visually-hidden" for="docs-version-select">Documentation version</label>
   <select id="docs-version-select"
           class="version-selector__select"
           aria-label="Select documentation version"

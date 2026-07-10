@@ -38,7 +38,7 @@ GET|/llms.txt|-|application|llms_txt|text|-|-
 GET|/meta.json|-|application|meta_json_route|json|-|-
 GET|/objects.inv|-|application|inventory_inv|binary|-|-
 GET|/og/{name}|-|application|og_image|image|-|-
-GET|/portal/|-|application|portal|html-document|config:views.portal|-
+GET|/portal/|-|application|portal|html-document|views/portal.html|-
 GET|/readyz|-|application|readyz|html-document|-|-
 GET|/releases.md|-|furatena|default_releases|markdown|dynamic:view-kind|-
 GET|/releases/|-|furatena|default_releases|html-document|dynamic:view-kind|-

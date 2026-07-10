@@ -144,13 +144,13 @@
 
     <div class="chirp-theme-page-actions__section">Share with AI</div>
     {% set share_prompt = "Please help me understand this documentation: " ~ llm_txt_url %}
-    <a href="https://claude.ai/new?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item chirp-theme-page-actions__item--ai" data-ai="claude">
+    <a href="https://claude.ai/new?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item" data-ai="claude">
       <span>Claude</span>
     </a>
-    <a href="https://chatgpt.com/?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item chirp-theme-page-actions__item--ai" data-ai="chatgpt">
+    <a href="https://chatgpt.com/?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item" data-ai="chatgpt">
       <span>ChatGPT</span>
     </a>
-    <a href="https://gemini.google.com/app?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item chirp-theme-page-actions__item--ai" data-ai="gemini">
+    <a href="https://gemini.google.com/app?q={{ share_prompt | urlencode }}" target="_blank" rel="noopener noreferrer" class="chirp-theme-page-actions__item" data-ai="gemini">
       <span>Gemini</span>
     </a>
   </div>

@@ -2,10 +2,10 @@
 <div class="chirp-theme-doc-catalog" data-chirp-theme-doc-nav="catalog" data-fura-docs="docs-nav">
   <div class="chirp-theme-doc-catalog__primary">
     {% call filter_rail(label="Documentation catalog", cls="chirp-theme-doc-catalog-rail") %}
-      <div class="chirp-theme-doc-catalog-rail__group chirp-theme-doc-catalog-rail__group--home">
+      <div class="chirp-theme-doc-catalog-rail__group">
         {% for item in catalog_rail_items ?? () %}
         {% if loop.first %}
-        <a class="chirpui-filter-rail__item chirp-theme-doc-catalog-rail__item chirp-theme-doc-catalog-rail__home{{ ' is-active' if item.active else '' }}"
+        <a class="chirpui-filter-rail__item chirp-theme-doc-catalog-rail__item{{ ' is-active' if item.active else '' }}"
            href="{{ item.href }}"
            aria-label="{{ item.title }}"
            title="{{ item.title }}"

@@ -1,8 +1,0 @@
-{# Partial-nav anchor for the layered search shell (chirp-ui fragment-island pattern).
-   Prefer precomputed ``nav_attrs`` from ``search_experience`` helpers rather than
-   calling template globals at render time. #}
-{% def search_shell_link(href, label, nav_attrs, cls="", active=false) %}
-<a class="{{ cls }}{% if active %} is-active{% end %}"
-   href="{{ href }}"
-   {{ nav_attrs | html_attrs }}>{{ label }}</a>
-{% end %}

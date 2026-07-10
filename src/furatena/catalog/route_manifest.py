@@ -39,7 +39,7 @@ class RouteManifestEntry:
 
 
 _TEMPLATE_CONTRACTS = {
-    "portal": "config:views.portal",
+    "portal": "views/portal.html",
     "develop_index": "views/develop.html",
     "develop_export_preview": "views/develop_export.html",
     "home": "dynamic:view-kind",

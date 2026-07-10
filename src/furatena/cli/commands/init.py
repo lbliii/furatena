@@ -416,7 +416,7 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
             <main id="page-root" class="chirp-theme-docs-layout" data-fura-surface="catalog">
             {% block page_root_inner %}
             {% block page_content %}
-              <article class="chirp-theme-doc">
+              <article>
                 <h1>{{ node.title }}</h1>
                 {% if node.description %}<p>{{ node.description }}</p>{% end %}
                 {% include "partials/author_chrome.html" %}
