@@ -19,6 +19,7 @@ file would otherwise mix unrelated fixtures or ownership.
 | Agent contract compatibility | `test_agent_contract_diff.py`, `fixtures/agent-contracts/` |
 | Publication workflow contracts | `test_publication_contracts.py`, `test_publication_state.py`, `test_publication_schemas.py`, `test_publication_fixtures.py`, `fixtures/publication/` |
 | Scoped capability policy | `test_capability_policy.py`, `test_capability_schemas.py` |
+| Publication provider contracts | `test_publication_provider_contracts.py`, `test_publication_provider_schemas.py`, `fixtures/publication-provider/` |
 
 The seven former wave-named modules contain 62 collected tests. Their behavior-
 named replacements must continue to collect the same 62 tests unless a future
