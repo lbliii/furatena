@@ -127,6 +127,7 @@ configured base path.
 | `/catalog/api-operations.json` | `json` | `schema_version`, operation count, and API `operations`. |
 | `/catalog/artifacts.json` | `json` | Freeze/export presence, manifest validity, generation time, age, upstream freshness, counts, and paths. |
 | `/catalog/freshness.json` | `json` | Source, index, freeze, and export freshness signals plus remediation. |
+| `/catalog/mounts/{mount_id}` | `json` | One mount-scoped catalog shard for live HTTP and static export consumers. |
 | `/catalog/operational-status.json` | `json` | Combined health, readiness, freshness, and artifact contracts from one observation. |
 | `/catalog/query.json` | `json` | Paginated query echo plus returned counts, totals, `next_offset`, pages, edges, and graph nodes. |
 | `/catalog/retrieve` | `json` | Retrieved node, chunks, backlinks, related context, and API operation metadata. |
@@ -153,6 +154,10 @@ configured base path.
 | `/structure.json` | `json` | Content-IR heading/directive structure keyed by public node. |
 | `/surface.json` | `json` | Product-surface manifest and linked machine-readable URLs. |
 | `/tools.json` | `json` | Agent tool descriptors, schemas, and API-operation discovery metadata. |
+
+The mount-shard contract is inventoried as both
+`route:GET /catalog/mounts/{mount_id}` and
+`sidecar:/catalog/mounts/{mount_id}`.
 
 ## Health, readiness, freshness, and artifact age
 
