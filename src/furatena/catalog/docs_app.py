@@ -24,9 +24,9 @@ from chirp import (
 from chirp.errors import NotFound
 from chirp.ext.chirp_ui import use_chirp_ui
 from chirp.i18n import get_locale, set_locale
-from chirp.middleware.csrf import get_csrf_token
+from chirp.middleware.csrf import CSRFMiddleware, get_csrf_token
 from chirp.middleware.security_headers import SecurityHeadersConfig
-from chirp.middleware.sessions import get_session
+from chirp.middleware.sessions import SessionMiddleware, get_session
 from chirp.middleware.stack import secure_stack
 from chirp.middleware.static import StaticFiles
 
@@ -323,10 +323,22 @@ class DocsApp:
         )
         app = App(app_config)
         use_chirp_ui(app)
-        for middleware in secure_stack(
+        security_middleware = secure_stack(
             app_config,
             headers=SecurityHeadersConfig(content_security_policy=None),
-        ):
+        )
+        if preview:
+            # Preview serves only public, frozen content.  Chirp's session
+            # middleware currently saves a cookie on every response, so keep
+            # the public stack stateless until conditional cookie writes land
+            # upstream.  CSRF is paired with those sessions and only protects
+            # author mutations; author mode keeps the complete stack below.
+            security_middleware = [
+                middleware
+                for middleware in security_middleware
+                if not isinstance(middleware, (SessionMiddleware, CSRFMiddleware))
+            ]
+        for middleware in security_middleware:
             app.add_middleware(middleware)
         app.template_global("fura_form_proof")(_active_form_proof)
         if i18n.enabled:

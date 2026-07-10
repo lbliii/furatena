@@ -202,6 +202,7 @@ class TestAuthorStaleRoute:
 
     def test_author_sse_event_reports_invalidation_payload(self, tmp_path: Path) -> None:
         import asyncio
+        from unittest.mock import patch
 
         docs, _page = self._write_author_app(tmp_path)
         docs.catalog._shards["chirp"]._last_invalidations["docs/page"] = ("toc-panel",)
@@ -210,8 +211,14 @@ class TestAuthorStaleRoute:
         async def _collect():
             return await client.sse("/docs/_author/events?slug=docs/page", max_events=1)
 
-        result = asyncio.run(_collect())
+        with patch.object(
+            docs,
+            "_author_invalidation_payload",
+            wraps=docs._author_invalidation_payload,
+        ) as invalidation_payload:
+            result = asyncio.run(_collect())
         assert result.status == 200
+        assert invalidation_payload.call_count == 1
         assert result.events
         event = result.events[0]
         assert event.event == "author-invalidate"
@@ -318,17 +325,22 @@ class TestAuthorStaleRoute:
         assert "/docs/_author/events?slug=docs/page" in connects
         assert "author-invalidate" in swaps
         assert 'window.__furaAuthorReloadMode = "sse"' in response.text
-        assert "if (!startSseReload())" in response.text
+        assert "if (!startSseReload(false))" in response.text
         assert "window.__furaDocsAuthorReloadState" in response.text
         assert "if (window.__furaDocsAuthorReload) return;" not in response.text
-        assert 'target.dataset.furaAuthorSseBound === "1"' in response.text
-        assert 'target.addEventListener("htmx:sseMessage"' in response.text
-        assert 'marker.querySelectorAll("[sse-swap], [data-sse-swap]")' in response.text
+        assert 'marker.dataset.furaAuthorSseBound === "1"' in response.text
+        assert 'marker.addEventListener("htmx:sseMessage"' in response.text
+        assert 'marker.dataset.furaSseExtensionActive === "1"' in response.text
+        assert "if (htmxOwnsAuthorSse(marker))" in response.text
+        assert "if (!allowCompatibilityFallback && markerDeclaresHtmxSse(marker))" in response.text
+        assert "if (!startSseReload(true)) startPollingFallback();" in response.text
+        assert "closeCustomEventSource();" in response.text
         assert "state.eventSourceSlug === slug" in response.text
         assert 'new EventSource("/docs/_author/events?slug="' in response.text
         assert 'source.addEventListener("author-invalidate"' in response.text
         assert "source.onerror = function ()" in response.text
         assert "window.setTimeout(startPollingFallback, 500);" in response.text
+        assert 'window.addEventListener("pagehide", cleanupSource' in response.text
         assert "function stopPollingFallback" in response.text
         assert "window.clearInterval(state.pollTimer)" in response.text
         assert "window.setInterval(pollAuthorStale, 2000)" in response.text
@@ -354,8 +366,8 @@ class TestAuthorStaleRoute:
         assert 'target.closest("[data-action]")' in response.text
         assert "copyPayloadForAction(button, action)" in response.text
         assert "data-copy-state" in response.text
-        assert response.text.index("function startSseReload") < response.text.index(
-            "startPollingFallback();"
+        assert response.text.index("function startSseReload") < response.text.rindex(
+            "if (!startSseReload(false))"
         )
 
     def test_author_page_actions_contract_is_stable_for_mobile_and_htmx(
