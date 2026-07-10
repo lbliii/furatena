@@ -165,6 +165,7 @@ def test_workflow_runs_after_deploy_and_on_schedule_with_retained_json() -> None
     steps = {step.get("name", step.get("uses")): step for step in score["steps"]}
 
     assert 'cron: "17 6 * * 1"' in source
+    assert "pull_request:" in source
     assert "workflow_dispatch:" in source
     assert "workflow_run:" in source
     assert 'workflows: ["Validate and deploy Furatena"]' in source

@@ -1,6 +1,12 @@
 name: Track agent-readiness scores
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/agent-score.yml
+      - scripts/check_afdocs_scores.py
+      - config/afdocs-baseline.json
+      - tests/test_afdocs_score_lane.py
   schedule:
     - cron: "17 6 * * 1"
   workflow_dispatch:
@@ -104,6 +110,10 @@ jobs:
           MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'check' }}
         run: |
           set -euo pipefail
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" && \
+                ! -f config/afdocs-baseline.json ]]; then
+            MODE=record
+          fi
           args=(
             --static agent-score-results/static.raw.json
             --live agent-score-results/live.raw.json
