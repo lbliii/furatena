@@ -245,9 +245,7 @@ def normalize_audit_event(
     }
     reserved = set(normalized)
     normalized.update(
-        (str(key), value)
-        for key, value in sanitized.items()
-        if str(key) not in reserved
+        (str(key), value) for key, value in sanitized.items() if str(key) not in reserved
     )
     return normalized
 
@@ -329,8 +327,7 @@ def _write_jsonl_atomic(path: Path, events: list[dict[str, Any]]) -> None:
     try:
         temporary.write_text(
             "".join(
-                json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
-                for event in events
+                json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n" for event in events
             ),
             encoding="utf-8",
         )

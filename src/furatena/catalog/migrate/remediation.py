@@ -147,9 +147,7 @@ def remediation_plan(report: dict[str, Any]) -> dict[str, Any]:
     """Group migration findings into ecosystem- and risk-aware playbooks."""
     items = [_plan_item(finding) for finding in report.get("findings", ())]
     blocked_sources = {
-        item["source_path"]
-        for item in items
-        if item["risk"] in {"manual", "blocking"}
+        item["source_path"] for item in items if item["risk"] in {"manual", "blocking"}
     }
     for item in items:
         if item["risk"] != "safe" or item["source_path"] not in blocked_sources:
@@ -161,9 +159,7 @@ def remediation_plan(report: dict[str, Any]) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "safe_candidate_count": sum(item["risk"] == "safe" for item in items),
-        "manual_blocker_count": sum(
-            item["risk"] in {"manual", "blocking"} for item in items
-        ),
+        "manual_blocker_count": sum(item["risk"] in {"manual", "blocking"} for item in items),
         "groups": {
             "by_ecosystem": _group(items, "ecosystem"),
             "by_risk": _group(items, "risk"),

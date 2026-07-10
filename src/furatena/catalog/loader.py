@@ -904,12 +904,13 @@ class DocCatalog:
                 member_urls = {member_href, *(page.url for page in pages)}
                 section_urls.update(member_urls)
                 member_active = active_url in member_urls or (
-                    active_url is not None
-                    and active_url.startswith(member_href.rstrip("/") + "/")
+                    active_url is not None and active_url.startswith(member_href.rstrip("/") + "/")
                 )
                 member_groups.append(
                     {
-                        "title": index_node.title if index_node else member_id.replace("-", " ").title(),
+                        "title": index_node.title
+                        if index_node
+                        else member_id.replace("-", " ").title(),
                         "href": member_href,
                         "open": member_active,
                         "active": member_href == active_url,
@@ -937,9 +938,8 @@ class DocCatalog:
 
             if not member_groups and not page_items:
                 continue
-            section_href = (
-                section.href
-                or (member_groups[0]["href"] if member_groups else page_items[0]["href"])
+            section_href = section.href or (
+                member_groups[0]["href"] if member_groups else page_items[0]["href"]
             )
             section_active = active_url in section_urls or (
                 active_url is not None and active_url.startswith(section_href.rstrip("/") + "/")
@@ -1080,9 +1080,7 @@ class DocCatalog:
                     "href": href,
                     "mark": section.mark,
                     "icon": section.icon,
-                    "active": bool(
-                        active_url in active_urls
-                    ),
+                    "active": bool(active_url in active_urls),
                 }
             )
         items.append(

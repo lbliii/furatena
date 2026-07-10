@@ -138,9 +138,7 @@ class StepHandler:
         step_id = _slugify_step_id(title) if title else f"step-{step_number}"
         title_html = as_markup(render_inline_text(title)) if title else ""
         description_html = (
-            as_markup(render_inline_text(opts.description))
-            if opts.description
-            else ""
+            as_markup(render_inline_text(opts.description)) if opts.description else ""
         )
         sb.append(
             render_directive(

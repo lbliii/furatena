@@ -30,9 +30,7 @@ _EXPECTED = {
     AccessRole.READER: frozenset(),
     AccessRole.CONTRIBUTOR: frozenset({"draft", "edit", "create"}),
     AccessRole.PUBLISHER: frozenset({"draft", "publish", "unpublish", "edit", "create"}),
-    AccessRole.ADMIN: frozenset(
-        {"draft", "publish", "unpublish", "archive", "edit", "create"}
-    ),
+    AccessRole.ADMIN: frozenset({"draft", "publish", "unpublish", "archive", "edit", "create"}),
 }
 _OPERATIONS = ("draft", "publish", "unpublish", "archive", "edit", "create")
 

@@ -81,9 +81,7 @@ def test_passing_scorecard_uses_fixed_documented_gates() -> None:
 
 def test_published_beta_scorecard_matches_its_versioned_evidence() -> None:
     evidence = json.loads((REPO / "docs/adoption-evidence-v1.json").read_text(encoding="utf-8"))
-    published = json.loads(
-        (REPO / "docs/adoption-scorecard-v1.json").read_text(encoding="utf-8")
-    )
+    published = json.loads((REPO / "docs/adoption-scorecard-v1.json").read_text(encoding="utf-8"))
 
     assert build_adoption_scorecard(evidence) == published
     assert published["decision"] == "no-go"
@@ -174,9 +172,7 @@ def test_cli_writes_no_go_scorecard_with_standard_diagnostics(tmp_path: Path) ->
     output = tmp_path / "scorecard.json"
     source.write_text(json.dumps(manifest), encoding="utf-8")
 
-    result = run_command(
-        ["scorecard", "--input", str(source), "--output", str(output), "--json"]
-    )
+    result = run_command(["scorecard", "--input", str(source), "--output", str(output), "--json"])
 
     assert result is not None
     assert result.command == "scorecard"

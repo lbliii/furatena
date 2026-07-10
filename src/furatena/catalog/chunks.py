@@ -79,9 +79,7 @@ def chunk_node(
     if not sections and node.content_ir is not None:
         from furatena.catalog.text import derive_sections
 
-        sections = list(
-            derive_sections(node.content_ir, document, source=node.body_md)
-        )
+        sections = list(derive_sections(node.content_ir, document, source=node.body_md))
     if not sections and document is not None:
         from furatena.catalog.patitas_bridge import section_texts
 

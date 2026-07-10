@@ -74,9 +74,7 @@ class ListTableHandler:
             except ValueError:
                 widths = []
 
-        rendered_rows = [
-            [as_markup(render_inline_cell(cell)) for cell in row] for row in rows
-        ]
+        rendered_rows = [[as_markup(render_inline_cell(cell)) for cell in row] for row in rows]
         headers = rendered_rows[0] if header_rows > 0 else None
         body_rows = rendered_rows[header_rows:] if header_rows > 0 else rendered_rows
 

@@ -99,7 +99,9 @@ def run_agent_evaluations(
         elif case.id == "api-operation-discovery":
             results.append(_eval_api_operations(case, active_client))
         elif case.id == "private-content-boundary":
-            results.append(_eval_private_boundary(case, public_client, private_client, include_private))
+            results.append(
+                _eval_private_boundary(case, public_client, private_client, include_private)
+            )
         elif case.id == "versioned-channel-discovery":
             results.append(_eval_channels(case, active_client))
         elif case.id == "stale-content-report":
@@ -118,7 +120,9 @@ def run_agent_evaluations(
             results.append(_eval_author_validation_repair(case, private_client, include_private))
         elif case.id == "author-publish-round-trip":
             results.append(
-                _eval_author_publish_round_trip(case, public_client, private_client, include_private)
+                _eval_author_publish_round_trip(
+                    case, public_client, private_client, include_private
+                )
             )
     golden_fail_count = sum(1 for result in results if result.status == "fail")
     unapproved_regressions = (
@@ -170,21 +174,21 @@ def _build_cases(catalog: Any) -> tuple[AgentEvalCase, ...]:
         None,
     )
     private_node = next(
-        (
-            node
-            for node in catalog.doc_nodes()
-            if not is_public_node(node)
-        ),
+        (node for node in catalog.doc_nodes() if not is_public_node(node)),
         None,
     )
-    stale_entries = catalog.author_stale_entries() if hasattr(catalog, "author_stale_entries") else []
+    stale_entries = (
+        catalog.author_stale_entries() if hasattr(catalog, "author_stale_entries") else []
+    )
     stale_slug = str(stale_entries[0]["slug"]) if stale_entries else ""
 
     return (
         AgentEvalCase(
             id="prose-doc-retrieval",
             category="prose_docs",
-            prompt=_node_query(prose_node, fallback="Find the installation or first-run guide for this docs site."),
+            prompt=_node_query(
+                prose_node, fallback="Find the installation or first-run guide for this docs site."
+            ),
             description="Semantic retrieval returns the expected prose documentation node.",
             expectation=AgentEvalExpectation(
                 tool="semantic_search",
@@ -336,8 +340,16 @@ def _eval_api_operations(case: AgentEvalCase, client: Any) -> AgentEvalResult:
     operations = payload.get("operations", []) if isinstance(payload, dict) else []
     observed_ids = [str(item.get("node_id")) for item in operations]
     if expected_ids.intersection(observed_ids):
-        return _pass(case, "expected API operation node appeared in the API operations resource", {"node_ids": observed_ids})
-    return _fail(case, "expected API operation node was missing from the API operations resource", {"node_ids": observed_ids})
+        return _pass(
+            case,
+            "expected API operation node appeared in the API operations resource",
+            {"node_ids": observed_ids},
+        )
+    return _fail(
+        case,
+        "expected API operation node was missing from the API operations resource",
+        {"node_ids": observed_ids},
+    )
 
 
 def _eval_private_boundary(
@@ -357,10 +369,20 @@ def _eval_private_boundary(
     observed = {
         "public_is_error": public_result.is_error,
         "private_is_error": private_result.is_error,
-        "private_node_id": private_result.structured.get("node_id") if private_result.structured else None,
+        "private_node_id": private_result.structured.get("node_id")
+        if private_result.structured
+        else None,
     }
-    if public_result.is_error and not private_result.is_error and observed["private_node_id"] == node_id:
-        return _pass(case, "private node is blocked publicly and retrievable in include-private mode", observed)
+    if (
+        public_result.is_error
+        and not private_result.is_error
+        and observed["private_node_id"] == node_id
+    ):
+        return _pass(
+            case,
+            "private node is blocked publicly and retrievable in include-private mode",
+            observed,
+        )
     return _fail(case, "private content boundary did not behave as expected", observed)
 
 
@@ -412,11 +434,21 @@ def _eval_tool_selection(case: AgentEvalCase, client: Any) -> AgentEvalResult:
     observed_names = [tool.name for tool in tools]
     expected = case.expectation.tool
     if expected in observed_names:
-        return _pass(case, f"expected tool {expected} is available for selection", {"tool_names": observed_names})
-    return _fail(case, f"expected tool {expected} was missing from MCP tool metadata", {"tool_names": observed_names})
+        return _pass(
+            case,
+            f"expected tool {expected} is available for selection",
+            {"tool_names": observed_names},
+        )
+    return _fail(
+        case,
+        f"expected tool {expected} was missing from MCP tool metadata",
+        {"tool_names": observed_names},
+    )
 
 
-def _eval_author_draft_dry_run(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+def _eval_author_draft_dry_run(
+    case: AgentEvalCase, client: Any, include_private: bool
+) -> AgentEvalResult:
     if not include_private:
         return _skip(case, "rerun with --include-private to exercise author workflow evals")
     slug = "__fura-agent-eval-draft-preview"
@@ -447,7 +479,9 @@ def _eval_author_draft_dry_run(case: AgentEvalCase, client: Any, include_private
     return _fail(case, "draft dry-run did not return the expected non-mutating result", observed)
 
 
-def _eval_author_publish_dry_run(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+def _eval_author_publish_dry_run(
+    case: AgentEvalCase, client: Any, include_private: bool
+) -> AgentEvalResult:
     if not include_private:
         return _skip(case, "rerun with --include-private to exercise author workflow evals")
     target = _expected_author_target(case)
@@ -476,10 +510,14 @@ def _eval_author_publish_dry_run(case: AgentEvalCase, client: Any, include_priva
         and impact.get("resulting_public") is True
     ):
         return _pass(case, "publish preview reported public impact without writing files", observed)
-    return _fail(case, "publish dry-run did not return expected publication-impact metadata", observed)
+    return _fail(
+        case, "publish dry-run did not return expected publication-impact metadata", observed
+    )
 
 
-def _eval_author_publish_remediation(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+def _eval_author_publish_remediation(
+    case: AgentEvalCase, client: Any, include_private: bool
+) -> AgentEvalResult:
     if not include_private:
         return _skip(case, "rerun with --include-private to exercise author workflow evals")
     target = _expected_author_target(case)
@@ -530,11 +568,17 @@ def _eval_author_publish_remediation(case: AgentEvalCase, client: Any, include_p
         and _structured(repair_preview).get("dry_run") is True
         and _structured(repair_preview).get("changed_files") == []
     ):
-        return _pass(case, "failed publish remediation stayed diagnostics-first and non-mutating", observed)
-    return _fail(case, "failed publish remediation did not preserve the expected safety gates", observed)
+        return _pass(
+            case, "failed publish remediation stayed diagnostics-first and non-mutating", observed
+        )
+    return _fail(
+        case, "failed publish remediation did not preserve the expected safety gates", observed
+    )
 
 
-def _eval_author_validation_repair(case: AgentEvalCase, client: Any, include_private: bool) -> AgentEvalResult:
+def _eval_author_validation_repair(
+    case: AgentEvalCase, client: Any, include_private: bool
+) -> AgentEvalResult:
     if not include_private:
         return _skip(case, "rerun with --include-private to exercise author workflow evals")
     target = _expected_author_target(case)
@@ -634,7 +678,9 @@ def _eval_author_validation_repair(case: AgentEvalCase, client: Any, include_pri
         and observed.get("restore_is_error") is not True
         and after_source == original_source
     ):
-        return _pass(case, "validation repair failed, previewed, applied, and validated clean", observed)
+        return _pass(
+            case, "validation repair failed, previewed, applied, and validated clean", observed
+        )
     return _fail(case, "validation repair did not complete the expected safe repair loop", observed)
 
 
@@ -728,7 +774,9 @@ def _eval_author_publish_round_trip(
             "publish/unpublish round-trip updated public retrieval boundaries and restored source",
             observed,
         )
-    return _fail(case, "publish/unpublish round-trip did not preserve retrieval boundaries", observed)
+    return _fail(
+        case, "publish/unpublish round-trip did not preserve retrieval boundaries", observed
+    )
 
 
 def _read_json_resource(client: Any, uri: str) -> dict[str, Any]:
@@ -771,7 +819,11 @@ def _pick_node(nodes: list[Any], *, preferred_urls: tuple[str, ...]) -> Any | No
 def _node_query(node: Any | None, *, fallback: str) -> str:
     if node is None:
         return fallback
-    parts = [str(node.title or "").strip(), str(node.description or "").strip(), str(node.url or "").strip()]
+    parts = [
+        str(node.title or "").strip(),
+        str(node.description or "").strip(),
+        str(node.url or "").strip(),
+    ]
     query = " ".join(part for part in parts if part)
     return query or fallback
 
@@ -805,7 +857,10 @@ def _validation_repair_spans(source: str) -> tuple[str, str]:
     if "visibility: draft\n" in source:
         return "visibility: draft\n", "visibility: draft\npublished_at: 2026-01-01T00:00:00Z\n"
     if "visibility: internal\n" in source:
-        return "visibility: internal\n", "visibility: internal\npublished_at: 2026-01-01T00:00:00Z\n"
+        return (
+            "visibility: internal\n",
+            "visibility: internal\npublished_at: 2026-01-01T00:00:00Z\n",
+        )
     return "", ""
 
 
@@ -817,5 +872,9 @@ def _fail(case: AgentEvalCase, message: str, observed: dict[str, Any]) -> AgentE
     return AgentEvalResult(case.id, case.category, "fail", message, case.expectation, observed)
 
 
-def _skip(case: AgentEvalCase, message: str, observed: dict[str, Any] | None = None) -> AgentEvalResult:
-    return AgentEvalResult(case.id, case.category, "skip", message, case.expectation, observed or {})
+def _skip(
+    case: AgentEvalCase, message: str, observed: dict[str, Any] | None = None
+) -> AgentEvalResult:
+    return AgentEvalResult(
+        case.id, case.category, "skip", message, case.expectation, observed or {}
+    )

@@ -188,9 +188,7 @@ def _config_surfaces() -> list[PublicSurface]:
                 PublicSurface(
                     kind="config_field",
                     name=dotted,
-                    implementation=(
-                        f"{config_type.__module__}:{config_type.__name__}.{item.name}"
-                    ),
+                    implementation=(f"{config_type.__module__}:{config_type.__name__}.{item.name}"),
                     aliases=(dotted,),
                     contract={
                         "type": str(item.type),
@@ -340,9 +338,7 @@ def build_documentation_inventory(
         matched = sorted(
             path for path, text in documents.items() if any(alias in text for alias in aliases)
         )
-        documentation_fingerprint = _fingerprint(
-            {path: documents[path] for path in matched}
-        )
+        documentation_fingerprint = _fingerprint({path: documents[path] for path in matched})
         implementation_fingerprint = _fingerprint(surface.contract)
         prior = previous_items.get(surface.id)
         stale = bool(
@@ -367,7 +363,9 @@ def build_documentation_inventory(
 
     kinds: dict[str, dict[str, int]] = {}
     for record in records:
-        counts = kinds.setdefault(str(record["kind"]), {"total": 0, "documented": 0, "missing": 0, "stale": 0})
+        counts = kinds.setdefault(
+            str(record["kind"]), {"total": 0, "documented": 0, "missing": 0, "stale": 0}
+        )
         counts["total"] += 1
         counts[str(record["coverage"])] += 1
     return {

@@ -137,9 +137,7 @@ def test_author_store_allows_only_one_simultaneous_compare_and_swap(
     tmp_path: Path,
 ) -> None:
     store = (
-        InMemoryAuthorMutationStore()
-        if backend == "memory"
-        else FilesystemAuthorMutationStore()
+        InMemoryAuthorMutationStore() if backend == "memory" else FilesystemAuthorMutationStore()
     )
     path = tmp_path / f"{backend}-race.md"
     initial = store.create(path, "# Initial\n")

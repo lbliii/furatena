@@ -327,14 +327,16 @@ class TestAuthorStaleRoute:
         assert "state.eventSourceSlug === slug" in response.text
         assert 'new EventSource("/docs/_author/events?slug="' in response.text
         assert 'source.addEventListener("author-invalidate"' in response.text
-        assert 'source.onerror = function ()' in response.text
+        assert "source.onerror = function ()" in response.text
         assert "window.setTimeout(startPollingFallback, 500);" in response.text
         assert "function stopPollingFallback" in response.text
         assert "window.clearInterval(state.pollTimer)" in response.text
         assert "window.setInterval(pollAuthorStale, 2000)" in response.text
         assert "function restoreViewport" in response.text
         assert "target.focus({ preventScroll: true });" in response.text
-        assert "target.setSelectionRange(snapshot.focus.start, snapshot.focus.end);" in response.text
+        assert (
+            "target.setSelectionRange(snapshot.focus.start, snapshot.focus.end);" in response.text
+        )
         assert "window.scrollTo(snapshot.scrollX, snapshot.scrollY);" in response.text
         assert "function requestHardReload" in response.text
         assert "function applyAuthorReloadHtml" in response.text
@@ -347,14 +349,18 @@ class TestAuthorStaleRoute:
         assert "if (forceFullReload) requestHardReload();" in response.text
         assert '"HX-Docs-Author-Reload": "1"' in response.text
         assert '"Accept": "text/html"' in response.text
-        assert "window.__furaAuthorReloadMode = \"poll\"" in response.text
+        assert 'window.__furaAuthorReloadMode = "poll"' in response.text
         assert "function setupPageActionCopies" in response.text
         assert 'target.closest("[data-action]")' in response.text
         assert "copyPayloadForAction(button, action)" in response.text
         assert "data-copy-state" in response.text
-        assert response.text.index("function startSseReload") < response.text.index("startPollingFallback();")
+        assert response.text.index("function startSseReload") < response.text.index(
+            "startPollingFallback();"
+        )
 
-    def test_author_page_actions_contract_is_stable_for_mobile_and_htmx(self, tmp_path: Path) -> None:
+    def test_author_page_actions_contract_is_stable_for_mobile_and_htmx(
+        self, tmp_path: Path
+    ) -> None:
         import asyncio
 
         docs, _page = self._write_author_app(tmp_path)
@@ -365,7 +371,7 @@ class TestAuthorStaleRoute:
 
         response = asyncio.run(_fetch())
         assert response.status == 200
-        assert 'data-chirp-page-actions' in response.text
+        assert "data-chirp-page-actions" in response.text
         assert 'data-action="copy-source-path"' in response.text
         assert 'data-source-path="' in response.text
         assert "Author page" in response.text
@@ -408,7 +414,9 @@ class TestAuthorStaleRoute:
         assert "@media (max-width: 480px)" in css
         assert ".fura-author-chrome__signals {\n      display: grid;" in css
 
-    def test_author_reload_after_source_edit_updates_dom_and_clears_hints(self, tmp_path: Path) -> None:
+    def test_author_reload_after_source_edit_updates_dom_and_clears_hints(
+        self, tmp_path: Path
+    ) -> None:
         import asyncio
         import os
         import time
@@ -437,7 +445,9 @@ class TestAuthorStaleRoute:
         assert 'hx-swap-oob="true:#toc-panel"' in response.text or 'id="toc-panel"' in response.text
         assert docs.catalog.invalidation_hints("docs/page") == ()
 
-    def test_author_sse_payload_marks_full_reload_for_theme_level_hints(self, tmp_path: Path) -> None:
+    def test_author_sse_payload_marks_full_reload_for_theme_level_hints(
+        self, tmp_path: Path
+    ) -> None:
         import asyncio
 
         docs, _page = self._write_author_app(tmp_path)

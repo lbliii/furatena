@@ -64,11 +64,7 @@ class DropdownHandler:
         opts = node.options
         color = opts.color if opts.color in DROPDOWN_COLORS else ""
         title = as_markup(render_inline_text(node.title or "Details"))
-        description = (
-            as_markup(render_inline_text(opts.description))
-            if opts.description
-            else ""
-        )
+        description = as_markup(render_inline_text(opts.description)) if opts.description else ""
         sb.append(
             render_directive(
                 "accordion",

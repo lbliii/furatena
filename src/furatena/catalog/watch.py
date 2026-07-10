@@ -5,7 +5,9 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-_SKIP_DIRS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", "frozen", ".docs-cache"})
+_SKIP_DIRS = frozenset(
+    {".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache", "frozen", ".docs-cache"}
+)
 
 
 class SourceWatcher:

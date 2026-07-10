@@ -50,9 +50,7 @@ def test_benchmark_compares_quality_cost_and_all_required_filters(docs: DocsApp)
     assert report["filters"]["all_passed"] is True
     assert set(report["filters"]) >= {"mount", "edition", "tag", "url", "access"}
     for name in ("mount", "edition", "tag", "url", "access"):
-        assert all(
-            item["passed"] for item in report["filters"][name]["algorithms"].values()
-        )
+        assert all(item["passed"] for item in report["filters"][name]["algorithms"].values())
 
 
 def test_url_filter_applies_to_keyword_tfidf_and_both_hybrid_modes(docs: DocsApp) -> None:

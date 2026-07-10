@@ -86,8 +86,7 @@ def activation_report(paths: Iterable[Path]) -> dict[str, Any]:
     for session in sessions:
         grouped[session["journey"]].append(session)
     by_journey = {
-        journey: _journey_report(journey, grouped[journey])
-        for journey in sorted(grouped)
+        journey: _journey_report(journey, grouped[journey]) for journey in sorted(grouped)
     }
     return {
         "schema_version": SCHEMA_VERSION,
@@ -132,9 +131,7 @@ def _journey_report(journey: str, sessions: list[dict[str, Any]]) -> dict[str, A
         "remediation": {
             "automated_seconds": round(automated, 6),
             "manual_seconds": round(manual, 6),
-            "manual_share": (
-                round(manual / remediation_total, 6) if remediation_total else None
-            ),
+            "manual_share": (round(manual / remediation_total, 6) if remediation_total else None),
         },
     }
 
@@ -149,9 +146,7 @@ def _metric_summary(samples: list[float], *, target_seconds: float | None) -> di
         "p95_seconds": round(float(p95), 6) if p95 is not None else None,
         "target_seconds": target_seconds,
         "target_met": (
-            median <= target_seconds
-            if median is not None and target_seconds is not None
-            else None
+            median <= target_seconds if median is not None and target_seconds is not None else None
         ),
     }
 

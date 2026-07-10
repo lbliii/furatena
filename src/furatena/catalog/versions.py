@@ -51,9 +51,7 @@ def load_channels(config_path: Path | None = None) -> tuple[DocChannel, ...]:
                 return tuple(channels)
             return tuple(channels)
 
-    return (
-        DocChannel(id="latest", label="Latest", default=True),
-    )
+    return (DocChannel(id="latest", label="Latest", default=True),)
 
 
 def infer_release_channels(content_root: Path) -> tuple[DocChannel, ...]:

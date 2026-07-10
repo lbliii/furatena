@@ -94,7 +94,7 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
         raw = request.query.get(name)
         try:
             value = int(raw) if raw not in (None, "") else default
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             invalid[name] = raw
             continue
         if value < minimum or (maximum is not None and value > maximum):

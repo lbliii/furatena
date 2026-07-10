@@ -153,9 +153,7 @@ class TestRenderingHeads:
             toc=(),
             source_path="docs/video.md",
             content_ir=ContentIR(
-                directives=(
-                    ContentDirective(name="youtube", options={}, line=4),
-                )
+                directives=(ContentDirective(name="youtube", options={}, line=4),)
             ),
             body_text="Video",
         )
@@ -165,7 +163,9 @@ class TestRenderingHeads:
 
         errors, warnings = check_rendering_head_contracts(_Catalog())
         assert errors == []
-        assert any("embedded-fragment does not support directive 'youtube'" in item for item in warnings)
+        assert any(
+            "embedded-fragment does not support directive 'youtube'" in item for item in warnings
+        )
         assert any("paged-output does not support directive 'youtube'" in item for item in warnings)
 
     def test_delivery_config_check_reports_unknown_heads(self) -> None:
@@ -519,7 +519,9 @@ autodoc:
         hits = search_nodes(list(nodes), "create user")
         assert hits and hits[0].node.node_id == operation.node_id
         search_payload = search_json(_Catalog(), base_url="https://docs.example.com")
-        search_entry = next(entry for entry in search_payload["entries"] if entry["node_id"] == operation.node_id)
+        search_entry = next(
+            entry for entry in search_payload["entries"] if entry["node_id"] == operation.node_id
+        )
         assert search_entry["api_operation"]["operation_id"] == "createUser"
         assert search_entry["api_operation"]["examples"] == ["sample"]
         assert search_entry["api_operation"]["source_spec"] == str(spec)
@@ -529,7 +531,9 @@ autodoc:
         )
         assert ".md)" in llms_payload
         assert "API: POST /users (createUser); examples: sample" in llms_payload
-        api_operations_payload = api_operations_json(_Catalog(), base_url="https://docs.example.com")
+        api_operations_payload = api_operations_json(
+            _Catalog(), base_url="https://docs.example.com"
+        )
         api_operations = {
             item["operation_id"]: item
             for item in api_operations_payload["operations"]
@@ -538,11 +542,18 @@ autodoc:
         assert api_operations["createUser"]["url"].startswith("https://docs.example.com")
         assert api_operations["createUser"]["provenance"]["provider"] == "openapi"
         assert api_operations_payload["groups"][0]["name"] == "Users"
-        tools_payload = tools_manifest(_Catalog(), base_url="https://docs.example.com", site_name="Acme Docs")
-        assert tools_payload["api_operations_url"] == "https://docs.example.com/catalog/api-operations.json"
+        tools_payload = tools_manifest(
+            _Catalog(), base_url="https://docs.example.com", site_name="Acme Docs"
+        )
+        assert (
+            tools_payload["api_operations_url"]
+            == "https://docs.example.com/catalog/api-operations.json"
+        )
         assert tools_payload["api_operation_count"] == 1
         assert tools_payload["api_operation_groups"][0]["name"] == "Users"
-        retrieved = retrieve_node(_Catalog(), EmbeddingIndex.from_nodes(list(nodes)), operation.node_id)
+        retrieved = retrieve_node(
+            _Catalog(), EmbeddingIndex.from_nodes(list(nodes)), operation.node_id
+        )
         assert retrieved is not None
         assert retrieved["api_operation"]["operation_id"] == "createUser"
         assert retrieved["api_operation"]["schemas"] == ["CreateUser", "Error", "User"]
@@ -551,7 +562,9 @@ autodoc:
 
         server = FuraMCPServer(SimpleNamespace(catalog=_Catalog(), embedding_index=None))
         resource = server._api_operations()
-        observed = next(item for item in resource["operations"] if item.get("operation_id") == "createUser")
+        observed = next(
+            item for item in resource["operations"] if item.get("operation_id") == "createUser"
+        )
         assert observed["method"] == "POST"
         assert observed["schemas"] == ["CreateUser", "Error", "User"]
         assert observed["external_docs"] == [
@@ -792,17 +805,15 @@ class TestSeo:
         assert canonical_url("https://lbliii.github.io/chirp", "/chirp/docs/") == (
             "https://lbliii.github.io/chirp/docs/"
         )
-        assert canonical_url("https://lbliii.github.io/furatena", "/furatena/docs/get-started/") == (
-            "https://lbliii.github.io/furatena/docs/get-started/"
-        )
+        assert canonical_url(
+            "https://lbliii.github.io/furatena", "/furatena/docs/get-started/"
+        ) == ("https://lbliii.github.io/furatena/docs/get-started/")
 
     def test_railway_domain_supplies_https_origin(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("FURA_BASE_URL", raising=False)
         monkeypatch.setenv("RAILWAY_PUBLIC_DOMAIN", "furatena-production.up.railway.app")
 
-        assert docs_base_url("internal:8000") == (
-            "https://furatena-production.up.railway.app"
-        )
+        assert docs_base_url("internal:8000") == ("https://furatena-production.up.railway.app")
 
     def test_explicit_base_url_precedes_railway_domain(
         self,

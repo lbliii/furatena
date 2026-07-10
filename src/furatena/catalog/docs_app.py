@@ -507,7 +507,7 @@ class DocsApp:
             if path.endswith("/index.md"):
                 doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
             else:
-                doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+                doc_path = f"{path[: -len('.md')].rstrip('/')}/"
             match = self._resolve_page_from_path(doc_path, requested_lang=requested_lang)
             if not self.catalog.can_access_node(
                 match.node,
@@ -518,9 +518,7 @@ class DocsApp:
             return self._markdown_node_response(match.node)
         match = self._resolve_page_from_path(path, requested_lang=requested_lang)
         subject = (
-            self._browser_author_subject()
-            if self._is_author_mode()
-            else AccessSubject.anonymous()
+            self._browser_author_subject() if self._is_author_mode() else AccessSubject.anonymous()
         )
         if not self.catalog.can_access_node(
             match.node,
@@ -810,7 +808,7 @@ class DocsApp:
         elif path.endswith("/index.md"):
             doc_path = f"{path[: -len('index.md')].rstrip('/')}/"
         elif path.endswith(".md"):
-            doc_path = f"{path[:-len('.md')].rstrip('/')}/"
+            doc_path = f"{path[: -len('.md')].rstrip('/')}/"
         elif path.endswith("/index.txt"):
             doc_path = f"{path[: -len('index.txt')].rstrip('/')}/"
         elif "." not in path.rsplit("/", 1)[-1]:

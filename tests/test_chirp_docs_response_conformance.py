@@ -228,9 +228,7 @@ def test_content_pages_support_http_conditional_requests(docs_client: TestClient
     assert html_cached.header("Last-Modified") is None
     assert html_cached.header("ETag") is None
 
-    initial_csp_nonce = re.search(
-        r"'nonce-([^']+)'", html.header("Content-Security-Policy") or ""
-    )
+    initial_csp_nonce = re.search(r"'nonce-([^']+)'", html.header("Content-Security-Policy") or "")
     refreshed_csp_nonce = re.search(
         r"'nonce-([^']+)'", html_cached.header("Content-Security-Policy") or ""
     )

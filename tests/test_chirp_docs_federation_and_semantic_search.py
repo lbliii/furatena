@@ -90,7 +90,9 @@ class TestFederatedGraphPlatform:
         ids = {item["id"] for item in mounts}
         assert ids == {"chirp", "furatena", "shared"}
 
-    def test_default_docs_route_does_not_fall_through_to_other_mount(self, registry: CatalogRegistry) -> None:
+    def test_default_docs_route_does_not_fall_through_to_other_mount(
+        self, registry: CatalogRegistry
+    ) -> None:
         """A /docs/... URL must not serve a page that only exists under another mount."""
         node = registry.get("/docs/reference/api/")
         assert node is None
@@ -106,7 +108,9 @@ class TestFederatedGraphPlatform:
         assert registry.resolve_link("docs/reference/api", source_mount="furatena") is None
         assert registry.resolve_link("docs/reference", source_mount="furatena") is not None
 
-    def test_get_by_slug_prefers_default_mount_for_duplicate_slugs(self, registry: CatalogRegistry) -> None:
+    def test_get_by_slug_prefers_default_mount_for_duplicate_slugs(
+        self, registry: CatalogRegistry
+    ) -> None:
         node = registry.get_by_slug("docs/reference")
         assert node is not None
         assert node.mount == registry.default_mount.id

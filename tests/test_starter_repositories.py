@@ -44,9 +44,7 @@ def test_starter_runs_from_init_through_static_export(
         ]
     )
     run_command(["--app-root", str(app_root), "freeze", "--json"])
-    run_command(
-        ["--app-root", str(app_root), "export", "--base-path", "", "--json"]
-    )
+    run_command(["--app-root", str(app_root), "export", "--base-path", "", "--json"])
 
     assert initialized is not None and initialized.ok
     assert initialized.data["starter"] == starter
@@ -63,9 +61,7 @@ def test_starter_dependencies_ci_and_audience_stay_release_aligned(
     starter: str,
 ) -> None:
     app_root = tmp_path / starter
-    result = run_command(
-        ["init", str(app_root), "--name", "Acme Platform", "--starter", starter]
-    )
+    result = run_command(["init", str(app_root), "--name", "Acme Platform", "--starter", starter])
 
     assert result is not None and result.ok
     with (app_root / "pyproject.toml").open("rb") as handle:

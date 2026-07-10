@@ -22,7 +22,9 @@ def _run_docs_reference(args: argparse.Namespace) -> CommandResult:
             command=command_name(args),
             ok=matches,
             exit_code=ExitCode.SUCCESS if matches else ExitCode.VALIDATION_ERROR,
-            summary="generated docs reference is current" if matches else "generated docs reference drifted",
+            summary="generated docs reference is current"
+            if matches
+            else "generated docs reference drifted",
             diagnostics=()
             if matches
             else (

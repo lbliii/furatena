@@ -107,9 +107,7 @@ def author_status(
     store: AuthorMutationStore | None = None,
 ) -> AuthorOperationResult:
     backend = _author_store(store)
-    resolved = _resolve_existing_target(
-        target, mounts=mounts, mount_id=mount_id, store=backend
-    )
+    resolved = _resolve_existing_target(target, mounts=mounts, mount_id=mount_id, store=backend)
     if isinstance(resolved, AuthorOperationResult):
         return resolved
     snapshot = _read_snapshot("status", resolved, backend)
@@ -782,7 +780,9 @@ def _resolve_existing_target(
     return resolved
 
 
-def _select_mount(mounts: tuple[Any, ...], *, mount_id: str | None = None) -> Any | AuthorOperationResult:
+def _select_mount(
+    mounts: tuple[Any, ...], *, mount_id: str | None = None
+) -> Any | AuthorOperationResult:
     if mount_id is not None:
         match = next((mount for mount in mounts if mount.id == mount_id), None)
         if match is None:

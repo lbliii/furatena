@@ -29,13 +29,13 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert 'FURA_TEST_FROZEN_DIR="$$(mktemp -d)/frozen"' in makefile
     assert "scripts/check_core_coverage.py" in makefile
     assert "$(MAKE) pages-build" in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/smoke.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/smoke.xml" in makefile
     assert '-m "browser and browser_smoke" $(BROWSER_TESTS)' in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/authoring.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/authoring.xml" in makefile
     assert '-m "browser and browser_authoring" $(BROWSER_TESTS)' in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/responsive.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/responsive.xml" in makefile
     assert '-m "browser and browser_responsive" $(BROWSER_TESTS)' in makefile
-    assert '--junitxml=$(BROWSER_RESULTS)/full.xml' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/full.xml" in makefile
     assert '-m "browser and browser_full" $(BROWSER_TESTS)' in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
     assert "fura docs-reference" in makefile

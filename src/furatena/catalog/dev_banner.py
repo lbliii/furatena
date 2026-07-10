@@ -18,5 +18,7 @@ def format_serve_startup(
         summary = f"{summary} · reload: content (htmx) · theme (browser) · python (restart)"
     lines = [summary, f"Open {url}"]
     if serve.mode == ServeMode.PREVIEW:
-        lines[0] = f"Mode: preview · {page_count} pages across {mount_count} mounts · no live reload"
+        lines[0] = (
+            f"Mode: preview · {page_count} pages across {mount_count} mounts · no live reload"
+        )
     return tuple(lines)

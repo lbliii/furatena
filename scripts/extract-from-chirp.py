@@ -41,7 +41,14 @@ def iter_files(base: Path):
             continue
         if any(part in SKIP_DIRS for part in path.parts):
             continue
-        if path.suffix in TEXT_SUFFIXES or path.name in {"Makefile", "LICENSE", "run", "freeze", "export", "preview"}:
+        if path.suffix in TEXT_SUFFIXES or path.name in {
+            "Makefile",
+            "LICENSE",
+            "run",
+            "freeze",
+            "export",
+            "preview",
+        }:
             yield path
 
 
@@ -61,7 +68,9 @@ def transform(text: str, *, path: Path) -> str:
     text = text.replace("../../site/content", "../../content/chirp")
     text = text.replace("../../site/data", "../../data")
     text = text.replace('repo / "site" / "content"', 'repo / "content" / "chirp"')
-    text = text.replace('repo / "site" / "config" / "_default" / "autodoc.yaml"', 'repo / "config" / "autodoc.yaml"')
+    text = text.replace(
+        'repo / "site" / "config" / "_default" / "autodoc.yaml"', 'repo / "config" / "autodoc.yaml"'
+    )
     text = text.replace("site/content", "content/chirp")
     text = text.replace("site/data", "data")
 
@@ -71,7 +80,9 @@ def transform(text: str, *, path: Path) -> str:
 
     if path.name == "docs.yaml":
         text = text.replace("data: ../../data/collections.yaml", "data: ../data/collections.yaml")
-        text = text.replace("rewrites: ../../data/url_rewrites.yaml", "rewrites: ../data/url_rewrites.yaml")
+        text = text.replace(
+            "rewrites: ../../data/url_rewrites.yaml", "rewrites: ../data/url_rewrites.yaml"
+        )
 
     # Branding (light touch)
     text = text.replace("Chirp Docs", "Furatena")
