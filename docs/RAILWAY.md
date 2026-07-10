@@ -63,6 +63,9 @@ Record the printed git SHA, `bengal-chirp` and `bengal-pounce` versions, and
 freeze fingerprint with the deployment smoke result. These values identify the
 exact code, server stack, and frozen catalog that the runbook verified.
 
+See [`POUNCE_0_9_DEPLOYMENT_VERIFICATION.md`](POUNCE_0_9_DEPLOYMENT_VERIFICATION.md)
+for the Pounce 0.9 HEAD, drain, reload, canary, and production-proof record.
+
 Also confirm the server process itself is free-threaded:
 
 ```console
