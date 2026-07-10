@@ -23,6 +23,9 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     makefile = (REPO / "Makefile").read_text(encoding="utf-8")
 
     assert "FREE_THREADED = env PYTHON_GIL=0" in makefile
+    assert "format-check:" in makefile
+    assert "$(UV_RUN) ruff format --check ." in makefile
+    assert "ci-fast: format-check" in makefile
     assert "$(UV_RUN) ruff check src tests app" in makefile
     assert "$(UV_RUN) fura check" in makefile
     assert "$(COVERAGE) run --branch" in makefile
@@ -62,6 +65,8 @@ def test_dead_spikes_are_removed_and_public_returns_are_linted() -> None:
     config = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
 
     assert "ANN201" in config["tool"]["ruff"]["lint"]["select"]
+    assert config["dependency-groups"]["dev"].count("ruff==0.15.20") == 1
+    assert config["project"]["optional-dependencies"]["dev"].count("ruff==0.15.20") == 1
     for relative_path in (
         "app/spike_threading.py",
         "app/export_catalog.py",

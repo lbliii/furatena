@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
+.PHONY: help install test lint format format-check benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
@@ -35,6 +35,8 @@ help:
 	@echo "  make check        fura check"
 	@echo "  make test         pytest"
 	@echo "  make lint         ruff check"
+	@echo "  make format       apply Ruff 0.15.20 formatting"
+	@echo "  make format-check verify Ruff 0.15.20 formatting"
 	@echo "  make benchmark    index/freeze/query/search timing report"
 	@echo "  make retrieval-benchmark  known-answer ranking quality/cost report"
 	@echo ""
@@ -78,6 +80,12 @@ test:
 lint:
 	$(UV_RUN) ruff check src tests app
 
+format:
+	$(UV_RUN) ruff format .
+
+format-check:
+	$(UV_RUN) ruff format --check .
+
 benchmark:
 	$(UV_RUN) python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)
 
@@ -102,7 +110,7 @@ agent: ci-agent
 
 release: ci-release
 
-ci-fast:
+ci-fast: format-check
 	$(UV_RUN) ruff check src tests app
 	$(UV_RUN) ty check \
 		src/furatena/catalog/record_types.py \
