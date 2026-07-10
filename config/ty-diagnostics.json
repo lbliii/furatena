@@ -1,0 +1,458 @@
+{
+  "schema_version": 1,
+  "tool": "ty",
+  "tool_version": "0.0.57",
+  "command": [
+    "ty",
+    "check",
+    "src",
+    "--output-format",
+    "gitlab",
+    "--exit-zero"
+  ],
+  "measured_at": "2026-07-10",
+  "total_diagnostics": 336,
+  "rules": {
+    "call-non-callable": 66,
+    "invalid-argument-type": 73,
+    "invalid-return-type": 4,
+    "invalid-type-form": 95,
+    "no-matching-overload": 2,
+    "not-iterable": 11,
+    "not-subscriptable": 6,
+    "unresolved-attribute": 72,
+    "unresolved-import": 6,
+    "unsupported-operator": 1
+  },
+  "owned": {
+    "budgeted_modules": [
+      "src/furatena/catalog/api_governance.py",
+      "src/furatena/catalog/config.py"
+    ],
+    "zero_diagnostic_modules": [
+      "src/furatena/catalog/author_store.py",
+      "src/furatena/catalog/lifecycle.py",
+      "src/furatena/catalog/models.py",
+      "src/furatena/cli/authoring.py",
+      "src/furatena/cli/contracts.py"
+    ]
+  },
+  "modules": {
+    "src/furatena/catalog/api_governance.py": {
+      "budget": 3,
+      "rules": {
+        "unresolved-attribute": 3
+      },
+      "area": "public API records",
+      "root_cause": "OpenAPI values need explicit mapping and scalar narrowing after dynamic parsing.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/autodoc/__init__.py": {
+      "budget": 10,
+      "rules": {
+        "invalid-argument-type": 4,
+        "not-iterable": 2,
+        "unresolved-attribute": 4
+      },
+      "area": "autodoc parsing",
+      "root_cause": "OpenAPI/YAML unions remain wider than the validated runtime shapes.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/autodoc/extractors/python.py": {
+      "budget": 1,
+      "rules": {
+        "invalid-argument-type": 1
+      },
+      "area": "autodoc parsing",
+      "root_cause": "The AST visitor does not narrow docstring-capable node variants.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/check.py": {
+      "budget": 4,
+      "rules": {
+        "invalid-argument-type": 2,
+        "invalid-return-type": 1,
+        "unresolved-attribute": 1
+      },
+      "area": "diagnostics",
+      "root_cause": "CatalogLike omits capabilities used by full catalog validation and one result shape is too broad.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/config.py": {
+      "budget": 29,
+      "rules": {
+        "invalid-argument-type": 1,
+        "invalid-return-type": 1,
+        "not-iterable": 1,
+        "unresolved-attribute": 26
+      },
+      "area": "config parsing",
+      "root_cause": "Safe-loaded YAML objects need reusable mapping/list/scalar narrowing helpers.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/content_lint.py": {
+      "budget": 2,
+      "rules": {
+        "invalid-argument-type": 1,
+        "unresolved-attribute": 1
+      },
+      "area": "content AST",
+      "root_cause": "Patitas block/inline unions require child-bearing node narrowing.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/context.py": {
+      "budget": 2,
+      "rules": {
+        "unresolved-attribute": 2
+      },
+      "area": "runtime context",
+      "root_cause": "Token is referenced as a ContextVar class attribute instead of its typing symbol.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/csp.py": {
+      "budget": 2,
+      "rules": {
+        "unresolved-attribute": 2
+      },
+      "area": "HTTP response boundary",
+      "root_cause": "Chirp AnyResponse includes SSE variants whose public typing does not expose headers.",
+      "disposition": "upstream-candidate",
+      "likely_false_positive": true,
+      "upstream_status": "needs Chirp response protocol review"
+    },
+    "src/furatena/catalog/dcp_validate.py": {
+      "budget": 1,
+      "rules": {
+        "invalid-argument-type": 1
+      },
+      "area": "public records",
+      "root_cause": "The typed catalog record and JSON-object validator boundary are not expressed covariantly.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/directives/glossary.py": {
+      "budget": 1,
+      "rules": {
+        "not-iterable": 1
+      },
+      "area": "directive parsing",
+      "root_cause": "A dynamically sourced option list is not narrowed before iteration.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/directives/registry.py": {
+      "budget": 13,
+      "rules": {
+        "invalid-argument-type": 13
+      },
+      "area": "directive protocols",
+      "root_cause": "Concrete handlers do not satisfy the current structural handler protocol under ty variance rules.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "review Patitas handler protocol variance before suppressing"
+    },
+    "src/furatena/catalog/directives/tabs.py": {
+      "budget": 5,
+      "rules": {
+        "unresolved-attribute": 5
+      },
+      "area": "directive parsing",
+      "root_cause": "DirectiveOptions extensions are accessed without a typed local options model.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/docs_app.py": {
+      "budget": 72,
+      "rules": {
+        "call-non-callable": 16,
+        "invalid-argument-type": 12,
+        "invalid-type-form": 40,
+        "unresolved-attribute": 4
+      },
+      "area": "application boundary",
+      "root_cause": "Most findings originate from Chirp lazy public exports typed as object; search index unions add actionable local findings.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "needs Chirp lazy-export typing review"
+    },
+    "src/furatena/catalog/docs_inventory.py": {
+      "budget": 3,
+      "rules": {
+        "invalid-argument-type": 2,
+        "not-iterable": 1
+      },
+      "area": "diagnostic inventory",
+      "root_cause": "Serialized diagnostic payload unions are not narrowed to record collections.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/docs_quality.py": {
+      "budget": 2,
+      "rules": {
+        "not-iterable": 2
+      },
+      "area": "docs quality",
+      "root_cause": "Optional inventory/snippet collections are not narrowed before iteration.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/docs_reference.py": {
+      "budget": 5,
+      "rules": {
+        "invalid-argument-type": 1,
+        "no-matching-overload": 2,
+        "not-iterable": 2
+      },
+      "area": "reference generation",
+      "root_cause": "AST and configuration value unions need explicit sequence/mapping normalization.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/embedding_providers.py": {
+      "budget": 1,
+      "rules": {
+        "invalid-return-type": 1
+      },
+      "area": "provider protocol",
+      "root_cause": "The provider factory return union is wider than its declared protocol.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/error_experience.py": {
+      "budget": 2,
+      "rules": {
+        "invalid-argument-type": 1,
+        "invalid-type-form": 1
+      },
+      "area": "application boundary",
+      "root_cause": "One Chirp request annotation is affected by lazy-export typing and one local result union is too broad.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "partially covered by Chirp lazy-export typing review"
+    },
+    "src/furatena/catalog/freeze.py": {
+      "budget": 8,
+      "rules": {
+        "invalid-argument-type": 8
+      },
+      "area": "artifact serialization",
+      "root_cause": "Typed records are passed to JSON-object helpers with invariant dict signatures.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/impact.py": {
+      "budget": 2,
+      "rules": {
+        "invalid-argument-type": 2
+      },
+      "area": "author mutation",
+      "root_cause": "Impact record inputs use broader node/provenance protocols than helper signatures.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/references/context.py": {
+      "budget": 2,
+      "rules": {
+        "unresolved-attribute": 2
+      },
+      "area": "reference resolution",
+      "root_cause": "Reference context unions access catalog-specific attributes without protocol narrowing.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/references/resolver.py": {
+      "budget": 1,
+      "rules": {
+        "invalid-argument-type": 1
+      },
+      "area": "reference resolution",
+      "root_cause": "Resolver helper protocols disagree on the accepted catalog lookup surface.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/roles/registry.py": {
+      "budget": 1,
+      "rules": {
+        "invalid-argument-type": 1
+      },
+      "area": "role protocols",
+      "root_cause": "A concrete role handler does not satisfy the structural registry protocol under variance rules.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "review Patitas role protocol variance"
+    },
+    "src/furatena/catalog/route_registrars.py": {
+      "budget": 108,
+      "rules": {
+        "call-non-callable": 50,
+        "invalid-type-form": 54,
+        "unresolved-attribute": 4
+      },
+      "area": "HTTP route boundary",
+      "root_cause": "Chirp lazy public exports are typed as object; four local request/session attributes also need narrowing.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "needs Chirp lazy-export typing review"
+    },
+    "src/furatena/catalog/search_experience.py": {
+      "budget": 24,
+      "rules": {
+        "invalid-argument-type": 8,
+        "unresolved-attribute": 16
+      },
+      "area": "search records",
+      "root_cause": "Embedding and persisted-search index unions lack a common typed search protocol.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/semantic.py": {
+      "budget": 1,
+      "rules": {
+        "invalid-argument-type": 1
+      },
+      "area": "search records",
+      "root_cause": "A semantic record serialization helper accepts a narrower mapping type than its caller.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/sources/adapters/markdown.py": {
+      "budget": 8,
+      "rules": {
+        "invalid-argument-type": 7,
+        "invalid-return-type": 1
+      },
+      "area": "source parsing",
+      "root_cause": "Patitas document/block unions and adapter return protocols are not aligned.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "review Patitas AST typing before local casts"
+    },
+    "src/furatena/catalog/sources/adapters/rst.py": {
+      "budget": 6,
+      "rules": {
+        "unresolved-import": 6
+      },
+      "area": "optional source parsing",
+      "root_cause": "docutils is an optional adapter dependency and is absent from the default development environment.",
+      "disposition": "optional-dependency",
+      "likely_false_positive": true,
+      "upstream_status": "decide whether the audit environment installs the RST extra"
+    },
+    "src/furatena/catalog/template_env.py": {
+      "budget": 3,
+      "rules": {
+        "invalid-argument-type": 3
+      },
+      "area": "template boundary",
+      "root_cause": "Stub filter/global callables are broader than Kida registry protocols.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "review Kida callable registry variance"
+    },
+    "src/furatena/catalog/text.py": {
+      "budget": 2,
+      "rules": {
+        "invalid-argument-type": 2
+      },
+      "area": "content AST",
+      "root_cause": "Patitas block/inline text extraction unions need explicit node narrowing.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/theme.py": {
+      "budget": 1,
+      "rules": {
+        "unsupported-operator": 1
+      },
+      "area": "theme paths",
+      "root_cause": "A resource/path union is combined before conversion to a concrete Path.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/theme_pack.py": {
+      "budget": 1,
+      "rules": {
+        "unresolved-attribute": 1
+      },
+      "area": "theme paths",
+      "root_cause": "Entry-point metadata is accessed through an insufficiently narrowed compatibility union.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/catalog/view_lint.py": {
+      "budget": 1,
+      "rules": {
+        "invalid-argument-type": 1
+      },
+      "area": "template diagnostics",
+      "root_cause": "Kida analyzer metadata uses a broader mapping than the local helper signature.",
+      "disposition": "mixed",
+      "likely_false_positive": true,
+      "upstream_status": "review Kida analyzer metadata typing"
+    },
+    "src/furatena/catalog/views.py": {
+      "budget": 1,
+      "rules": {
+        "unresolved-attribute": 1
+      },
+      "area": "view config",
+      "root_cause": "Compose config lookup is not narrowed to the configured collection entry type.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/cli/commands/docs_inventory.py": {
+      "budget": 3,
+      "rules": {
+        "not-subscriptable": 3
+      },
+      "area": "CLI diagnostics",
+      "root_cause": "Command result data is typed as object instead of the inventory payload record.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    },
+    "src/furatena/cli/commands/docs_quality.py": {
+      "budget": 5,
+      "rules": {
+        "not-iterable": 2,
+        "not-subscriptable": 3
+      },
+      "area": "CLI diagnostics",
+      "root_cause": "Command result data is typed as object instead of the docs-quality payload record.",
+      "disposition": "actionable",
+      "likely_false_positive": false,
+      "upstream_status": null
+    }
+  }
+}

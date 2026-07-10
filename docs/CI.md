@@ -7,7 +7,7 @@ for scheduling, not as enforced performance thresholds.
 
 | Lane | Local command | Scope | Extra dependency | Expected runtime |
 | --- | --- | --- | --- | --- |
-| Fast | `make ci-fast` | Ruff (including public return annotations), typed record-boundary checks, and core catalog/config/theme unit tests | None beyond `make install` | ~30 seconds |
+| Fast | `make ci-fast` | Ruff (including public return annotations), zero-diagnostic typed boundaries, owned ty diagnostic ratchets, and core catalog/config/theme unit tests | None beyond `make install` | ~30 seconds |
 | Contract | `make ci-contract` | Structured `fura check`, authorization, content, response-shape, template, CSP, and boost contracts | None beyond `make install` | ~60 seconds |
 | Coverage | `make ci-coverage` | Branch coverage and per-module ratchets for graph, access, export, and loader foundations | None beyond `make install` | ~60 seconds |
 | Export | `make ci-export` | Static-export and DCP worker tests, a production-shaped Pages build, and an artifact URL crawl | None beyond `make install` | ~3 minutes |
@@ -26,6 +26,33 @@ the final local fallback when a change crosses multiple surfaces.
 The contract lane also runs `fura docs-reference --check`. Parser, default,
 configuration, or environment drift fails until the generated CLI/configuration
 reference is refreshed and reviewed with the implementation change.
+
+## Ty diagnostic ratchets
+
+`make ty-audit` runs ty 0.0.57 across `src/` and emits a structured report
+without failing on the existing broad backlog. The categorized baseline lives in
+`config/ty-diagnostics.json`; every diagnostic-bearing module records its rule
+counts, owning area, root cause, actionable/upstream disposition, and likely
+false-positive status. This keeps the full audit visible without turning an
+unrelated edit into a repository-wide type-check wall.
+
+`make ty-ratchet` is the blocking incremental gate used by `make ci-fast`.
+Owned budgeted modules may reduce diagnostics but cannot increase their total,
+increase an existing rule, or introduce a new rule. Zero-diagnostic modules may
+not acquire any finding. The first wave owns configuration/public-schema
+parsing budgets for `config.py` and `api_governance.py`, and adds the following
+zero-diagnostic author/public-contract boundaries to the direct ty invocation:
+
+- `catalog/author_store.py`
+- `catalog/lifecycle.py`
+- `catalog/models.py`
+- `cli/authoring.py`
+- `cli/contracts.py`
+
+When a wave fixes findings, lower the affected module and rule budgets in the
+same change. Never raise a budget merely to make CI pass. A ty upgrade requires
+a fresh categorized broad audit and an intentional baseline review because
+diagnostic semantics can change between versions.
 
 ## Branch gates and artifacts
 

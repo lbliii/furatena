@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
+.PHONY: help install test lint ty-audit ty-ratchet benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
@@ -35,11 +35,13 @@ help:
 	@echo "  make check        fura check"
 	@echo "  make test         pytest"
 	@echo "  make lint         ruff check"
+	@echo "  make ty-audit     report repo-wide ty diagnostics without blocking"
+	@echo "  make ty-ratchet   enforce owned ty diagnostic budgets"
 	@echo "  make benchmark    index/freeze/query/search timing report"
 	@echo "  make retrieval-benchmark  known-answer ranking quality/cost report"
 	@echo ""
 	@echo "CI lanes (see docs/CI.md)"
-	@echo "  make ci-fast      lint + core unit tests (~20s)"
+	@echo "  make ci-fast      lint + ty ratchets + core unit tests (~30s)"
 	@echo "  make ci-contract  hypermedia/content contract tests (~60s)"
 	@echo "  make ci-coverage  core per-module coverage ratchets (~60s)"
 	@echo "  make ci-export    export tests + Pages artifact build (~3m)"
@@ -78,6 +80,12 @@ test:
 lint:
 	$(UV_RUN) ruff check src tests app
 
+ty-audit:
+	$(UV_RUN) python scripts/check_ty_diagnostics.py --report-only --json
+
+ty-ratchet:
+	$(UV_RUN) python scripts/check_ty_diagnostics.py
+
 benchmark:
 	$(UV_RUN) python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)
 
@@ -104,6 +112,7 @@ release: ci-release
 
 ci-fast:
 	$(UV_RUN) ruff check src tests app
+	$(MAKE) ty-ratchet
 	$(UV_RUN) ty check \
 		src/furatena/catalog/record_types.py \
 		src/furatena/catalog/export.py \
@@ -121,7 +130,12 @@ ci-fast:
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
-		src/furatena/catalog/sources/types.py
+		src/furatena/catalog/sources/types.py \
+		src/furatena/catalog/author_store.py \
+		src/furatena/catalog/lifecycle.py \
+		src/furatena/catalog/models.py \
+		src/furatena/cli/authoring.py \
+		src/furatena/cli/contracts.py
 	$(PYTEST) \
 		tests/test_catalog_nav.py \
 		tests/test_docs_journeys.py \
@@ -155,7 +169,8 @@ ci-fast:
 		tests/test_site_config.py \
 		tests/test_theme_lint.py \
 		tests/test_theme_pack.py \
-		tests/test_theme_preset.py
+		tests/test_theme_preset.py \
+		tests/test_ty_diagnostic_ratchet.py
 
 ci-contract:
 	$(UV_RUN) fura check
