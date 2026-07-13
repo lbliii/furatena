@@ -76,5 +76,7 @@ The technical [platform proof](/docs/concepts/platform-proof/) walks through sou
 adapters, graph construction, live authoring, static export, search, and agent artifacts.
 The [static-versus-live readiness report](/docs/concepts/static-vs-live-agent-readiness/)
 documents which capabilities are available through each channel.
+The [cross-head PDF publication proof](/proof/pdf-stress/) exposes the exact semantic
+fixture used by the browser and native PDF conformance workflow.
 
 [Explore the platform architecture](/platform/) or [read the implementation docs](/docs/).

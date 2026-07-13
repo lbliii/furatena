@@ -163,6 +163,8 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: [fast, contract, coverage, export, browser, agent, release]
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       pages: write
       id-token: write
@@ -172,3 +174,39 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  hosted-pdf-proof:
+    name: Hosted PDF proof
+    if: github.event_name != 'pull_request'
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --group dev
+      - name: Install browser and PDF runtimes
+        run: |
+          uv run playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install --yes poppler-utils
+      - name: Verify representative deployed page
+        run: >-
+          uv run python scripts/pdf_proof.py
+          --browser-url "${{ needs.deploy.outputs.page_url }}proof/pdf-stress/"
+          --hosted-only
+          --strict
+          --output pdf-proof/hosted
+      - name: Upload hosted proof artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hosted-pdf-proof-${{ github.sha }}
+          path: pdf-proof/hosted
+          if-no-files-found: error
+          retention-days: 14

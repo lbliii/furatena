@@ -372,6 +372,8 @@ Command parser contract.
 | `--collection` | no | — | — | — | Collection, section, or mount to export |
 | `output` | no | — | — | — | Output directory (default app/public/pdf) |
 | `--base-url` | no | — | — | — | Public origin for channel manifest URLs |
+| `--frozen` | no | — | — | — | Frozen catalog directory to use for deterministic PDF generation |
+| `--live` | no | false | — | — | Build PDFs directly from current source content |
 | `--no-autodoc` | no | false | — | — | Skip autodoc slice |
 | `--no-channels` | no | false | — | — | Do not refresh channels.json with generated PDF artifacts |
 | `--json` | no | false | — | — | Emit the standard command result JSON |

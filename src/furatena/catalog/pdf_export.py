@@ -10,6 +10,7 @@ from html import escape
 from pathlib import Path
 from typing import Any
 
+from pypdf import PdfReader
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -61,7 +62,14 @@ def export_pdfs(
     filename = _filename_for_target(target, options.page or options.collection)
     path = output_dir / filename
     _write_pdf(path, nodes, site_name=options.site_name, target=target)
-    _write_pdf_manifest(output_dir, target=target, paths=(path,), nodes=nodes)
+    physical_page_count = len(PdfReader(str(path)).pages)
+    _write_pdf_manifest(
+        output_dir,
+        target=target,
+        paths=(path,),
+        nodes=nodes,
+        page_count=physical_page_count,
+    )
     if options.update_channel_manifest:
         _update_public_channel_manifest(
             catalog,
@@ -74,7 +82,7 @@ def export_pdfs(
         output_dir=output_dir,
         target=target,
         paths=(path,),
-        page_count=len(nodes),
+        page_count=physical_page_count,
         byte_count=path.stat().st_size,
     )
 
@@ -85,11 +93,8 @@ def _selected_nodes(
     page: str | None,
     collection: str | None,
 ) -> tuple[str, list[Any]]:
-    nodes = accessible_nodes(
-        catalog,
-        catalog.doc_nodes(),
-        permission=AccessPermission.EXPORT,
-    )
+    catalog_nodes = list(getattr(catalog, "nodes", ()) or catalog.doc_nodes())
+    nodes = accessible_nodes(catalog, catalog_nodes, permission=AccessPermission.EXPORT)
     if page:
         node = _resolve_page(catalog, page)
         if node is None or node.node_id not in {item.node_id for item in nodes}:
@@ -298,7 +303,12 @@ def _safe_name(value: str) -> str:
 
 
 def _write_pdf_manifest(
-    output_dir: Path, *, target: str, paths: tuple[Path, ...], nodes: list[Any]
+    output_dir: Path,
+    *,
+    target: str,
+    paths: tuple[Path, ...],
+    nodes: list[Any],
+    page_count: int,
 ) -> None:
     artifact_fingerprints = {
         path.name: hashlib.sha256(path.read_bytes()).hexdigest()[:16] for path in paths
@@ -308,7 +318,7 @@ def _write_pdf_manifest(
         DeploymentManifest(
             target="pdf",
             mode="pdf",
-            page_count=len(nodes),
+            page_count=page_count,
             artifacts=tuple(
                 DeploymentArtifact(
                     path=path.name,

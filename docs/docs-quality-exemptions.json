@@ -27,6 +27,11 @@
       "reason": "This buyer-facing product page is linked from the global Product navigation and homepage rather than the documentation catalog rail."
     },
     {
+      "finding": "navigation:/proof/pdf-stress/",
+      "disposition": "internal",
+      "reason": "This deterministic conformance fixture is linked from the platform proof and is not a primary documentation journey."
+    },
+    {
       "finding": "public_feature:route:GET /develop/{export_id}/",
       "disposition": "internal",
       "reason": "Dynamic develop preview dispatch is an implementation route; the /develop/ surface and each exported contract are the public interface."

@@ -33,12 +33,14 @@ def _run_pdf(args: argparse.Namespace) -> None:
     output = (
         Path(args.output).expanduser().resolve() if args.output else app_root / "public" / "pdf"
     )
+    frozen_dir = Path(args.frozen).expanduser().resolve() if args.frozen else None
+    serve_mode = ServeMode.AUTHOR if args.live else ServeMode.PREVIEW
     docs = DocsApp.from_paths(
         _docs_yaml(args),
         repo_root=repo_root,
         autodoc_config=_autodoc_config(args, repo_root),
         autodoc=not args.no_autodoc,
-        serve=ServeConfig(ServeMode.PREVIEW, None, True, False),
+        serve=ServeConfig(serve_mode, frozen_dir, True, False),
     )
     try:
         result = export_pdfs(
@@ -111,6 +113,17 @@ def configure(sub: Any) -> None:
         help="Output directory (default app/public/pdf)",
     )
     pdf.add_argument("--base-url", default="", help="Public origin for channel manifest URLs")
+    pdf_source = pdf.add_mutually_exclusive_group()
+    pdf_source.add_argument(
+        "--frozen",
+        default=None,
+        help="Frozen catalog directory to use for deterministic PDF generation",
+    )
+    pdf_source.add_argument(
+        "--live",
+        action="store_true",
+        help="Build PDFs directly from current source content",
+    )
     pdf.add_argument("--no-autodoc", action="store_true", help="Skip autodoc slice")
     pdf.add_argument(
         "--no-channels",

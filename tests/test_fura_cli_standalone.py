@@ -987,6 +987,9 @@ def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) ->
     assert collection_pdf.stat().st_size > page_pdf.stat().st_size
     assert site_pdf.stat().st_size > 1000
     assert site_payload["data"]["page_count"] >= collection_payload["data"]["page_count"]
+    assert page_payload["data"]["page_count"] == len(PdfReader(str(page_pdf)).pages)
+    assert collection_payload["data"]["page_count"] == len(PdfReader(str(collection_pdf)).pages)
+    assert site_payload["data"]["page_count"] == len(PdfReader(str(site_pdf)).pages)
 
     pdf_manifest = json.loads(
         (app_root / "public" / "pdf" / "manifest.json").read_text(encoding="utf-8")
