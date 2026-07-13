@@ -162,8 +162,6 @@ def _sync_git_source_locked(
                         mount=mount_id,
                         operation="resolve_edition_path",
                     )
-                if validate is not None:
-                    validate(candidate_content)
             _retain_aged_snapshots(
                 editions_root,
                 editions_staging,
