@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-approval/v1/record.schema.json",
+  "title": "Furatena publication approval record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "record_id", "record_digest", "idempotency_key",
+    "input_digest", "policy_version", "correlation_id", "scope", "decision",
+    "target_record_ids"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.approval-record"},
+    "record_id": {"type": "string", "pattern": "^approval-[0-9a-f]{24}$"},
+    "record_digest": {"$ref": "#/$defs/digest"},
+    "idempotency_key": {"type": "string", "minLength": 1},
+    "input_digest": {"$ref": "#/$defs/digest"},
+    "policy_version": {"type": "string", "minLength": 1},
+    "correlation_id": {"type": "string", "minLength": 1},
+    "scope": {"$ref": "#/$defs/scope"},
+    "decision": {"$ref": "https://furatena.dev/schemas/publication/v1/decision.schema.json"},
+    "target_record_ids": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^approval-[0-9a-f]{24}$"}
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant", "workspace", "site", "mount", "node_id", "paths",
+        "environments", "resulting_visibility"
+      ],
+      "properties": {
+        "tenant": {"type": "string", "minLength": 1},
+        "workspace": {"type": "string", "minLength": 1},
+        "site": {"type": "string", "minLength": 1},
+        "mount": {"type": "string", "minLength": 1},
+        "node_id": {"type": "string", "minLength": 1},
+        "paths": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "environments": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "resulting_visibility": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

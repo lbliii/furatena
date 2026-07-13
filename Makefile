@@ -142,6 +142,7 @@ ci-fast: format-check
 		src/furatena/catalog/atomic_directory.py \
 		src/furatena/catalog/publication_provider.py \
 		src/furatena/catalog/capability_policy.py \
+		src/furatena/catalog/publication_approvals.py \
 		src/furatena/catalog/publication_contracts.py \
 		src/furatena/catalog/publication_state.py \
 		src/furatena/catalog/author_benchmarks.py \
@@ -174,6 +175,8 @@ ci-fast: format-check
 		tests/test_publication_provider_schemas.py \
 		tests/test_capability_policy.py \
 		tests/test_capability_schemas.py \
+		tests/test_publication_approvals.py \
+		tests/test_publication_approval_schemas.py \
 		tests/test_publication_contracts.py \
 		tests/test_publication_state.py \
 		tests/test_publication_schemas.py \
