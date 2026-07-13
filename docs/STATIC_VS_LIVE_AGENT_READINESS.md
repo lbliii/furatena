@@ -10,9 +10,9 @@ epic, [#293](https://github.com/lbliii/furatena/issues/293).
 Publish both channels from the same source. Use Railway as the default endpoint
 for interactive agent clients and GitHub Pages as the durable read-only fallback.
 Do not remove Pages: it remains the simpler, more cacheable browser surface and a
-complete source for bulk sidecars. Before directing bulk catalog consumers to
-Railway, deploy the Pounce response-streaming fix tracked in
-[#329](https://github.com/lbliii/furatena/issues/329).
+complete source for bulk sidecars. The Pounce 0.9.2 production verification
+recorded on 2026-07-13 completed full identity-encoded catalog delivery, so
+Railway is also ready to serve large bulk bodies.
 
 This is a channel policy, not a content fork. The shared freeze and export path
 continues to produce both outputs.
@@ -98,8 +98,8 @@ Adopt this default publishing policy:
 
 The recommendation implies these follow-ups:
 
-- [#329](https://github.com/lbliii/furatena/issues/329): ship the Pounce fix
-  before making Railway the default for large identity-encoded catalog bodies.
+- [#329](https://github.com/lbliii/furatena/issues/329): completed on 2026-07-13
+  with Pounce 0.9.2 production identity and full-body transfer evidence.
 - [#318](https://github.com/lbliii/furatena/issues/318): design and demonstrate a
   controlled git re-sync trigger if no-redeploy publication remains a product
   requirement.

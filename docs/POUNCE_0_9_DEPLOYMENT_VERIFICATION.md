@@ -69,14 +69,31 @@ bytes, while Pounce's access log recorded the full 2,568,040-byte application
 body. That evidence localized the loss to Pounce's sync-worker socket write and
 resulted in Pounce #312 and the 0.9.2 patch release.
 
-## Remaining production proof
+## Pounce 0.9.2 production proof
 
-Furatena production must move from the failed 0.9.1 candidate to Pounce 0.9.2.
-After deployment, do not close #329 until all of these pass:
+Railway deployment `9c9b4445-9329-4a6a-b037-7f2a07d7e986` reached terminal
+`SUCCESS` for the reviewed Furatena commit
+`50f105c1fcfb6760f9e53ad4106f844583b5ea57`. Startup telemetry reported Pounce
+0.9.2 on Python 3.14.3 with the GIL disabled. `/meta.json` independently
+reported the expected git SHA, `bengal-pounce` 0.9.2, and freeze fingerprint
+`be461715dfbcb5a4`.
 
-1. Railway reports terminal `SUCCESS` for the exact reviewed commit.
-2. `/meta.json` reports `bengal-pounce` 0.9.2 and the expected git SHA.
-3. `python scripts/verify-live-artifacts.py "$ORIGIN"` completes for every
-   identity-encoded bulk artifact without truncation.
-4. `/healthz` and the configured `/readyz` path pass through Railway's production
-   protocol.
+The production artifact verifier completed without truncation and reported:
+
+- 269 catalog pages;
+- 100 pages in the default paginated graph-query response, with `total: 269`;
+- 267 searchable pages;
+- 2,024 semantic chunks; and
+- 516,116 bytes in `llms-full.txt`.
+
+A separate forced HTTP/1.1 identity transfer received all 2,568,040 bytes of
+`/catalog.json`, closing the exact failure observed under Pounce 0.9.1.
+`/healthz`, `/readyz`, catalog query, semantic search, tool discovery, sitemap,
+and Markdown page probes all returned HTTP 200 through Railway's production
+edge.
+
+The public edge cannot observe a retiring instance after Railway removes it
+from routing. The direct listener test therefore remains the authoritative
+proof for the bounded drain-time 503 contract, while this deployment proves
+admission, identity, health, and complete production response delivery. All
+acceptance evidence for #329 is complete.

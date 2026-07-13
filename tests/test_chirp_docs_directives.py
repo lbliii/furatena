@@ -352,6 +352,8 @@ class TestDirectiveTranslation:
         assert "syntax-import" in html or "import" in html
         assert "chirp" in html
         assert "<code></code>" not in html
+        assert "<pre><code>" in html
+        assert "&lt;pre&gt;" not in html
         assert "code-block-wrapper" in html
         assert "data-fura-copy-code" in html
 

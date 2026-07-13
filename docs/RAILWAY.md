@@ -55,10 +55,12 @@ curl --fail --silent --show-error "$ORIGIN/meta.json" | \
   python -c 'import json,sys; build=json.load(sys.stdin)["build"]; assert build["git_sha"] != "unknown"; print(json.dumps(build, sort_keys=True))'
 ```
 
-The artifact verifier downloads `catalog.json`, the unfiltered graph query,
-`search.json`, `semantic.json`, and `llms-full.txt`. It rejects truncated bodies,
-parses every JSON payload, and requires the catalog, graph-query, and search
-`page_count` values to agree.
+The artifact verifier downloads `catalog.json`, the default paginated graph
+query, `search.json`, `semantic.json`, and `llms-full.txt`. It rejects truncated
+bodies, parses every JSON payload, checks each declared count against its
+delivered collection, and requires the graph query's unpaginated `total` to
+match the frozen catalog. Graph-query `page_count` reflects its default limit,
+while search intentionally contains only searchable document nodes.
 
 Record the printed git SHA, `bengal-chirp` and `bengal-pounce` versions, and
 freeze fingerprint with the deployment smoke result. These values identify the
