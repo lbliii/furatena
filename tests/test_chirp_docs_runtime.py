@@ -273,6 +273,8 @@ class TestHighlight:
         assert "code-block-wrapper" in html
         assert "data-fura-copy-code" in html
         assert "syntax-import" in html
+        assert "<pre><code>" in html
+        assert "&lt;pre&gt;" not in html
 
 
 class TestRendererFingerprint:

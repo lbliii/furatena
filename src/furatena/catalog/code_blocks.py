@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from furatena.catalog.directives.kida_render import render_directive
+from furatena.catalog.directives.kida_render import render_directive, trusted_renderer_html
 
 # Rosettes blocks whose body is a bare <pre> (not yet wrapped).
 _ROSETTES_BARE_PRE = re.compile(
@@ -28,7 +28,7 @@ def wrap_code_block(body: str, *, language: str = "", rosettes: bool = False) ->
         return body
     return render_directive(
         "code_block",
-        body=pre_match.group(1),
+        body=trusted_renderer_html(pre_match.group(1)),
         language=_language_label(language),
         rosettes=rosettes,
     )
