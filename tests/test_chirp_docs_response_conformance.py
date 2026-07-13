@@ -354,8 +354,11 @@ def test_content_route_head_matches_get_metadata(
 @pytest.mark.parametrize(
     ("url", "heading"),
     (
-        ("/index.md", "# Publish polished docs from Markdown"),
-        ("/docs.md", "# Documentation"),
+        (
+            "/index.md",
+            "# The content control plane for human- and agent-facing technical documentation",
+        ),
+        ("/docs.md", "# Build with the Furatena content control plane"),
         ("/docs/get-started/installation.md", "# Installation"),
         ("/docs/get-started/installation/index.md", "# Installation"),
     ),
@@ -416,7 +419,9 @@ def test_home_page_supports_markdown_content_negotiation(docs_client: TestClient
     assert response.status == 200
     assert response.content_type.startswith("text/markdown")
     assert response.header("Vary") == "Accept"
-    assert response.text.startswith("# Publish polished docs from Markdown")
+    assert response.text.startswith(
+        "# The content control plane for human- and agent-facing technical documentation"
+    )
 
 
 def test_content_pages_advertise_agent_discovery_resources(docs_client: TestClient) -> None:

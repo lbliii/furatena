@@ -46,7 +46,7 @@ class TestLandingSurface:
         assert "chirp-theme-home__explore" in html
         assert "chirp-theme-home__pipeline-inline" in html
         assert "uv run fura serve" in html
-        assert "Ready for search and AI tools" in html
+        assert "Inspect what the control plane produces" in html
         assert "chirp-theme-page__content" not in html
         assert "chirp-theme-home__metric-cards" in html
         assert "chirpui-cta-band" in html
@@ -73,6 +73,35 @@ class TestLandingSurface:
         html = asyncio.run(_fetch())
         assert "chirp-theme-doc-catalog" in html
         assert 'id="fura-shell-mobile-nav"' not in html
+
+    @pytest.mark.parametrize(
+        ("path", "heading", "content_marker"),
+        (
+            ("/platform/", "One control plane for technical knowledge", "The control-plane model"),
+            ("/agents/", "Governed documentation for agents", "Context needs policy"),
+            ("/migration/", "Understand migration risk", "A migration workflow"),
+            ("/proof/", "Inspect the platform proof", "Follow one corpus into its outputs"),
+        ),
+    )
+    def test_marketing_pages_render_their_own_content(
+        self,
+        docs_client,
+        path: str,
+        heading: str,
+        content_marker: str,
+    ) -> None:
+        import asyncio
+
+        async def _fetch() -> str:
+            resp = await docs_client.get(path)
+            assert resp.status == 200
+            return resp.text
+
+        html = asyncio.run(_fetch())
+        assert heading in html
+        assert content_marker in html
+        assert "chirp-theme-page__article" in html
+        assert "Documentation is no longer one website" not in html
 
 
 class TestDevelopExports:

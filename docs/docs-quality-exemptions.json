@@ -7,6 +7,26 @@
       "reason": "The default docs mount is represented by / in generated catalog navigation; /docs/ remains a linked compatibility entry point."
     },
     {
+      "finding": "navigation:/agents/",
+      "disposition": "internal",
+      "reason": "This buyer-facing product page is linked from the global Product navigation and homepage rather than the documentation catalog rail."
+    },
+    {
+      "finding": "navigation:/migration/",
+      "disposition": "internal",
+      "reason": "This buyer-facing product page is linked from the global Product navigation and homepage rather than the documentation catalog rail."
+    },
+    {
+      "finding": "navigation:/platform/",
+      "disposition": "internal",
+      "reason": "This buyer-facing product page is linked from the global Product navigation and homepage rather than the documentation catalog rail."
+    },
+    {
+      "finding": "navigation:/proof/",
+      "disposition": "internal",
+      "reason": "This buyer-facing product page is linked from the global Product navigation and homepage rather than the documentation catalog rail."
+    },
+    {
       "finding": "public_feature:route:GET /develop/{export_id}/",
       "disposition": "internal",
       "reason": "Dynamic develop preview dispatch is an implementation route; the /develop/ surface and each exported contract are the public interface."

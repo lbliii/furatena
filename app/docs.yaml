@@ -15,6 +15,7 @@ views:
   doc: views/doc.html
   doc_list: views/doc_list.html
   page: views/page.html
+  marketing_page: views/marketing_page.html
   home: views/home.html
   changelog: views/changelog.html
   collection: views/collection.html
@@ -69,13 +70,56 @@ catalog:
 
 site:
   name: Furatena
-  tagline: Polished docs from Markdown
+  tagline: Technical documentation, governed once
   description: >
-    Write locally, preview instantly, and publish a fast, searchable documentation
-    site from the same Markdown source.
+    Build one governed knowledge graph from your technical sources, then publish
+    consistent documentation for developers and precise context for AI agents.
   mark: "𐂛"
   home:
     data: ../data/home.yaml
+  navigation:
+    documentation:
+      menu_label: Product
+      dropdown_href: /platform/
+      overview:
+        href: /platform/
+        kicker: Control plane
+        title: Govern technical knowledge once
+        blurb: Connect sources, policies, and delivery surfaces through one inspectable graph.
+      links:
+        - href: /agents/
+          label: Agent delivery
+          blurb: Give agents current, authorized, source-grounded context.
+          icon: code
+        - href: /migration/
+          label: Migration
+          blurb: Understand conversion risk before changing source files.
+          icon: layers
+        - href: /proof/
+          label: Platform proof
+          blurb: Inspect the artifacts, pilots, and safety boundaries.
+          icon: check-circle
+    develop:
+      menu_label: Resources
+      dropdown_href: /docs/
+      overview:
+        href: /docs/
+        kicker: Build with Furatena
+        title: Documentation and live outputs
+        blurb: Learn the system, inspect its contracts, and follow an implementation path.
+      links:
+        - href: /docs/get-started/
+          label: Get started
+          blurb: Run Furatena and prove the first workflow.
+          icon: book-open
+        - href: /docs/operations/consume-agent-outputs/
+          label: Agent integration
+          blurb: Use static artifacts, retrieval endpoints, and MCP.
+          icon: code
+        - href: /develop/
+          label: Inspect live outputs
+          blurb: Browse the catalog, search, routes, and tool manifests.
+          icon: search
 
 theme:
   use: lagoon

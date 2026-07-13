@@ -1,206 +1,234 @@
-# Furatena home page — component data for views/home.html
+# Furatena home page — product marketing content for views/home.html
 # Loaded via site.home.data in app/docs.yaml
 
-aria_label: Furatena overview
+aria_label: Furatena content control plane overview
 
 cta_primary:
-  label: Get started
-  href: /docs/get-started/
+  label: Explore the platform
+  href: /platform/
 cta_secondary:
-  label: Browse docs
-  href: /docs/
+  label: Inspect the proof
+  href: /proof/
 
 hero_points:
-  - Edit Markdown locally
-  - Preview changes instantly
-  - Publish to GitHub Pages
+  - One governed technical corpus
+  - Consistent human and agent surfaces
+  - Repo-owned and independently deployable
 
 metrics_head:
-  eyebrow: What changes
-  title: Less tool juggling, more docs shipping
-  subtitle: Furatena turns a Markdown folder into a fast docs site with search, navigation, and static publishing built in.
+  eyebrow: Why a control plane
+  title: Documentation is no longer one website
+  subtitle: >
+    Product guides, API references, search indexes, release knowledge, and agent
+    context drift when every surface builds its own version of the truth.
 
 metrics:
-  - value: "01"
-    label: One source of truth
-    hint: Write in Markdown and let the site build navigation, search, and exports from it.
-  - value: Live
-    label: Live preview loop
-    hint: Preview your docs while you write instead of running a publish step after every edit.
-  - value: Static
-    label: Static publishing target
-    hint: Ship to GitHub Pages or any static host without changing how authors write docs.
+  - value: Sources
+    label: Connect the corpus
+    hint: Normalize Markdown, MDX, MyST, RST, HTML, OpenAPI, and code documentation into one model.
+  - value: Policy
+    label: Govern it once
+    hint: Apply validation, access, edition, ownership, freshness, and provenance before content reaches a surface.
+  - value: Surfaces
+    label: Publish consistently
+    hint: Generate web, static, search, reference, and agent outputs from the same reviewed graph.
 
 visual:
-  aria_label: Preview of Furatena documentation surfaces
-  eyebrow: Write to publish
-  title: Write docs. Preview instantly. Publish anywhere.
+  aria_label: Sources enter the Furatena graph and become human and agent outputs
+  eyebrow: Governed content graph
+  title: One corpus controls every documentation surface.
   description: >
-    Keep your docs in Markdown, get a polished local preview, and ship the same content as a static site.
+    Furatena resolves structure, relationships, access, editions, and provenance
+    before projecting technical knowledge to developers or agents.
   proof_tags:
-    - Markdown
-    - Search
-    - GitHub Pages
-    - AI-ready
-  feature_title: Everything stays in sync
-  feature_body: Navigation, search, references, and machine-readable indexes all come from the same docs.
-  cta_label: Open docs
-  cta_href: /docs/
+    - Markdown + MDX
+    - MyST + RST
+    - OpenAPI + code
+    - Governed graph
+  feature_title: Human and agent parity
+  feature_body: Websites, static releases, search, references, and agent context inherit the same source and policy decisions.
+  cta_label: See the architecture
+  cta_href: /platform/
 
 ideas:
-  eyebrow: Why teams use it
-  title: A calmer way to build product docs
-  subtitle: Keep authoring simple, keep previews fast, and keep every publishing output tied to the same source.
+  eyebrow: The product
+  title: Control the corpus, not just the website
+  subtitle: >
+    Rendering is one output. Furatena governs the technical knowledge that every
+    documentation and agent surface depends on.
   features:
-    - eyebrow: Author
-      title: Write in plain Markdown
+    - eyebrow: Govern
+      title: Make the corpus inspectable
       body: >
-        Keep docs close to the codebase. Furatena turns folders, front matter,
-        headings, and links into a navigable site without making authors learn a CMS.
+        Build a typed graph with relationships, ownership, editions, lifecycle,
+        access policy, validation findings, and source provenance attached.
       action:
-        label: Start writing
-        href: /docs/get-started/
-    - eyebrow: Preview
-      title: See changes while you write
-      body: >
-        Run the local server, edit a page, and keep moving. The authoring loop
-        feels like working in your app, not waiting on a static-site pipeline.
-      action:
-        label: Local workflow
-        href: /docs/operations/
+        label: How the graph works
+        href: /platform/
     - eyebrow: Publish
-      title: Ship once, reuse everywhere
+      title: Project one truth everywhere
       body: >
-        Publish a static docs site and reuse the same source for search,
-        AI-friendly indexes, and reference pages.
+        Produce application pages, immutable static artifacts, search indexes,
+        references, and machine-readable outputs without separate content systems.
       action:
-        label: Publishing options
+        label: Inspect the outputs
         href: /develop/
+    - eyebrow: Equip agents
+      title: Deliver governed context
+      body: >
+        Filter retrieval by access, edition, mount, tag, URL, and freshness so an
+        agent receives the right source context instead of an undifferentiated scrape.
+      action:
+        label: Agent delivery
+        href: /agents/
 
 sources:
-  eyebrow: Source adapters
-  title: Bring the docs you already have
+  eyebrow: Migration and federation
+  title: Bring the technical sources you already have
   subtitle: >
-    Markdown is the polished default, but Furatena is not locked to one authoring
-    syntax. Configure mounts to adapt other source formats into the same pages,
-    navigation, search, and outputs.
+    Furatena adapts multiple authoring systems into the same graph and reports
+    unsupported constructs before a migration rewrites the corpus.
   formats:
-    - label: Markdown
-      detail: First-class authoring
+    - label: Markdown and MDX
+      detail: Preserve the repo workflow
       body: >
-        Write with front matter, wikilinks, directives, and local preview as the
-        primary authoring loop.
-    - label: MDX
-      detail: JSX-aware migration path
+        Keep Markdown first-class and lower supported MDX components into typed
+        directives, with unsafe or manual conversions called out explicitly.
+    - label: MyST and RST
+      detail: Carry technical semantics forward
       body: >
-        Lower MDX components into Furatena directives so existing JS-docs content
-        can move into the catalog instead of starting from scratch.
-    - label: reStructuredText
-      detail: docutils adapter
+        Bring Sphinx-style pages, references, and inventories into a modern web and
+        agent delivery layer without treating them as opaque text.
+    - label: OpenAPI and code
+      detail: Connect prose to reference
       body: >
-        Bring RST pages forward when migrating Sphinx-style docs, while preserving
-        headings, links, and page text for search.
-    - label: HTML
-      detail: Bridge adapter
+        Project API operations and Python objects as graph nodes that can be linked,
+        searched, versioned, and retrieved beside narrative documentation.
+    - label: HTML and custom adapters
+      detail: Federate before replacing
       body: >
-        Index existing HTML headings, links, and structured markers when a page
-        needs to enter the docs system as-is.
-  note: Register custom adapters and map file extensions in mounts.yaml when a source needs its own parser.
+        Index existing sources through configured mounts and adapters so teams can
+        consolidate knowledge without forcing an all-at-once rewrite.
+  note: >
+    Start with a structured migration report: safe conversions, manual blockers,
+    links, ownership, and output risk.
 
 explore:
-  title: Start with
+  title: Explore Furatena
   links:
-    - label: Get started
-      href: /docs/get-started/
-    - label: Local preview
-      href: /docs/operations/
-    - label: CLI reference
-      href: /docs/reference/cli/
-    - label: Search and AI outputs
-      href: /develop/
+    - label: Platform
+      href: /platform/
+    - label: Agent delivery
+      href: /agents/
+    - label: Migration
+      href: /migration/
+    - label: Live proof
+      href: /proof/
 
 pipeline:
-  eyebrow: Workflow
-  title: From draft to published docs
-  subtitle: One editing flow carries your docs from local writing to static hosting, app deployment, and reusable indexes.
-  current_step: 4
+  eyebrow: One governed flow
+  title: From fragmented sources to trusted delivery
+  subtitle: >
+    Normalize once, apply policy once, and let each surface inherit the same
+    reviewed knowledge and boundaries.
+  current_step: 3
   steps:
-    - id: markdown
-      label: Write
-    - id: preview
-      label: Preview
-    - id: review
-      label: Review
-    - id: export
+    - id: connect
+      label: Connect
+    - id: normalize
+      label: Normalize
+    - id: govern
+      label: Govern
+    - id: publish
       label: Publish
-    - id: reuse
-      label: Reuse
+    - id: retrieve
+      label: Retrieve
   modes:
-    - title: Local preview
-      subtitle: While you write
+    - title: Human documentation
+      subtitle: Web and static
       body: >
-        Work against a fast local docs site, with navigation and search built from your Markdown.
-    - title: Shareable build
-      subtitle: Before launch
+        Deliver navigable documentation, references, search, and durable static
+        releases from the governed corpus.
+    - title: Platform contracts
+      subtitle: CI and integrations
       body: >
-        Generate the same pages your users will see, then review them before publishing.
-    - title: Static site
-      subtitle: Ready to host
-      body: Ship GitHub Pages or offline bundles without changing how authors write docs.
+        Expose graph, structure, route, inventory, freshness, and channel manifests
+        as versioned build artifacts.
+    - title: Agent context
+      subtitle: Static and live retrieval
+      body: >
+        Give tools and agents source-grounded context with policy and edition filters
+        applied before retrieval.
       variant: ship
 
 deployments:
-  eyebrow: Deployment choices
-  title: Static site when simple is enough. Living app when docs need to respond.
+  eyebrow: Deployment control
+  title: Keep the corpus portable and the boundaries inspectable
   subtitle: >
-    Furatena can publish traditional static docs or run as a deployed Chirp app,
-    so teams can start simple and add runtime behavior when the product needs it.
+    Hosted convenience should not require surrendering the content model. Furatena
+    keeps sources and artifacts usable across local, static, CI, and application environments.
   options:
-    - label: Static docs site
-      title: Fast, portable, and easy to host
+    - label: Immutable delivery
+      title: Static artifacts that stand on their own
       body: >
-        Export HTML for GitHub Pages, a CDN, or an offline bundle. This is the
-        right default when public docs need to be fast, cheap, and durable.
-    - label: Living docs app
-      title: Runtime docs with product context
+        Publish HTML, Markdown sidecars, indexes, inventories, and agent manifests to
+        a CDN, GitHub Pages, an offline bundle, or an internal artifact store.
+    - label: Application delivery
+      title: Runtime search and retrieval where needed
       body: >
-        Deploy the docs app on Railway or another app host when you need login,
-        gated sections, user-specific content, telemetry, or live integrations.
+        Run the documentation application when teams need dynamic query, semantic
+        retrieval, gated surfaces, telemetry, or product integrations.
   future:
-    label: Opens the door to
+    label: One policy boundary across
     items:
-      - Authenticated docs
-      - Persona-aware content
-      - Usage analytics
-      - MCP or API endpoints
+      - Browser documentation
+      - Static releases
+      - Search and references
+      - Agent retrieval
 
 exports:
-  title: Ready for search and AI tools
-  subtitle: Publish the docs site and keep structured outputs for search, references, and AI assistants.
+  title: Inspect what the control plane produces
+  subtitle: >
+    The dogfood site publishes its graph, search, structure, route, channel, and
+    agent contracts alongside the human documentation.
   action:
-    label: View outputs
+    label: Browse live outputs
     href: /develop/
 
 quick_start:
-  eyebrow: Run locally
-  title: Start in two commands
+  eyebrow: Local-first evaluation
+  title: Run the control plane against a repository
   commands: |
     uv sync --group dev
-    uv run fura serve
-  caption: Open http://127.0.0.1:8001/ and edit Markdown while the local docs site updates.
+    uv run fura serve --author
+  caption: Open the author dashboard, inspect the graph, and trace one source page into its human and agent outputs.
 
 workflows:
-  eyebrow: Everyday use
-  title: What this replaces
+  eyebrow: Built for platform teams
+  title: Use one corpus across the documentation lifecycle
   items:
-    - text: Keep product docs next to the code they explain
-    - text: Maintain reference docs without a separate publishing tool
-    - text: Check links and docs structure in CI
-    - text: Reuse the same docs for search, AI tools, and developer references
+    - text: Assess a mixed documentation estate before migration
+      link:
+        label: Migration workflow
+        href: /migration/
+    - text: Apply access, edition, freshness, and validation policy once
+      link:
+        label: Platform architecture
+        href: /platform/
+    - text: Publish human and machine-readable artifacts from the same build
+      link:
+        label: Inspect proof
+        href: /proof/
+    - text: Give agents precise, source-grounded context instead of a website scrape
+      link:
+        label: Agent delivery
+        href: /agents/
 
 cta:
-  title: Start with your existing Markdown
-  body: Run the local preview, edit docs in place, and publish the same content when it is ready.
+  title: Start with the documentation you already have
+  body: >
+    Map the sources, identify migration risk, and see how one governed corpus could
+    serve your developers, platform workflows, and agents.
   secondary:
-    label: See outputs
-    href: /develop/
+    label: Assess your docs
+    href: /migration/
