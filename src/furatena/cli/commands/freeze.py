@@ -42,7 +42,7 @@ def _run_freeze(args: argparse.Namespace) -> None:
         )
     )
     if _json_output(args):
-        status = "updated" if result.frozen_mounts else "up_to_date"
+        status = "updated" if result.frozen_mounts or result.frozen_editions else "up_to_date"
         _finish_result(
             CommandResult(
                 command=command_name(args),
@@ -52,20 +52,25 @@ def _run_freeze(args: argparse.Namespace) -> None:
                     "status": status,
                     "output_dir": result.output_dir,
                     "frozen_mounts": result.frozen_mounts,
+                    "frozen_editions": result.frozen_editions,
+                    "reused_editions": result.reused_editions,
                     "page_count": result.page_count,
                     "index_seconds": round(result.index_seconds, 3),
                     "export_seconds": round(result.export_seconds, 3),
+                    "edition_seconds": round(result.edition_seconds, 3),
                     "worker_count": result.worker_count,
                 },
             ),
             json_output=True,
         )
         return
-    if result.frozen_mounts:
+    if result.frozen_mounts or result.frozen_editions:
         print(
-            f"Froze {len(result.frozen_mounts)} mount(s), {result.page_count} pages total -> "
+            f"Froze {len(result.frozen_mounts)} mount(s) and "
+            f"{len(result.frozen_editions)} edition(s), {result.page_count} latest pages total -> "
             f"{result.output_dir} (index {result.index_seconds:.1f}s, "
-            f"export {result.export_seconds:.1f}s, {result.worker_count} workers)"
+            f"editions {result.edition_seconds:.1f}s, export {result.export_seconds:.1f}s, "
+            f"{result.worker_count} workers)"
         )
     else:
         print(

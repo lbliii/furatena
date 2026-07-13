@@ -22,6 +22,7 @@ from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.deployment_manifest import DeploymentManifest, write_deployment_manifest
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
+from furatena.catalog.edition_shards import EditionShardStatus, freeze_edition_shards
 from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.exceptions import ExportError
 from furatena.catalog.export import (
@@ -87,6 +88,9 @@ class FreezeCatalogResult:
     worker_count: int
     index_seconds: float
     export_seconds: float
+    frozen_editions: tuple[str, ...] = ()
+    reused_editions: tuple[str, ...] = ()
+    edition_seconds: float = 0.0
 
 
 def _compact_json(payload: object) -> str:
@@ -239,8 +243,13 @@ def _freeze_assets(out_dir: Path, *, app_root: Path, theme_id: str, skin_pack: s
 
 
 def _registry_manifest(
-    registry: CatalogRegistry, mount_status: dict[str, dict] | None = None
+    registry: CatalogRegistry,
+    mount_status: dict[str, dict] | None = None,
+    edition_status: tuple[EditionShardStatus, ...] = (),
 ) -> dict:
+    editions_by_mount: dict[str, list[dict]] = {}
+    for status in edition_status:
+        editions_by_mount.setdefault(status.mount, []).append(status.public_record())
     payload: dict = {
         "schema_version": 2,
         "mounts": [
@@ -252,6 +261,11 @@ def _registry_manifest(
                 **(
                     {"source_status": _public_mount_status(mount_status[mount.id])}
                     if mount_status is not None and mount.id in mount_status
+                    else {}
+                ),
+                **(
+                    {"editions": editions_by_mount[mount.id]}
+                    if mount.id in editions_by_mount
                     else {}
                 ),
             }
@@ -273,9 +287,14 @@ def _write_registry_manifest(
     registry: CatalogRegistry,
     *,
     mount_status: dict[str, dict] | None = None,
+    edition_status: tuple[EditionShardStatus, ...] = (),
 ) -> None:
     (out_dir / "registry.json").write_text(
-        json.dumps(_registry_manifest(registry, mount_status), indent=2) + "\n",
+        json.dumps(
+            _registry_manifest(registry, mount_status, edition_status),
+            indent=2,
+        )
+        + "\n",
         encoding="utf-8",
     )
 
@@ -392,10 +411,25 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             set_mount_freeze_status(status, "skipped")
         total = len(registry.nodes)
 
+    edition_start = time.perf_counter()
+    edition_status = () if failed_mounts else freeze_edition_shards(registry, out_dir)
+    edition_seconds = time.perf_counter() - edition_start
+    frozen_editions = tuple(
+        f"{status.mount}:{status.edition}" for status in edition_status if status.status == "frozen"
+    )
+    reused_editions = tuple(
+        f"{status.mount}:{status.edition}" for status in edition_status if status.status == "reused"
+    )
+
     for mount in registry.mounts:
         _write_catalog_shard_route_alias(out_dir, mount.id)
 
-    _write_registry_manifest(out_dir, registry, mount_status=mount_status)
+    _write_registry_manifest(
+        out_dir,
+        registry,
+        mount_status=mount_status,
+        edition_status=edition_status,
+    )
 
     required_agent_sidecars = (
         "catalog.json",
@@ -412,7 +446,9 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         "channels.json",
     )
     if not failed_mounts and (
-        mounts_to_freeze or any(not (out_dir / path).is_file() for path in required_agent_sidecars)
+        mounts_to_freeze
+        or frozen_editions
+        or any(not (out_dir / path).is_file() for path in required_agent_sidecars)
     ):
         merged_graph = catalog_graph(registry)
         from furatena.catalog.dcp_validate import validate_catalog_payload
@@ -538,6 +574,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             mount_statuses=mount_status,
             renderer_fingerprint=renderer_fp,
             renderer_changed=renderer_changed,
+            edition_statuses=[status.public_record() for status in edition_status],
         )
         formatted = ", ".join(f"{mount}: {error}" for mount, error in sorted(failed_mounts.items()))
         raise ExportError(
@@ -567,6 +604,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         mount_statuses=mount_status,
         renderer_fingerprint=renderer_fp,
         renderer_changed=renderer_changed,
+        edition_statuses=[status.public_record() for status in edition_status],
     )
     export_seconds = time.perf_counter() - export_start
 
@@ -577,4 +615,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         worker_count=worker_count,
         index_seconds=index_seconds,
         export_seconds=export_seconds,
+        frozen_editions=frozen_editions,
+        reused_editions=reused_editions,
+        edition_seconds=edition_seconds,
     )

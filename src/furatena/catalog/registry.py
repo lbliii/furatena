@@ -415,6 +415,7 @@ class CatalogRegistry:
         mount: MountConfig,
         *,
         cached_autodoc: list[DocNode] | None,
+        edition: str | None = None,
     ) -> DocCatalog:
         shard = DocCatalog(
             mount.content_root,
@@ -425,7 +426,7 @@ class CatalogRegistry:
             autodoc=self.autodoc_enabled and mount.default,
             mount=mount.id,
             url_prefix=mount.url_prefix,
-            edition=self.active_channel,
+            edition=edition or self.active_channel,
             cached_autodoc_nodes=cached_autodoc if mount.default else None,
             source_config=mount.source,
             federated_slug_urls=self._federated_slug_urls,
