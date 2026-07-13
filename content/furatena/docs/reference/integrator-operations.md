@@ -121,6 +121,23 @@ memory backend is intentional and `fura mcp --describe --json` reports
 live HTTP contracts; exportable routes are copied into `app/public` with the
 configured base path.
 
+### Product marketing routes
+
+The default Furatena mount exposes the buyer-facing product sections as negotiated HTML
+and Markdown. Section indexes use the named `.md` routes; the wildcard dispatchers
+preserve room for additional pages without changing the public prefix.
+
+| Stable route identifier | Purpose |
+|---|---|
+| `route:GET /platform.md` | Markdown representation of the content-control-plane overview. |
+| `route:GET /platform/{slug:path}` | Platform overview and future product-detail pages. |
+| `route:GET /agents.md` | Markdown representation of the agent-delivery overview. |
+| `route:GET /agents/{slug:path}` | Agent delivery and governance pages. |
+| `route:GET /migration.md` | Markdown representation of the migration overview. |
+| `route:GET /migration/{slug:path}` | Migration workflow and source-specific guidance. |
+| `route:GET /proof.md` | Markdown representation of the platform-proof overview. |
+| `route:GET /proof/{slug:path}` | Inspectable proof, pilot, and methodology pages. |
+
 | URL | Media/shape | Stable schema or purpose |
 |---|---|---|
 | `/catalog.json` | `json` | Catalog/DCP graph with schema version, pages, edges, and graph nodes. |

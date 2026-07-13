@@ -1,6 +1,9 @@
 # Generated pre-refactor route contract. Update intentionally with route changes.
-# handler-origins-sha256: 3a829d446d1c4f3ca7e426b638649ce6d4a31168d4d52d8d1d066a7554c55502
+# handler-origins-sha256: 01ed99ce8ab3f681807bcc819eda5f79af456749e33893af892746e153bcb239
 GET|/|-|furatena|home|html-document|dynamic:view-kind|-
+GET|/agents.md|-|furatena|default_agents|markdown|dynamic:view-kind|-
+GET|/agents/|-|furatena|default_agents|html-document|dynamic:view-kind|-
+GET|/agents/{slug:path}|-|furatena|default_agents|html-document|dynamic:view-kind|-
 GET|/catalog.json|-|application|catalog_json|json|-|-
 GET|/catalog/api-operations.json|-|application|catalog_api_operations_json|json|-|-
 GET|/catalog/artifacts.json|-|application|artifacts_json|json|-|-
@@ -36,9 +39,18 @@ GET|/inventories/{inventory_id}/objects.inv|-|application|inventory_inv|binary|-
 GET|/llms-full.txt|-|application|llms_full|text|-|-
 GET|/llms.txt|-|application|llms_txt|text|-|-
 GET|/meta.json|-|application|meta_json_route|json|-|-
+GET|/migration.md|-|furatena|default_migration|markdown|dynamic:view-kind|-
+GET|/migration/|-|furatena|default_migration|html-document|dynamic:view-kind|-
+GET|/migration/{slug:path}|-|furatena|default_migration|html-document|dynamic:view-kind|-
 GET|/objects.inv|-|application|inventory_inv|binary|-|-
 GET|/og/{name}|-|application|og_image|image|-|-
+GET|/platform.md|-|furatena|default_platform|markdown|dynamic:view-kind|-
+GET|/platform/|-|furatena|default_platform|html-document|dynamic:view-kind|-
+GET|/platform/{slug:path}|-|furatena|default_platform|html-document|dynamic:view-kind|-
 GET|/portal/|-|application|portal|html-document|views/portal.html|-
+GET|/proof.md|-|furatena|default_proof|markdown|dynamic:view-kind|-
+GET|/proof/|-|furatena|default_proof|html-document|dynamic:view-kind|-
+GET|/proof/{slug:path}|-|furatena|default_proof|html-document|dynamic:view-kind|-
 GET|/readyz|-|application|readyz|html-document|-|-
 GET|/releases.md|-|furatena|default_releases|markdown|dynamic:view-kind|-
 GET|/releases/|-|furatena|default_releases|html-document|dynamic:view-kind|-
