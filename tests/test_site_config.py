@@ -22,16 +22,20 @@ class TestSiteConfig:
         assert docs_config.site.name == "Furatena"
         assert docs_config.site.mark == "𐂛"
 
-    def test_default_navigation_has_doc_links(self, docs_config) -> None:
+    def test_navigation_separates_product_and_resource_links(self, docs_config) -> None:
         nav = docs_config.site.navigation
         assert nav is not None
-        hrefs = {link.href for link in nav.documentation.links}
-        assert "/docs/get-started/" in hrefs
-        assert "/docs/reference/" in hrefs
+        product_hrefs = {link.href for link in nav.documentation.links}
+        resource_hrefs = {link.href for link in nav.develop.links}
+        assert nav.documentation.overview_href == "/platform/"
+        assert product_hrefs == {"/agents/", "/migration/", "/proof/"}
+        assert "/docs/get-started/" in resource_hrefs
+        assert "/docs/operations/consume-agent-outputs/" in resource_hrefs
 
     def test_home_ctas(self, docs_config) -> None:
         home = docs_config.site.home
-        assert home.cta_primary.href == "/docs/get-started/"
+        assert home.cta_primary.href == "/platform/"
+        assert home.cta_secondary.href == "/proof/"
         assert len(home.metrics) == 3
         assert home.ideas is not None
         assert len(home.ideas.features) == 3
