@@ -60,14 +60,25 @@ def verify_live_artifacts(origin: str, *, timeout: float = 120.0) -> dict[str, i
     if not isinstance(page_count, int) or not isinstance(pages, list) or page_count != len(pages):
         raise RuntimeError("/catalog.json: page_count does not match pages")
 
+    collection_counts: dict[str, int] = {}
     for path, collection_key in (
         ("/catalog/query.json", "pages"),
         ("/search.json", "entries"),
     ):
         payload = payloads[path]
         collection = payload.get(collection_key)
-        if payload.get("page_count") != page_count or not isinstance(collection, list):
-            raise RuntimeError(f"{path}: page_count does not match the frozen catalog")
+        declared_count = payload.get("page_count")
+        if (
+            not isinstance(declared_count, int)
+            or not isinstance(collection, list)
+            or declared_count != len(collection)
+        ):
+            raise RuntimeError(f"{path}: page_count does not match its delivered collection")
+        collection_counts[path] = declared_count
+
+    query_total = payloads["/catalog/query.json"].get("total")
+    if query_total != page_count:
+        raise RuntimeError("/catalog/query.json: total does not match the frozen catalog")
 
     semantic = payloads["/semantic.json"]
     chunks = semantic.get("chunks")
@@ -80,6 +91,8 @@ def verify_live_artifacts(origin: str, *, timeout: float = 120.0) -> dict[str, i
 
     return {
         "page_count": page_count,
+        "query_page_count": collection_counts["/catalog/query.json"],
+        "search_page_count": collection_counts["/search.json"],
         "semantic_chunk_count": len(chunks),
         "llms_full_bytes": len(llms_full),
     }
