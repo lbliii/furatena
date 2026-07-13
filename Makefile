@@ -5,10 +5,10 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint format format-check ty-audit ty-ratchet benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build check clean \
+.PHONY: help install test lint format format-check ty-audit ty-ratchet benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
-	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-release
+	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-pdf-proof ci-release
 
 CORE_COVERAGE_SOURCE = furatena.catalog.graph,furatena.catalog.graph_schema,furatena.catalog.access,furatena.catalog.export,furatena.catalog.loader
 CORE_COVERAGE_TESTS = \
@@ -23,6 +23,7 @@ CORE_COVERAGE_TESTS = \
 	tests/test_chirp_docs_link_and_inventory_contracts.py
 BROWSER_TESTS = tests/test_author_sse_browser.py
 BROWSER_RESULTS ?= browser-results
+PDF_PROOF_RESULTS ?= pdf-proof
 
 help:
 	@echo "Furatena"
@@ -32,6 +33,7 @@ help:
 	@echo "  make freeze       fura freeze"
 	@echo "  make export       fura export"
 	@echo "  make pages-build  freeze + export for GitHub Pages"
+	@echo "  make pdf-proof    build and verify browser/native PDF proof artifacts"
 	@echo "  make check        fura check"
 	@echo "  make test         pytest"
 	@echo "  make lint         ruff check"
@@ -54,6 +56,7 @@ help:
 	@echo "  make ci-browser-responsive  responsive viewport browser paths"
 	@echo "  make ci-browser-full        complete browser regression tier"
 	@echo "  make ci-agent     agent/MCP lint and tests (~30s)"
+	@echo "  make ci-pdf-proof cross-head PDF generation, structure, and raster proof"
 	@echo "  make ci-release   isolated wheel + sdist install smoke (~3m)"
 
 install:
@@ -73,6 +76,8 @@ export:
 
 pages-build:
 	$(FREE_THREADED) ./scripts/pages-build.sh
+
+pdf-proof: ci-pdf-proof
 
 check:
 	$(UV_RUN) fura check
@@ -145,6 +150,7 @@ ci-fast: format-check
 		src/furatena/catalog/publication_contracts.py \
 		src/furatena/catalog/publication_state.py \
 		src/furatena/catalog/author_benchmarks.py \
+		src/furatena/catalog/pdf_proof.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
@@ -178,6 +184,7 @@ ci-fast: format-check
 		tests/test_publication_state.py \
 		tests/test_publication_schemas.py \
 		tests/test_publication_fixtures.py \
+		tests/test_pdf_proof.py \
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \
@@ -266,6 +273,18 @@ ci-browser-full:
 ci-agent:
 	$(UV_RUN) fura check --agent-only --json
 	$(PYTEST) tests/test_fura_cli_standalone.py -k "agent or mcp or evals"
+
+ci-pdf-proof:
+	mkdir -p $(PDF_PROOF_RESULTS)
+	FURA_BASE_URL=http://127.0.0.1 FURA_BASE_PATH=/ \
+		FURA_FROZEN_DIR="$(PWD)/$(PDF_PROOF_RESULTS)/frozen" \
+		./scripts/pages-build.sh "$(PWD)/$(PDF_PROOF_RESULTS)/site"
+	FURA_FROZEN_DIR="$(PWD)/$(PDF_PROOF_RESULTS)/frozen" \
+		$(UV_RUN) python scripts/pdf_proof.py \
+		--app-root app \
+		--site-root "$(PDF_PROOF_RESULTS)/site" \
+		--output "$(PDF_PROOF_RESULTS)/artifacts" \
+		--baseline config/pdf-proof-baseline.json
 
 ci-release:
 	$(FREE_THREADED) uv build --clear --no-sources

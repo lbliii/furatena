@@ -23,5 +23,6 @@ app/.docs-cache-test/
 .coverage
 .coverage-core.json
 browser-results/
+pdf-proof/
 htmlcov/
 .DS_Store

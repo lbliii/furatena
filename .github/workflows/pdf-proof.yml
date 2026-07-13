@@ -1,0 +1,74 @@
+name: Cross-head PDF proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/pdf-proof.yml"
+      - ".github/workflows/pages.yml"
+      - "Makefile"
+      - "app/**"
+      - "config/pdf-proof-baseline.json"
+      - "content/**"
+      - "pyproject.toml"
+      - "scripts/pages-build.sh"
+      - "scripts/pdf_proof.py"
+      - "src/**"
+      - "tests/test_pdf_proof.py"
+      - "uv.lock"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/pdf-proof.yml"
+      - ".github/workflows/pages.yml"
+      - "Makefile"
+      - "app/**"
+      - "config/pdf-proof-baseline.json"
+      - "content/**"
+      - "pyproject.toml"
+      - "scripts/pages-build.sh"
+      - "scripts/pdf_proof.py"
+      - "src/**"
+      - "tests/test_pdf_proof.py"
+      - "uv.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_GIL: "0"
+
+concurrency:
+  group: pdf-proof-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  proof:
+    name: Browser and native PDF proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install
+        run: uv sync --group dev
+      - name: Install browser and PDF runtimes
+        run: |
+          uv run playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install --yes poppler-utils
+      - name: Generate and verify proof artifacts
+        run: make ci-pdf-proof
+      - name: Upload PDFs, rasters, and verifier reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdf-proof-${{ github.event_name }}-${{ github.sha }}
+          path: pdf-proof/artifacts
+          if-no-files-found: error
+          retention-days: 14
