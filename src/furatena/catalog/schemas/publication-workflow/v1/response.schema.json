@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-workflow/v1/response.schema.json",
+  "title": "Furatena publication workflow response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "record_type", "plan", "snapshot", "replayed", "receipt"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.workflow-response"},
+    "plan": {"type": "object"},
+    "snapshot": {"type": "object"},
+    "replayed": {"type": "boolean"},
+    "receipt": {
+      "anyOf": [
+        {"$ref": "receipt.schema.json"},
+        {"type": "null"}
+      ]
+    }
+  }
+}

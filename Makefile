@@ -144,6 +144,8 @@ ci-fast: format-check
 		src/furatena/catalog/capability_policy.py \
 		src/furatena/catalog/publication_contracts.py \
 		src/furatena/catalog/publication_state.py \
+		src/furatena/catalog/publication_workflow_store.py \
+		src/furatena/catalog/publication_workflow.py \
 		src/furatena/catalog/author_benchmarks.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
@@ -176,6 +178,9 @@ ci-fast: format-check
 		tests/test_capability_schemas.py \
 		tests/test_publication_contracts.py \
 		tests/test_publication_state.py \
+		tests/test_publication_workflow_store.py \
+		tests/test_publication_workflow_service.py \
+		tests/test_publication_workflow_schemas.py \
 		tests/test_publication_schemas.py \
 		tests/test_publication_fixtures.py \
 		tests/test_starter_repositories.py \

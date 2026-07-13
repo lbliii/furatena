@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-workflow/v1/command.schema.json",
+  "title": "Furatena publication workflow command v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "command", "plan_id", "idempotency_key", "expected_state_version"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "command": {"enum": ["execute", "cancel", "supersede", "expire"]},
+    "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{24}$"},
+    "idempotency_key": {"type": "string", "minLength": 1},
+    "expected_state_version": {"type": "integer", "minimum": 1}
+  }
+}
