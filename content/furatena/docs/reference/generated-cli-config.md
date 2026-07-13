@@ -739,6 +739,18 @@ Paths use dotted docs.yaml notation; `mounts[]` identifies one mounts.yaml entry
 | `mounts[].access.roles` | no | `frozenset[AccessRole]` | — | `furatena.catalog.access:AccessPolicy.roles` |
 | `mounts[].access.teams` | no | `frozenset[str]` | — | `furatena.catalog.access:AccessPolicy.teams` |
 | `mounts[].access.admin_only` | no | `bool` | false | `furatena.catalog.access:AccessPolicy.admin_only` |
+| `mounts[].editions` | no | `GitEditionPolicy \| None` | — | `furatena.catalog.registry:MountConfig.editions` |
+| `mounts[].editions.source` | no | `str` | `tags` | `furatena.catalog.sources.types:GitEditionPolicy.source` |
+| `mounts[].editions.count` | no | `int` | `0` | `furatena.catalog.sources.types:GitEditionPolicy.count` |
+| `mounts[].editions.pattern` | no | `str` | `v*` | `furatena.catalog.sources.types:GitEditionPolicy.pattern` |
+| `mounts[].editions.strip_prefix` | no | `str` | `v` | `furatena.catalog.sources.types:GitEditionPolicy.strip_prefix` |
+| `mounts[].editions.sort` | no | `str` | `semver-desc` | `furatena.catalog.sources.types:GitEditionPolicy.sort` |
+| `mounts[].editions.include_prereleases` | no | `bool` | false | `furatena.catalog.sources.types:GitEditionPolicy.include_prereleases` |
+| `mounts[].editions.overrides` | no | `dict[str, GitEditionOverride]` | `{}` | `furatena.catalog.sources.types:GitEditionPolicy.overrides` |
+| `mounts[].editions.overrides[].status` | no | `str` | `legacy` | `furatena.catalog.sources.types:GitEditionOverride.status` |
+| `mounts[].editions.overrides[].release_date` | no | `str \| None` | — | `furatena.catalog.sources.types:GitEditionOverride.release_date` |
+| `mounts[].editions.overrides[].end_of_life` | no | `str \| None` | — | `furatena.catalog.sources.types:GitEditionOverride.end_of_life` |
+| `mounts[].editions.overrides[].banner` | no | `str \| None` | — | `furatena.catalog.sources.types:GitEditionOverride.banner` |
 
 ## Environment controls
 

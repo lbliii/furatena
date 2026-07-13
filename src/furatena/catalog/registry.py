@@ -41,7 +41,11 @@ from furatena.catalog.runtime import ServeMode
 from furatena.catalog.search import SearchHit, search_nodes
 from furatena.catalog.source_sync_state import SourceSyncStateStore
 from furatena.catalog.sources.git import sync_git_source
-from furatena.catalog.sources.types import MountSourceConfig
+from furatena.catalog.sources.types import (
+    GitEditionPolicy,
+    GitEditionSnapshot,
+    MountSourceConfig,
+)
 from furatena.catalog.versions import DocChannel, active_channel_id
 from furatena.catalog.watch import SourceWatcher
 from furatena.catalog.workers import resolve_workers
@@ -58,6 +62,7 @@ class MountConfig:
     default: bool = False
     source: MountSourceConfig = field(default_factory=MountSourceConfig)
     access: AccessPolicy = field(default_factory=AccessPolicy)
+    editions: GitEditionPolicy | None = None
 
 
 def _last_known_good_mount(mount: MountConfig, state: dict[str, Any]) -> MountConfig:
@@ -74,6 +79,15 @@ def _last_known_good_mount(mount: MountConfig, state: dict[str, Any]) -> MountCo
             resolved_ref=resolved_ref,
             source_url=source_url,
         ),
+    )
+
+
+def _state_editions(state: dict[str, Any]) -> tuple[GitEditionSnapshot, ...]:
+    last_known_good = state.get("last_known_good") or {}
+    return tuple(
+        GitEditionSnapshot.from_mapping(item)
+        for item in last_known_good.get("editions") or []
+        if isinstance(item, dict)
     )
 
 
@@ -138,6 +152,11 @@ def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...
         if not mount_id:
             continue
         source_config = MountSourceConfig.from_mount_dict(item)
+        edition_policy = GitEditionPolicy.from_mount_dict(
+            item,
+            mount_id=mount_id,
+            git_backed=source_config.git is not None,
+        )
         content_raw = str(item.get("content_root") or "").strip()
         if content_raw:
             content_root = Path(content_raw)
@@ -159,6 +178,7 @@ def load_mounts(config_path: Path, *, repo_root: Path) -> tuple[MountConfig, ...
                 default=bool(item.get("default")),
                 source=source_config,
                 access=AccessPolicy.from_mount_dict(item),
+                editions=edition_policy,
             )
         )
     if not mounts:
@@ -220,6 +240,7 @@ class CatalogRegistry:
         self._federated_slug_urls: dict[str, str] = {}
         self._source_sync_status: dict[str, dict[str, Any]] = {}
         self._shard_status: dict[str, dict[str, Any]] = {}
+        self._discovered_editions: dict[str, tuple[GitEditionSnapshot, ...]] = {}
         self.mounts = (
             mounts if serve_mode == ServeMode.PREVIEW else self._sync_mount_sources(mounts)
         )
@@ -249,6 +270,7 @@ class CatalogRegistry:
         resolved: list[MountConfig] = []
         for mount in mounts:
             if mount.source.git is None:
+                self._discovered_editions[mount.id] = ()
                 self._record_source_sync(
                     mount,
                     "ok",
@@ -260,6 +282,7 @@ class CatalogRegistry:
             can_attempt, blocked_reason = self.source_sync_state.can_attempt(mount.id)
             if not can_attempt:
                 sync_state = self.source_sync_state.load(mount.id) or {}
+                self._discovered_editions[mount.id] = _state_editions(sync_state)
                 self._record_source_sync(
                     mount,
                     "quarantined" if blocked_reason == "quarantined" else "retry_wait",
@@ -285,12 +308,14 @@ class CatalogRegistry:
                         candidate,
                         content_root,
                     ),
+                    edition_policy=mount.editions,
                 )
             except Exception as exc:
                 sync_state = self.source_sync_state.record_failure(
                     mount.id,
                     _exception_record(exc),
                 )
+                self._discovered_editions[mount.id] = _state_editions(sync_state)
                 self._record_source_sync(
                     mount,
                     "failed",
@@ -307,7 +332,10 @@ class CatalogRegistry:
                 resolved_ref=sync.resolved_ref,
                 content_root=sync.content_root,
                 source_url=sync.source_url,
+                editions=sync.editions,
+                edition_policy=mount.editions,
             )
+            self._discovered_editions[mount.id] = sync.editions
             self._record_source_sync(
                 mount,
                 "ok",
@@ -354,6 +382,9 @@ class CatalogRegistry:
             "source_ref": resolved_ref or (git.ref if git is not None else None),
             "source_url": source_url or (git.source_url if git is not None else None),
             "sync_state": sync_state,
+            "editions": [
+                edition.to_dict() for edition in self._discovered_editions.get(mount.id, ())
+            ],
             "repair_actions": list((sync_state or {}).get("repair_actions") or []),
         }
         if error is not None:
@@ -610,6 +641,9 @@ class CatalogRegistry:
                     "channels": [
                         {"id": ch.id, "label": ch.label, "default": ch.default}
                         for ch in self.channels_for(item.id)
+                    ],
+                    "editions": [
+                        edition.to_dict() for edition in self.discovered_editions_for(item.id)
                     ],
                     "source": {
                         "status": sync.get("status"),
@@ -955,6 +989,10 @@ class CatalogRegistry:
         if default is None and self._shards:
             default = next(iter(self._shards.values()))
         return default.channels if default is not None else ()
+
+    def discovered_editions_for(self, mount_id: str) -> tuple[GitEditionSnapshot, ...]:
+        """Return source-sync edition provenance without expanding mount config."""
+        return self._discovered_editions.get(mount_id, ())
 
     @property
     def nodes(self) -> tuple[DocNode, ...]:
