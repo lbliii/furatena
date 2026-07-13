@@ -1,8 +1,9 @@
 # Pounce 0.9 deployment-boundary verification
 
 This record tracks the evidence for Furatena
-[#329](https://github.com/lbliii/furatena/issues/329). The verification was run
-on 2026-07-10 against `bengal-pounce==0.9.0` with free-threaded CPython 3.14t.
+[#329](https://github.com/lbliii/furatena/issues/329). The verification was
+refreshed on 2026-07-13 against `bengal-pounce==0.9.1` with free-threaded
+CPython 3.14t.
 
 ## Completed evidence
 
@@ -23,13 +24,13 @@ actual HTTP listener boundary:
   traffic, hands off the listener, advances the reported generation, and records
   only HTTP 200 observations with monotonic timestamps; and
 - shutdown preserves an in-flight slow response and gives new requests a bounded
-  HTTP 503.
+  HTTP 503 with `{"status":"draining"}`.
 
-The exact structured readiness body remains an expected failure. Pounce 0.9's
-listener/distributor returns `Server shutting down...` before the configured
-`/readyz` handler can return `{"status":"draining"}`. The upstream fix is
-tracked by [Pounce #308](https://github.com/lbliii/pounce/issues/308); the test is
-an explicit xfail until that contract is corrected.
+Pounce 0.9.1 closes the listener-boundary gap tracked by
+[Pounce #308](https://github.com/lbliii/pounce/issues/308). Late HTTP/1 GET and
+HEAD requests to the configured `/readyz` path now keep the structured JSON 503
+contract in async workers and the shared multi-worker accept distributor. The
+former expected failure is now a required passing wire assertion.
 
 ## Railway canary
 
@@ -50,14 +51,13 @@ test above owns the retiring-instance contract.
 
 ## Remaining production proof
 
-Furatena production remains on Pounce 0.8.2 until the Pounce 0.9 upgrade is
+Furatena production remains on Pounce 0.8.2 until the Pounce 0.9.1 upgrade is
 explicitly approved for rollout. After deployment, do not close #329 until all
 of these pass:
 
 1. Railway reports terminal `SUCCESS` for the exact reviewed commit.
-2. `/meta.json` reports `bengal-pounce` 0.9.0 and the expected git SHA.
+2. `/meta.json` reports `bengal-pounce` 0.9.1 and the expected git SHA.
 3. `python scripts/verify-live-artifacts.py "$ORIGIN"` completes for every
    identity-encoded bulk artifact without truncation.
 4. `/healthz` and the configured `/readyz` path pass through Railway's production
    protocol.
-5. Pounce #308 lands and the structured draining-readiness xfail becomes a pass.

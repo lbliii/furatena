@@ -65,8 +65,12 @@ tests/         Catalog and runtime tests
 ## Chirp dependency
 
 Furatena depends on the released **`bengal-chirp`** package from PyPI. The supported
-runtime line is pinned in `pyproject.toml` (`>=0.8.2,<0.9.0`) so a fresh
+runtime line is pinned in `pyproject.toml` (`>=0.9.0,<0.10.0`) so a fresh
 `uv sync --group dev` does not depend on any local Chirp checkout.
+
+The production server boundary is also pinned directly to
+**`bengal-pounce>=0.9.1,<0.10.0`** so deploys retain structured readiness JSON
+during listener drain.
 
 ## Docs
 

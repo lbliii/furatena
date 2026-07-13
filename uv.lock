@@ -47,15 +47,15 @@ sessions = [
 
 [[package]]
 name = "bengal-pounce"
-version = "0.9.0"
+version = "0.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "h11" },
     { name = "milo-cli" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/74/e5/848e1ca513db699d12a966908f03ee87544f27195ef9dbb97e86ca560820/bengal_pounce-0.9.0.tar.gz", hash = "sha256:26aef598e9e607e59dc01206c72871f9f85fd97c22a84ed68a7e88b92f25b324", size = 251842, upload-time = "2026-07-09T14:48:47.406Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/ce/d1c25e53ce0778e9a690fbe09929ff1d8be3196ea94e8e1a0a547bd53700/bengal_pounce-0.9.1.tar.gz", hash = "sha256:5d88cf7d1703530ef47ffe880ba38130132f2e2ef40fe8d32be9a16452dcf7f9", size = 254007, upload-time = "2026-07-13T14:49:19.327Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8e/a0/b687cdc5413c259f4cc09daa75ab9dbdf87b8966bb0a913bf407f1e80e30/bengal_pounce-0.9.0-py3-none-any.whl", hash = "sha256:0863d7e63ffd7c483a476a4b67ee9b189e0b67e8b9c0d76f6d9e48998d9a5b78", size = 286289, upload-time = "2026-07-09T14:48:45.956Z" },
+    { url = "https://files.pythonhosted.org/packages/30/5f/8bf85a75171804bc6818af2b3029c31e384a6b78299cfbf94f433e92b72a/bengal_pounce-0.9.1-py3-none-any.whl", hash = "sha256:c0d60906d8a63eddc823ce739fca6d57def7768fefab9d1479949cdc1b995aaa", size = 288704, upload-time = "2026-07-13T14:49:17.857Z" },
 ]
 
 [[package]]
@@ -215,7 +215,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bengal-chirp", extras = ["forms", "sessions"], specifier = ">=0.9.0,<0.10.0" },
-    { name = "bengal-pounce", specifier = ">=0.9.0,<0.10.0" },
+    { name = "bengal-pounce", specifier = ">=0.9.1,<0.10.0" },
     { name = "chirp-ui", specifier = ">=0.11.0" },
     { name = "docutils", marker = "extra == 'dev'", specifier = ">=0.21" },
     { name = "docutils", marker = "extra == 'formats'", specifier = ">=0.21" },
