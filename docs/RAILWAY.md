@@ -17,10 +17,11 @@ on-request responses agree.
 
 `PYTHON_GIL=0`, `FURA_MODE=preview`, and `FURA_WORKERS=1` are fixed in the image.
 The start script refuses to boot if the imported application stack has enabled
-the GIL. Pounce 0.9.0 fixes active HTTP/2 response reaping and slow flow-control
-drains, so the service uses its normal idle keep-alive behavior without the old
-75-second workaround. Railway overlaps replacements for five seconds and gives
-the retiring deployment 15 seconds to drain before termination.
+the GIL. Pounce 0.9.2 fixes active HTTP/2 response reaping, slow flow-control
+drains, and partial sync-worker writes for large buffered responses, so the
+service uses its normal idle keep-alive behavior without the old 75-second
+workaround. Railway overlaps replacements for five seconds and gives the
+retiring deployment 15 seconds to drain before termination.
 
 ## Deploy
 
