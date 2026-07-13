@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-approval/v1/evaluation.schema.json",
+  "title": "Furatena publication approval evaluation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "plan_digest", "policy_version", "policy_digest",
+    "satisfied", "override_applied", "required_count", "approval_record_ids",
+    "waiver_record_ids", "blocking_record_ids", "invalidated_record_ids",
+    "unwaived_warning_ids", "reason_codes", "evaluated_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.approval-evaluation"},
+    "plan_digest": {"$ref": "#/$defs/digest"},
+    "policy_version": {"type": "string", "minLength": 1},
+    "policy_digest": {"$ref": "#/$defs/digest"},
+    "satisfied": {"type": "boolean"},
+    "override_applied": {"type": "boolean"},
+    "required_count": {"type": "integer", "minimum": 0},
+    "approval_record_ids": {"$ref": "#/$defs/recordIds"},
+    "waiver_record_ids": {"$ref": "#/$defs/recordIds"},
+    "blocking_record_ids": {"$ref": "#/$defs/recordIds"},
+    "invalidated_record_ids": {"$ref": "#/$defs/recordIds"},
+    "unwaived_warning_ids": {"$ref": "#/$defs/strings"},
+    "reason_codes": {"$ref": "#/$defs/strings"},
+    "evaluated_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "recordIds": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^approval-[0-9a-f]{24}$"}
+    },
+    "strings": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}
