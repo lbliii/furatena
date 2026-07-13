@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Protocol, cast
 
@@ -26,6 +27,221 @@ _DEFAULT_INDEX_FILES = {
     ".rst": ("index.rst", "_index.rst"),
     ".myst": ("index.myst", "_index.myst"),
 }
+
+_EDITION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_EDITION_STATUSES = frozenset({"current", "legacy", "deprecated", "preview", "eol"})
+_EDITION_SOURCES = {"tags": "tags", "git-tags": "tags", "releases/tags": "tags"}
+_EDITION_SORTS = frozenset({"semver-desc", "name-desc"})
+
+
+@dataclass(frozen=True, slots=True)
+class GitEditionOverride:
+    """Lifecycle metadata that can retain one release beyond the count window."""
+
+    status: str = "legacy"
+    release_date: str | None = None
+    end_of_life: str | None = None
+    banner: str | None = None
+
+    @classmethod
+    def from_mapping(
+        cls,
+        raw: dict[str, Any],
+        *,
+        mount_id: str,
+        edition_id: str,
+    ) -> GitEditionOverride:
+        status = str(raw.get("status") or "legacy").strip().lower()
+        if status not in _EDITION_STATUSES - {"current"}:
+            expected = ", ".join(sorted(_EDITION_STATUSES - {"current"}))
+            raise ValueError(
+                f"mount {mount_id!r} edition override {edition_id!r} has unsupported status "
+                f"{status!r}; expected one of: {expected}"
+            )
+        release_date = _optional_date(raw.get("release_date"), mount_id, edition_id, "release_date")
+        end_of_life = _optional_date(raw.get("end_of_life"), mount_id, edition_id, "end_of_life")
+        return cls(
+            status=status,
+            release_date=release_date,
+            end_of_life=end_of_life,
+            banner=str(raw.get("banner") or "").strip() or None,
+        )
+
+    def to_dict(self) -> dict[str, str | None]:
+        return {
+            "status": self.status,
+            "release_date": self.release_date,
+            "end_of_life": self.end_of_life,
+            "banner": self.banner,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class GitEditionPolicy:
+    """Bengal-compatible tag discovery policy for one git-backed mount."""
+
+    source: str = "tags"
+    count: int = 0
+    pattern: str = "v*"
+    strip_prefix: str = "v"
+    sort: str = "semver-desc"
+    include_prereleases: bool = False
+    overrides: dict[str, GitEditionOverride] = field(default_factory=dict)
+
+    @classmethod
+    def from_mount_dict(
+        cls,
+        item: dict[str, Any],
+        *,
+        mount_id: str,
+        git_backed: bool,
+    ) -> GitEditionPolicy | None:
+        raw = item.get("editions")
+        if raw is None:
+            return None
+        if not isinstance(raw, dict):
+            raise ValueError(f"mount {mount_id!r} editions must be a mapping")
+        if not git_backed:
+            raise ValueError(
+                f"mount {mount_id!r} editions require source.provider: git and a repository"
+            )
+        source_raw = str(raw.get("source") or "tags").strip()
+        source = _EDITION_SOURCES.get(source_raw)
+        if source is None:
+            expected = ", ".join(sorted(_EDITION_SOURCES))
+            raise ValueError(
+                f"mount {mount_id!r} editions.source {source_raw!r} is unsupported; "
+                f"expected one of: {expected}"
+            )
+        count_raw = raw.get("count", 0)
+        if isinstance(count_raw, bool) or not isinstance(count_raw, int) or count_raw < 0:
+            raise ValueError(f"mount {mount_id!r} editions.count must be a non-negative integer")
+        pattern = str(raw.get("pattern") or "v*").strip()
+        _validate_glob(pattern, mount_id=mount_id)
+        sort = str(raw.get("sort") or "semver-desc").strip()
+        if sort not in _EDITION_SORTS:
+            expected = ", ".join(sorted(_EDITION_SORTS))
+            raise ValueError(
+                f"mount {mount_id!r} editions.sort {sort!r} is unsupported; "
+                f"expected one of: {expected}"
+            )
+        include_prereleases = raw.get("include_prereleases", False)
+        if not isinstance(include_prereleases, bool):
+            raise ValueError(
+                f"mount {mount_id!r} editions.include_prereleases must be true or false"
+            )
+        overrides_raw = raw.get("overrides") or {}
+        if not isinstance(overrides_raw, dict):
+            raise ValueError(f"mount {mount_id!r} editions.overrides must be a mapping")
+        overrides: dict[str, GitEditionOverride] = {}
+        for edition_raw, override_raw in overrides_raw.items():
+            edition_id = str(edition_raw).strip()
+            validate_edition_id(edition_id, mount_id=mount_id, label="override")
+            if not isinstance(override_raw, dict):
+                raise ValueError(
+                    f"mount {mount_id!r} edition override {edition_id!r} must be a mapping"
+                )
+            overrides[edition_id] = GitEditionOverride.from_mapping(
+                override_raw,
+                mount_id=mount_id,
+                edition_id=edition_id,
+            )
+        return cls(
+            source=source,
+            count=count_raw,
+            pattern=pattern,
+            strip_prefix=str(raw["strip_prefix"] if raw.get("strip_prefix") is not None else "v"),
+            sort=sort,
+            include_prereleases=include_prereleases,
+            overrides=overrides,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "source": self.source,
+            "count": self.count,
+            "pattern": self.pattern,
+            "strip_prefix": self.strip_prefix,
+            "sort": self.sort,
+            "include_prereleases": self.include_prereleases,
+            "overrides": {
+                edition_id: override.to_dict()
+                for edition_id, override in sorted(self.overrides.items())
+            },
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class GitEditionSnapshot:
+    """One discovered and materialized edition with immutable git provenance."""
+
+    id: str
+    ref: str
+    resolved_ref: str
+    content_root: Path
+    status: str
+    prerelease: bool
+    discovered_at: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "ref": self.ref,
+            "resolved_ref": self.resolved_ref,
+            "content_root": str(self.content_root),
+            "status": self.status,
+            "prerelease": self.prerelease,
+            "discovered_at": self.discovered_at,
+        }
+
+    @classmethod
+    def from_mapping(cls, raw: dict[str, Any]) -> GitEditionSnapshot:
+        return cls(
+            id=str(raw["id"]),
+            ref=str(raw["ref"]),
+            resolved_ref=str(raw["resolved_ref"]),
+            content_root=Path(str(raw["content_root"])).expanduser().resolve(),
+            status=str(raw["status"]),
+            prerelease=bool(raw.get("prerelease")),
+            discovered_at=str(raw["discovered_at"]),
+        )
+
+
+def validate_edition_id(value: str, *, mount_id: str, label: str = "edition") -> None:
+    if value == "latest" or not _EDITION_ID_RE.fullmatch(value):
+        raise ValueError(
+            f"mount {mount_id!r} {label} id {value!r} must be URL-safe and cannot be 'latest'"
+        )
+
+
+def _validate_glob(pattern: str, *, mount_id: str) -> None:
+    if not pattern:
+        raise ValueError(f"mount {mount_id!r} editions.pattern cannot be empty")
+    opened = False
+    for char in pattern:
+        if char == "[":
+            if opened:
+                raise ValueError(f"mount {mount_id!r} editions.pattern {pattern!r} is malformed")
+            opened = True
+        elif char == "]":
+            if not opened:
+                raise ValueError(f"mount {mount_id!r} editions.pattern {pattern!r} is malformed")
+            opened = False
+    if opened:
+        raise ValueError(f"mount {mount_id!r} editions.pattern {pattern!r} is malformed")
+
+
+def _optional_date(value: Any, mount_id: str, edition_id: str, label: str) -> str | None:
+    normalized = str(value or "").strip()
+    if not normalized:
+        return None
+    try:
+        date.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(
+            f"mount {mount_id!r} edition override {edition_id!r} {label} must be YYYY-MM-DD"
+        ) from exc
+    return normalized
 
 
 @dataclass(frozen=True, slots=True)

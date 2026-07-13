@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from furatena.catalog.audit_store import redact_audit_value
+from furatena.catalog.sources.types import GitEditionPolicy, GitEditionSnapshot
 
 
 class SourceSyncStateStore:
@@ -166,6 +167,8 @@ class SourceSyncStateStore:
         resolved_ref: str | None,
         content_root: Path,
         source_url: str | None,
+        editions: tuple[GitEditionSnapshot, ...] = (),
+        edition_policy: GitEditionPolicy | None = None,
         now: float | None = None,
     ) -> dict[str, Any]:
         observed_at = _timestamp(self._clock() if now is None else now)
@@ -175,6 +178,8 @@ class SourceSyncStateStore:
                 "resolved_ref": resolved_ref,
                 "content_root": str(content_root.resolve()),
                 "source_url": source_url,
+                "edition_policy": edition_policy.to_dict() if edition_policy is not None else None,
+                "editions": [edition.to_dict() for edition in editions],
                 "reconciled_at": _iso(observed_at),
                 "reconciled_at_epoch": observed_at,
             }

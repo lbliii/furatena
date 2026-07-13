@@ -148,6 +148,7 @@ ci-fast: format-check
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/registry.py \
+		src/furatena/catalog/sources/git.py \
 		src/furatena/catalog/sources/types.py \
 		src/furatena/catalog/author_store.py \
 		src/furatena/catalog/lifecycle.py \
@@ -169,6 +170,7 @@ ci-fast: format-check
 		tests/test_operational_status.py \
 		tests/test_observability.py \
 		tests/test_source_sync_state.py \
+		tests/test_git_edition_discovery.py \
 		tests/test_operation_coordination.py \
 		tests/test_publication_provider_contracts.py \
 		tests/test_publication_provider_schemas.py \

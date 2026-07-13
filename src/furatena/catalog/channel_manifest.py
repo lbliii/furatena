@@ -294,6 +294,8 @@ def _source_fingerprints(
                 for node in mount_nodes
             ]
         )
+        editions_for = getattr(catalog, "discovered_editions_for", None)
+        editions = editions_for(mount.id) if callable(editions_for) else ()
         records.append(
             {
                 "mount": mount.id,
@@ -303,6 +305,17 @@ def _source_fingerprints(
                 "fingerprint": fingerprint,
                 "status": status.get("status") or "available",
                 "page_count": len(mount_nodes),
+                "editions": [
+                    {
+                        "id": edition.id,
+                        "ref": edition.ref,
+                        "resolved_ref": edition.resolved_ref,
+                        "status": edition.status,
+                        "prerelease": edition.prerelease,
+                        "discovered_at": edition.discovered_at,
+                    }
+                    for edition in editions
+                ],
             }
         )
     return records
