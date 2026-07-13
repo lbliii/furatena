@@ -41,10 +41,10 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     assert "--workers 1" in start
 
 
-def test_railway_uses_pounce_0_9_without_keep_alive_workaround() -> None:
+def test_railway_uses_pounce_0_9_1_without_keep_alive_workaround() -> None:
     start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
 
-    assert version("bengal-pounce") == "0.9.0"
+    assert version("bengal-pounce") == "0.9.1"
     assert "FURA_KEEP_ALIVE_TIMEOUT" not in start
 
 

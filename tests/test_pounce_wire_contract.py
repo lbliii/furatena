@@ -11,7 +11,6 @@ from http.client import HTTPConnection
 from itertools import pairwise
 from typing import Any
 
-import pytest
 from pounce import ServerConfig
 from pounce.server import Server
 from pounce.testing import TestServer
@@ -245,5 +244,7 @@ def test_thread_worker_shutdown_returns_bounded_draining_503() -> None:
     assert slow_result and slow_result[0][0] == 200
     draining = [(timestamp, body) for timestamp, status, body in observed if status == 503]
     assert draining
-    if b"draining" not in draining[0][1]:
-        pytest.xfail("Pounce 0.9.0 listener drain body is tracked by lbliii/pounce#308")
+    payload = json.loads(draining[0][1])
+    assert payload["status"] == "draining"
+    assert payload["worker_id"] == 0
+    assert payload["active_connections"] == 0
