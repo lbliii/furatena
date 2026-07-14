@@ -37,6 +37,11 @@
       "reason": "This deterministic conformance fixture is linked from the platform proof and is not a primary documentation journey."
     },
     {
+      "finding": "navigation:/releases/2026-07-semantic-pdf/",
+      "disposition": "internal",
+      "reason": "Release details are linked from the release hub and remain outside the default documentation catalog rail."
+    },
+    {
       "finding": "public_feature:route:GET /develop/{export_id}/",
       "disposition": "internal",
       "reason": "Dynamic develop preview dispatch is an implementation route; the /develop/ surface and each exported contract are the public interface."
@@ -55,11 +60,6 @@
       "finding": "public_feature:route:GET /og/{name}",
       "disposition": "internal",
       "reason": "Generated social preview assets are linked through page metadata and are not a directly operated feature."
-    },
-    {
-      "finding": "public_feature:route:GET /releases/",
-      "disposition": "deferred",
-      "reason": "Release hub documentation belongs to the release-policy work tracked by issues 175 and 176."
     },
     {
       "finding": "public_feature:route:GET /releases/{slug:path}",

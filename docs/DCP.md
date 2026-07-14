@@ -323,7 +323,7 @@ Deployment manifests use the shared `furatena.deployment` schema (version 3).
 |---|---|
 | `manifest_type` | Always `furatena.deployment`. |
 | `target` / `mode` | Producer (`channels`, `freeze`, `static`, or `pdf`) and publication mode. |
-| `page_count` | Public pages represented by this artifact set. |
+| `page_count` | Target-owned page metric. Static/freeze targets report public catalog pages; PDF reports physical sheets. |
 | `artifacts` | Normalized `path`, optional byte size/media type, and optional fingerprint records. |
 | `fingerprints` | Renderer, route, catalog, source, theme, or artifact digests owned by the target. |
 | `sync` | Incremental, skipped, dirty-mount, renderer-change, and source-status state. |
@@ -335,6 +335,13 @@ canonical URLs; `export.manifest.json` retains `paths`, `base_path`, and
 `mount_status`. Readers accept the earlier channel v1 and freeze/static v2
 shapes, but all new writes use v3. This is the only intentional artifact-byte
 change in the v3 migration; rendered pages and sidecars remain byte-stable.
+
+PDF manifests add a `pdf` extension with `physical_page_count`,
+`source_node_count`, `paper`, `grayscale`, canonical source URLs, and named
+tagging/outline policies. `page_count` remains the compatibility field and now
+equals `physical_page_count`; consumers that previously inferred selected
+catalog nodes from it must migrate to `source_node_count`. The CLI mirrors this
+split as `page_count` (physical sheets) and `node_count` (selected catalog nodes).
 
 Freeze, static export, and PDF export write through the shared interface so CI,
 deploy tooling, hybrid serve mode, publication channels, and PDF tooling can

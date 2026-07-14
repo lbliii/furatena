@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from collections import Counter
@@ -23,6 +24,8 @@ def inspect_pdf(
     require_tagged: bool = False,
     require_outline: bool = False,
     require_annotations: bool = False,
+    required_structure_types: Iterable[str] = (),
+    required_metadata: Mapping[str, str] | None = None,
     reported_page_count: int | None = None,
     render: bool = True,
 ) -> dict[str, Any]:
@@ -35,8 +38,23 @@ def inspect_pdf(
     mark_info = _resolved(root.get("/MarkInfo")) or {}
     struct_root = _resolved(root.get("/StructTreeRoot")) or {}
     outline_count = _outline_count(reader.outline)
-    annotation_count = sum(len(_resolved(page.get("/Annots")) or ()) for page in reader.pages)
+    annotations = [
+        _resolved(annotation)
+        for page in reader.pages
+        for annotation in (_resolved(page.get("/Annots")) or ())
+    ]
+    annotation_count = len(annotations)
+    annotation_urls = sorted(
+        str(uri)
+        for annotation in annotations
+        if isinstance(annotation, Mapping)
+        for action in (_resolved(annotation.get("/A")),)
+        if isinstance(action, Mapping)
+        for uri in (action.get("/URI"),)
+        if uri
+    )
     tagged = bool(mark_info.get("/Marked")) and bool(struct_root)
+    structure_types = _structure_type_counts(struct_root)
     metadata = {
         str(key).removeprefix("/"): str(value)
         for key, value in (reader.metadata or {}).items()
@@ -50,6 +68,32 @@ def inspect_pdf(
         diagnostics.append(_diagnostic("pdf.outline", "PDF has no document outline"))
     if require_annotations and annotation_count == 0:
         diagnostics.append(_diagnostic("pdf.annotations", "PDF has no link annotations"))
+    tracked_urls = [
+        url for url in annotation_urls if re.search(r"[?&](?:utm_[^=]+|fbclid|gclid)=", url, re.I)
+    ]
+    if tracked_urls:
+        diagnostics.append(
+            _diagnostic(
+                "pdf.tracking-parameters",
+                f"link annotations retain tracking parameters: {tracked_urls}",
+            )
+        )
+    missing_structure_types = sorted(set(required_structure_types) - set(structure_types))
+    if missing_structure_types:
+        diagnostics.append(
+            _diagnostic(
+                "pdf.structure-types",
+                f"PDF is missing required structure types: {missing_structure_types}",
+            )
+        )
+    for key, expected in (required_metadata or {}).items():
+        if metadata.get(key) != expected:
+            diagnostics.append(
+                _diagnostic(
+                    "pdf.metadata",
+                    f"metadata {key} is {metadata.get(key)!r}, expected {expected!r}",
+                )
+            )
     if reported_page_count is not None and reported_page_count != len(reader.pages):
         diagnostics.append(
             _diagnostic(
@@ -59,17 +103,28 @@ def inspect_pdf(
         )
 
     sentinel_status: dict[str, bool] = {}
+    sentinel_counts: dict[str, int] = {}
     for sentinel in sentinels:
-        present = sentinel in text
+        count = text.count(sentinel)
+        present = count == 1
         sentinel_status[sentinel] = present
-        if not present:
+        sentinel_counts[sentinel] = count
+        if count == 0:
             diagnostics.append(
                 _diagnostic("pdf.missing-sentinel", f"missing public sentinel: {sentinel}")
             )
+        elif count > 1:
+            diagnostics.append(
+                _diagnostic(
+                    "pdf.duplicate-sentinel",
+                    f"public sentinel appears {count} times: {sentinel}",
+                )
+            )
     for sentinel in forbidden_sentinels:
-        present = sentinel in text
-        sentinel_status[sentinel] = not present
-        if present:
+        count = text.count(sentinel)
+        sentinel_status[sentinel] = count == 0
+        sentinel_counts[sentinel] = count
+        if count:
             diagnostics.append(
                 _diagnostic("pdf.protected-sentinel", f"protected sentinel leaked: {sentinel}")
             )
@@ -91,15 +146,17 @@ def inspect_pdf(
         "pdfinfo": pdfinfo(path),
         "outline_count": outline_count,
         "annotation_count": annotation_count,
+        "annotation_urls": annotation_urls,
         "tagged": tagged,
         "structure": {
             "mark_info_marked": bool(mark_info.get("/Marked")),
             "struct_tree_root": bool(struct_root),
             "role_map": sorted(str(key) for key in (_resolved(struct_root.get("/RoleMap")) or {})),
-            "type_counts": _structure_type_counts(struct_root),
+            "type_counts": structure_types,
         },
         "text_characters": len(text),
         "sentinels": sentinel_status,
+        "sentinel_counts": sentinel_counts,
         "rasters": rasters,
         "diagnostics": diagnostics,
     }

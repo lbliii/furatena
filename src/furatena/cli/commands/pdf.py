@@ -52,6 +52,8 @@ def _run_pdf(args: argparse.Namespace) -> None:
                 collection=args.collection,
                 site_name=docs.config.site.name,
                 base_url=args.base_url.rstrip("/") if args.base_url else "",
+                paper=args.paper,
+                grayscale=args.grayscale,
                 update_channel_manifest=not args.no_channels,
             ),
         )
@@ -88,6 +90,7 @@ def _run_pdf(args: argparse.Namespace) -> None:
                     "target": result.target,
                     "paths": list(result.paths),
                     "page_count": result.page_count,
+                    "node_count": result.node_count,
                     "byte_count": result.byte_count,
                     "channels_updated": not args.no_channels,
                 },
@@ -96,7 +99,10 @@ def _run_pdf(args: argparse.Namespace) -> None:
         )
         return
     paths = ", ".join(str(path) for path in result.paths)
-    print(f"Exported {result.page_count} page(s) to PDF: {paths}")
+    print(
+        f"Exported {result.page_count} physical page(s) from "
+        f"{result.node_count} catalog node(s) to PDF: {paths}"
+    )
 
 
 def configure(sub: Any) -> None:
@@ -113,6 +119,17 @@ def configure(sub: Any) -> None:
         help="Output directory (default app/public/pdf)",
     )
     pdf.add_argument("--base-url", default="", help="Public origin for channel manifest URLs")
+    pdf.add_argument(
+        "--paper",
+        choices=("letter", "a4"),
+        default="letter",
+        help="Physical PDF page size (default letter)",
+    )
+    pdf.add_argument(
+        "--grayscale",
+        action="store_true",
+        help="Render a grayscale publication profile",
+    )
     pdf_source = pdf.add_mutually_exclusive_group()
     pdf_source.add_argument(
         "--frozen",

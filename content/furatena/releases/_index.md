@@ -8,6 +8,8 @@ type: doc
 category: releases
 ---
 
-Release notes for Furatena will be published here as the project ships versions.
+Release notes for Furatena are published here as the project ships versions.
+
+- [Semantic native PDF and conformance gate](/releases/2026-07-semantic-pdf/)
 
 The version channel selector appears in the docs rail when release metadata is indexed.

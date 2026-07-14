@@ -939,7 +939,7 @@ def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) ->
         "description: PDF export fixture.\n"
         "---\n"
         "# PDF Source\n\n"
-        "Intro paragraph with [Example](https://example.com).\n\n"
+        "Intro paragraph with [Example](https://example.com?utm_source=test&keep=1).\n\n"
         "## Heading One\n\n"
         "Body under heading.\n\n"
         "```python\n"
@@ -987,6 +987,9 @@ def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) ->
     assert collection_pdf.stat().st_size > page_pdf.stat().st_size
     assert site_pdf.stat().st_size > 1000
     assert site_payload["data"]["page_count"] >= collection_payload["data"]["page_count"]
+    assert page_payload["data"]["node_count"] == 1
+    assert collection_payload["data"]["node_count"] >= 1
+    assert site_payload["data"]["node_count"] >= collection_payload["data"]["node_count"]
     assert page_payload["data"]["page_count"] == len(PdfReader(str(page_pdf)).pages)
     assert collection_payload["data"]["page_count"] == len(PdfReader(str(collection_pdf)).pages)
     assert site_payload["data"]["page_count"] == len(PdfReader(str(site_pdf)).pages)
@@ -998,13 +1001,29 @@ def test_pdf_export_supports_page_collection_and_site(tmp_path: Path, capsys) ->
     assert pdf_manifest["manifest_type"] == "furatena.deployment"
     assert pdf_manifest["target"] == "pdf"
     assert pdf_manifest["artifacts"][0]["fingerprint"]
+    assert pdf_manifest["pdf"]["physical_page_count"] == site_payload["data"]["page_count"]
+    assert pdf_manifest["pdf"]["tagging_policy"] == "semantic-marked-content-v1"
 
-    text = "\n".join(page.extract_text() or "" for page in PdfReader(str(page_pdf)).pages)
+    reader = PdfReader(str(page_pdf))
+    text = "\n".join(page.extract_text() or "" for page in reader.pages)
     assert "PDF Source" in text
     assert "Heading One" in text
     assert "print('pdf code')" in text
     assert "https://example.com" in text
+    assert "utm_source" not in text
     assert "Page 1" in text
+    assert bool(reader.trailer["/Root"]["/MarkInfo"]["/Marked"]) is True
+    assert reader.trailer["/Root"]["/StructTreeRoot"]
+    assert len(reader.outline) >= 2
+    assert sum(len(page.get("/Annots") or ()) for page in reader.pages) >= 2
+    annotation_urls = [
+        str(annotation.get_object()["/A"]["/URI"])
+        for page in reader.pages
+        for annotation in (page.get("/Annots") or ())
+        if annotation.get_object().get("/A") and annotation.get_object()["/A"].get("/URI")
+    ]
+    assert any("keep=1" in url for url in annotation_urls)
+    assert all("utm_" not in url for url in annotation_urls)
 
     channels = json.loads((app_root / "public" / "channels.json").read_text(encoding="utf-8"))
     pdf_channel = next(item for item in channels["channels"] if item["id"] == "pdf")

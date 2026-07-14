@@ -90,12 +90,22 @@ Use `fura pdf` to publish a page, collection, or full-site PDF bundle:
 uv run fura pdf --page /docs/get-started/
 uv run fura pdf --collection docs
 uv run fura pdf
+uv run fura pdf --page /docs/get-started/ --paper a4
 ```
 
 By default the command writes to `app/public/pdf/`, writes a PDF `manifest.json`,
 and refreshes `app/public/channels.json` so deploy tooling can discover generated
 PDF outputs. Pass an explicit output directory for a custom artifact location, or
 `--no-channels` when a job should not update the public channel manifest.
+
+Native PDFs preserve source order from the catalog's stored Patitas AST, including
+headings, inline emphasis and links, lists, tables with repeated headers, code, and
+callout fallbacks. They include searchable text, clickable annotations, a document
+outline, canonical source identity, and semantic marked-content tags. `--paper` selects
+Letter or A4. `page_count` and the manifest's `physical_page_count` always report actual
+PDF sheets; CLI `node_count` and manifest `source_node_count` separately report selected
+catalog pages. This split is the compatibility migration path for consumers that formerly
+interpreted `page_count` as a document count.
 
 ## Branding at deploy time
 

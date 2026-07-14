@@ -11,6 +11,7 @@ import socketserver
 import subprocess
 import sys
 import threading
+import time
 from collections.abc import Iterator, Mapping
 from http.server import SimpleHTTPRequestHandler
 from pathlib import Path
@@ -22,6 +23,7 @@ from furatena.catalog.pdf_proof import apply_baseline, inspect_pdf, write_report
 
 PUBLIC_SENTINEL = "FURA_PDF_PUBLIC_SENTINEL_434"
 PROTECTED_SENTINEL = "FURA_PDF_PROTECTED_SENTINEL_434"
+NATIVE_SITE_BUDGET_SECONDS = 30.0
 
 
 def main() -> int:
@@ -51,10 +53,10 @@ def main() -> int:
         )
 
     if args.browser_url:
-        records.append(_browser_record(args.browser_url, output, scope="hosted"))
+        records.extend(_browser_records(args.browser_url, output, scope="hosted"))
     elif args.site_root:
         with _site_server(args.site_root.resolve()) as origin:
-            records.append(_browser_record(f"{origin}{args.route}", output, scope="local"))
+            records.extend(_browser_records(f"{origin}{args.route}", output, scope="local"))
     else:
         parser.error("provide --site-root or --browser-url")
 
@@ -85,12 +87,13 @@ def _native_records(
 ) -> list[dict[str, Any]]:
     native_dir = output / "native"
     commands = (
-        ("page", ["--page", route]),
-        ("collection", ["--collection", collection]),
-        ("site", []),
+        ("page-letter", "page", ["--page", route, "--paper", "letter"]),
+        ("page-a4-grayscale", "page", ["--page", route, "--paper", "a4", "--grayscale"]),
+        ("collection-letter", "collection", ["--collection", collection, "--paper", "letter"]),
+        ("site-letter", "site", ["--paper", "letter"]),
     )
     records: list[dict[str, Any]] = []
-    for scope, selectors in commands:
+    for profile, scope, selectors in commands:
         command = [
             sys.executable,
             "-m",
@@ -104,30 +107,75 @@ def _native_records(
             "--json",
             "--no-autodoc",
             "--no-channels",
+            "--base-url",
+            "https://furatena.example",
         ]
+        generation_started = time.perf_counter()
         completed = subprocess.run(command, check=True, capture_output=True, text=True)
+        generation_seconds = time.perf_counter() - generation_started
         result = json.loads(completed.stdout)
         data = result["data"]
         pdf_path = Path(data["paths"][0])
+        required_metadata = {"Author": "Furatena"}
+        if scope == "page":
+            required_metadata.update(
+                {
+                    "Title": "Cross-head PDF publication proof - Furatena",
+                    "Subject": "https://furatena.example/proof/pdf-stress/",
+                }
+            )
+        verification_started = time.perf_counter()
         record = inspect_pdf(
             pdf_path,
-            raster_dir=output / "rasters" / f"native-{scope}",
+            raster_dir=output / "rasters" / f"native-{profile}",
             sentinels=(PUBLIC_SENTINEL,),
             forbidden_sentinels=(PROTECTED_SENTINEL,),
             require_tagged=True,
             require_outline=True,
             require_annotations=True,
+            required_structure_types=("H1", "H2", "P", "L", "Table", "Code"),
+            required_metadata=required_metadata,
             reported_page_count=int(data["page_count"]),
         )
-        record.update({"head": "native", "scope": scope})
+        verification_seconds = time.perf_counter() - verification_started
+        if scope == "site" and generation_seconds > NATIVE_SITE_BUDGET_SECONDS:
+            record["diagnostics"].append(
+                {
+                    "rule": "pdf.performance-budget",
+                    "message": (
+                        f"full-site generation took {generation_seconds:.3f}s; "
+                        f"budget is {NATIVE_SITE_BUDGET_SECONDS:.1f}s"
+                    ),
+                }
+            )
+        record.update(
+            {
+                "head": "native",
+                "scope": scope,
+                "profile": profile,
+                "performance": {
+                    "generation_seconds": round(generation_seconds, 3),
+                    "verification_seconds": round(verification_seconds, 3),
+                    "generation_budget_seconds": (
+                        NATIVE_SITE_BUDGET_SECONDS if scope == "site" else None
+                    ),
+                },
+            }
+        )
         records.append(record)
     return records
 
 
-def _browser_record(url: str, output: Path, *, scope: str) -> dict[str, Any]:
+def _browser_records(url: str, output: Path, *, scope: str) -> list[dict[str, Any]]:
     browser_dir = output / "browser"
     browser_dir.mkdir(parents=True, exist_ok=True)
-    pdf_path = browser_dir / f"{scope}-pdf-stress.pdf"
+    profiles = (
+        ("letter-color", "Letter", True, False, "light"),
+        ("letter-dark-source", "Letter", True, False, "dark"),
+        ("a4-background-off", "A4", False, False, "light"),
+        ("letter-grayscale", "Letter", True, True, "light"),
+    )
+    records: list[dict[str, Any]] = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page()
@@ -140,26 +188,84 @@ def _browser_record(url: str, output: Path, *, scope: str) -> dict[str, Any]:
             "title": page.title(),
             "canonical_url": page.locator('link[rel="canonical"]').first.get_attribute("href"),
         }
-        page.pdf(
-            path=str(pdf_path),
-            format="Letter",
-            print_background=True,
-            prefer_css_page_size=True,
-            tagged=True,
-            outline=True,
+        page.add_style_tag(
+            content=(
+                "html.pdf-proof-grayscale, html.pdf-proof-grayscale body { "
+                "background: white !important; } "
+                "html.pdf-proof-grayscale *, html.pdf-proof-grayscale *::before, "
+                "html.pdf-proof-grayscale *::after { color: #222 !important; "
+                "border-color: #999 !important; background-color: transparent !important; "
+                "background-image: none !important; "
+                "box-shadow: none !important; text-shadow: none !important; } "
+                "html.pdf-proof-grayscale pre, html.pdf-proof-grayscale code, "
+                "html.pdf-proof-grayscale table { background: #f3f3f3 !important; }"
+            )
         )
+        for profile, paper, print_background, grayscale, source_theme in profiles:
+            pdf_path = browser_dir / f"{scope}-{profile}-pdf-stress.pdf"
+            page.emulate_media(media="print")
+            page.evaluate(
+                """profile => {
+                  document.documentElement.dataset.theme = profile.sourceTheme;
+                  document.documentElement.classList.toggle('pdf-proof-grayscale', profile.grayscale);
+                }""",
+                {"grayscale": grayscale, "sourceTheme": source_theme},
+            )
+            lifecycle_before = _print_state(page)
+            page.pdf(
+                path=str(pdf_path),
+                format=paper,
+                print_background=print_background,
+                prefer_css_page_size=False,
+                tagged=True,
+                outline=True,
+            )
+            lifecycle_after = _print_state(page)
+            record = inspect_pdf(
+                pdf_path,
+                raster_dir=output / "rasters" / f"browser-{scope}-{profile}",
+                sentinels=(PUBLIC_SENTINEL,),
+                forbidden_sentinels=(PROTECTED_SENTINEL,),
+                require_tagged=True,
+                require_outline=True,
+                require_annotations=True,
+            )
+            record.update(
+                {
+                    "head": "browser",
+                    "scope": scope,
+                    "profile": profile,
+                    "provenance": provenance,
+                    "print_lifecycle": {
+                        "stable": lifecycle_before == lifecycle_after,
+                        "before": lifecycle_before,
+                        "after": lifecycle_after,
+                    },
+                }
+            )
+            if lifecycle_before != lifecycle_after:
+                record["diagnostics"].append(
+                    {
+                        "rule": "browser.print-lifecycle",
+                        "message": f"print state did not clean up exactly for profile {profile}",
+                    }
+                )
+            records.append(record)
         browser.close()
-    record = inspect_pdf(
-        pdf_path,
-        raster_dir=output / "rasters" / f"browser-{scope}",
-        sentinels=(PUBLIC_SENTINEL,),
-        forbidden_sentinels=(PROTECTED_SENTINEL,),
-        require_tagged=True,
-        require_outline=True,
-        require_annotations=True,
+    return records
+
+
+def _print_state(page: Any) -> dict[str, Any]:
+    return page.evaluate(
+        """() => ({
+          htmlClass: document.documentElement.className,
+          htmlStyle: document.documentElement.getAttribute('style') || '',
+          bodyClass: document.body.className,
+          bodyStyle: document.body.getAttribute('style') || '',
+          openDetails: document.querySelectorAll('details[open]').length,
+          hidden: document.querySelectorAll('[hidden]').length
+        })"""
     )
-    record.update({"head": "browser", "scope": scope, "provenance": provenance})
-    return record
 
 
 @contextlib.contextmanager
@@ -190,14 +296,15 @@ def _summary(payload: Mapping[str, Any]) -> str:
         "",
         f"Status: {'pass' if outcome['ok'] else 'fail'}",
         "",
-        "| Head | Scope | Pages | Tagged | Outline | Links | Diagnostics |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| Head | Scope | Profile | Pages | Tagged | Outline | Links | Diagnostics |",
+        "|---|---|---|---:|---:|---:|---:|---:|",
     ]
     for record in payload["records"]:
         lines.append(
-            "| {head} | {scope} | {pages} | {tagged} | {outline} | {links} | {diagnostics} |".format(
+            "| {head} | {scope} | {profile} | {pages} | {tagged} | {outline} | {links} | {diagnostics} |".format(
                 head=record["head"],
                 scope=record["scope"],
+                profile=record.get("profile", "default"),
                 pages=record["page_count"],
                 tagged="yes" if record["tagged"] else "no",
                 outline=record["outline_count"],

@@ -1,11 +1,5 @@
 {
-  "allowed_failures": {
-    "native": [
-      "pdf.annotations",
-      "pdf.outline",
-      "pdf.tagged"
-    ]
-  },
-  "owner": "issue-432",
-  "reason": "The semantic native renderer and truthful physical-page metrics are tracked by issue #432. Any additional diagnostic fails the proof lane."
+  "allowed_failures": {},
+  "owner": "issue-433",
+  "reason": "The native and browser PDF heads pass the same structural, semantic, visibility, and raster gates without exemptions."
 }
