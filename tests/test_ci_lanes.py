@@ -53,6 +53,10 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "tests/test_record_types.py" in makefile
     assert "tests/test_search_hot_paths.py" in makefile
     assert "tests/test_chirp_docs_incremental.py" in makefile
+    assert "src/furatena/catalog/preview_contracts.py" in makefile
+    assert "tests/test_preview_contracts.py" in makefile
+    assert "tests/test_preview_schemas.py" in makefile
+    assert "tests/test_preview_fixtures.py" in makefile
     assert "uv build --clear --no-sources" in makefile
     assert "scripts/check_distributions.py --dist-dir dist" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile
@@ -84,7 +88,7 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     jobs = workflow["jobs"]
 
     assert workflow["env"]["PYTHON_GIL"] == "0"
-    assert set(jobs) == {*LANES, "deploy"}
+    assert set(jobs) == {*LANES, "deploy", "hosted-pdf-proof"}
     for lane in LANES:
         job = jobs[lane]
         commands = [step.get("run") for step in job["steps"] if "run" in step]

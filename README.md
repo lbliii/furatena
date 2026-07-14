@@ -85,6 +85,7 @@ backpressure.
 - [CLI contract](docs/CLI_CONTRACT.md)
 - [HTTP QUERY prototype](docs/HTTP_QUERY.md)
 - [htmx 4 preview report](docs/HTMX4_PREVIEW.md)
+- [Pull-request preview contract](docs/PR_PREVIEW_CONTRACT.md)
 - [Compatibility and support policy](docs/COMPATIBILITY.md)
 - [Release and incident runbook](docs/RELEASING.md)
 - [CI lanes](docs/CI.md)

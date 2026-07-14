@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/preview/v1/request.schema.json",
+  "title": "Furatena preview request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "request_id", "request_digest", "action", "source",
+    "provider_id", "idempotency_key", "expected_state_version", "requested_at", "expires_at",
+    "previous_preview_id", "correlation_id", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.preview.request"},
+    "request_id": {"type": "string", "pattern": "^preview-request-[0-9a-f]{24}$"},
+    "request_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "action": {"enum": ["create", "update", "stop"]},
+    "source": {"$ref": "common.schema.json#/$defs/source"},
+    "provider_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "idempotency_key": {"$ref": "common.schema.json#/$defs/nonEmptyString"},
+    "expected_state_version": {
+      "oneOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]
+    },
+    "requested_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "expires_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "previous_preview_id": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "correlation_id": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "extensions": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"const": "create"}}},
+      "then": {"properties": {"previous_preview_id": {"type": "null"}}},
+      "else": {"properties": {"previous_preview_id": {"$ref": "common.schema.json#/$defs/nonEmptyString"}}}
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "action": "create",
+  "correlation_id": "github-delivery-1",
+  "expected_state_version": null,
+  "expires_at": "2030-01-08T00:00:00Z",
+  "extensions": {},
+  "idempotency_key": "preview-create-422-a",
+  "previous_preview_id": null,
+  "provider_id": "reference",
+  "record_type": "furatena.preview.request",
+  "request_digest": "sha256:cfb1a6cf852444c8ad9e842a57f134e1aed4981708c35292117884f847d99f70",
+  "request_id": "preview-request-cfb1a6cf852444c8ad9e842a",
+  "requested_at": "2030-01-01T00:00:00Z",
+  "schema_version": 1,
+  "source": {
+    "head_ref": "codex/issue-422-preview-contract",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "pull_request_number": 422,
+    "repository_id": "github:lbliii/furatena",
+    "repository_url": "https://github.com/lbliii/furatena",
+    "review_url": "https://github.com/lbliii/furatena/pull/440"
+  }
+}

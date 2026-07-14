@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/preview/v1/manifest.schema.json",
+  "title": "Furatena preview manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "preview_id", "manifest_digest", "state", "state_version",
+    "source", "provider", "access", "surfaces", "artifact", "checks", "failure", "created_at",
+    "updated_at", "expires_at", "stopped_at", "correlation_id", "extensions"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.preview.manifest"},
+    "preview_id": {"type": "string", "pattern": "^preview-[0-9a-f]{24}$"},
+    "manifest_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "state": {"enum": ["requested", "building", "ready", "failed", "stopping", "stopped"]},
+    "state_version": {"type": "integer", "minimum": 1},
+    "source": {"$ref": "common.schema.json#/$defs/source"},
+    "provider": {"$ref": "common.schema.json#/$defs/provider"},
+    "access": {"$ref": "common.schema.json#/$defs/access"},
+    "surfaces": {
+      "oneOf": [{"$ref": "common.schema.json#/$defs/surfaces"}, {"type": "null"}]
+    },
+    "artifact": {
+      "oneOf": [{"$ref": "common.schema.json#/$defs/artifact"}, {"type": "null"}]
+    },
+    "checks": {
+      "type": "array",
+      "items": {"$ref": "common.schema.json#/$defs/check"}
+    },
+    "failure": {
+      "oneOf": [{"$ref": "common.schema.json#/$defs/failure"}, {"type": "null"}]
+    },
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "updated_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "expires_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "stopped_at": {
+      "oneOf": [{"$ref": "common.schema.json#/$defs/timestamp"}, {"type": "null"}]
+    },
+    "correlation_id": {"$ref": "common.schema.json#/$defs/nullableString"},
+    "extensions": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "ready"}}},
+      "then": {
+        "properties": {
+          "surfaces": {"$ref": "common.schema.json#/$defs/surfaces"},
+          "artifact": {"$ref": "common.schema.json#/$defs/artifact"},
+          "failure": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"state": {"const": "failed"}}},
+      "then": {"properties": {"failure": {"$ref": "common.schema.json#/$defs/failure"}}},
+      "else": {"properties": {"failure": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"state": {"const": "stopped"}}},
+      "then": {"properties": {"stopped_at": {"$ref": "common.schema.json#/$defs/timestamp"}}},
+      "else": {"properties": {"stopped_at": {"type": "null"}}}
+    }
+  ]
+}
