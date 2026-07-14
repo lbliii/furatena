@@ -239,6 +239,7 @@ def _governed_preview_repository_files() -> dict[str, str]:
                   expected_sha: ${{ github.event.pull_request.head.sha || github.event.client_payload.expected_sha }}
                   preview_url: ${{ github.event.client_payload.preview_url || '' }}
                   details_url: ${{ github.event.client_payload.details_url || '' }}
+                  reporter_ref: main
                 secrets:
                   FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}
             """
