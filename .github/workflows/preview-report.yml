@@ -1,0 +1,78 @@
+name: Report Furatena PR preview
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, closed]
+  repository_dispatch:
+    types: [furatena-preview]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: number
+      state:
+        description: Preview lifecycle state
+        required: true
+        type: choice
+        options: [queued, building, ready, failed, removed]
+      expected_sha:
+        description: Full pull-request head SHA
+        required: true
+        type: string
+      preview_url:
+        description: HTTPS preview origin (required for ready)
+        required: false
+        type: string
+      details_url:
+        description: Expandable provider diagnostics URL
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  checks: write
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: preview-report-${{ github.event.pull_request.number || inputs.pr_number || github.event.client_payload.pr_number }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: >-
+      github.event_name != 'pull_request_target' ||
+      github.event.action == 'closed' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.event.pull_request.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number || github.event.client_payload.pr_number }}
+      PREVIEW_STATE: ${{ github.event.action == 'closed' && 'removed' || (github.event_name == 'pull_request_target' && 'queued') || inputs.state || github.event.client_payload.state }}
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || inputs.expected_sha || github.event.client_payload.expected_sha }}
+      PREVIEW_URL: ${{ inputs.preview_url || github.event.client_payload.preview_url }}
+      DETAILS_URL: ${{ inputs.details_url || github.event.client_payload.details_url }}
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install reporter dependencies
+        run: uv sync --no-dev
+      - name: Publish idempotent preview report
+        run: >-
+          uv run python scripts/preview_report.py
+          --publish
+          --repository "${GITHUB_REPOSITORY}"
+          --pr-number "${PR_NUMBER}"
+          --state "${PREVIEW_STATE}"
+          --expected-sha "${EXPECTED_SHA}"
+          --origin "${PREVIEW_URL}"
+          --details-url "${DETAILS_URL}"
