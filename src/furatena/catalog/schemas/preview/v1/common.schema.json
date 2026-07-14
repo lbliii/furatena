@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/preview/v1/common.schema.json",
+  "title": "Furatena preview common types v1",
+  "$defs": {
+    "nonEmptyString": {"type": "string", "minLength": 1},
+    "nullableString": {"oneOf": [{"$ref": "#/$defs/nonEmptyString"}, {"type": "null"}]},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$"},
+    "httpsUrl": {"type": "string", "format": "uri", "pattern": "^https://"},
+    "nullableHttpsUrl": {"oneOf": [{"$ref": "#/$defs/httpsUrl"}, {"type": "null"}]},
+    "stringSet": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmptyString"}
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id", "repository_url", "pull_request_number", "head_ref", "head_sha",
+        "review_url"
+      ],
+      "properties": {
+        "repository_id": {"$ref": "#/$defs/nonEmptyString"},
+        "repository_url": {"$ref": "#/$defs/httpsUrl"},
+        "pull_request_number": {"type": "integer", "minimum": 1},
+        "head_ref": {"$ref": "#/$defs/nonEmptyString"},
+        "head_sha": {"$ref": "#/$defs/sha"},
+        "review_url": {"$ref": "#/$defs/nullableHttpsUrl"}
+      }
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_id", "project_id", "environment_id", "deployment_id", "capabilities"
+      ],
+      "properties": {
+        "provider_id": {"$ref": "#/$defs/nonEmptyString"},
+        "project_id": {"$ref": "#/$defs/nonEmptyString"},
+        "environment_id": {"$ref": "#/$defs/nullableString"},
+        "deployment_id": {"$ref": "#/$defs/nullableString"},
+        "capabilities": {"$ref": "#/$defs/stringSet"}
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authentication_required", "authentication_scheme", "indexing", "untrusted_forks",
+        "bot_pull_requests"
+      ],
+      "properties": {
+        "authentication_required": {"type": "boolean"},
+        "authentication_scheme": {"$ref": "#/$defs/nullableString"},
+        "indexing": {"const": "noindex,nofollow"},
+        "untrusted_forks": {"enum": ["deny", "require_approval", "allow"]},
+        "bot_pull_requests": {"enum": ["deny", "require_approval", "allow"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"authentication_required": {"const": true}}},
+          "then": {"properties": {"authentication_scheme": {"$ref": "#/$defs/nonEmptyString"}}},
+          "else": {"properties": {"authentication_scheme": {"type": "null"}}}
+        }
+      ]
+    },
+    "surfaces": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "human_url", "markdown_url_template", "llms_url", "catalog_url", "query_url",
+        "search_url", "metadata_url", "health_url", "readiness_url", "extensions"
+      ],
+      "properties": {
+        "human_url": {"$ref": "#/$defs/httpsUrl"},
+        "markdown_url_template": {
+          "allOf": [{"$ref": "#/$defs/httpsUrl"}, {"pattern": "\\{path\\}"}]
+        },
+        "llms_url": {"$ref": "#/$defs/httpsUrl"},
+        "catalog_url": {"$ref": "#/$defs/httpsUrl"},
+        "query_url": {"$ref": "#/$defs/httpsUrl"},
+        "search_url": {"$ref": "#/$defs/httpsUrl"},
+        "metadata_url": {"$ref": "#/$defs/httpsUrl"},
+        "health_url": {"$ref": "#/$defs/httpsUrl"},
+        "readiness_url": {"$ref": "#/$defs/httpsUrl"},
+        "extensions": {"type": "object"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "build_id", "source_sha", "catalog_schema_version", "frozen_at"],
+      "properties": {
+        "fingerprint": {"$ref": "#/$defs/digest"},
+        "build_id": {"$ref": "#/$defs/nonEmptyString"},
+        "source_sha": {"$ref": "#/$defs/sha"},
+        "catalog_schema_version": {"type": "integer", "minimum": 1},
+        "frozen_at": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["check_id", "status", "summary", "observed_at", "details_url", "remediation"],
+      "properties": {
+        "check_id": {"$ref": "#/$defs/nonEmptyString"},
+        "status": {"enum": ["pending", "pass", "fail", "skipped"]},
+        "summary": {"$ref": "#/$defs/nonEmptyString"},
+        "observed_at": {"$ref": "#/$defs/timestamp"},
+        "details_url": {"$ref": "#/$defs/nullableHttpsUrl"},
+        "remediation": {"$ref": "#/$defs/nullableString"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "fail"}}},
+          "then": {"properties": {"remediation": {"$ref": "#/$defs/nonEmptyString"}}}
+        }
+      ]
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["disposition", "code", "safe_message", "remediation"],
+      "properties": {
+        "disposition": {"enum": ["retryable", "terminal", "conflict", "authorization"]},
+        "code": {"$ref": "#/$defs/nonEmptyString"},
+        "safe_message": {"$ref": "#/$defs/nonEmptyString"},
+        "remediation": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    }
+  }
+}

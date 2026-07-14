@@ -1,0 +1,78 @@
+{
+  "access": {
+    "authentication_required": true,
+    "authentication_scheme": "reviewer-sso",
+    "bot_pull_requests": "deny",
+    "indexing": "noindex,nofollow",
+    "untrusted_forks": "deny"
+  },
+  "artifact": {
+    "build_id": "build-422-a",
+    "catalog_schema_version": 3,
+    "fingerprint": "sha256:e9914f4424a48204748839d3673e3c52da8836e3fd17c12c3d6987bfbb3c231f",
+    "frozen_at": "2030-01-01T00:02:00Z",
+    "source_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "checks": [
+    {
+      "check_id": "cross-surface",
+      "details_url": null,
+      "observed_at": "2030-01-01T00:04:00Z",
+      "remediation": null,
+      "status": "pass",
+      "summary": "Human and agent surfaces share the reviewed build."
+    },
+    {
+      "check_id": "readiness",
+      "details_url": "https://preview-422.example.test/readyz",
+      "observed_at": "2030-01-01T00:03:00Z",
+      "remediation": null,
+      "status": "pass",
+      "summary": "Readiness endpoint returned the reviewed SHA."
+    }
+  ],
+  "correlation_id": "github-delivery-1",
+  "created_at": "2030-01-01T00:00:00Z",
+  "expires_at": "2030-01-08T00:00:00Z",
+  "extensions": {},
+  "failure": null,
+  "manifest_digest": "sha256:7bd7ac4ee4e4abd038fc56d695a3269f9347c0fa7aa8dc057506e966a4c05bba",
+  "preview_id": "preview-11a29545aa281fdad74bc297",
+  "provider": {
+    "capabilities": [
+      "ephemeral_environment",
+      "managed_domain",
+      "teardown"
+    ],
+    "deployment_id": "deployment-a",
+    "environment_id": "environment-422",
+    "project_id": "project-1",
+    "provider_id": "reference"
+  },
+  "record_type": "furatena.preview.manifest",
+  "schema_version": 1,
+  "source": {
+    "head_ref": "codex/issue-422-preview-contract",
+    "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "pull_request_number": 422,
+    "repository_id": "github:lbliii/furatena",
+    "repository_url": "https://github.com/lbliii/furatena",
+    "review_url": "https://github.com/lbliii/furatena/pull/440"
+  },
+  "state": "ready",
+  "state_version": 3,
+  "stopped_at": null,
+  "surfaces": {
+    "catalog_url": "https://preview-422.example.test/catalog.json",
+    "extensions": {},
+    "health_url": "https://preview-422.example.test/healthz",
+    "human_url": "https://preview-422.example.test/",
+    "llms_url": "https://preview-422.example.test/llms.txt",
+    "markdown_url_template": "https://preview-422.example.test/{path}.md",
+    "metadata_url": "https://preview-422.example.test/meta.json",
+    "query_url": "https://preview-422.example.test/catalog/query.json",
+    "readiness_url": "https://preview-422.example.test/readyz",
+    "search_url": "https://preview-422.example.test/search.json"
+  },
+  "updated_at": "2030-01-01T00:04:00Z"
+}
