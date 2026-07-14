@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+from collections.abc import Mapping
 from typing import Any
 
 from chirp import OOB, App, EventStream, FormAction, Fragment, Page, Request, Response, SSEEvent
 from chirp.errors import MethodNotAllowed, NotFound, PayloadTooLarge
+from chirp.server.conditional import evaluate_conditional_response
 
 from furatena.catalog.build_identity import deployed_build_identity
 from furatena.catalog.catalog_shards import catalog_shard_path, is_safe_mount_id
@@ -78,13 +81,20 @@ _CATALOG_QUERY_FILTERS = frozenset(
     }
 )
 _GRAPH_EDGE_KINDS = frozenset(item.value for item in EdgeKind)
+_CATALOG_QUERY_MEDIA_TYPE = "application/vnd.furatena.catalog-query+json;version=1"
+_CATALOG_ACCEPT_QUERY = f'{_CATALOG_QUERY_MEDIA_TYPE.partition(";")[0]};version="1"'
+_CATALOG_QUERY_CACHE_CONTROL = "private, max-age=0, must-revalidate"
 
 
-def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | None:
-    unknown = sorted(set(request.query.keys()) - _CATALOG_QUERY_FILTERS)
+def _catalog_query_error(params: Mapping[str, Any], edge_kind: str | None) -> Response | None:
+    unknown = sorted(set(params) - _CATALOG_QUERY_FILTERS)
     invalid: dict[str, object] = {}
     if unknown:
         invalid["unknown"] = unknown
+    for name in _CATALOG_QUERY_FILTERS - {"limit", "offset"}:
+        raw = params.get(name)
+        if raw is not None and not isinstance(raw, str):
+            invalid[name] = raw
     normalized_edge = str(edge_kind or "").strip().lower()
     if normalized_edge and normalized_edge not in _GRAPH_EDGE_KINDS:
         invalid["edge_kind"] = normalized_edge
@@ -92,7 +102,10 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
         ("limit", DEFAULT_GRAPH_QUERY_LIMIT, 1, MAX_GRAPH_QUERY_LIMIT),
         ("offset", 0, 0, None),
     ):
-        raw = request.query.get(name)
+        raw = params.get(name)
+        if isinstance(raw, bool):
+            invalid[name] = raw
+            continue
         try:
             value = int(raw) if raw not in (None, "") else default
         except TypeError, ValueError:
@@ -115,6 +128,34 @@ def _catalog_query_error(request: Request, edge_kind: str | None) -> Response | 
         status=400,
         content_type="application/json; charset=utf-8",
     )
+
+
+def _catalog_query_response(
+    response: Response,
+    *,
+    request: Request,
+    query_input: Mapping[str, Any] | None = None,
+) -> Response:
+    """Attach HTTP QUERY discovery and body-aware validators."""
+    response = response.with_header("Accept-Query", _CATALOG_ACCEPT_QUERY)
+    if request.method != "QUERY" or response.status != 200 or query_input is None:
+        return response
+    canonical_query = json.dumps(
+        query_input,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    response_body = (
+        response.body.encode("utf-8") if isinstance(response.body, str) else response.body
+    )
+    digest = hashlib.sha256(canonical_query + b"\0" + response_body).hexdigest()
+    response = (
+        response.with_header("ETag", f'"fura-query-v1-{digest}"')
+        .with_header("Cache-Control", _CATALOG_QUERY_CACHE_CONTROL)
+        .with_header("Vary", "Accept, Content-Type")
+    )
+    return evaluate_conditional_response(request, response)
 
 
 def register_public_routes(docs: Any, app: App) -> None:
@@ -782,43 +823,103 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             content_type="application/json; charset=utf-8",
         )
 
-    @app.route("/catalog/query.json", referenced=True)
-    @app.route("/graph/query.json", referenced=True)
-    def catalog_query_json(request: Request):
+    @app.route(
+        "/catalog/query.json",
+        methods=["GET", "QUERY"],
+        query_media_types=(_CATALOG_QUERY_MEDIA_TYPE,),
+        referenced=True,
+    )
+    @app.route(
+        "/graph/query.json",
+        methods=["GET", "QUERY"],
+        query_media_types=(_CATALOG_QUERY_MEDIA_TYPE,),
+        referenced=True,
+    )
+    async def catalog_query_json(request: Request):
         self._ensure_catalog()
+        if request.method == "QUERY" and request.path == "/graph/query.json":
+            return _catalog_query_response(
+                Response(
+                    json.dumps({"redirect": "/catalog/query.json"}),
+                    status=308,
+                    content_type="application/json; charset=utf-8",
+                ).with_header("Location", "/catalog/query.json"),
+                request=request,
+            )
+        params: Mapping[str, Any] = request.query
+        if request.method == "QUERY":
+            if request.query:
+                return _catalog_query_response(
+                    Response(
+                        json.dumps(
+                            {
+                                "error": "QUERY filters must be supplied in the request content",
+                                "invalid_filters": {"query_string": sorted(request.query.keys())},
+                            },
+                            indent=2,
+                        ),
+                        status=400,
+                        content_type="application/json; charset=utf-8",
+                    ),
+                    request=request,
+                )
+            try:
+                query_content = await request.json()
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                return _catalog_query_response(
+                    Response(
+                        json.dumps(
+                            {"error": "malformed catalog query JSON", "detail": str(exc)},
+                            indent=2,
+                        ),
+                        status=400,
+                        content_type="application/json; charset=utf-8",
+                    ),
+                    request=request,
+                )
+            if not isinstance(query_content, dict):
+                return _catalog_query_response(
+                    Response(
+                        json.dumps(
+                            {"error": "catalog query content must be a JSON object"}, indent=2
+                        ),
+                        status=422,
+                        content_type="application/json; charset=utf-8",
+                    ),
+                    request=request,
+                )
+            params = query_content
         edge_kind = (
-            request.query.get("edge_kind")
-            or request.query.get("edge")
-            or request.query.get("kind")
-            or request.query.get("link_edge")
+            params.get("edge_kind")
+            or params.get("edge")
+            or params.get("kind")
+            or params.get("link_edge")
         )
-        target = (
-            request.query.get("target") or request.query.get("to") or request.query.get("linked_to")
+        target = params.get("target") or params.get("to") or params.get("linked_to")
+        source = params.get("source") or params.get("from") or params.get("linked_from")
+        query_error = _catalog_query_error(
+            params, str(edge_kind) if edge_kind is not None else None
         )
-        source = (
-            request.query.get("source")
-            or request.query.get("from")
-            or request.query.get("linked_from")
-        )
-        query_error = _catalog_query_error(request, edge_kind)
         if query_error is not None:
-            return query_error
+            return _catalog_query_response(query_error, request=request)
         payload = query_catalog_graph(
             self.catalog,
-            mount=request.query.get("mount"),
-            tag=request.query.get("tag"),
-            format=request.query.get("format"),
-            owner=request.query.get("owner") or request.query.get("team"),
-            locale=request.query.get("locale") or request.query.get("lang"),
-            edge_kind=edge_kind,
-            source=source,
-            target=target,
+            mount=params.get("mount"),
+            tag=params.get("tag"),
+            format=params.get("format"),
+            owner=params.get("owner") or params.get("team"),
+            locale=params.get("locale") or params.get("lang"),
+            edge_kind=str(edge_kind) if edge_kind is not None else None,
+            source=str(source) if source is not None else None,
+            target=str(target) if target is not None else None,
             subject=self._output_access_subject(request),
-            limit=int(request.query.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
-            offset=int(request.query.get("offset") or 0),
+            limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
+            offset=int(params.get("offset") or 0),
         )
-        return Response(
-            json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"
+        return _catalog_query_response(
+            Response(json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"),
+            request=request,
+            query_input=params,
         )
 
     @app.route("/catalog/source-health.json", referenced=True)

@@ -248,6 +248,7 @@ mounts:
 |----------|--------|
 | `GET /catalog.json` | DCP v3 (default) |
 | `GET /catalog/query.json` | Filtered DCP graph projection |
+| `QUERY /catalog/query.json` | Versioned body-shaped graph projection; see [HTTP QUERY](HTTP_QUERY.md) |
 | `GET /graph/query.json` | Alias for filtered graph consumers |
 | `GET /meta.json` | Compact page index with static impact-report provenance |
 | `GET /search.json` | Search index with `sections` |
@@ -262,7 +263,7 @@ Operational observations can emit the same contracts as structured JSON events.
 optionally projects them to OpenTelemetry spans and counters without changing
 event identity or requiring a telemetry vendor in the base runtime.
 
-`/catalog/query.json` and `/graph/query.json` accept these filters:
+GET query parameters and versioned QUERY request content accept these filters:
 
 | Query parameter | Description |
 |-----------------|-------------|
