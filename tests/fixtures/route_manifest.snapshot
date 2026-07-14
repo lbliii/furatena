@@ -10,7 +10,7 @@ GET|/catalog/artifacts.json|-|application|artifacts_json|json|-|-
 GET|/catalog/freshness.json|-|application|freshness_json|json|-|-
 GET|/catalog/mounts/{mount_id}|-|application|catalog_mount_json|json|-|-
 GET|/catalog/operational-status.json|-|application|operational_status_json|json|-|-
-GET|/catalog/query.json|-|application|catalog_query_json|json|-|-
+GET,QUERY|/catalog/query.json|-|application|catalog_query_json|json|-|-
 GET|/catalog/retrieve|-|application|catalog_retrieve|json|-|-
 GET|/catalog/source-health.json|-|application|catalog_source_health_json|json|-|-
 GET|/channels.json|-|application|channels_json_route|json|-|-
@@ -30,7 +30,7 @@ POST|/docs/_author/transition|-|catalog|author_page_transition|form-action-or-js
 GET|/docs/{slug:path}|-|furatena|default_docs|html-document|dynamic:view-kind|-
 GET|/errors/suggest|-|application|error_suggest|html-fragment|partials/error_suggest_panel.html|error_suggest_panel
 GET|/favicon.ico|-|application|favicon|image|-|-
-GET|/graph/query.json|-|application|catalog_query_json|json|-|-
+GET,QUERY|/graph/query.json|-|application|catalog_query_json|json|-|-
 GET|/healthz|-|application|healthz|html-document|-|-
 GET|/index.md|-|application|home_markdown|markdown|-|-
 GET|/index.txt|-|application|home_index_txt|text|-|-
