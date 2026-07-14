@@ -51,12 +51,13 @@ fura serve [--author] [--preview] [--workers N] [--port PORT]
 ```bash
 fura freeze [--workers N]
 fura export
-fura pdf [--page /docs/get-started/ | --collection docs]
+fura pdf [--page /docs/get-started/ | --collection docs] [--paper letter|a4]
 ```
 
 `fura pdf` writes PDF artifacts for one public page, one collection, or the full
 public site. The default output is `app/public/pdf/`; successful runs also refresh
-`app/public/channels.json` unless `--no-channels` is set.
+`app/public/channels.json` unless `--no-channels` is set. The default paper size is
+Letter; use `--paper a4` for A4 publication output.
 
 ## Validate
 
