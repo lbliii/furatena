@@ -1,7 +1,7 @@
 ---
 title: Static versus live agent readiness
 owner: docs-product
-reviewed_at: "2026-07-10"
+reviewed_at: "2026-07-14"
 description: Choose GitHub Pages, Railway, or both for agent-facing documentation
 draft: false
 weight: 58
@@ -57,6 +57,20 @@ The current Railway web service does not expose an MCP transport. MCP is a
 live-only runtime capability because a static host cannot execute tools or serve
 resources, but it still requires a deployed `fura mcp` process and an appropriate
 security boundary.
+
+## Review live changes before production
+
+Eligible pull requests receive an isolated Railway environment and unique
+domain built from the immutable PR head SHA. Human pages and agent-facing
+sidecars come from the same frozen image, so reviewers can compare negotiated
+Markdown, catalog queries, search, and browser rendering before merge. The
+environment requires a per-PR credential, advertises `noindex`, and is removed
+when the pull request is merged or closed.
+
+The protected `/preview-manifest.json` is the evidence boundary: it reports the
+reviewed SHA, Railway environment and deployment IDs, frozen catalog
+fingerprint, surface URLs, and readiness checks. A newer head commit supersedes
+the prior deployment rather than reusing its identity.
 
 ## Live does not yet mean no-redeploy publishing
 
