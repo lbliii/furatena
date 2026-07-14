@@ -11,3 +11,8 @@ restartPolicyMaxRetries = 3
 numReplicas = 1
 overlapSeconds = 5
 drainingSeconds = 15
+
+[environments.pr.deploy]
+numReplicas = 1
+overlapSeconds = 0
+drainingSeconds = 0
