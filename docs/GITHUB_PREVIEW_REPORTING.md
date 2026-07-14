@@ -11,6 +11,8 @@ a manual dispatch for recovery. Opening or synchronizing an internal,
 non-bot pull request publishes `queued`; closing it publishes `removed`. The
 workflow always checks out the default branch under `pull_request_target`, so
 untrusted PR code is never executed with write permissions.
+It grants `checks: write` for the lifecycle check and `pull-requests: write`
+for the marker comment; repository contents remain read-only.
 
 For a ready callback, provide the PR number, full current head SHA, preview
 origin, and optional provider diagnostics URL. Configure the reviewer token as

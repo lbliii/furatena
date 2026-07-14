@@ -18,8 +18,7 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
     assert workflow["permissions"] == {
         "contents": "read",
         "checks": "write",
-        "issues": "write",
-        "pull-requests": "read",
+        "pull-requests": "write",
     }
     report = workflow["jobs"]["report"]
     assert "head.repo.full_name == github.repository" in report["if"]
