@@ -49,6 +49,7 @@ catalog:
         - operations/deployment-profiles
         - operations/freeze-and-export
         - operations/migrate-from-js-docs
+        - platform/governed-pr-previews
     - id: operate
       label: Operate
       icon: check-circle

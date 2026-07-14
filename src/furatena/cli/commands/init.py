@@ -13,7 +13,7 @@ from furatena import __version__
 from furatena.cli.commands._shared import CommandModule
 from furatena.cli.contracts import CommandResult, command_name
 
-STARTERS = ("minimal", "api-portal", "multi-mount")
+STARTERS = ("minimal", "api-portal", "multi-mount", "governed-preview")
 
 
 def _repository_files(starter: str, name: str) -> dict[str, str]:
@@ -22,13 +22,15 @@ def _repository_files(starter: str, name: str) -> dict[str, str]:
         "minimal": "A small repo-owned documentation site with the shortest path to static output.",
         "api-portal": "A DevRel portal combining authored guides with an OpenAPI reference.",
         "multi-mount": "A platform documentation hub with independently mounted product, SDK, and operations sources.",
+        "governed-preview": "A protected, commit-bound Railway preview with human and agent review surfaces.",
     }
     first_edits = {
         "minimal": "content/docs/get-started.md",
         "api-portal": "content/docs/get-started.md and specs/openapi.yaml",
         "multi-mount": "content/product/docs/get-started.md, content/sdk/docs/sdk-quickstart.md, or content/operations/docs/runbook.md",
+        "governed-preview": "content/docs/get-started.md and the preview policy in README.md",
     }
-    return {
+    files = {
         "pyproject.toml": dedent(
             f"""\
             [project]
@@ -100,6 +102,180 @@ def _repository_files(starter: str, name: str) -> dict[str, str]:
 
             Edit `{first_edits[starter]}` first. The deployable site is written to
             `public/`; `frozen/` contains the portable catalog and agent sidecars.
+            """
+        ),
+    }
+    if starter == "governed-preview":
+        files.update(_governed_preview_repository_files())
+        files[".gitignore"] += ".env.preview\n"
+        files["README.md"] += dedent(
+            """\
+
+            ## Governed pull-request previews
+
+            The checked-in Railway configuration builds every eligible internal PR from
+            its immutable head SHA. Configure the project and sealed reviewer token by
+            following `PREVIEWS.md`; then use the generated workflow for one GitHub check
+            and one idempotently updated review comment.
+            """
+        )
+    return files
+
+
+def _governed_preview_repository_files() -> dict[str, str]:
+    return {
+        "railway.toml": dedent(
+            """\
+            [build]
+            builder = "dockerfile"
+            dockerfilePath = "Dockerfile"
+
+            [deploy]
+            startCommand = "sh /app/scripts/railway-start.sh"
+            healthcheckPath = "/readyz"
+            healthcheckTimeout = 300
+            restartPolicyType = "on_failure"
+            restartPolicyMaxRetries = 3
+            numReplicas = 1
+            overlapSeconds = 5
+            drainingSeconds = 15
+
+            [environments.pr.deploy]
+            numReplicas = 1
+            overlapSeconds = 0
+            drainingSeconds = 0
+            """
+        ),
+        "Dockerfile": dedent(
+            """\
+            FROM python:3.14-slim
+            COPY --from=ghcr.io/astral-sh/uv:0.10.8 /uv /usr/local/bin/uv
+            ENV PYTHONUNBUFFERED=1 PYTHON_GIL=0 UV_PROJECT_ENVIRONMENT=/opt/venv \\
+                PATH=/opt/venv/bin:$PATH FURA_MODE=preview FURA_WORKERS=1
+            WORKDIR /app
+            RUN uv python install 3.14t
+            COPY pyproject.toml ./
+            RUN uv sync --no-dev --no-install-project --python 3.14t
+            ARG FURA_PR_PREVIEW=""
+            ARG FURA_PREVIEW_PR_NUMBER=""
+            ARG FURA_PREVIEW_SHA=""
+            ARG FURA_PREVIEW_REVIEW_URL=""
+            ARG RAILWAY_PUBLIC_DOMAIN=""
+            ARG RAILWAY_GIT_COMMIT_SHA=""
+            ENV FURA_PR_PREVIEW=$FURA_PR_PREVIEW \\
+                FURA_PREVIEW_PR_NUMBER=$FURA_PREVIEW_PR_NUMBER \\
+                FURA_PREVIEW_SHA=$FURA_PREVIEW_SHA \\
+                FURA_PREVIEW_REVIEW_URL=$FURA_PREVIEW_REVIEW_URL \\
+                RAILWAY_PUBLIC_DOMAIN=$RAILWAY_PUBLIC_DOMAIN \\
+                FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA
+            COPY . .
+            RUN uv sync --no-dev --python 3.14t \\
+                && fura --app-root /app freeze --full --workers 1
+            EXPOSE 8000
+            CMD ["sh", "/app/scripts/railway-start.sh"]
+            """
+        ),
+        "scripts/railway-start.sh": dedent(
+            """\
+            #!/usr/bin/env sh
+            set -eu
+            exec fura --app-root /app serve --preview --host 0.0.0.0 \\
+              --port "${PORT:-8000}" --workers 1
+            """
+        ),
+        "scripts/preview_report.py": dedent(
+            """\
+            #!/usr/bin/env python3
+            \"\"\"Run the governed-preview conformance contract locally.\"\"\"
+
+            from __future__ import annotations
+
+            import argparse
+            import json
+            import os
+
+            from furatena.catalog.preview_conformance import inspect_preview
+
+
+            parser = argparse.ArgumentParser()
+            parser.add_argument("--origin", required=True)
+            parser.add_argument("--expected-sha", required=True)
+            parser.add_argument("--state", choices=("ready",), default="ready")
+            args = parser.parse_args()
+            token = os.environ.get("FURA_PREVIEW_AUTH_TOKEN", "")
+            if not token:
+                parser.error("FURA_PREVIEW_AUTH_TOKEN must be set")
+            result = inspect_preview(args.origin, token, args.expected_sha)
+            print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
+            raise SystemExit(0 if result.ok else 1)
+            """
+        ),
+        ".github/workflows/preview-report.yml": dedent(
+            """\
+            name: governed preview report
+
+            on:
+              pull_request_target:
+                types: [opened, reopened, synchronize, closed]
+              repository_dispatch:
+                types: [furatena-preview]
+
+            permissions:
+              contents: read
+              checks: write
+              pull-requests: write
+
+            jobs:
+              report:
+                if: >-
+                  github.event.action == 'closed' ||
+                  (github.event.pull_request.head.repo.full_name == github.repository &&
+                   github.event.pull_request.user.type != 'Bot') ||
+                  github.event_name == 'repository_dispatch'
+                uses: lbliii/furatena/.github/workflows/preview-report.yml@main
+                with:
+                  pr_number: ${{ github.event.pull_request.number || github.event.client_payload.pr_number }}
+                  state: ${{ github.event.action == 'closed' && 'removed' || (github.event_name == 'pull_request_target' && 'queued') || github.event.client_payload.state }}
+                  expected_sha: ${{ github.event.pull_request.head.sha || github.event.client_payload.expected_sha }}
+                  preview_url: ${{ github.event.client_payload.preview_url || '' }}
+                  details_url: ${{ github.event.client_payload.details_url || '' }}
+                secrets:
+                  FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}
+            """
+        ),
+        ".env.preview.example": dedent(
+            """\
+            FURA_PR_PREVIEW=1
+            FURA_PREVIEW_PR_NUMBER=<pull-request-number>
+            FURA_PREVIEW_SHA=<full-head-sha>
+            FURA_PREVIEW_REVIEW_URL=https://github.com/<owner>/<repo>/pull/<number>
+            # Keep FURA_PREVIEW_AUTH_TOKEN sealed; never commit it here.
+            """
+        ),
+        "PREVIEWS.md": dedent(
+            """\
+            # Governed previews
+
+            Enable Railway PR Environments from an explicit production base, keep bot
+            environments disabled, and deny untrusted forks. Give production a Railway
+            domain so each PR receives a unique domain automatically.
+
+            Inject the four public identity variables from `.env.preview.example` and a
+            fresh sealed `FURA_PREVIEW_AUTH_TOKEN` into each ephemeral environment. Never
+            pass the token as a Docker build argument. Configure the same token as a
+            short-lived GitHub Actions secret only while reporting conformance.
+
+            Verify any ready deployment with:
+
+            ```bash
+            FURA_PREVIEW_AUTH_TOKEN=... python scripts/preview_report.py \\
+              --state ready --origin https://<preview-domain> \\
+              --expected-sha <full-head-sha>
+            ```
+
+            Close or merge the PR to remove the environment. Cap previews at one replica,
+            disable overlap/draining for ephemeral environments, and close stale PRs to
+            bound build minutes and active wall-clock cost.
             """
         ),
     }
