@@ -30,8 +30,8 @@ variable with at least 32 characters. Never put source credentials, production
 author sessions, the reviewer token, or private mount credentials in Docker
 arguments or comments.
 
-GitHub requires `checks: write` and `issues: write`; contents and pull requests
-remain read-only. The `pull_request_target` job always runs trusted default-
+GitHub requires `checks: write` and `pull-requests: write`; contents remain
+read-only. The `pull_request_target` job always runs trusted default-
 branch tooling, rejects bots and external forks, and never checks out PR code.
 Pin the reusable reporting workflow to a reviewed Furatena release or commit in
 production; the starter's `@main` reference is deliberately visible as a setup

@@ -223,8 +223,7 @@ def _governed_preview_repository_files() -> dict[str, str]:
             permissions:
               contents: read
               checks: write
-              issues: write
-              pull-requests: read
+              pull-requests: write
 
             jobs:
               report:

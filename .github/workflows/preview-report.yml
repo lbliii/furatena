@@ -54,8 +54,7 @@ on:
 permissions:
   contents: read
   checks: write
-  issues: write
-  pull-requests: read
+  pull-requests: write
 
 concurrency:
   group: preview-report-${{ github.event.pull_request.number || inputs.pr_number || github.event.client_payload.pr_number }}

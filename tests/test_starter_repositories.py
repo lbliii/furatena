@@ -128,6 +128,8 @@ def test_governed_preview_starter_has_secure_reference_integration(tmp_path: Pat
     assert "FURA_PREVIEW_AUTH_TOKEN must be set" in conformance
     workflow = (app_root / ".github/workflows/preview-report.yml").read_text(encoding="utf-8")
     assert "pull_request_target" in workflow
+    assert "pull-requests: write" in workflow
+    assert "issues: write" not in workflow
     assert "head.repo.full_name == github.repository" in workflow
     assert "user.type != 'Bot'" in workflow
     assert "FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}" in workflow
