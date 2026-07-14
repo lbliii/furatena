@@ -241,7 +241,8 @@ ci-fast: format-check hygiene
 		tests/test_theme_lint.py \
 		tests/test_theme_pack.py \
 		tests/test_theme_preset.py \
-		tests/test_ty_diagnostic_ratchet.py
+		tests/test_ty_diagnostic_ratchet.py \
+		tests/stewards
 
 ci-contract:
 	$(UV_RUN) fura check

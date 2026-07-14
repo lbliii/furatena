@@ -34,7 +34,6 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 - Generated references, public-surface inventories, frozen catalogs, and exported output are not source-of-truth; update source/config and use repository commands to regenerate them.
 - Generated output under `app/public/`, `app/frozen/`, `app/.preview/`, `pdf-proof/`, `build/`, and `dist/` is not edited as product source.
 - Keep browser, static, CLI, DCP, MCP, publication, preview, PDF, and agent contracts aligned whenever a changed value reaches those surfaces.
-- Add `changelog.d/ISSUE.TYPE.md` for user-, operator-, security-, or documentation-visible changes; fragments use configured Towncrier categories and complete sentences.
 - Treat warnings, exemptions, snapshots, score thresholds, diagnostic budgets, and coverage baselines as ratchets: new debt fails and resolved debt is removed deliberately.
 - Before finalizing agent-authored public files, remove customer names, private people or project names, private quotes, endpoints, and internal scale or cost figures.
 - No silent exception, unexplained type-ignore, vague error, speculative config, hand-edited generated fact, snapshot refresh without sensitivity proof, or adjacent refactor unless it is the fix.
@@ -47,7 +46,6 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 | autodoc | `src/furatena/catalog/autodoc/AGENTS.md` | 1 | 100% |
 | benchmarks | `benchmarks/AGENTS.md` | 1 | 100% |
 | catalog | `src/furatena/catalog/AGENTS.md` | 1 | 100% |
-| changelog | `changelog.d/AGENTS.md` | 1 | 100% |
 | cli | `src/furatena/cli/AGENTS.md` | 1 | 100% |
 | cli_commands | `src/furatena/cli/commands/AGENTS.md` | 1 | 100% |
 | content | `content/AGENTS.md` | 1 | 100% |
@@ -103,7 +101,7 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 - Run `make format-check`, `make lint`, and `make ty-ratchet` for Python changes; do not add ignores, exemptions, or baseline increases merely to pass.
 - Visibility or tenancy changes prove allowed and forbidden audiences across every reached live, static, frozen, search, PDF, inventory, DCP, and agent surface.
 - Source, IR, graph, render, and export changes test malformed input, deterministic output, provenance, incremental behavior, and every reached format or channel.
-- Public behavior moves with docs, generated references, schemas/fixtures, examples, benchmarks or a no-impact rationale, and a changelog fragment when required.
+- Public behavior moves with docs, generated references, schemas/fixtures, examples, benchmarks, and release collateral when required, or records an explicit no-impact rationale.
 - Run `python .stewards/project.py --check` and `python .stewards/verify.py --coverage` after steward maintenance.
 - Every accepted steward finding names proof and collateral or an explicit no-impact reason; user-facing errors name the surface and recovery action.
 
