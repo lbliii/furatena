@@ -26,6 +26,10 @@ class PreviewControllerError(RuntimeError):
     """A sanitized, operator-actionable provider control failure."""
 
 
+class _PreviewEnvironmentPending(PreviewControllerError):
+    """The deterministic Railway PR environment does not exist yet."""
+
+
 @dataclass(frozen=True, slots=True)
 class ControllerConfig:
     project_id: str
@@ -82,6 +86,8 @@ class RailwayCLI:
         )
         if completed.returncode != 0:
             detail = _redact(completed.stderr.strip(), self.secrets_to_redact)
+            if arguments[0] == "status" and re.search(r'^Environment "[^"]+" not found\.', detail):
+                raise _PreviewEnvironmentPending(detail)
             raise PreviewControllerError(
                 f"Railway command {arguments[0]!r} failed while controlling the preview: "
                 f"{detail or 'no diagnostic returned'}."
@@ -113,9 +119,7 @@ def configure_preview(
     failure_already_published = False
     publish(state="building", origin="", remediation=None, details_url="")
     try:
-        environment = _wait_for_environment(
-            railway, config.pr_number, deadline, config.poll_seconds, sleep, clock
-        )
+        environment = _wait_for_environment(railway, config, deadline, sleep, clock)
         environment_id = _required_text(environment, "id", "Railway environment")
         details_url = (
             f"https://railway.com/project/{config.project_id}/service/{config.service_id}"
@@ -203,26 +207,47 @@ def configure_preview(
 
 def _wait_for_environment(
     railway: RailwayCall,
-    pr_number: int,
+    config: ControllerConfig,
     deadline: float,
-    poll_seconds: float,
     sleep: Callable[[float], None],
     clock: Callable[[], float],
 ) -> Mapping[str, Any]:
+    environment_name = _preview_environment_name(config)
     while True:
-        payload = railway(("environment", "list", "--ephemeral", "--json"), None)
-        for environment in _records(payload, "environments"):
-            meta = environment.get("meta")
-            observed = meta.get("prNumber") if isinstance(meta, Mapping) else None
-            if str(observed) == str(pr_number):
+        try:
+            payload = railway(
+                (
+                    "status",
+                    "--project",
+                    config.project_id,
+                    "--environment",
+                    environment_name,
+                    "--json",
+                ),
+                None,
+            )
+        except _PreviewEnvironmentPending:
+            payload = {}
+        for environment in _connection_records(payload, "environments"):
+            if environment.get("name") == environment_name:
                 return environment
         _sleep_or_timeout(
             deadline,
-            poll_seconds,
+            config.poll_seconds,
             sleep,
             clock,
-            f"Railway did not create an environment for PR #{pr_number}",
+            f"Railway did not create an environment for PR #{config.pr_number}",
         )
+
+
+def _preview_environment_name(config: ControllerConfig) -> str:
+    repository_name = config.repository.rsplit("/", 1)[-1].lower()
+    slug = re.sub(r"[^a-z0-9-]+", "-", repository_name).strip("-")
+    if not slug:
+        raise PreviewControllerError(
+            "GitHub repository name cannot identify its Railway PR environment"
+        )
+    return f"{slug}-pr-{config.pr_number}"
 
 
 def _wait_for_deployment(
@@ -366,6 +391,18 @@ def _records(payload: Any, key: str) -> tuple[Mapping[str, Any], ...]:
     return tuple(item for item in values if isinstance(item, Mapping))
 
 
+def _connection_records(payload: Any, key: str) -> tuple[Mapping[str, Any], ...]:
+    connection = payload.get(key) if isinstance(payload, Mapping) else None
+    edges = connection.get("edges") if isinstance(connection, Mapping) else None
+    if not isinstance(edges, list):
+        return ()
+    return tuple(
+        node
+        for edge in edges
+        if isinstance(edge, Mapping) and isinstance((node := edge.get("node")), Mapping)
+    )
+
+
 def _required_text(payload: Mapping[str, Any], key: str, label: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value:
@@ -491,17 +528,6 @@ def main() -> int:
 
         with tempfile.TemporaryDirectory(prefix="furatena-railway-preview-") as directory:
             cli = RailwayCLI(cwd=Path(directory), secrets_to_redact=(preview_token,))
-            cli(
-                (
-                    "link",
-                    "--project",
-                    config.project_id,
-                    "--service",
-                    config.service_id,
-                    "--json",
-                ),
-                None,
-            )
             deployment = configure_preview(
                 config,
                 preview_token=preview_token,

@@ -11,6 +11,7 @@ from furatena.catalog.railway_preview_controller import (
     ControllerConfig,
     PreviewControllerError,
     _environment_config,
+    _preview_environment_name,
     _redact,
     _trusted_pull_request,
     configure_preview,
@@ -47,8 +48,19 @@ class FakeRailway:
     ) -> Any:
         call = tuple(arguments)
         self.calls.append((call, input_payload))
-        if call[:2] == ("environment", "list"):
-            return {"environments": [{"id": "environment-1", "meta": {"prNumber": 424}}]}
+        if call[0] == "status":
+            return {
+                "environments": {
+                    "edges": [
+                        {
+                            "node": {
+                                "id": "environment-1",
+                                "name": "repo-pr-424",
+                            }
+                        }
+                    ]
+                }
+            }
         if call[:2] == ("environment", "edit"):
             return {"success": True}
         if call[0] == "redeploy":
@@ -112,6 +124,15 @@ def test_controller_seals_token_and_publishes_only_exact_sha() -> None:
 
     assert result.deployment_id == "deployment-2"
     assert [call["state"] for call in publisher.calls] == ["building", "ready"]
+    assert railway.calls[0][0] == (
+        "status",
+        "--project",
+        "project-1",
+        "--environment",
+        "repo-pr-424",
+        "--json",
+    )
+    assert all(call[0] != "link" for call, _payload in railway.calls)
     edit = next(payload for call, payload in railway.calls if call[:2] == ("environment", "edit"))
     assert edit is not None
     variables = edit["services"]["service-1"]["variables"]  # type: ignore[index]
@@ -165,6 +186,12 @@ def test_environment_config_has_only_one_sealed_value() -> None:
         "FURA_PREVIEW_AUTH_TOKEN"
     }
     assert variables["FURA_PREVIEW_PR_NUMBER"]["value"] == "424"
+
+
+def test_preview_environment_name_matches_railway_pr_naming() -> None:
+    config = _config()
+
+    assert _preview_environment_name(config) == "repo-pr-424"
 
 
 def test_trusted_pr_requires_current_internal_nonbot_head() -> None:
