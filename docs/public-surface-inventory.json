@@ -5,7 +5,6 @@
     "route:GET /docs/_author/source",
     "route:GET /docs/{slug:path}",
     "route:GET /og/{name}",
-    "route:GET /releases/",
     "route:GET /releases/{slug:path}",
     "route:GET /shared/{slug:path}"
   ],
@@ -50,8 +49,8 @@
         "total": 16
       },
       "route": {
-        "documented": 62,
-        "missing": 7,
+        "documented": 63,
+        "missing": 6,
         "stale": 0,
         "total": 69
       },
@@ -62,8 +61,8 @@
         "total": 30
       }
     },
-    "documented": 473,
-    "missing": 7,
+    "documented": 474,
+    "missing": 6,
     "stale": 0
   },
   "surface_count": 480,
@@ -6274,9 +6273,11 @@
       "name": "GET /releases.md"
     },
     {
-      "coverage": "missing",
-      "documentation": [],
-      "documentation_fingerprint": "44136fa355b3678a",
+      "coverage": "documented",
+      "documentation": [
+        "content/furatena/releases/_index.md"
+      ],
+      "documentation_fingerprint": "57817d9cfc144262",
       "id": "route:GET /releases/",
       "implementation": "furatena.catalog.docs_app:DocsApp._register_mount_routes.<locals>.default_mount_section",
       "implementation_fingerprint": "ad03b3b883fd1ae1",
@@ -7166,6 +7167,7 @@
         "content/furatena/proof/_index.md",
         "content/furatena/proof/pdf-stress.md",
         "content/furatena/releases/2026-07-semantic-pdf.md",
+        "content/furatena/releases/_index.md",
         "docs/AGENT_WORKFLOWS.md",
         "docs/APP-README.md",
         "docs/AUTHORING.md",
@@ -7190,7 +7192,7 @@
         "docs/TRUSTED_GATEWAY_IDENTITY.md",
         "docs/WAVE_E.md"
       ],
-      "documentation_fingerprint": "451815c42f1fe303",
+      "documentation_fingerprint": "f9e20ed207dd58dc",
       "id": "sidecar:/search/semantic",
       "implementation": "furatena.catalog.route_registrars:register_catalog_routes.<locals>.search_semantic",
       "implementation_fingerprint": "02861148dc96bf1c",
