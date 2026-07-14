@@ -56,12 +56,14 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "src/furatena/catalog/preview_contracts.py" in makefile
     assert "src/furatena/catalog/preview_security.py" in makefile
     assert "src/furatena/catalog/railway_preview.py" in makefile
+    assert "src/furatena/catalog/railway_preview_controller.py" in makefile
     assert "src/furatena/catalog/preview_conformance.py" in makefile
     assert "tests/test_preview_contracts.py" in makefile
     assert "tests/test_preview_schemas.py" in makefile
     assert "tests/test_preview_fixtures.py" in makefile
     assert "tests/test_preview_security.py" in makefile
     assert "tests/test_railway_preview.py" in makefile
+    assert "tests/test_railway_preview_controller.py" in makefile
     assert "tests/test_preview_conformance.py" in makefile
     assert "tests/test_preview_reporting_workflow.py" in makefile
     assert "uv build --clear --no-sources" in makefile
