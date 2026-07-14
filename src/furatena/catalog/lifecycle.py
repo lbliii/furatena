@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,7 @@ _ALLOWED_VISIBILITY = frozenset({"public", "private", "internal", "draft", "unli
 _DATE_FIELDS = ("published_at", "updated_at", "expires_at", "archived_at")
 _MD_LINK_RE = re.compile(r"\]\((/[^)#?]+)(?:[)#?][^)]*)?\)")
 _WIKILINK_RE = re.compile(r"\[\[(?:([^:\]|]+):)?([^|\]]+)(?:\|[^\]]+)?\]\]")
+_LOG = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +77,11 @@ def check_stale_public_outputs(catalog: Any, frozen_dir: Path) -> list[str]:
                     content_format=mount.source.content_format_for(path),
                 )
             except Exception:
+                _LOG.warning(
+                    "Skipping stale-output comparison because source parsing failed for %s.",
+                    path,
+                    exc_info=True,
+                )
                 continue
             if not is_public_meta(meta):
                 continue

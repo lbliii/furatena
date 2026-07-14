@@ -70,6 +70,8 @@ jobs:
           --commit "$GITHUB_SHA"
           --dist-dir dist
           --output-dir release
+      - name: Generate release notes from reviewed fragments
+        run: uv run towncrier build --draft --version "${GITHUB_REF_NAME#v}" > release/RELEASE_NOTES.md
       - name: Upload immutable release bundle
         uses: actions/upload-artifact@v7
         with:
@@ -81,7 +83,7 @@ jobs:
           retention-days: 30
 
   attest:
-    name: Attest release provenance
+    name: Verify and attest release provenance
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -98,9 +100,16 @@ jobs:
         working-directory: release-bundle/dist
         run: shasum -a 256 -c ../release/SHA256SUMS
       - name: Generate GitHub build-provenance attestation
+        if: ${{ !github.event.repository.private }}
         uses: actions/attest@v4
         with:
           subject-checksums: release-bundle/release/SHA256SUMS
+      - name: Document private-repository provenance policy
+        if: ${{ github.event.repository.private }}
+        run: >-
+          echo 'GitHub-hosted provenance is unavailable for this user-owned private repository;
+          verified SHA256SUMS and PyPI Trusted Publishing attestations remain release requirements.'
+          >> "$GITHUB_STEP_SUMMARY"
 
   publish-pypi:
     name: Publish distributions to PyPI
@@ -146,5 +155,5 @@ jobs:
           release-bundle/dist/*
           release-bundle/release/*
           --verify-tag
-          --generate-notes
+          --notes-file release-bundle/release/RELEASE_NOTES.md
           --fail-on-no-commits

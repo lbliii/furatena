@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
 from furatena.catalog.lifecycle import is_public_meta
 from furatena.catalog.sources.parse import parse_source_text
 from furatena.catalog.sources.types import MountSourceConfig, PageSource
+
+_LOG = logging.getLogger(__name__)
 
 
 def apply_url_prefix(url: str, prefix: str) -> str:
@@ -86,6 +89,11 @@ class FilesystemScanner:
                     path=str(path),
                 )
             except Exception:
+                _LOG.warning(
+                    "Skipping catalog source because parsing failed for %s.",
+                    path,
+                    exc_info=True,
+                )
                 continue
             if not include_private and not is_public_meta(meta):
                 continue

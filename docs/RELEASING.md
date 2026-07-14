@@ -24,8 +24,8 @@ PyPI binds those values to the short-lived GitHub OIDC identity. Do not add a
 
 1. Update `project.version` in `pyproject.toml` and `__version__` in
    `src/furatena/__init__.py`; refresh `uv.lock`.
-2. Confirm the compatibility policy and release notes identify deprecations,
-   breaking changes, and migrations.
+2. Confirm every merged change has a reviewed `changelog.d/ISSUE.TYPE.md`
+   fragment. Preview the exact generated notes with `make changelog-draft`.
 3. Merge to `main` and wait for its complete CI workflow.
 4. Create and push an annotated `vMAJOR.MINOR.PATCH` tag at that tested commit.
 5. Approve the protected `pypi` environment after checking the workflow's tag,
@@ -37,11 +37,11 @@ contract, agent, and packaged wheel/sdist checks on CPython 3.14t with
 `PYTHON_GIL=0`. The build job writes `SHA256SUMS` and
 `release-manifest.json`. Separate jobs:
 
-- verify the downloaded bundle and create a GitHub/Sigstore provenance
-  attestation with `actions/attest`;
+- verify the downloaded bundle and, when repository visibility supports it,
+  create a GitHub/Sigstore provenance attestation with `actions/attest`;
 - publish the distributions through PyPI Trusted Publishing, which also emits
   PyPI attestations;
-- verify the bundle again and create the GitHub release with generated notes,
+- verify the bundle again and create the GitHub release with Towncrier notes,
   wheel, sdist, checksums, and manifest.
 
 Only the attestation and publishing jobs receive `id-token: write`; repository
@@ -53,14 +53,26 @@ Download the GitHub release assets into one directory, then run:
 
 ```bash
 shasum -a 256 -c SHA256SUMS
-gh attestation verify furatena-0.1.0-py3-none-any.whl -R lbliii/furatena
-gh attestation verify furatena-0.1.0.tar.gz -R lbliii/furatena
 ```
 
-Compare the hashes printed by the PyPI publish job with `SHA256SUMS` and PyPI's
-file details. The manifest must name the expected tag, commit, version, and
-free-threaded runtime. A mismatch is a release incident; do not install or
-promote the artifacts.
+For public repositories or private repositories with GitHub Enterprise Cloud,
+also use `gh attestation verify`. GitHub-hosted attestation storage is not
+available to user-owned private repositories, so Furatena's current private
+release path records that skip explicitly instead of failing publication.
+
+Every PyPI file must still carry the Trusted Publishing attestation generated
+by the official PyPA action. Verify a downloaded file and its PyPI provenance:
+
+```bash
+pypi-attestations verify pypi \
+  --repository https://github.com/lbliii/furatena \
+  https://files.pythonhosted.org/.../furatena-VERSION-py3-none-any.whl
+```
+
+Compare the hashes printed by the PyPI publish job with `SHA256SUMS`, PyPI's
+file details, and PyPI's Integrity API provenance. The manifest must name the
+expected tag, commit, version, and free-threaded runtime. A mismatch is a
+release incident; do not install or promote the artifacts.
 
 ## Failed or partial workflow
 
