@@ -24,6 +24,9 @@ from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml
 
+QUERY_MEDIA_TYPE = "application/vnd.furatena.catalog-query+json;version=1"
+ACCEPT_QUERY = 'application/vnd.furatena.catalog-query+json;version="1"'
+
 
 def _write_query_fixture(tmp_path: Path) -> tuple[Path, Path]:
     app_root = tmp_path / "app"
@@ -61,6 +64,137 @@ def _client_for_app(
         serve=serve or ServeConfig(ServeMode.PREVIEW, None, False, False),
     )
     return TestClient(docs.create_app())
+
+
+async def _query(
+    client: TestClient,
+    payload: object,
+    *,
+    path: str = "/catalog/query.json",
+    headers: dict[str, str] | None = None,
+):
+    request_headers = {"Content-Type": QUERY_MEDIA_TYPE, "Accept": "application/json"}
+    request_headers.update(headers or {})
+    return await client.request(
+        "QUERY",
+        path,
+        headers=request_headers,
+        body=json.dumps(payload).encode("utf-8"),
+    )
+
+
+def test_http_query_discovers_versioned_media_contract(tmp_path: Path) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    options = asyncio.run(client.request("OPTIONS", "/catalog/query.json"))
+    get = asyncio.run(client.get("/catalog/query.json?tag=guide"))
+
+    assert options.status == 204
+    assert options.header("Accept-Query") == ACCEPT_QUERY
+    assert set((options.header("Allow") or "").split(", ")) == {
+        "GET",
+        "HEAD",
+        "OPTIONS",
+        "QUERY",
+    }
+    assert get.status == 200
+    assert get.header("Accept-Query") == ACCEPT_QUERY
+
+
+def test_http_query_reuses_get_response_contract(tmp_path: Path) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    query_response = asyncio.run(_query(client, {"tag": "guide", "limit": 1}))
+    get_response = asyncio.run(client.get("/catalog/query.json?tag=guide&limit=1"))
+
+    assert query_response.status == get_response.status == 200
+    assert json.loads(query_response.text) == json.loads(get_response.text)
+    assert query_response.header("ETag")
+    assert query_response.header("Cache-Control") == "private, max-age=0, must-revalidate"
+    assert query_response.header("Vary") == "Accept, Content-Type"
+
+
+@pytest.mark.parametrize(
+    ("headers", "body", "status"),
+    (
+        ({}, b"{}", 400),
+        ({"Content-Type": "text/plain"}, b"{}", 415),
+        ({"Content-Type": QUERY_MEDIA_TYPE}, b"{", 400),
+    ),
+)
+def test_http_query_rejects_missing_unsupported_or_malformed_content(
+    tmp_path: Path,
+    headers: dict[str, str],
+    body: bytes,
+    status: int,
+) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    response = asyncio.run(
+        client.request("QUERY", "/catalog/query.json", headers=headers, body=body)
+    )
+
+    assert response.status == status
+    assert response.header("Accept-Query") == ACCEPT_QUERY
+
+
+def test_http_query_rejects_non_object_and_unacceptable_response(
+    tmp_path: Path,
+) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    non_object = asyncio.run(_query(client, ["guide"]))
+    unacceptable = asyncio.run(_query(client, {"tag": "guide"}, headers={"Accept": "text/csv"}))
+
+    assert non_object.status == 422
+    assert json.loads(non_object.text)["error"] == "catalog query content must be a JSON object"
+    assert unacceptable.status == 406
+    assert unacceptable.header("Accept-Query") == ACCEPT_QUERY
+
+
+def test_http_query_etag_is_body_aware_and_supports_conditionals(tmp_path: Path) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    first = asyncio.run(_query(client, {"tag": "guide", "limit": 1}))
+    reordered = asyncio.run(_query(client, {"limit": 1, "tag": "guide"}))
+    different = asyncio.run(_query(client, {"tag": "api", "limit": 1}))
+    conditional = asyncio.run(
+        _query(
+            client,
+            {"tag": "guide", "limit": 1},
+            headers={"If-None-Match": first.header("ETag") or ""},
+        )
+    )
+
+    assert first.header("ETag") == reordered.header("ETag")
+    assert first.header("ETag") != different.header("ETag")
+    assert conditional.status == 304
+    assert conditional.header("ETag") == first.header("ETag")
+
+
+def test_http_query_alias_redirect_preserves_method_and_get_fallback(
+    tmp_path: Path,
+) -> None:
+    app_root, _content = _write_query_fixture(tmp_path)
+    client = _client_for_app(app_root, repo_root=tmp_path)
+
+    redirect = asyncio.run(_query(client, {"tag": "guide"}, path="/graph/query.json"))
+    method_failure = asyncio.run(client.post("/catalog/query.json", body=b"{}"))
+    fallback = asyncio.run(client.get("/catalog/query.json?tag=guide"))
+
+    assert redirect.status == 308
+    assert redirect.header("Location") == "/catalog/query.json"
+    assert redirect.header("Accept-Query") == ACCEPT_QUERY
+    assert method_failure.status == 405
+    assert "GET" in (method_failure.header("Allow") or "")
+    assert "QUERY" in (method_failure.header("Allow") or "")
+    assert fallback.status == 200
+    assert json.loads(fallback.text)["page_count"] == 1
 
 
 def test_graph_query_endpoint_filters_live_catalog(tmp_path: Path) -> None:
