@@ -85,6 +85,12 @@ from furatena.catalog.incremental import is_partial_reload
 from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
 from furatena.catalog.observability import OperationalEventEmitter
+from furatena.catalog.preview_security import (
+    PreviewAccessCredentials,
+    PreviewConfigurationError,
+    PreviewEnvironment,
+    PreviewSecurityMiddleware,
+)
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.render_context import RenderContextService
 from furatena.catalog.retrieval_feedback import RetrievalFeedbackCollector
@@ -310,6 +316,13 @@ class DocsApp:
         self.locale_service = LocaleResolutionService(config.i18n)
         self.repo_root = repo_root
         self.serve = serve or ServeConfig(ServeMode.AUTHOR, None, False, True)
+        self.preview_environment = PreviewEnvironment.from_environment()
+        if self.preview_environment is not None and (
+            self.serve.mode != ServeMode.PREVIEW or self.serve.auto_reload
+        ):
+            raise PreviewConfigurationError(
+                "a pull-request preview requires frozen preview mode with auto-reload disabled"
+            )
         self.author_subject = author_subject or (
             AccessSubject.from_values(actor="local-author", roles=[AccessRole.ADMIN])
             if self.serve.mode == ServeMode.AUTHOR
@@ -408,6 +421,11 @@ class DocsApp:
         )
         app = App(app_config)
         use_chirp_ui(app)
+        if self.preview_environment is not None:
+            app.add_middleware(
+                PreviewSecurityMiddleware(PreviewAccessCredentials.from_environment()),
+                priority=-100,
+            )
         security_middleware = secure_stack(
             app_config,
             headers=SecurityHeadersConfig(content_security_policy=None),
@@ -1117,13 +1135,16 @@ class DocsApp:
             permission=AccessPermission.AUTHOR,
         ):
             author_chrome = self._author_page_chrome(node)
-        return self.render_context.page_context(
-            node,
-            query=query,
-            request=request,
-            locale_match=locale_match,
-            author_chrome=author_chrome,
-        )
+        return {
+            **self.render_context.page_context(
+                node,
+                query=query,
+                request=request,
+                locale_match=locale_match,
+                author_chrome=author_chrome,
+            ),
+            **self._preview_template_context(),
+        }
 
     @staticmethod
     def _view_chrome_context(view_name: str, node, ctx: dict[str, Any]) -> dict[str, Any]:
@@ -1236,7 +1257,14 @@ class DocsApp:
         active_lang = self._request_language(request)
         if self.config.i18n.enabled:
             set_locale(active_lang)
-        return self.render_context.shell_context(query=query, request=request)
+        return {
+            **self.render_context.shell_context(query=query, request=request),
+            **self._preview_template_context(),
+        }
+
+    def _preview_template_context(self) -> dict[str, object]:
+        preview = self.preview_environment
+        return {"pr_preview": preview.template_context if preview is not None else None}
 
     def _is_author_reload(self, request: Request) -> bool:
         return self.serve.auto_reload and bool(request.headers.get("HX-Docs-Author-Reload"))

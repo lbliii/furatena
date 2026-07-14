@@ -15,6 +15,12 @@
 {% block title %}{% if error_title is defined %}{{ error_title }}{% elif node is defined and node %}{{ node.title }}{% else %}{{ site_name | default('Furatena') }}{% end %}{% end %}
 
 {% block head %}
+{% if pr_preview | default(false) %}
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<style nonce="{{ csp_nonce() }}">
+.fura-pr-preview-banner{position:sticky;inset-block-start:0;z-index:1000;display:flex;justify-content:center;gap:.5rem;padding:.55rem 1rem;background:#6b4300;color:#fff;font:600 .875rem/1.4 system-ui,sans-serif;text-align:center}.fura-pr-preview-banner a{color:inherit;text-decoration:underline;text-underline-offset:.15em}.fura-pr-preview-banner code{color:inherit}
+</style>
+{% end %}
 {% if fura_form_proof() %}
 <meta name="csrf-token" content="{{ fura_form_proof() }}">
 {% end %}
@@ -47,6 +53,12 @@ document.body.setAttribute("data-fura-slug", "{{ node.slug }}");
 document.body.classList.add("chirp-theme-shell--rail-only");
 {% endif %}
 </script>
+{% if pr_preview | default(false) %}
+<aside class="fura-pr-preview-banner" role="status" data-fura-pr-preview="{{ pr_preview.pull_request_number }}" data-fura-preview-sha="{{ pr_preview.head_sha }}">
+  Reviewing <a href="{{ pr_preview.review_url }}">pull request #{{ pr_preview.pull_request_number }}</a>
+  at commit <code>{{ pr_preview.short_sha }}</code>. This environment is temporary and cannot publish.
+</aside>
+{% end %}
 {% include "partials/search_modal.html" %}
 <main id="main" class="fura-main"
       data-chirp-scroll="auto" tabindex="-1"

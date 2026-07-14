@@ -54,9 +54,11 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "tests/test_search_hot_paths.py" in makefile
     assert "tests/test_chirp_docs_incremental.py" in makefile
     assert "src/furatena/catalog/preview_contracts.py" in makefile
+    assert "src/furatena/catalog/preview_security.py" in makefile
     assert "tests/test_preview_contracts.py" in makefile
     assert "tests/test_preview_schemas.py" in makefile
     assert "tests/test_preview_fixtures.py" in makefile
+    assert "tests/test_preview_security.py" in makefile
     assert "uv build --clear --no-sources" in makefile
     assert "scripts/check_distributions.py --dist-dir dist" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile
