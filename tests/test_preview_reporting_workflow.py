@@ -29,7 +29,10 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
     assert "head.repo.full_name == github.repository" in report["if"]
     assert "user.type != 'Bot'" in report["if"]
     checkout = report["steps"][0]
-    assert checkout["with"]["ref"] == "${{ github.event.repository.default_branch }}"
+    assert checkout["with"] == {
+        "repository": "lbliii/furatena",
+        "ref": "${{ inputs.reporter_ref || github.event.repository.default_branch }}",
+    }
 
 
 def test_reporter_upserts_one_check_and_marker_comment() -> None:

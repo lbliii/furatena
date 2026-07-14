@@ -34,8 +34,8 @@ GitHub requires `checks: write` and `pull-requests: write`; contents remain
 read-only. The `pull_request_target` job always runs trusted default-
 branch tooling, rejects bots and external forks, and never checks out PR code.
 Pin the reusable reporting workflow to a reviewed Furatena release or commit in
-production; the starter's `@main` reference is deliberately visible as a setup
-step while the package remains alpha.
+production and set `reporter_ref` to the same ref; the starter's `@main` / `main`
+pair is deliberately visible as a setup step while the package remains alpha.
 
 ## Lifecycle and review
 
