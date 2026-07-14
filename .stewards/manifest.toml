@@ -36,6 +36,7 @@ operating_rules = [
   "Generated references, public-surface inventories, frozen catalogs, and exported output are not source-of-truth; update source/config and use repository commands to regenerate them.",
   "Generated output under `app/public/`, `app/frozen/`, `app/.preview/`, `pdf-proof/`, `build/`, and `dist/` is not edited as product source.",
   "Keep browser, static, CLI, DCP, MCP, publication, preview, PDF, and agent contracts aligned whenever a changed value reaches those surfaces.",
+  "Add `changelog.d/ISSUE.TYPE.md` for user-, operator-, security-, or documentation-visible changes; fragments use configured Towncrier categories and complete sentences.",
   "Treat warnings, exemptions, snapshots, score thresholds, diagnostic budgets, and coverage baselines as ratchets: new debt fails and resolved debt is removed deliberately.",
   "Before finalizing agent-authored public files, remove customer names, private people or project names, private quotes, endpoints, and internal scale or cost figures.",
   "No silent exception, unexplained type-ignore, vague error, speculative config, hand-edited generated fact, snapshot refresh without sensitivity proof, or adjacent refactor unless it is the fix.",
@@ -58,7 +59,7 @@ done_criteria = [
   "Run `make format-check`, `make lint`, and `make ty-ratchet` for Python changes; do not add ignores, exemptions, or baseline increases merely to pass.",
   "Visibility or tenancy changes prove allowed and forbidden audiences across every reached live, static, frozen, search, PDF, inventory, DCP, and agent surface.",
   "Source, IR, graph, render, and export changes test malformed input, deterministic output, provenance, incremental behavior, and every reached format or channel.",
-  "Public behavior moves with docs, generated references, schemas/fixtures, examples, benchmarks, and release collateral when required, or records an explicit no-impact rationale.",
+  "Public behavior moves with docs, generated references, schemas/fixtures, examples, benchmarks or a no-impact rationale, and a changelog fragment when required.",
   "Run `python .stewards/project.py --check` and `python .stewards/verify.py --coverage` after steward maintenance.",
   "Every accepted steward finding names proof and collateral or an explicit no-impact reason; user-facing errors name the surface and recovery action.",
 ]
@@ -158,6 +159,10 @@ location = "tests/test_docs_quality.py"
 [check.benchmark-suite]
 invoke = "uv run pytest tests/test_benchmark_harness.py tests/test_author_benchmark_harness.py tests/test_retrieval_benchmarks.py -q"
 location = "tests/test_benchmark_harness.py"
+
+[check.changelog-draft]
+invoke = "make changelog-draft"
+location = "changelog.d/README.md"
 
 [check.examples-suite]
 invoke = "uv run pytest tests/test_starter_repositories.py -q"
@@ -450,6 +455,19 @@ owns.code = ["benchmarks/"]
 owns.tests = ["tests/test_benchmark_harness.py", "tests/test_author_benchmark_harness.py", "tests/test_retrieval_benchmarks.py"]
 owns.docs = ["docs/PERFORMANCE.md", "docs/AGENT_SCORE.md"]
 edges = [{ to = "scripts", type = "run-by", what = "benchmark harnesses" }, { to = "evals", type = "consumes", what = "retrieval datasets" }]
+
+[[steward]]
+id = "changelog"
+path = "changelog.d/AGENTS.md"
+point_of_view = "Keep unreleased Towncrier fragments accurate, user-centered, correctly categorized, and connected to the behavior they announce."
+guardrails = [
+  "Use `ISSUE.TYPE.md` and configured added, changed, deprecated, removed, fixed, or security categories.",
+  "Fragments are complete sentences that name user or operator impact; they do not substitute for docs or migration notes.",
+]
+owns.code = ["changelog.d/"]
+owns.tests = ["scripts/check_changelog_fragments.py"]
+owns.docs = ["CHANGELOG.md", "changelog.d/README.md"]
+edges = [{ to = "package", type = "released-with", what = "distribution metadata" }, { to = "docs", type = "summarizes", what = "public behavior changes" }]
 
 [[steward]]
 id = "content"
@@ -754,6 +772,14 @@ statement = "Catalog, author-runtime, and retrieval benchmark harnesses return r
 severity = "P1"
 verification = "machine"
 enforced_by = "benchmark-suite"
+
+[[invariant]]
+id = "changelog-contract"
+steward = "changelog"
+statement = "Configured Towncrier fragments produce a valid unreleased draft."
+severity = "P1"
+verification = "machine"
+enforced_by = "changelog-draft"
 
 [[invariant]]
 id = "content-contract"
