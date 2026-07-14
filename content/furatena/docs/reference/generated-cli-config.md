@@ -311,7 +311,7 @@ Command parser contract.
 |---|---:|---|---|---|---|
 | `directory` | no | `.` | — | — | Target app directory (default current directory) |
 | `--name` | no | `Furatena Docs` | — | — | Site name |
-| `--starter` | no | `minimal` | `minimal`, `api-portal`, `multi-mount` | — | Maintained repository profile (default: minimal) |
+| `--starter` | no | `minimal` | `minimal`, `api-portal`, `multi-mount`, `governed-preview` | — | Maintained repository profile (default: minimal) |
 | `--force` | no | false | — | — | Overwrite scaffold files |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 

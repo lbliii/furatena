@@ -20,6 +20,7 @@ from furatena.cli.main import run_command
         ("minimal", "docs/get-started"),
         ("api-portal", "listWidgets"),
         ("multi-mount", "sdk:latest:docs/sdk-quickstart"),
+        ("governed-preview", "docs/get-started"),
     ),
 )
 def test_starter_runs_from_init_through_static_export(
@@ -55,7 +56,7 @@ def test_starter_runs_from_init_through_static_export(
     assert expected_marker in catalog
 
 
-@pytest.mark.parametrize("starter", ("minimal", "api-portal", "multi-mount"))
+@pytest.mark.parametrize("starter", ("minimal", "api-portal", "multi-mount", "governed-preview"))
 def test_starter_dependencies_ci_and_audience_stay_release_aligned(
     tmp_path: Path,
     starter: str,
@@ -83,7 +84,7 @@ def test_starter_dependencies_ci_and_audience_stay_release_aligned(
 
 def test_starter_generation_is_safe_under_free_threading(tmp_path: Path) -> None:
     assert_free_threading()
-    starters = ("minimal", "api-portal", "multi-mount")
+    starters = ("minimal", "api-portal", "multi-mount", "governed-preview")
 
     def generate(index: int) -> tuple[str, int]:
         starter = starters[index % len(starters)]
@@ -105,6 +106,35 @@ def test_starter_generation_is_safe_under_free_threading(tmp_path: Path) -> None
     assert len(results) == 36
     assert {starter for starter, _ in results} == set(starters)
     assert all(count >= 25 for _, count in results)
+
+
+def test_governed_preview_starter_has_secure_reference_integration(tmp_path: Path) -> None:
+    app_root = tmp_path / "governed"
+    run_command(["init", str(app_root), "--starter", "governed-preview"])
+
+    railway = tomllib.loads((app_root / "railway.toml").read_text(encoding="utf-8"))
+    assert railway["build"]["builder"] == "dockerfile"
+    assert railway["deploy"]["healthcheckPath"] == "/readyz"
+    assert railway["environments"]["pr"]["deploy"] == {
+        "numReplicas": 1,
+        "overlapSeconds": 0,
+        "drainingSeconds": 0,
+    }
+    dockerfile = (app_root / "Dockerfile").read_text(encoding="utf-8")
+    assert "ARG FURA_PREVIEW_AUTH_TOKEN" not in dockerfile
+    assert "FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA" in dockerfile
+    conformance = (app_root / "scripts/preview_report.py").read_text(encoding="utf-8")
+    assert "inspect_preview" in conformance
+    assert "FURA_PREVIEW_AUTH_TOKEN must be set" in conformance
+    workflow = (app_root / ".github/workflows/preview-report.yml").read_text(encoding="utf-8")
+    assert "pull_request_target" in workflow
+    assert "head.repo.full_name == github.repository" in workflow
+    assert "user.type != 'Bot'" in workflow
+    assert "FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}" in workflow
+    preview_docs = (app_root / "PREVIEWS.md").read_text(encoding="utf-8")
+    assert "Never" in preview_docs
+    assert "one replica" in preview_docs
+    assert ".env.preview" in (app_root / ".gitignore").read_text(encoding="utf-8")
 
 
 def test_api_portal_openapi_fixture_is_valid_json_projection(tmp_path: Path) -> None:

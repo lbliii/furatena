@@ -22,6 +22,11 @@
       "reason": "This buyer-facing product page is linked from the global Product navigation and homepage rather than the documentation catalog rail."
     },
     {
+      "finding": "navigation:/platform/governed-pr-previews/",
+      "disposition": "internal",
+      "reason": "This buyer-facing capability page is linked from the /platform/ product journey; the adopter guide remains in the documentation catalog rail."
+    },
+    {
       "finding": "navigation:/proof/",
       "disposition": "internal",
       "reason": "This buyer-facing product page is linked from the global Product navigation and homepage rather than the documentation catalog rail."

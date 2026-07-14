@@ -90,4 +90,8 @@ receive the correct edition, authorized scope, source context, and freshness sta
 a human workflow would rely on. Because both surfaces originate in the same graph,
 teams can test those invariants instead of hoping a downstream crawler preserved them.
 
+Review changes through [governed pull-request previews](/platform/governed-pr-previews/)
+before they reach either surface. One protected, commit-bound environment exposes the
+human site and agent outputs with shared conformance evidence.
+
 [Explore governed agent delivery](/agents/) or [inspect the platform proof](/proof/).

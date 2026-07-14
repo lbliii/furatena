@@ -14,7 +14,12 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
     workflow = yaml.safe_load(path.read_text(encoding="utf-8"))
     triggers = workflow.get("on") or workflow.get(True)
 
-    assert set(triggers) == {"pull_request_target", "repository_dispatch", "workflow_dispatch"}
+    assert set(triggers) == {
+        "pull_request_target",
+        "repository_dispatch",
+        "workflow_dispatch",
+        "workflow_call",
+    }
     assert workflow["permissions"] == {
         "contents": "read",
         "checks": "write",
