@@ -10,7 +10,7 @@
       "root": ".",
       "mount": "furatena",
       "url_prefix": "",
-      "revision": "sha256:39cd96b6246f8c4547eaa86a348b91e28ec655c703e836b441e98c870f3a0d4e",
+      "revision": "sha256:9601fc13aaf296db650fa68079e556df4d3acd7213fecfd007835f56f93cb5ae",
       "sources": [
         {
           "path": "content/furatena/docs/get-started/installation.md",
@@ -38,7 +38,7 @@
         },
         {
           "path": "content/furatena/releases/_index.md",
-          "sha256": "7a33809b097c844ca0f0e874b83e93e8348610ce3c93349bb156846a24d3e170"
+          "sha256": "7081bd4c4c3658ead83518b7f903b9d8c9509fb0f7a76a5bcaf1c491f6c52cf3"
         },
         {
           "path": "src/furatena/catalog/access.py",
