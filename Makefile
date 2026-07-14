@@ -166,6 +166,7 @@ ci-fast: format-check hygiene
 		src/furatena/catalog/preview_contracts.py \
 		src/furatena/catalog/preview_security.py \
 		src/furatena/catalog/railway_preview.py \
+		src/furatena/catalog/railway_preview_controller.py \
 		src/furatena/catalog/preview_conformance.py \
 		src/furatena/catalog/author_benchmarks.py \
 		src/furatena/catalog/pdf_proof.py \
@@ -216,6 +217,7 @@ ci-fast: format-check hygiene
 		tests/test_preview_fixtures.py \
 		tests/test_preview_security.py \
 		tests/test_railway_preview.py \
+		tests/test_railway_preview_controller.py \
 		tests/test_preview_conformance.py \
 		tests/test_preview_reporting_workflow.py \
 		tests/test_pdf_proof.py \

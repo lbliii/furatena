@@ -30,6 +30,17 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
     checkout = report["steps"][0]
     assert checkout["with"]["ref"] == "${{ github.event.repository.default_branch }}"
 
+    assert workflow["concurrency"]["cancel-in-progress"] is True
+    railway = workflow["jobs"]["railway"]
+    assert "head.repo.full_name == github.repository" in railway["if"]
+    assert "user.type != 'Bot'" in railway["if"]
+    assert railway["env"]["RAILWAY_API_TOKEN"] == "${{ secrets.RAILWAY_API_TOKEN }}"
+    assert "FURA_PREVIEW_AUTH_TOKEN" not in railway["env"]
+    assert railway["steps"][0]["with"]["ref"] == ("${{ github.event.repository.default_branch }}")
+    commands = [step.get("run", "") for step in railway["steps"]]
+    assert "npm install --global @railway/cli@5.25.0" in commands
+    assert any("scripts/railway_preview_controller.py" in command for command in commands)
+
 
 def test_reporter_upserts_one_check_and_marker_comment() -> None:
     script = (REPO / "src/furatena/catalog/preview_reporting.py").read_text(encoding="utf-8")

@@ -30,6 +30,14 @@ variable with at least 32 characters. Never put source credentials, production
 author sessions, the reviewer token, or private mount credentials in Docker
 arguments or comments.
 
+Furatena's Railway dogfood repository automates that step from trusted
+default-branch code. A Railway workspace token lives in the GitHub Actions
+secret `RAILWAY_API_TOKEN`; the controller creates a fresh reviewer token for
+each PR head, seals it in the ephemeral environment, then verifies the
+protected manifest before reporting ready. Adopters may implement an equivalent
+provider controller or retain the documented callback boundary. Interactive
+reviewer credential distribution remains an out-of-band security decision.
+
 GitHub requires `checks: write` and `pull-requests: write`; contents remain
 read-only. The `pull_request_target` job always runs trusted default-
 branch tooling, rejects bots and external forks, and never checks out PR code.

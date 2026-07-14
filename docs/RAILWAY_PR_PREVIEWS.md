@@ -21,13 +21,20 @@ The checked-in `railway.toml` keeps production deployment settings intact and
 uses `[environments.pr.deploy]` only to remove overlap and draining time from
 ephemeral environments.
 
+Create a Railway workspace API token with access to this project, then add it
+to the GitHub repository as the Actions secret `RAILWAY_API_TOKEN`. Create and
+store that credential directly in the Railway and GitHub settings UIs; never
+paste it into an issue, pull request, shell history, or workflow input. The
+workflow pins Railway CLI `5.25.0` and uses the token only from the trusted
+default-branch job.
+
 ## Per-PR identity and secret
 
-Railway does not copy sealed variables into PR environments. Keep
-`FURA_PREVIEW_AUTH_TOKEN` sealed and inject a fresh value into each ephemeral
-environment; never place it in a Docker build argument, repository secret
-output, log, manifest, or PR comment. The environment also needs these
-non-secret variables before the final rebuild:
+Railway does not copy sealed variables into PR environments. On every eligible
+internal, non-bot PR head, `.github/workflows/preview-report.yml` runs trusted
+default-branch code that generates a fresh `FURA_PREVIEW_AUTH_TOKEN`, applies
+it as a sealed Railway variable, and atomically applies these non-secret
+identity variables before a source redeploy:
 
 ```text
 FURA_PR_PREVIEW=1
@@ -38,7 +45,18 @@ FURA_PREVIEW_REVIEW_URL=https://github.com/lbliii/furatena/pull/<number>
 
 The Docker build records `FURA_BUILD_GIT_SHA`. Startup fails closed unless it
 matches `FURA_PREVIEW_SHA`, and all surfaces except `/healthz` and `/readyz`
-require the per-preview Basic/Bearer token.
+require the per-preview Basic/Bearer token. The generated token remains only in
+the controller process and sealed Railway configuration: it is never placed in
+a command argument, repository output, log, manifest, or PR comment. Automated
+conformance uses it before the job exits. Distribution of an interactive human
+review credential is a separate, out-of-band operator action.
+
+The controller re-reads the GitHub pull request before touching Railway. It
+rejects forks, bots, and superseded SHAs; waits for the matching Railway PR
+environment; applies the variables through `railway environment edit`; and
+performs an explicit source redeploy. A Railway success is reported as ready
+only when its provider metadata and protected manifest both match the current
+40-character PR head SHA. New synchronize events cancel older controller runs.
 
 ## Lifecycle mapping
 
@@ -76,3 +94,9 @@ If a preview stalls, inspect the deployment logs and unauthenticated `/readyz`
 first. A missing sealed token is an expected fail-closed startup path. Repair
 variables in the ephemeral environment, rebuild the same head SHA, then verify
 the manifest before sharing the authenticated URL.
+
+For trusted recovery after the secret is configured, run **Report Furatena PR
+preview** manually with the PR number, current full head SHA, an initial state,
+and `configure_railway=true`. The same fork, bot, and current-head checks still
+apply. A close or merge remains Railway-owned teardown; the close event updates
+the single GitHub check and marker comment to `removed`.

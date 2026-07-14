@@ -25,21 +25,52 @@ COMMENT_MARKER = "<!-- furatena-preview -->"
 def main() -> int:
     args = _parser().parse_args()
     token = os.environ.get(args.preview_token_env, "")
+    github_token = os.environ.get(args.github_token_env, "")
+    payload = report_preview_state(
+        state=args.state,
+        origin=args.origin,
+        expected_sha=args.expected_sha,
+        remediation=args.remediation,
+        preview_token=token,
+        publish=args.publish,
+        repository=args.repository,
+        pr_number=args.pr_number,
+        github_token=github_token,
+        details_url=args.details_url,
+    )
+    if args.output:
+        Path(args.output).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({key: value for key, value in payload.items() if key != "comment"}, indent=2))
+    return 0
+
+
+def report_preview_state(
+    *,
+    state: str,
+    origin: str,
+    expected_sha: str,
+    remediation: str | None,
+    preview_token: str,
+    publish: bool,
+    repository: str,
+    pr_number: int,
+    github_token: str,
+    details_url: str,
+) -> dict[str, object]:
+    """Verify and optionally publish one preview lifecycle observation."""
+
     result: PreviewConformanceResult | None = None
-    state = args.state
     if state == "ready":
-        if not args.origin or not token:
+        if not origin or not preview_token:
             state = "failed"
             remediation = "Configure the preview origin and reviewer token, then retry conformance."
         else:
-            result = inspect_preview(args.origin, token, args.expected_sha)
+            result = inspect_preview(origin, preview_token, expected_sha)
             state = "ready" if result.ok else "failed"
             remediation = None
-    else:
-        remediation = args.remediation
     comment = preview_comment_markdown(
         state,
-        args.expected_sha,
+        expected_sha,
         result=result,
         remediation=remediation,
     )
@@ -49,24 +80,22 @@ def main() -> int:
         "comment": comment,
         "conformance": result.to_dict() if result is not None else None,
     }
-    if args.output:
-        Path(args.output).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    if args.publish:
-        github_token = os.environ.get(args.github_token_env, "")
+    if publish:
         if not github_token:
-            raise SystemExit(f"{args.github_token_env} is required with --publish")
+            raise ValueError(
+                "A GitHub authentication token is required when publishing preview state."
+            )
         _publish(
-            repository=args.repository,
-            pr_number=args.pr_number,
-            head_sha=args.expected_sha,
+            repository=repository,
+            pr_number=pr_number,
+            head_sha=expected_sha,
             state=state,
             comment=comment,
             token=github_token,
-            details_url=args.details_url or args.origin,
+            details_url=details_url or origin,
             summary=_check_summary(state, result),
         )
-    print(json.dumps({key: value for key, value in payload.items() if key != "comment"}, indent=2))
-    return 0
+    return payload
 
 
 def _publish(
