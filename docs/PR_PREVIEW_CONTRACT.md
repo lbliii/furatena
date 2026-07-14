@@ -112,3 +112,6 @@ HTML and machine-readable routes is implemented by the preview security task.
 Canonical examples live in `tests/fixtures/preview/v1/`. Integrators should
 validate both incoming requests and emitted manifests against the shipped
 schemas before acting on them.
+
+Runtime enforcement, deployment variables, authentication instructions, and
+the threat model are documented in [Pull-request preview security](PR_PREVIEW_SECURITY.md).

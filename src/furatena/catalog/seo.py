@@ -9,12 +9,18 @@ from urllib.parse import urlsplit
 
 from kida.template import Markup
 
+from furatena.catalog.preview_security import PreviewEnvironment
+
 if TYPE_CHECKING:
     from furatena.catalog.models import DocNode
 
 
 def docs_base_url(request_host: str | None = None) -> str:
     """Resolve the public docs origin for canonical and OG URLs."""
+    preview = PreviewEnvironment.from_environment()
+    if preview is not None:
+        # PR environments must never inherit a production canonical origin.
+        return preview.origin
     configured = os.environ.get("FURA_BASE_URL", "").strip().rstrip("/")
     if configured:
         return configured
