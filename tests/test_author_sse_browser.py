@@ -491,14 +491,29 @@ async def test_htmx4_preview_sse_signal_exposes_focus_regression(
     base_url, page_path = htmx4_author_server
     context = await browser.new_context(viewport={"width": 1280, "height": 900})
     page = await context.new_page()
+    event_requests: list[str] = []
+
+    def record_request(request: Any) -> None:
+        if "/docs/_author/events" in request.url:
+            event_requests.append(request.url)
+
+    async def delay_sse_connection(route: Any) -> None:
+        await asyncio.sleep(0.25)
+        await route.continue_()
+
+    page.on("request", record_request)
+    await page.route("**/docs/_author/events?**", delay_sse_connection)
     try:
         await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
         await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
         marker = page.locator("#fura-author-sse")
         assert await marker.get_attribute("hx-sse:connect")
+        assert await marker.get_attribute("data-fura-sse-extension-active") == "1"
         await page.wait_for_function(
             "document.getElementById('fura-author-sse')._htmx?.sse != null"
         )
+        await asyncio.sleep(0.1)
+        assert len(event_requests) == 1
 
         await page.evaluate(
             """
