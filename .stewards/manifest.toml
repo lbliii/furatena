@@ -1,0 +1,860 @@
+network = "Furatena"
+protocol = ".stewards/PROTOCOL.md"
+max_active_bytes = 24576
+coverage_roots = [
+  "src/furatena",
+  "src/furatena/catalog",
+  "src/furatena/cli",
+  "src/furatena/themes",
+]
+
+pillars = [
+  "Furatena is a hypermedia documentation catalog: one content graph serves live Chirp views, frozen catalogs, static exports, PDF, search, DCP, CLI, and agent surfaces.",
+  "The dual-IR pipeline preserves source meaning separately from rendered HTML; adapters normalize formats before rendering and generated artifacts retain provenance.",
+  "Public, draft, private, protected, and archived visibility is a cross-surface security contract, not a template preference.",
+  "Deterministic builds, actionable diagnostics, schema-versioned contracts, and generated-reference drift checks are product behavior.",
+  "Furatena runs on free-threaded CPython 3.14 with `PYTHON_GIL=0`; shared state has explicit ownership, synchronization, and lifecycle.",
+  "CLI, browser, static, DCP, MCP, publication, preview, and documentation contracts move together when a public surface changes.",
+]
+
+search_policy = [
+  "At task start, read the root map before repository discovery; never locate instructions by inventorying every AGENTS.md in the repository.",
+  "Before reading or searching content beneath a path, open the nearest scoped map on that path; add another map only when the investigation crosses into its scope.",
+  "If the request names an exact file, symbol, schema, route, command, fixture, or failing test, inspect that target before searching elsewhere.",
+  "Search progressively: likely files, then filename or import discovery, then scoped content search; expand repository-wide only when scoped evidence fails or proves a cross-cutting dependency, and state the reason.",
+  "Treat 10 commands or 12 content-exposed files as a strategy checkpoint, never as a hard stopping limit; record the current frontier, remaining uncertainty, and whether to continue or pivot.",
+  "For import, dependency, registration, or call-chain bugs, prove graph closure with a bounded static traversal through ancestor package initializers and repository-local module-level imports; stop at function/class bodies, TYPE_CHECKING blocks, and classified external dependencies.",
+  "For parsing, rendering, visibility, publication, or export bugs, prove pipeline closure for the named value: source form, adapter/parser, Content IR, graph or policy transform, render context, reached output surfaces, and focused contract tests.",
+  "Do not use repository-wide dependency, lockfile, documentation, generated-output, or workflow searches to establish closure; broaden only after the bounded graph identifies a cross-surface contract.",
+]
+
+operating_rules = [
+  "Use free-threaded CPython 3.14 with `PYTHON_GIL=0` and install development dependencies through `uv sync --group dev`.",
+  "Preserve unrelated working-tree changes, stage only explicit paths, and never use destructive Git cleanup commands.",
+  "Do not take, implement, close, or batch-plan issues labeled `good first issue` or titled `[GF]`; they are reserved for external contributors.",
+  "`ask stewards`, `bugbash`, `review swarm`, `steward synthesis`, `audit docs`, `content audit`, and `accuracy pass` are explicit review triggers: open the protocol, consult independent affected maps, preserve dissent, and synthesize with evidence.",
+  "Generated references, public-surface inventories, frozen catalogs, and exported output are not source-of-truth; update source/config and use repository commands to regenerate them.",
+  "Generated output under `app/public/`, `app/frozen/`, `app/.preview/`, `pdf-proof/`, `build/`, and `dist/` is not edited as product source.",
+  "Keep browser, static, CLI, DCP, MCP, publication, preview, PDF, and agent contracts aligned whenever a changed value reaches those surfaces.",
+  "Add `changelog.d/ISSUE.TYPE.md` for user-, operator-, security-, or documentation-visible changes; fragments use configured Towncrier categories and complete sentences.",
+  "Treat warnings, exemptions, snapshots, score thresholds, diagnostic budgets, and coverage baselines as ratchets: new debt fails and resolved debt is removed deliberately.",
+  "Before finalizing agent-authored public files, remove customer names, private people or project names, private quotes, endpoints, and internal scale or cost figures.",
+  "No silent exception, unexplained type-ignore, vague error, speculative config, hand-edited generated fact, snapshot refresh without sensitivity proof, or adjacent refactor unless it is the fix.",
+]
+
+stop_and_ask = [
+  "A change alters public Python API, CLI commands or exit behavior, DCP/MCP shapes, schema versions, route manifests, theme entry points, package data, optional formats, or compatibility policy.",
+  "A change alters visibility, tenancy, trusted gateway identity, author authorization, capability policy, preview security, publication approval, or private-content export behavior.",
+  "A change changes Content IR or graph identity, source adapter semantics, reference resolution, URL/base-path rules, lifecycle state, cache keys, atomic publication, or operation leases.",
+  "A change affects generated CLI/config references, public-surface inventory, frozen/static/PDF parity, release workflow permissions, provenance, trusted publishing, or deployment defaults.",
+  "A hot-path parser, graph, search, render, freeze, export, or retrieval change lacks a measurement plan; a concurrency change lacks explicit shared-state and GIL-disabled reasoning.",
+  "Tests and code disagree, a reported bug cannot be reproduced, or a public-contract decision remains unresolved.",
+  "When public behavior depends on unresolved product choices, identify only the minimum blocking decisions and stop before designing collateral, compatibility behavior, or migration policy.",
+  "An irreversible operation, deletion, release action, external write, credential-bearing action, or coordinated downstream change is required.",
+]
+
+done_criteria = [
+  "Run the narrowest relevant pytest targets first; run `make test` for broad or release-class changes.",
+  "Before handoff run `make ci-fast`, then each affected lane from `docs/CI.md` such as `make ci-contract`, `make ci-export`, `make ci-agent`, `make ci-pdf-proof`, or `make ci-release`.",
+  "Run `make format-check`, `make lint`, and `make ty-ratchet` for Python changes; do not add ignores, exemptions, or baseline increases merely to pass.",
+  "Visibility or tenancy changes prove allowed and forbidden audiences across every reached live, static, frozen, search, PDF, inventory, DCP, and agent surface.",
+  "Source, IR, graph, render, and export changes test malformed input, deterministic output, provenance, incremental behavior, and every reached format or channel.",
+  "Public behavior moves with docs, generated references, schemas/fixtures, examples, benchmarks or a no-impact rationale, and a changelog fragment when required.",
+  "Run `python .stewards/project.py --check` and `python .stewards/verify.py --coverage` after steward maintenance.",
+  "Every accepted steward finding names proof and collateral or an explicit no-impact reason; user-facing errors name the surface and recovery action.",
+]
+
+[check.steward-tools]
+invoke = "uv run pytest tests/stewards -q"
+location = "tests/stewards/test_steward_tools.py"
+proof_contains = "test_repository_steward_network_is_current_and_covered"
+
+[check.fast]
+invoke = "make ci-fast"
+location = "Makefile"
+proof_contains = "ci-fast:"
+
+[check.contract]
+invoke = "make ci-contract"
+location = "Makefile"
+proof_contains = "ci-contract:"
+
+[check.coverage]
+invoke = "make ci-coverage"
+location = "Makefile"
+proof_contains = "ci-coverage:"
+
+[check.export]
+invoke = "make ci-export"
+location = "Makefile"
+proof_contains = "ci-export:"
+
+[check.agent]
+invoke = "make ci-agent"
+location = "Makefile"
+proof_contains = "ci-agent:"
+
+[check.release]
+invoke = "make ci-release"
+location = "Makefile"
+proof_contains = "ci-release:"
+
+[check.full-tests]
+invoke = "make test"
+location = "Makefile"
+proof_contains = "test:"
+
+[check.autodoc-suite]
+invoke = "uv run pytest tests/test_chirp_contract_inventory.py tests/test_docs_reference.py -q"
+location = "tests/test_docs_reference.py"
+
+[check.directives-suite]
+invoke = "uv run pytest tests/test_chirp_docs_directives.py tests/test_chirp_docs_list_table.py -q"
+location = "tests/test_chirp_docs_directives.py"
+
+[check.inventory-suite]
+invoke = "uv run pytest tests/test_chirp_docs_link_and_inventory_contracts.py tests/test_docs_inventory.py -q"
+location = "tests/test_docs_inventory.py"
+
+[check.migration-suite]
+invoke = "uv run pytest tests/test_chirp_docs_mdx_migration.py tests/test_migration_playbooks.py -q"
+location = "tests/test_chirp_docs_mdx_migration.py"
+
+[check.references-suite]
+invoke = "uv run pytest tests/test_chirp_docs_reference_resolution.py -q"
+location = "tests/test_chirp_docs_reference_resolution.py"
+
+[check.sources-suite]
+invoke = "uv run pytest tests/test_chirp_docs_sources.py tests/test_chirp_docs_ast_roundtrip.py -q"
+location = "tests/test_chirp_docs_sources.py"
+
+[check.schema-suite]
+invoke = "uv run pytest tests/test_capability_schemas.py tests/test_preview_schemas.py tests/test_publication_schemas.py tests/test_validation_snapshots.py -q"
+location = "tests/test_validation_snapshots.py"
+
+[check.cli-suite]
+invoke = "uv run pytest tests/test_cli_entrypoint_smoke.py tests/test_fura_cli_standalone.py -q"
+location = "tests/test_cli_entrypoint_smoke.py"
+
+[check.cli-commands-suite]
+invoke = "uv run pytest tests/test_cli_command_modules.py -q"
+location = "tests/test_cli_command_modules.py"
+
+[check.theme-suite]
+invoke = "uv run pytest tests/test_chirp_docs_theming.py tests/test_chirp_docs_template_stack.py tests/test_theme_lint.py tests/test_theme_pack.py tests/test_theme_preset.py -q"
+location = "tests/test_chirp_docs_theming.py"
+
+[check.runtime-suite]
+invoke = "uv run pytest tests/test_chirp_docs_runtime.py tests/test_render_context.py tests/test_chirp_docs_response_conformance.py -q"
+location = "tests/test_chirp_docs_runtime.py"
+
+[check.content-suite]
+invoke = "uv run pytest tests/test_chirp_docs_content_ir.py tests/test_chirp_docs_content_lint.py tests/test_docs_journeys.py -q"
+location = "tests/test_chirp_docs_content_ir.py"
+
+[check.docs-suite]
+invoke = "uv run pytest tests/test_docs_quality.py tests/test_docs_reference.py tests/test_support_policy.py -q"
+location = "tests/test_docs_quality.py"
+
+[check.benchmark-suite]
+invoke = "uv run pytest tests/test_benchmark_harness.py tests/test_author_benchmark_harness.py tests/test_retrieval_benchmarks.py -q"
+location = "tests/test_benchmark_harness.py"
+
+[check.changelog-draft]
+invoke = "make changelog-draft"
+location = "changelog.d/README.md"
+
+[check.examples-suite]
+invoke = "uv run pytest tests/test_starter_repositories.py -q"
+location = "tests/test_starter_repositories.py"
+
+[check.github-suite]
+invoke = "uv run pytest tests/test_ci_lanes.py tests/test_release_publishing.py -q"
+location = "tests/test_ci_lanes.py"
+
+[check.scripts-suite]
+invoke = "uv run pytest tests/test_ty_diagnostic_ratchet.py tests/test_core_coverage_policy.py tests/test_verify_live_artifacts.py -q"
+location = "tests/test_ty_diagnostic_ratchet.py"
+
+[check.eval-suite]
+invoke = "uv run pytest tests/test_retrieval_dataset.py tests/test_retrieval_conformance.py tests/test_afdocs_score_lane.py -q"
+location = "tests/test_retrieval_dataset.py"
+
+[check.fixtures-suite]
+invoke = "uv run pytest tests/test_preview_fixtures.py tests/test_publication_fixtures.py tests/test_validation_snapshots.py -q"
+location = "tests/test_preview_fixtures.py"
+
+[[steward]]
+id = "root"
+path = "AGENTS.md"
+point_of_view = "Protect Furatena's cross-surface documentation contracts and route work to the narrowest knowledgeable steward."
+edges = [
+  { to = "package", type = "governs", what = "installed API and packaging" },
+  { to = "catalog", type = "governs", what = "content graph and delivery pipeline" },
+  { to = "tests", type = "verified-by", what = "executable evidence" },
+  { to = "docs", type = "explained-by", what = "architecture and operating contracts" },
+]
+
+[[steward]]
+id = "package"
+path = "src/furatena/AGENTS.md"
+point_of_view = "Keep the installed Furatena package, public imports, typing marker, dependencies, entry points, and release artifacts coherent."
+guardrails = [
+  "`pyproject.toml`, `uv.lock`, package data, `fura` entry point, README commands, and isolated install smoke move together.",
+  "Optional source formats stay optional and local co-development overrides never enter committed project metadata.",
+]
+owns.code = ["src/furatena/*.py", "pyproject.toml", "uv.lock"]
+owns.tests = ["tests/test_catalog_packaging.py", "tests/test_release_publishing.py"]
+owns.docs = ["README.md", "docs/RELEASING.md"]
+edges = [{ to = "cli", type = "exposes", what = "fura entry point" }, { to = "github", type = "published-by", what = "release workflow" }]
+
+[[steward]]
+id = "catalog"
+path = "src/furatena/catalog/AGENTS.md"
+point_of_view = "Keep the catalog graph, dual IR, visibility, lifecycle, render, freeze, export, search, publication, and agent surfaces one coherent system."
+guardrails = [
+  "Trace changed values from source through Content IR, graph/policy transforms, render context, and every reached output surface.",
+  "Identity, visibility, base paths, provenance, incremental invalidation, and atomic publication remain deterministic.",
+  "Flat catalog modules stay cohesive; do not create a new subsystem or configuration axis without an explicit boundary decision.",
+]
+owns.code = ["src/furatena/catalog/*.py"]
+owns.tests = ["tests/test_chirp_docs_catalog_surfaces.py", "tests/test_chirp_docs_graph_structure.py", "tests/test_chirp_docs_static_export.py"]
+owns.docs = ["docs/DUAL_IR.md", "docs/DCP.md", "docs/VIEWS.md"]
+edges = [{ to = "sources", type = "fed-by", what = "normalized sources" }, { to = "app", type = "served-by", what = "live runtime" }, { to = "content", type = "built-from", what = "repository content" }]
+
+[[steward]]
+id = "autodoc"
+path = "src/furatena/catalog/autodoc/AGENTS.md"
+point_of_view = "Keep Python autodoc extraction deterministic, source-attributed, and compatible with the same IR and reference contracts as authored content."
+guardrails = [
+  "Extraction never imports arbitrary project code when static analysis can answer safely.",
+  "Generated members preserve stable identity, signatures, ordering, provenance, and actionable unsupported-shape diagnostics.",
+]
+owns.code = ["src/furatena/catalog/autodoc/"]
+owns.tests = ["tests/test_chirp_contract_inventory.py", "tests/test_docs_reference.py"]
+owns.docs = ["docs/AUTHORING.md"]
+edges = [{ to = "catalog", type = "produces", what = "generated catalog nodes" }, { to = "references", type = "linked-by", what = "API references" }]
+
+[[steward]]
+id = "directives"
+path = "src/furatena/catalog/directives/AGENTS.md"
+point_of_view = "Keep directive syntax, validation, IR effects, safe HTML boundaries, and Kida rendering consistent across formats."
+guardrails = [
+  "Directive registration, parsing, node shape, HTML output, link extraction, errors, docs, and tests move together.",
+  "Includes remain bounded and provenance-aware; raw HTML and embeds never bypass trust or visibility policy.",
+]
+owns.code = ["src/furatena/catalog/directives/"]
+owns.tests = ["tests/test_chirp_docs_directives.py", "tests/test_chirp_docs_list_table.py", "tests/test_safe_html_boundaries.py"]
+owns.docs = ["docs/AUTHORING.md", "docs/SAFE_HTML_BOUNDARIES.md"]
+edges = [{ to = "catalog", type = "extends", what = "Content IR and rendering" }, { to = "roles", type = "composes", what = "inline references" }]
+
+[[steward]]
+id = "evals"
+path = "src/furatena/catalog/eval_datasets/AGENTS.md"
+point_of_view = "Keep retrieval and agent evaluation datasets versioned, deterministic, representative, and resistant to threshold gaming."
+guardrails = [
+  "Known answers, thresholds, scoring semantics, dataset version, and benchmark reports change together.",
+  "Threshold changes require measured evidence; do not weaken a gate to bless a regression.",
+]
+owns.code = ["src/furatena/catalog/eval_datasets/"]
+owns.tests = ["tests/test_retrieval_dataset.py", "tests/test_retrieval_conformance.py", "tests/test_afdocs_score_lane.py"]
+owns.docs = ["docs/AGENT_SCORE.md"]
+edges = [{ to = "benchmarks", type = "measured-by", what = "retrieval benchmark" }, { to = "catalog", type = "verifies", what = "search and agent retrieval" }]
+
+[[steward]]
+id = "fixtures"
+path = "src/furatena/catalog/fixtures/AGENTS.md"
+point_of_view = "Keep shipped contract fixtures minimal, schema-valid, versioned, and representative of supported producer and consumer behavior."
+guardrails = [
+  "Fixture changes prove validation sensitivity and never replace production-path assertions with snapshot blessing.",
+  "New versions preserve explicit compatibility and migration expectations.",
+]
+owns.code = ["src/furatena/catalog/fixtures/"]
+owns.tests = ["tests/test_preview_fixtures.py", "tests/test_publication_fixtures.py", "tests/test_validation_snapshots.py"]
+owns.docs = ["docs/DCP.md", "docs/PUBLICATION_WORKFLOW.md"]
+edges = [{ to = "schemas", type = "validated-by", what = "versioned schemas" }, { to = "tests", type = "consumed-by", what = "contract suites" }]
+
+[[steward]]
+id = "inventories"
+path = "src/furatena/catalog/inventories/AGENTS.md"
+point_of_view = "Keep DCP and Sphinx inventories typed, deterministic, provenance-aware, and safe across mount and visibility boundaries."
+guardrails = [
+  "Inventory identity, targets, anchors, versions, serialization, and cache invalidation remain stable and diagnosable.",
+  "Private or untrusted inventory data never becomes a public cross-reference by accident.",
+]
+owns.code = ["src/furatena/catalog/inventories/"]
+owns.tests = ["tests/test_chirp_docs_link_and_inventory_contracts.py", "tests/test_docs_inventory.py"]
+owns.docs = ["docs/DCP.md"]
+edges = [{ to = "references", type = "resolved-by", what = "cross-project links" }, { to = "catalog", type = "exports", what = "inventory artifacts" }]
+
+[[steward]]
+id = "migrations"
+path = "src/furatena/catalog/migrate/AGENTS.md"
+point_of_view = "Keep migration analysis conservative, explainable, idempotent, and separate from destructive source rewriting."
+guardrails = [
+  "Reports distinguish safe automatic rewrites, review-required remediation, unsupported constructs, and unchanged content.",
+  "Migration output preserves source locations and offers a rollback or dry-run story before any mutation.",
+]
+owns.code = ["src/furatena/catalog/migrate/"]
+owns.tests = ["tests/test_chirp_docs_mdx_migration.py", "tests/test_migration_playbooks.py"]
+owns.docs = ["docs/MIGRATION_PILOTS.md", "docs/COMPATIBILITY.md"]
+edges = [{ to = "sources", type = "analyzes", what = "source formats" }, { to = "cli_commands", type = "invoked-by", what = "migrate command" }]
+
+[[steward]]
+id = "references"
+path = "src/furatena/catalog/references/AGENTS.md"
+point_of_view = "Keep local, mounted, inventory, glossary, and API reference resolution deterministic and rich in actionable context."
+guardrails = [
+  "Resolution order, ambiguity, missing-target diagnostics, version context, and base paths are explicit contracts.",
+  "A resolved link retains enough provenance to audit which source and inventory supplied it.",
+]
+owns.code = ["src/furatena/catalog/references/"]
+owns.tests = ["tests/test_chirp_docs_reference_resolution.py"]
+owns.docs = ["docs/ROUTES.md", "docs/DCP.md"]
+edges = [{ to = "inventories", type = "consults", what = "external targets" }, { to = "roles", type = "serves", what = "inline xrefs" }]
+
+[[steward]]
+id = "roles"
+path = "src/furatena/catalog/roles/AGENTS.md"
+point_of_view = "Keep inline roles, xrefs, glossary terms, and inventory references format-compatible and safely rendered."
+guardrails = [
+  "Role registration, target parsing, display text, unresolved behavior, escaping, and link extraction move together.",
+  "Roles do not smuggle trusted HTML or skip the central reference resolver.",
+]
+owns.code = ["src/furatena/catalog/roles/"]
+owns.tests = ["tests/test_chirp_docs_directives.py", "tests/test_chirp_docs_reference_resolution.py"]
+owns.docs = ["docs/AUTHORING.md"]
+edges = [{ to = "references", type = "delegates-to", what = "target resolution" }, { to = "directives", type = "parallels", what = "author syntax" }]
+
+[[steward]]
+id = "schemas"
+path = "src/furatena/catalog/schemas/AGENTS.md"
+point_of_view = "Keep shipped JSON schemas versioned, strict enough to catch drift, and synchronized with Python models, fixtures, CLI, and docs."
+guardrails = [
+  "Schema changes classify compatibility and move with validators, example payloads, snapshots, and migration notes.",
+  "Do not loosen required fields or additional-property policy merely to accept an implementation regression.",
+]
+owns.code = ["src/furatena/catalog/schemas/"]
+owns.tests = ["tests/test_capability_schemas.py", "tests/test_preview_schemas.py", "tests/test_publication_schemas.py"]
+owns.docs = ["docs/DCP.md", "docs/PUBLICATION_WORKFLOW.md"]
+edges = [{ to = "fixtures", type = "validates", what = "contract examples" }, { to = "catalog", type = "describes", what = "serialized public contracts" }]
+
+[[steward]]
+id = "sources"
+path = "src/furatena/catalog/sources/AGENTS.md"
+point_of_view = "Keep filesystem, Git, markdown, MyST, RST, MDX, and HTML sources normalized into stable Content IR without format-specific leakage."
+guardrails = [
+  "Adapters preserve locations, front matter, links, structure, provenance, and unsupported syntax diagnostics.",
+  "Scanner identity, ignore rules, symlink behavior, ordering, and incremental fingerprints remain deterministic and tenant-safe.",
+]
+owns.code = ["src/furatena/catalog/sources/"]
+owns.tests = ["tests/test_chirp_docs_sources.py", "tests/test_chirp_docs_ast_roundtrip.py", "tests/test_git_edition_discovery.py"]
+owns.docs = ["docs/DUAL_IR.md", "docs/AUTHORING.md", "docs/EDITIONS.md"]
+edges = [{ to = "catalog", type = "feeds", what = "normalized Content IR" }, { to = "migrations", type = "analyzed-by", what = "format migration" }]
+
+[[steward]]
+id = "templates"
+path = "src/furatena/catalog/_templates/AGENTS.md"
+point_of_view = "Keep built-in Kida templates semantically aligned with render contexts, view kinds, safe HTML boundaries, and full/fragment response contracts."
+guardrails = [
+  "Template variables come from typed render contexts; missing values fail with actionable diagnostics.",
+  "Full pages, fragments, static output, and theme overrides preserve semantic markup and required assets.",
+]
+owns.code = ["src/furatena/catalog/_templates/"]
+owns.tests = ["tests/test_chirp_docs_template_stack.py", "tests/test_chirp_docs_views.py", "tests/test_kida_component_seams.py"]
+owns.docs = ["docs/THEMING.md", "docs/VIEWS.md"]
+edges = [{ to = "themes", type = "styled-by", what = "theme packs" }, { to = "catalog", type = "renders", what = "view models" }]
+
+[[steward]]
+id = "cli"
+path = "src/furatena/cli/AGENTS.md"
+point_of_view = "Keep the `fura` facade, parser, lazy command dispatch, structured errors, output channels, and exit behavior stable and scriptable."
+guardrails = [
+  "CLI imports remain cheap and command modules own their flags and handlers without eager-loading unrelated capabilities.",
+  "Human and machine output preserve stdout/stderr separation, stable fields, actionable recovery, and no secret leakage.",
+]
+owns.code = ["src/furatena/cli/*.py"]
+owns.tests = ["tests/test_cli_entrypoint_smoke.py", "tests/test_fura_cli_standalone.py"]
+owns.docs = ["README.md", "docs/CLI_CONTRACT.md"]
+edges = [{ to = "cli_commands", type = "dispatches-to", what = "subcommands" }, { to = "package", type = "exposed-by", what = "console entry point" }]
+
+[[steward]]
+id = "cli_commands"
+path = "src/furatena/cli/commands/AGENTS.md"
+point_of_view = "Keep each Furatena command thin over catalog services while preserving command-specific validation, side effects, and recovery text."
+guardrails = [
+  "Commands do not duplicate catalog policy; they translate arguments, call one owning service, and present results.",
+  "Mutating, server, export, migration, publication, and author commands make side effects and trust posture explicit.",
+]
+owns.code = ["src/furatena/cli/commands/"]
+owns.tests = ["tests/test_cli_command_modules.py"]
+owns.docs = ["docs/CLI_CONTRACT.md", "content/furatena/docs/reference/generated-cli-config.md"]
+edges = [{ to = "cli", type = "registered-by", what = "lazy dispatcher" }, { to = "catalog", type = "invokes", what = "domain services" }]
+
+[[steward]]
+id = "themes"
+path = "src/furatena/themes/AGENTS.md"
+point_of_view = "Keep theme discovery, package entry points, presets, asset ownership, overrides, and compatibility explicit."
+guardrails = [
+  "Theme packs declare stable identity and assets; missing, colliding, or unsafe paths fail before rendering.",
+  "Default and optional themes share semantic view contracts even when their presentation differs.",
+]
+owns.code = ["src/furatena/themes/"]
+owns.tests = ["tests/test_theme_pack.py", "tests/test_theme_preset.py", "tests/test_theme_lint.py"]
+owns.docs = ["docs/THEMING.md"]
+edges = [{ to = "furatena_theme", type = "contains", what = "primary product theme" }, { to = "lagoon", type = "contains", what = "packaged Lagoon theme" }]
+
+[[steward]]
+id = "furatena_theme"
+path = "src/furatena/themes/furatena/AGENTS.md"
+point_of_view = "Keep Furatena's primary visual system, icons, CSS scopes, responsive shell, and accessibility aligned with semantic templates."
+guardrails = [
+  "CSS remains scoped to documented theme boundaries and does not depend on accidental generated markup.",
+  "Icons, contrast, focus, reduced motion, responsive navigation, print/PDF behavior, and dark mode move with visual changes.",
+]
+owns.code = ["src/furatena/themes/furatena/"]
+owns.tests = ["tests/test_chirp_docs_theming.py", "tests/test_chirp_docs_template_stack.py"]
+owns.docs = ["docs/THEMING.md", "src/furatena/themes/furatena/assets/css/CSS_SCOPING_RULES.md"]
+edges = [{ to = "templates", type = "styles", what = "semantic output" }, { to = "app", type = "mirrored-by", what = "runtime theme assets" }]
+
+[[steward]]
+id = "lagoon"
+path = "src/furatena/themes/lagoon/AGENTS.md"
+point_of_view = "Keep the packaged Lagoon theme self-contained, accessible, and compatible with the same catalog and static-search contracts as the primary theme."
+guardrails = [
+  "JavaScript enhancement remains progressive; navigation, search, TOC, and theme selection work from semantic HTML first.",
+  "Package-data changes move with entry-point metadata, asset audits, and isolated distribution smoke.",
+]
+owns.code = ["src/furatena/themes/lagoon/"]
+owns.tests = ["tests/test_chirp_docs_theming.py", "tests/test_catalog_packaging.py"]
+owns.docs = ["docs/THEMING.md"]
+edges = [{ to = "themes", type = "registered-by", what = "theme pack entry point" }, { to = "templates", type = "styles", what = "catalog views" }]
+
+[[steward]]
+id = "app"
+path = "app/AGENTS.md"
+point_of_view = "Keep the runnable documentation application, source theme, locales, server scripts, freeze inputs, and generated-output boundaries explicit."
+guardrails = [
+  "`app/content/`, `app/templates/`, `app/theme/`, and runtime scripts are source; generated cache, preview, frozen, and public trees are not.",
+  "Live and exported routes use the same catalog identity, visibility, base-path, asset, and response contracts.",
+]
+owns.code = ["app/run", "app/export", "app/preview", "app/templates/", "app/theme/", "app/locales/"]
+owns.tests = ["tests/test_chirp_docs_runtime.py", "tests/test_chirp_docs_response_conformance.py"]
+owns.docs = ["docs/APP-README.md", "docs/RAILWAY.md"]
+edges = [{ to = "catalog", type = "hosts", what = "live catalog runtime" }, { to = "content", type = "mounts", what = "documentation sources" }, { to = "furatena_theme", type = "develops", what = "source theme" }]
+
+[[steward]]
+id = "benchmarks"
+path = "benchmarks/AGENTS.md"
+point_of_view = "Keep catalog, author-runtime, retrieval, and score baselines reproducible, versioned, and sensitive to meaningful regressions."
+guardrails = [
+  "Benchmark changes state environment, corpus, warmup, sample count, metric units, and comparison baseline.",
+  "Threshold or baseline updates require measured evidence and must not hide correctness failures.",
+]
+owns.code = ["benchmarks/"]
+owns.tests = ["tests/test_benchmark_harness.py", "tests/test_author_benchmark_harness.py", "tests/test_retrieval_benchmarks.py"]
+owns.docs = ["docs/PERFORMANCE.md", "docs/AGENT_SCORE.md"]
+edges = [{ to = "scripts", type = "run-by", what = "benchmark harnesses" }, { to = "evals", type = "consumes", what = "retrieval datasets" }]
+
+[[steward]]
+id = "changelog"
+path = "changelog.d/AGENTS.md"
+point_of_view = "Keep unreleased Towncrier fragments accurate, user-centered, correctly categorized, and connected to the behavior they announce."
+guardrails = [
+  "Use `ISSUE.TYPE.md` and configured added, changed, deprecated, removed, fixed, or security categories.",
+  "Fragments are complete sentences that name user or operator impact; they do not substitute for docs or migration notes.",
+]
+owns.code = ["changelog.d/"]
+owns.tests = ["scripts/check_changelog_fragments.py"]
+owns.docs = ["CHANGELOG.md", "changelog.d/README.md"]
+edges = [{ to = "package", type = "released-with", what = "distribution metadata" }, { to = "docs", type = "summarizes", what = "public behavior changes" }]
+
+[[steward]]
+id = "content"
+path = "content/AGENTS.md"
+point_of_view = "Keep published Furatena and mounted Chirp documentation source accurate, audience-safe, navigable, and distinct from generated site output."
+guardrails = [
+  "Front matter, links, directives, navigation, audience, edition, and visibility agree with catalog policy and source-backed behavior.",
+  "Docs distinguish shipped behavior, compatibility promises, pilots, roadmap, and generated reference material.",
+]
+owns.code = ["content/"]
+owns.tests = ["tests/test_chirp_docs_content_lint.py", "tests/test_docs_journeys.py", "tests/test_visibility_audit.py"]
+owns.docs = ["content/"]
+edges = [{ to = "catalog", type = "ingested-by", what = "catalog pipeline" }, { to = "docs", type = "grounded-by", what = "design and operating notes" }]
+
+[[steward]]
+id = "docs"
+path = "docs/AGENTS.md"
+point_of_view = "Keep architecture, security, compatibility, CI, deployment, publication, and migration documents source-backed and operationally precise."
+guardrails = [
+  "Every public field, command, route, schema, compatibility, performance, and security claim traces to code or focused proof.",
+  "Plans and pilots are labeled as such; generated references and inventories are refreshed with repository commands.",
+]
+owns.code = ["docs/"]
+owns.tests = ["tests/test_docs_quality.py", "tests/test_docs_reference.py", "tests/test_support_policy.py"]
+owns.docs = ["docs/", "README.md"]
+edges = [{ to = "content", type = "informs", what = "published guides" }, { to = "tests", type = "proved-by", what = "drift and journey checks" }]
+
+[[steward]]
+id = "examples"
+path = "examples/AGENTS.md"
+point_of_view = "Keep examples copyable, secure by default, version-compatible, and representative of supported Furatena workflows."
+guardrails = [
+  "Examples use public APIs and production-shaped configuration rather than repository-private shortcuts.",
+  "Starter changes prove scaffold, check, freeze, export, deployment, and documentation paths that users will run.",
+]
+owns.code = ["examples/"]
+owns.tests = ["tests/test_starter_repositories.py", "tests/test_github_pages_tutorial.py"]
+owns.docs = ["examples/", "docs/GOVERNED_PR_PREVIEWS.md"]
+edges = [{ to = "docs", type = "demonstrates", what = "documented workflows" }, { to = "github", type = "deployed-by", what = "example workflows" }]
+
+[[steward]]
+id = "github"
+path = ".github/AGENTS.md"
+point_of_view = "Keep CI, Pages, preview reporting, PDF proof, and release workflows least-privileged, reproducible, and aligned with documented local lanes."
+guardrails = [
+  "Workflow jobs call repository-owned commands, pin permissions deliberately, and isolate untrusted code from credentials and publishing identities.",
+  "Pages and release gates, artifact retention, OIDC provenance, tag validation, and concurrency behavior move with `docs/CI.md` and `docs/RELEASING.md`.",
+]
+owns.code = [".github/workflows/"]
+owns.tests = ["tests/test_ci_lanes.py", "tests/test_release_publishing.py"]
+owns.docs = ["docs/CI.md", "docs/RELEASING.md", "docs/PR_PREVIEW_SECURITY.md"]
+edges = [{ to = "scripts", type = "invokes", what = "repository checks" }, { to = "package", type = "publishes", what = "release artifacts" }]
+
+[[steward]]
+id = "scripts"
+path = "scripts/AGENTS.md"
+point_of_view = "Keep repository checks, builds, benchmarks, release helpers, preview reporting, and artifact verification deterministic and actionable."
+guardrails = [
+  "Scripts fail closed on contract drift, name the file or surface to fix, and avoid hidden network, credential, or destructive side effects.",
+  "Baselines and generated outputs have explicit check/update modes; update modes never run accidentally in CI.",
+]
+owns.code = ["scripts/"]
+owns.tests = ["tests/test_ty_diagnostic_ratchet.py", "tests/test_core_coverage_policy.py", "tests/test_verify_live_artifacts.py"]
+owns.docs = ["docs/CI.md", "docs/PERFORMANCE.md"]
+edges = [{ to = "github", type = "invoked-by", what = "CI workflows" }, { to = "benchmarks", type = "drives", what = "measurement harnesses" }]
+
+[[steward]]
+id = "tests"
+path = "tests/AGENTS.md"
+point_of_view = "Keep tests as deterministic executable contracts for formats, graph identity, visibility, rendering, publication, CLI, artifacts, and free-threaded operation."
+guardrails = [
+  "Escaped bugs gain focused regression tests through public paths; cross-surface bugs assert every reached surface and forbidden leakage.",
+  "Prefer semantic assertions over broad snapshots; snapshot updates prove sensitivity and explain intentional change.",
+  "Network, browser, generated-artifact, and slow tests are isolated in explicit lanes and markers.",
+]
+owns.code = ["tests/"]
+owns.tests = ["tests/"]
+owns.docs = ["tests/README.md", "docs/CI.md"]
+edges = [{ to = "root", type = "verifies", what = "repository behavior" }, { to = "fixtures", type = "consumes", what = "versioned contract examples" }]
+
+[[invariant]]
+id = "root-steward-network"
+steward = "root"
+statement = "Generated steward maps fail validation when stale, uncovered, over budget, evidence-rotted, or falsely wired to checks."
+severity = "P1"
+verification = "machine"
+enforced_by = "steward-tools"
+
+[[invariant]]
+id = "root-fast-ratchets"
+steward = "root"
+statement = "Formatting, lint, hygiene, typing boundaries, diagnostic ratchets, and core unit contracts remain green under free-threaded Python."
+severity = "P1"
+verification = "machine"
+enforced_by = "fast"
+
+[[invariant]]
+id = "root-contract-lane"
+steward = "root"
+statement = "Author, content, route, template, response, generated-reference, and public contract drift remains blocked."
+severity = "P0"
+verification = "machine"
+enforced_by = "contract"
+
+[[invariant]]
+id = "root-coverage-ratchets"
+steward = "root"
+statement = "Foundational graph, access, export, and loader coverage cannot fall below owned module ratchets."
+severity = "P1"
+verification = "machine"
+enforced_by = "coverage"
+
+[[invariant]]
+id = "root-export-visibility"
+steward = "root"
+statement = "Static and frozen artifacts preserve URL correctness and exclude draft, private, protected, and archived source canaries."
+severity = "P0"
+verification = "machine"
+enforced_by = "export"
+
+[[invariant]]
+id = "root-agent-contracts"
+steward = "root"
+statement = "MCP resources, agent contracts, safety lint, and deterministic evaluation remain synchronized."
+severity = "P0"
+verification = "machine"
+enforced_by = "agent"
+
+[[invariant]]
+id = "root-release-artifacts"
+steward = "root"
+statement = "Wheel and sdist contents, isolated installs, package metadata, entry points, and shipped assets remain reproducible."
+severity = "P0"
+verification = "machine"
+enforced_by = "release"
+
+[[invariant]]
+id = "root-dual-ir"
+steward = "root"
+statement = "Content IR remains the semantic source of truth while HTML IR remains a render artifact used only where presentation requires it."
+severity = "P0"
+verification = "manual"
+evidence_file = "docs/DUAL_IR.md"
+anchor = "## Target architecture"
+
+[[invariant]]
+id = "package-distribution"
+steward = "package"
+statement = "Installed distributions expose the declared package, fura entry point, typing and package data without checkout leakage."
+severity = "P0"
+verification = "machine"
+enforced_by = "release"
+
+[[invariant]]
+id = "catalog-cross-surface"
+steward = "catalog"
+statement = "Catalog behavior remains coherent across live routes, generated references, response contracts, and static delivery."
+severity = "P0"
+verification = "machine"
+enforced_by = "contract"
+
+[[invariant]]
+id = "autodoc-contract"
+steward = "autodoc"
+statement = "Autodoc inventory and generated reference behavior remains covered through supported source contracts."
+severity = "P1"
+verification = "machine"
+enforced_by = "autodoc-suite"
+
+[[invariant]]
+id = "directives-contract"
+steward = "directives"
+statement = "Supported directives and list tables retain parsed, rendered, linked, and malformed-input coverage."
+severity = "P1"
+verification = "machine"
+enforced_by = "directives-suite"
+
+[[invariant]]
+id = "eval-thresholds"
+steward = "evals"
+statement = "Versioned retrieval datasets, known answers, thresholds, and score-lane behavior remain executable."
+severity = "P1"
+verification = "machine"
+enforced_by = "eval-suite"
+
+[[invariant]]
+id = "fixture-validation"
+steward = "fixtures"
+statement = "Preview and publication fixtures remain schema-valid and sensitivity-tested."
+severity = "P1"
+verification = "machine"
+enforced_by = "fixtures-suite"
+
+[[invariant]]
+id = "inventory-contract"
+steward = "inventories"
+statement = "Inventory import, export, link, and documentation inventory contracts remain compatible."
+severity = "P1"
+verification = "machine"
+enforced_by = "inventory-suite"
+
+[[invariant]]
+id = "migration-contract"
+steward = "migrations"
+statement = "MDX migration and migration playbooks retain deterministic analysis and remediation coverage."
+severity = "P1"
+verification = "machine"
+enforced_by = "migration-suite"
+
+[[invariant]]
+id = "reference-resolution"
+steward = "references"
+statement = "Reference resolution preserves local, mounted, inventory, ambiguity, and missing-target behavior."
+severity = "P0"
+verification = "machine"
+enforced_by = "references-suite"
+
+[[invariant]]
+id = "role-resolution"
+steward = "roles"
+statement = "Inline role and cross-reference behavior remains covered with directive and resolver contracts."
+severity = "P1"
+verification = "machine"
+enforced_by = "directives-suite"
+
+[[invariant]]
+id = "schema-validation"
+steward = "schemas"
+statement = "Shipped schemas reject drift and remain synchronized with serialized contract snapshots."
+severity = "P0"
+verification = "machine"
+enforced_by = "schema-suite"
+
+[[invariant]]
+id = "source-normalization"
+steward = "sources"
+statement = "Supported source formats preserve normalized structure, provenance, round-trip meaning, and deterministic discovery."
+severity = "P0"
+verification = "machine"
+enforced_by = "sources-suite"
+
+[[invariant]]
+id = "template-contract"
+steward = "templates"
+statement = "Built-in templates preserve Kida component seams, view models, and response-shape contracts."
+severity = "P0"
+verification = "machine"
+enforced_by = "theme-suite"
+
+[[invariant]]
+id = "cli-entrypoint"
+steward = "cli"
+statement = "The fura entry point remains importable, scriptable, and runnable outside the checkout."
+severity = "P0"
+verification = "machine"
+enforced_by = "cli-suite"
+
+[[invariant]]
+id = "cli-command-modules"
+steward = "cli_commands"
+statement = "Command modules remain lazily dispatched with stable parser and handler contracts."
+severity = "P1"
+verification = "machine"
+enforced_by = "cli-commands-suite"
+
+[[invariant]]
+id = "theme-registry"
+steward = "themes"
+statement = "Theme packs, presets, lint, package paths, and catalog rendering contracts remain synchronized."
+severity = "P0"
+verification = "machine"
+enforced_by = "theme-suite"
+
+[[invariant]]
+id = "furatena-theme-contract"
+steward = "furatena_theme"
+statement = "The primary theme remains compatible with semantic catalog templates and full/fragment rendering."
+severity = "P1"
+verification = "machine"
+enforced_by = "theme-suite"
+
+[[invariant]]
+id = "lagoon-package-contract"
+steward = "lagoon"
+statement = "Lagoon remains a packaged, discoverable theme with tested catalog compatibility."
+severity = "P1"
+verification = "machine"
+enforced_by = "theme-suite"
+
+[[invariant]]
+id = "app-runtime"
+steward = "app"
+statement = "The live application preserves catalog runtime, render-context, and response-conformance behavior."
+severity = "P0"
+verification = "machine"
+enforced_by = "runtime-suite"
+
+[[invariant]]
+id = "benchmark-harnesses"
+steward = "benchmarks"
+statement = "Catalog, author-runtime, and retrieval benchmark harnesses return reproducible report shapes."
+severity = "P1"
+verification = "machine"
+enforced_by = "benchmark-suite"
+
+[[invariant]]
+id = "changelog-contract"
+steward = "changelog"
+statement = "Configured Towncrier fragments produce a valid unreleased draft."
+severity = "P1"
+verification = "machine"
+enforced_by = "changelog-draft"
+
+[[invariant]]
+id = "content-contract"
+steward = "content"
+statement = "Published source content retains valid IR, content lint, visibility, and documented user journeys."
+severity = "P1"
+verification = "machine"
+enforced_by = "content-suite"
+
+[[invariant]]
+id = "docs-contract"
+steward = "docs"
+statement = "Documentation quality, generated references, and support-policy claims remain source-backed."
+severity = "P1"
+verification = "machine"
+enforced_by = "docs-suite"
+
+[[invariant]]
+id = "example-starters"
+steward = "examples"
+statement = "Governed preview starter repositories remain complete and executable."
+severity = "P1"
+verification = "machine"
+enforced_by = "examples-suite"
+
+[[invariant]]
+id = "github-lanes"
+steward = "github"
+statement = "Documented CI and release workflows retain required jobs, permissions, and publishing gates."
+severity = "P0"
+verification = "machine"
+enforced_by = "github-suite"
+
+[[invariant]]
+id = "script-ratchets"
+steward = "scripts"
+statement = "Typing, coverage, and live-artifact verification scripts preserve failure-sensitive ratchets."
+severity = "P1"
+verification = "machine"
+enforced_by = "scripts-suite"
+
+[[invariant]]
+id = "test-suite"
+steward = "tests"
+statement = "Furatena retains a single exact full-suite entry point under GIL-disabled Python."
+severity = "P1"
+verification = "machine"
+enforced_by = "full-tests"
+
+[judgment.catalog]
+advocate = [
+  "One canonical identity and policy path shared by live, frozen, static, PDF, search, DCP, publication, and agent consumers.",
+  "Focused cross-surface regression matrices when changed values cross delivery boundaries.",
+]
+do_not = [
+  "Patch only the visible renderer when the underlying IR, graph, policy, or manifest is wrong.",
+  "Introduce parallel truth in generated JSON, HTML, templates, caches, or deployment metadata.",
+]
+
+[judgment.sources]
+advocate = [
+  "Small adapters over one normalized IR with source locations and provenance.",
+  "Malformed-source tests for every supported format.",
+]
+do_not = [
+  "Leak parser-library objects past the adapter boundary.",
+  "Silently discard unsupported syntax, front matter, links, or identity.",
+]
+
+[judgment.tests]
+advocate = [
+  "Executable bug reports that prove positive behavior and forbidden leakage.",
+  "Narrow checks first, then the owning CI lane and full suite in proportion to risk.",
+]
+do_not = [
+  "Bless regressions by weakening assertions, snapshots, thresholds, exemptions, or baselines.",
+  "Depend on incidental ordering, generated IDs, whitespace, or local generated artifacts.",
+]

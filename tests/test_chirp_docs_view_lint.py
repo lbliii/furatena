@@ -335,7 +335,13 @@ class TestAuthorStaleRoute:
         assert 'marker.dataset.furaSseExtensionActive === "1"' in response.text
         assert "if (htmxOwnsAuthorSse(marker))" in response.text
         assert "if (!allowCompatibilityFallback && markerDeclaresHtmxSse(marker))" in response.text
+        probe_start = response.text.index("function deferSseOwnershipProbe")
+        probe_end = response.text.index("function bindHtmxSse", probe_start)
+        ownership_probe = response.text[probe_start:probe_end]
+        assert "bindHtmxSse(marker);" in ownership_probe
+        assert "}, 100);" in ownership_probe
         assert "if (!startSseReload(true)) startPollingFallback();" in response.text
+        assert "clearSseOwnershipProbe();\n        closeCustomEventSource();" in response.text
         assert "closeCustomEventSource();" in response.text
         assert "state.eventSourceSlug === slug" in response.text
         assert 'new EventSource("/docs/_author/events?slug="' in response.text

@@ -215,6 +215,7 @@ def _author_sse_markup(
         return Markup(
             '<div id="fura-author-sse" hidden '
             f'hx-sse:connect="/docs/_author/events?slug={slug}" '
+            'data-fura-sse-extension-active="1" '
             'hx-target="this"></div>'
         )
     url = html.escape(str(node.url), quote=True)

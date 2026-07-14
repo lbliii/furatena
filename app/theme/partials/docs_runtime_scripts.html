@@ -488,6 +488,7 @@
 
     function deferSseOwnershipProbe(marker) {
       if (state.sseOwnershipTimer) return;
+      bindHtmxSse(marker);
       window.__furaAuthorReloadMode = "sse-pending";
       state.sseOwnershipTimer = window.setTimeout(function () {
         state.sseOwnershipTimer = null;
@@ -503,6 +504,8 @@
         applyAuthorInvalidation(payloadFromSseEvent(event));
       };
       var handleOpen = function () {
+        clearSseOwnershipProbe();
+        closeCustomEventSource();
         stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
       };
