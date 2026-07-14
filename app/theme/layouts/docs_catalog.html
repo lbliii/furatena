@@ -5,14 +5,7 @@
 <div id="page-root" class="chirpui-page-fill" data-fura-surface="{{ chirp_docs_surface | default('app') }}">
 {% include "partials/agent_discovery.html" %}
 {% if fura_author_mode() and node is defined and node %}
-<div id="fura-author-sse"
-     hidden
-     hx-ext="sse"
-     sse-connect="/docs/_author/events?slug={{ node.slug }}"
-     hx-disinherit="hx-target hx-swap"
-     hx-target="this">
-  <div hidden sse-swap="author-invalidate" hx-target="this" hx-swap="none"></div>
-</div>
+{{ fura_author_sse_markup(node, false) }}
 {% end %}
 {% block page_root_inner %}
 {% block page_content %}

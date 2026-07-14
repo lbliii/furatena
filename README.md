@@ -84,6 +84,7 @@ backpressure.
 - [Agent-readiness score operations](docs/AGENT_SCORE.md)
 - [CLI contract](docs/CLI_CONTRACT.md)
 - [HTTP QUERY prototype](docs/HTTP_QUERY.md)
+- [htmx 4 preview report](docs/HTMX4_PREVIEW.md)
 - [Compatibility and support policy](docs/COMPATIBILITY.md)
 - [Release and incident runbook](docs/RELEASING.md)
 - [CI lanes](docs/CI.md)

@@ -8,7 +8,8 @@ PYTEST = $(UV_RUN) pytest -q --tb=short
 .PHONY: help install test lint format format-check ty-audit ty-ratchet benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
-	ci-browser-authoring ci-browser-responsive ci-browser-full ci-agent ci-pdf-proof ci-release
+	ci-browser-authoring ci-browser-responsive ci-browser-full ci-browser-htmx4-preview \
+	ci-agent ci-pdf-proof ci-release
 
 CORE_COVERAGE_SOURCE = furatena.catalog.graph,furatena.catalog.graph_schema,furatena.catalog.access,furatena.catalog.export,furatena.catalog.loader
 CORE_COVERAGE_TESTS = \
@@ -281,6 +282,12 @@ ci-browser-full:
 	mkdir -p $(BROWSER_RESULTS)
 	$(PYTEST) --junitxml=$(BROWSER_RESULTS)/full.xml \
 		-m "browser and browser_full" $(BROWSER_TESTS)
+
+ci-browser-htmx4-preview:
+	mkdir -p $(BROWSER_RESULTS)
+	FURA_HTMX_PREVIEW=4.0.0-beta5 $(PYTEST) \
+		--junitxml=$(BROWSER_RESULTS)/htmx4-preview.xml \
+		-m "browser and browser_htmx4" $(BROWSER_TESTS)
 
 ci-agent:
 	$(UV_RUN) fura check --agent-only --json

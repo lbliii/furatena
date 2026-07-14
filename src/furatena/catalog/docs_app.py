@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import os
 import re
@@ -29,6 +30,7 @@ from chirp.middleware.security_headers import SecurityHeadersConfig
 from chirp.middleware.sessions import SessionMiddleware, get_session
 from chirp.middleware.stack import secure_stack
 from chirp.middleware.static import StaticFiles
+from kida.template import Markup
 
 from furatena.catalog.access import (
     AccessPermission,
@@ -101,6 +103,7 @@ from furatena.catalog.seo import (
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_items
 from furatena.catalog.validation import ValidationSnapshotService
+from furatena.catalog.vendor_paths import resolve_htmx_preview
 from furatena.catalog.versions import channel_context
 from furatena.catalog.views import ViewRegistry
 from furatena.catalog.workers import resolve_workers
@@ -157,6 +160,73 @@ def _prefers_markdown(accept: str | None) -> bool:
 
 _AUTHOR_SSE_EVENT = "author-invalidate"
 _DEPLOYMENT_ENVS = frozenset({"staging", "production"})
+
+
+def _htmx_assets_markup(preview_version: str | None) -> Markup:
+    if preview_version is None:
+        return Markup(
+            '<script src="/docs-vendor/htmx.min.js" data-chirp="htmx"></script>\n'
+            '<script src="/docs-vendor/htmx-ext-sse.js"></script>\n'
+            '<script src="/docs-vendor/htmx-ext-preload.js"></script>'
+        )
+    version = html.escape(preview_version, quote=True)
+    policy = html.escape(
+        json.dumps(
+            {
+                "noSwap": [204, 304, "5xx"],
+                "defaultTimeout": 60_000,
+                "compat": {"swapErrorResponseCodes": True},
+            },
+            separators=(",", ":"),
+        ),
+        quote=True,
+    )
+    return Markup(
+        f'<meta name="htmx-config" content="{policy}" data-chirp="htmx-config" '
+        f'data-chirp-htmx-tier="4-preview" data-chirp-htmx-version="{version}">\n'
+        f'<script src="/docs-vendor/htmx-{version}.min.js" data-chirp="htmx" '
+        f'data-chirp-htmx-role="core" data-chirp-htmx-tier="4-preview" '
+        f'data-chirp-htmx-version="{version}" data-fura-htmx-preview="{version}"></script>\n'
+        f'<script src="/docs-vendor/htmx-2-compat-{version}.min.js" '
+        f'data-chirp="htmx-extension" data-chirp-htmx-extension="compat" '
+        f'data-chirp-htmx-tier="4-preview" data-chirp-htmx-version="{version}"></script>\n'
+        f'<script src="/docs-vendor/hx-sse-{version}.min.js" '
+        f'data-chirp="htmx-extension" data-chirp-htmx-extension="sse" '
+        f'data-chirp-htmx-tier="4-preview" data-chirp-htmx-version="{version}"></script>\n'
+        f'<script src="/docs-vendor/hx-preload-{version}.min.js" '
+        f'data-chirp="htmx-extension" data-chirp-htmx-extension="preload" '
+        f'data-chirp-htmx-tier="4-preview" data-chirp-htmx-version="{version}"></script>'
+    )
+
+
+def _author_sse_markup(
+    node: Any,
+    preview_version: str | None,
+    include_reload_trigger: bool = True,
+) -> Markup:
+    slug = html.escape(str(node.slug), quote=True)
+    if preview_version is not None:
+        return Markup(
+            '<div id="fura-author-sse" hidden '
+            f'hx-sse:connect="/docs/_author/events?slug={slug}" '
+            'hx-target="this"></div>'
+        )
+    url = html.escape(str(node.url), quote=True)
+    reload_trigger = ""
+    if include_reload_trigger:
+        reload_trigger = (
+            f'<button type="button" hidden hx-get="{url}" '
+            'hx-trigger="sse:author-invalidate" hx-target="#page-root" '
+            'hx-select="#page-root" hx-swap="outerHTML" '
+            'hx-headers=\'{"HX-Docs-Author-Reload":"1"}\'></button>'
+        )
+    return Markup(
+        '<div id="fura-author-sse" hidden hx-ext="sse" '
+        f'sse-connect="/docs/_author/events?slug={slug}" '
+        'hx-disinherit="hx-target hx-swap" hx-target="this">'
+        '<div hidden sse-swap="author-invalidate" hx-target="this" hx-swap="none"></div>'
+        f"{reload_trigger}</div>"
+    )
 
 
 def _runtime_environment() -> str:
@@ -236,6 +306,7 @@ class DocsApp:
         observability: OperationalEventEmitter | None = None,
     ) -> None:
         self.config = config
+        self.htmx_preview_version = resolve_htmx_preview()
         self.locale_service = LocaleResolutionService(config.i18n)
         self.repo_root = repo_root
         self.serve = serve or ServeConfig(ServeMode.AUTHOR, None, False, True)
@@ -325,6 +396,7 @@ class DocsApp:
             debug=not preview,
             skip_contract_checks=skip_checks,
             htmx=True,
+            htmx_version=self.htmx_preview_version or "2.0.10",
             reload_dirs=browser_reload_dirs(self.theme),
             i18n_enabled=i18n.enabled,
             i18n_supported_locales=supported_app_locales(i18n),
@@ -359,6 +431,18 @@ class DocsApp:
         app.template_global("fura_author")(lambda: self.serve.auto_reload)
         app.template_global("fura_author_mode")(lambda: self._is_author_mode())
         app.template_global("docs_stylesheets")(lambda: self.theme.stylesheet_hrefs)
+        app.template_global("fura_htmx4_preview")(lambda: self.htmx_preview_version is not None)
+        app.template_global("fura_htmx_version")(lambda: self.htmx_preview_version or "2.0.4")
+        app.template_global("fura_htmx_assets")(
+            lambda: _htmx_assets_markup(self.htmx_preview_version)
+        )
+        app.template_global("fura_author_sse_markup")(
+            lambda node, include_reload_trigger=True: _author_sse_markup(
+                node,
+                self.htmx_preview_version,
+                include_reload_trigger,
+            )
+        )
         app.template_global("fura_effects_code")(lambda: self.config.theme.effects.code)
         app.template_global("fura_effects_cards")(lambda: self.config.theme.effects.cards)
         app.template_global("fura_effects_hero")(lambda: self.config.theme.effects.hero)
@@ -412,10 +496,10 @@ class DocsApp:
     ) -> dict[str, object]:
         if href is None or disabled or not boost or external:
             return {}
-        return shell_link_attrs(href)
+        return shell_link_attrs(href, htmx4=self.htmx_preview_version is not None)
 
     def _route_link_attrs(self, href: str) -> dict[str, object]:
-        return shell_link_attrs(href)
+        return shell_link_attrs(href, htmx4=self.htmx_preview_version is not None)
 
     def _ensure_catalog(self) -> None:
         self.catalog.refresh_if_stale()

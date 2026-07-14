@@ -145,4 +145,5 @@ enforces that contract so new browser tests cannot silently bypass tiered runs.
 | Smoke | `browser_smoke` | `make ci-browser-smoke` | PR gate for the smallest critical search, navigation, and author live-reload paths |
 | Authoring | `browser_authoring` | `make ci-browser-authoring` | Preview reload, studio save, and draft creation workflows |
 | Responsive | `browser_responsive` | `make ci-browser-responsive` | Mobile and responsive layout/interaction checks |
+| htmx 4 preview | `browser_htmx4` | `make ci-browser-htmx4-preview` | Exact beta5 compatibility evidence; does not change the default runtime |
 | Full | `browser_full` | `make ci-browser-full` or `make ci-browser` | Complete browser regression set used by main CI |

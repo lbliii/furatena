@@ -249,11 +249,13 @@
       }
     }
 
-    document.body.addEventListener("htmx:afterSwap", function (event) {
+    function syncSearchAfterSwap(event) {
       if (event.target === panel || event.detail.target === panel) {
         syncSearchControls();
       }
-    });
+    }
+    document.body.addEventListener("htmx:afterSwap", syncSearchAfterSwap);
+    document.body.addEventListener(["htmx", "after", "swap"].join(":"), syncSearchAfterSwap);
     syncSearchControls();
   }
 
@@ -274,7 +276,9 @@
 
     function currentSlug() {
       var marker = authorMarker();
-      var connect = marker && marker.getAttribute("sse-connect");
+      var connect = marker && (
+        marker.getAttribute("hx-" + "sse:connect") || marker.getAttribute("sse-connect")
+      );
       if (connect) {
         try {
           var url = new URL(connect, window.location.origin);
@@ -453,14 +457,27 @@
       return Boolean(
         marker &&
         window.htmx &&
-        marker.dataset.furaSseExtensionActive === "1"
+        (
+          marker.dataset.furaSseExtensionActive === "1" ||
+          Boolean(marker._htmx && marker._htmx.sse) ||
+          (
+            !markerUsesHtmx4Sse(marker) &&
+            markerDeclaresHtmxSse(marker) &&
+            typeof window.htmx.createEventSource === "function"
+          )
+        )
       );
     }
 
     function markerDeclaresHtmxSse(marker) {
       if (!marker || !window.htmx) return false;
       var extensions = marker.getAttribute("hx-ext") || marker.getAttribute("data-hx-ext") || "";
-      return extensions.split(/\s*,\s*|\s+/).indexOf("sse") >= 0;
+      return Boolean(marker.getAttribute("hx-" + "sse:connect")) ||
+        extensions.split(/\s*,\s*|\s+/).indexOf("sse") >= 0;
+    }
+
+    function markerUsesHtmx4Sse(marker) {
+      return Boolean(marker && marker.getAttribute("hx-" + "sse:connect"));
     }
 
     function clearSseOwnershipProbe() {
@@ -482,18 +499,27 @@
     function bindHtmxSse(marker) {
       if (!marker || marker.dataset.furaAuthorSseBound === "1") return;
       marker.dataset.furaAuthorSseBound = "1";
-      marker.addEventListener("htmx:sseMessage", function (event) {
+      var handleMessage = function (event) {
         applyAuthorInvalidation(payloadFromSseEvent(event));
-      });
-      marker.addEventListener("htmx:sseOpen", function () {
+      };
+      var handleOpen = function () {
         stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
-      });
-      marker.addEventListener("htmx:sseError", function () {
+      };
+      var handleError = function () {
         window.setTimeout(function () {
           if (document.body.contains(marker)) startPollingFallback();
         }, 500);
-      });
+      };
+      if (markerUsesHtmx4Sse(marker)) {
+        marker.addEventListener("author-invalidate", handleMessage);
+        marker.addEventListener(["htmx", "after", "sse", "connection"].join(":"), handleOpen);
+        marker.addEventListener(["htmx", "sse", "error"].join(":"), handleError);
+      } else {
+        marker.addEventListener("htmx:" + "sseMessage", handleMessage);
+        marker.addEventListener("htmx:" + "sseOpen", handleOpen);
+        marker.addEventListener("htmx:" + "sseError", handleError);
+      }
     }
 
     function startSseReload(allowCompatibilityFallback) {
@@ -550,6 +576,7 @@
         }
         if (marker) {
           marker.addEventListener("htmx:beforeCleanupElement", cleanupSource, { once: true });
+          marker.addEventListener(["htmx", "before", "cleanup"].join(":"), cleanupSource, { once: true });
         }
         window.addEventListener("pagehide", cleanupSource, { once: true });
         return true;
@@ -745,6 +772,7 @@
   }
 
   document.body.addEventListener("htmx:afterSettle", syncDocsChrome);
+  document.body.addEventListener(["htmx", "after", "settle"].join(":"), syncDocsChrome);
   syncDocsChrome();
 })();
 </script>

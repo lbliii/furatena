@@ -119,6 +119,7 @@ markers = [
     "browser_smoke: smallest critical browser search, navigation, and author reload paths",
     "browser_authoring: browser author preview, edit, save, and create workflows",
     "browser_responsive: browser layout and interaction checks at responsive viewports",
+    "browser_htmx4: pinned htmx 4 preview compatibility coverage",
     "browser_full: complete browser regression tier run on main",
 ]
 
