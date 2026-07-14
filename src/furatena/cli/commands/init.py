@@ -186,28 +186,15 @@ def _governed_preview_repository_files() -> dict[str, str]:
         "scripts/preview_report.py": dedent(
             """\
             #!/usr/bin/env python3
-            \"\"\"Run the governed-preview conformance contract locally.\"\"\"
+            \"\"\"Verify and publish the governed-preview contract.\"\"\"
 
             from __future__ import annotations
 
-            import argparse
-            import json
-            import os
-
-            from furatena.catalog.preview_conformance import inspect_preview
+            from furatena.catalog.preview_reporting import main
 
 
-            parser = argparse.ArgumentParser()
-            parser.add_argument("--origin", required=True)
-            parser.add_argument("--expected-sha", required=True)
-            parser.add_argument("--state", choices=("ready",), default="ready")
-            args = parser.parse_args()
-            token = os.environ.get("FURA_PREVIEW_AUTH_TOKEN", "")
-            if not token:
-                parser.error("FURA_PREVIEW_AUTH_TOKEN must be set")
-            result = inspect_preview(args.origin, token, args.expected_sha)
-            print(json.dumps(result.to_dict(), indent=2, sort_keys=True))
-            raise SystemExit(0 if result.ok else 1)
+            if __name__ == "__main__":
+                raise SystemExit(main())
             """
         ),
         ".github/workflows/preview-report.yml": dedent(
@@ -232,16 +219,33 @@ def _governed_preview_repository_files() -> dict[str, str]:
                   (github.event.pull_request.head.repo.full_name == github.repository &&
                    github.event.pull_request.user.type != 'Bot') ||
                   github.event_name == 'repository_dispatch'
-                uses: lbliii/furatena/.github/workflows/preview-report.yml@main
-                with:
-                  pr_number: ${{ github.event.pull_request.number || github.event.client_payload.pr_number }}
-                  state: ${{ github.event.action == 'closed' && 'removed' || (github.event_name == 'pull_request_target' && 'queued') || github.event.client_payload.state }}
-                  expected_sha: ${{ github.event.pull_request.head.sha || github.event.client_payload.expected_sha }}
-                  preview_url: ${{ github.event.client_payload.preview_url || '' }}
-                  details_url: ${{ github.event.client_payload.details_url || '' }}
-                  reporter_ref: main
-                secrets:
+                runs-on: ubuntu-latest
+                env:
+                  GITHUB_TOKEN: ${{ github.token }}
                   FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number || github.event.client_payload.pr_number }}
+                  PREVIEW_STATE: ${{ github.event.action == 'closed' && 'removed' || (github.event_name == 'pull_request_target' && 'queued') || github.event.client_payload.state }}
+                  EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.event.client_payload.expected_sha }}
+                  PREVIEW_URL: ${{ github.event.client_payload.preview_url || '' }}
+                  DETAILS_URL: ${{ github.event.client_payload.details_url || '' }}
+                steps:
+                  - uses: actions/checkout@v7.0.0
+                    with:
+                      ref: ${{ github.event.repository.default_branch }}
+                  - uses: astral-sh/setup-uv@v8.2.0
+                    with:
+                      python-version: "3.14t"
+                      enable-cache: true
+                  - run: uv sync --no-dev
+                  - run: >-
+                      uv run python scripts/preview_report.py
+                      --publish
+                      --repository "${GITHUB_REPOSITORY}"
+                      --pr-number "${PR_NUMBER}"
+                      --state "${PREVIEW_STATE}"
+                      --expected-sha "${EXPECTED_SHA}"
+                      --origin "${PREVIEW_URL}"
+                      --details-url "${DETAILS_URL}"
             """
         ),
         ".env.preview.example": dedent(

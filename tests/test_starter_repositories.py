@@ -124,15 +124,15 @@ def test_governed_preview_starter_has_secure_reference_integration(tmp_path: Pat
     assert "ARG FURA_PREVIEW_AUTH_TOKEN" not in dockerfile
     assert "FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA" in dockerfile
     conformance = (app_root / "scripts/preview_report.py").read_text(encoding="utf-8")
-    assert "inspect_preview" in conformance
-    assert "FURA_PREVIEW_AUTH_TOKEN must be set" in conformance
+    assert "preview_reporting import main" in conformance
     workflow = (app_root / ".github/workflows/preview-report.yml").read_text(encoding="utf-8")
     assert "pull_request_target" in workflow
     assert "pull-requests: write" in workflow
     assert "issues: write" not in workflow
     assert "head.repo.full_name == github.repository" in workflow
     assert "user.type != 'Bot'" in workflow
-    assert "reporter_ref: main" in workflow
+    assert "runs-on: ubuntu-latest" in workflow
+    assert "uses: lbliii/furatena" not in workflow
     assert "FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}" in workflow
     preview_docs = (app_root / "PREVIEWS.md").read_text(encoding="utf-8")
     assert "Never" in preview_docs
