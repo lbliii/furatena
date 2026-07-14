@@ -156,6 +156,7 @@ ci-fast: format-check
 		src/furatena/catalog/publication_workflow.py \
 		src/furatena/catalog/preview_contracts.py \
 		src/furatena/catalog/preview_security.py \
+		src/furatena/catalog/railway_preview.py \
 		src/furatena/catalog/author_benchmarks.py \
 		src/furatena/catalog/pdf_proof.py \
 		src/furatena/catalog/mcp.py \
@@ -203,6 +204,7 @@ ci-fast: format-check
 		tests/test_preview_schemas.py \
 		tests/test_preview_fixtures.py \
 		tests/test_preview_security.py \
+		tests/test_railway_preview.py \
 		tests/test_pdf_proof.py \
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \

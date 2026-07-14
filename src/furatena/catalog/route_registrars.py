@@ -46,6 +46,7 @@ from furatena.catalog.query import (
     MAX_GRAPH_QUERY_LIMIT,
     query_catalog_graph,
 )
+from furatena.catalog.railway_preview import runtime_railway_preview_manifest
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.semantic import retrieve_node, semantic_index_json, semantic_search_json
 from furatena.catalog.sitemap import sitemap_xml
@@ -174,6 +175,17 @@ def register_public_routes(docs: Any, app: App) -> None:
         return Response(
             json.dumps(body, indent=2),
             status=int(body["http_status"]),
+            content_type="application/json; charset=utf-8",
+        )
+
+    @app.route("/preview-manifest.json", referenced=True)
+    def preview_manifest_json(request: Request):
+        status = operational_status(self)
+        manifest = runtime_railway_preview_manifest(self, status)
+        if manifest is None:
+            raise NotFound("Preview manifest is available only in pull-request environments")
+        return Response(
+            json.dumps(manifest.to_dict(), indent=2),
             content_type="application/json; charset=utf-8",
         )
 

@@ -162,6 +162,7 @@ preserve room for additional pages without changing the public prefix.
 | `/llms.txt` | `text` | Compact public page/API index and descriptions. |
 | `/meta.json` | `json` | Public site, channel, catalog, and agent-output metadata. |
 | `/objects.inv` | `binary` | Default Sphinx v2 reference inventory. |
+| `/preview-manifest.json` | `json` | Authenticated PR-only manifest binding the reviewed SHA and frozen fingerprint to Railway environment, deployment, domain, and readiness evidence. |
 | `/readyz` | `json` | Safe-to-serve checks; HTTP 200 for `ready`, HTTP 503 for `not_ready`. |
 | `/routes.json` | `json` | `route_count` and route records with methods, path, handler, response, template, and fragment contracts. |
 | `/search.json` | `json` | Public search records with URLs, text, tags, chunks, API hints, and provenance. |
