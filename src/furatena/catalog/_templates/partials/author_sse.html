@@ -1,22 +1,3 @@
 {% if author_chrome is defined and author_chrome %}
-<div
-  id="fura-author-sse"
-  hidden
-  hx-ext="sse"
-  sse-connect="/docs/_author/events?slug={{ node.slug }}"
-  hx-disinherit="hx-target hx-swap"
-  hx-target="this"
->
-  <div hidden sse-swap="author-invalidate" hx-target="this" hx-swap="none"></div>
-  <button
-    type="button"
-    hidden
-    hx-get="{{ node.url }}"
-    hx-trigger="sse:author-invalidate"
-    hx-target="#page-root"
-    hx-select="#page-root"
-    hx-swap="outerHTML"
-    hx-headers='{"HX-Docs-Author-Reload":"1"}'
-  ></button>
-</div>
+{{ fura_author_sse_markup(node) }}
 {% end %}

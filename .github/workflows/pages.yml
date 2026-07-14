@@ -106,6 +106,8 @@ jobs:
       - name: Browser smoke lane
         if: github.event_name == 'pull_request'
         run: make ci-browser-smoke
+      - name: Pinned htmx 4 preview lane
+        run: make ci-browser-htmx4-preview
       - name: Browser full lane
         if: github.event_name != 'pull_request'
         run: make ci-browser-full

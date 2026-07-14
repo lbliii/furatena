@@ -32,7 +32,7 @@ def is_shell_boost_href(href: str) -> bool:
     return not any(path.endswith(suffix) for suffix in _ASSET_PATH_SUFFIXES)
 
 
-def shell_boost_attrs() -> dict[str, object]:
+def shell_boost_attrs(*, htmx4: bool = False) -> dict[str, object]:
     """Default htmx attrs for in-app doc navigation and hover preloading."""
     return {
         "hx-boost": "true",
@@ -40,7 +40,7 @@ def shell_boost_attrs() -> dict[str, object]:
         "hx-swap": "innerHTML",
         "hx-select": "#page-root",
         "hx-sync": "#main:replace",
-        "preload": "mouseover",
+        "hx-preload" if htmx4 else "preload": "mouseover",
     }
 
 
@@ -49,12 +49,12 @@ def shell_unboost_attrs() -> dict[str, object]:
     return {"hx-boost": "false"}
 
 
-def shell_link_attrs(href: str) -> dict[str, object]:
+def shell_link_attrs(href: str, *, htmx4: bool = False) -> dict[str, object]:
     """Route-aware shell attrs for templates and ``boost_doc_links``."""
     if not isinstance(href, str) or not href.startswith("/") or href.startswith("//"):
         return {}
     if is_shell_boost_href(href):
-        return shell_boost_attrs()
+        return shell_boost_attrs(htmx4=htmx4)
     return shell_unboost_attrs()
 
 

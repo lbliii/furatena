@@ -169,6 +169,43 @@ def author_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
 
 
 @pytest.fixture()
+def htmx4_author_server(tmp_path: Path) -> Iterator[tuple[str, Path]]:
+    page = _write_author_fixture(tmp_path)
+    port = _free_port()
+    env = os.environ.copy()
+    env["FURA_APP_ROOT"] = str(tmp_path)
+    env["FURA_HTMX_PREVIEW"] = "4.0.0-beta5"
+    env["PYTHONUNBUFFERED"] = "1"
+    proc = subprocess.Popen(
+        [
+            str(Path(sys.executable).with_name("fura")),
+            "serve",
+            "--author",
+            "--no-autodoc",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+        ],
+        cwd=REPO,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    base_url = f"http://127.0.0.1:{port}"
+    try:
+        _wait_for_server(f"{base_url}/docs/page/", proc)
+        yield base_url, page
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=10)
+
+
+@pytest.fixture()
 def journey_server(tmp_path: Path) -> Iterator[str]:
     _write_journey_fixture(tmp_path)
     port = _free_port()
@@ -354,6 +391,135 @@ async def test_author_sse_updates_preview_without_polling(
         ) == [2, 8]
         assert await page.evaluate("window.scrollY") >= 300
         assert stale_requests == []
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_smoke
+@pytest.mark.browser_full
+@pytest.mark.browser_htmx4
+async def test_htmx4_preview_full_boost_oob_history_and_error_contract(
+    browser: Browser,
+    htmx4_author_server: tuple[str, Path],
+) -> None:
+    base_url, _page_path = htmx4_author_server
+    context = await browser.new_context(viewport={"width": 1280, "height": 900})
+    page = await context.new_page()
+    partial_headers: list[dict[str, str]] = []
+
+    def record_request(request: Any) -> None:
+        if request.url.endswith("/docs/target/"):
+            partial_headers.append(request.headers)
+
+    page.on("request", record_request)
+    try:
+        await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
+        assert await page.evaluate("htmx.version") == "4.0.0-beta5"
+        assert await page.locator('script[data-fura-htmx-preview="4.0.0-beta5"]').count() == 1
+        await page.locator("#page-root").get_by_text("Hello from browser SSE.").wait_for()
+
+        target = page.locator('#page-content a[href="/docs/target/"]').first
+        assert await target.get_attribute("hx-preload") == "mouseover"
+        await target.hover()
+        deadline = time.monotonic() + 10
+        while not partial_headers and time.monotonic() < deadline:
+            await asyncio.sleep(0.05)
+        assert partial_headers
+        await target.click()
+        await page.wait_for_url(f"{base_url}/docs/target/")
+        await page.locator("#page-root").get_by_text("Preloaded target response.").wait_for()
+        # Known beta5 blocker: the main swap succeeds, but the OOB head update
+        # does not apply after htmx 4 changes OOB ordering.
+        assert await page.title() == "Page"
+        assert partial_headers
+        # Known beta5 blocker: a targeted boosted link is classified as a full
+        # request even though the response is swapped into #main.
+        assert partial_headers[-1].get("hx-request-type") == "full"
+
+        await page.go_back(wait_until="domcontentloaded")
+        await page.wait_for_url(f"{base_url}/docs/page/")
+        await page.locator("#page-root").get_by_text("Hello from browser SSE.").wait_for()
+
+        await page.goto(f"{base_url}/search?q=browser", wait_until="domcontentloaded")
+        async with page.expect_response(
+            lambda response: "/search?" in response.url and "q=target" in response.url,
+        ) as search_response_info:
+            await page.locator("#search-page-input").fill("target")
+        search_response = await search_response_info.value
+        assert search_response.status == 200
+        await page.locator("#search-results-panel").get_by_text("Target").first.wait_for()
+        assert "q=target" in page.url
+
+        await page.evaluate(
+            """
+            () => {
+              window.__furaHtmx4ErrorStatus = null;
+              document.body.addEventListener("htmx:response:error", (event) => {
+                window.__furaHtmx4ErrorStatus = event.detail.ctx.response.status;
+              }, { once: true });
+              const button = document.createElement("button");
+              button.id = "htmx4-error-probe";
+              button.setAttribute("hx-get", "/definitely-missing-page/");
+              button.setAttribute("hx-target", "#page-root");
+              button.setAttribute("hx-swap", "innerHTML");
+              document.body.appendChild(button);
+              htmx.process(button);
+            }
+            """
+        )
+        async with page.expect_response(
+            lambda response: response.url.endswith("/definitely-missing-page/"),
+        ) as response_info:
+            await page.locator("#htmx4-error-probe").click()
+        response = await response_info.value
+        assert response.status == 404
+        await page.wait_for_function("window.__furaHtmx4ErrorStatus === 404")
+        await page.locator("#page-root").get_by_text("404").first.wait_for()
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_authoring
+@pytest.mark.browser_full
+@pytest.mark.browser_htmx4
+async def test_htmx4_preview_sse_signal_exposes_focus_regression(
+    browser: Browser,
+    htmx4_author_server: tuple[str, Path],
+) -> None:
+    base_url, page_path = htmx4_author_server
+    context = await browser.new_context(viewport={"width": 1280, "height": 900})
+    page = await context.new_page()
+    try:
+        await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
+        await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
+        marker = page.locator("#fura-author-sse")
+        assert await marker.get_attribute("hx-sse:connect")
+        await page.wait_for_function(
+            "document.getElementById('fura-author-sse')._htmx?.sse != null"
+        )
+
+        await page.evaluate(
+            """
+            () => {
+              const probe = document.createElement("textarea");
+              probe.id = "htmx4-focus-probe";
+              probe.value = "preserve-me";
+              document.body.appendChild(probe);
+              probe.focus();
+              probe.setSelectionRange(2, 8);
+            }
+            """
+        )
+        _dirty_page(page_path, "Updated through the htmx 4 SSE extension.")
+        await page.wait_for_function("window.__furaAuthorReloadCount >= 1", timeout=20_000)
+        await asyncio.sleep(0.5)
+        # Known beta5 blocker: the content reload succeeds but active focus is
+        # lost during v4 SSE processing. In repeated runs the control may also
+        # be removed before the manual reload fetch settles.
+        assert await page.evaluate("document.activeElement.id") != "htmx4-focus-probe"
+        assert await page.evaluate("window.__furaAuthorReloadMode") == "sse"
     finally:
         await context.close()
 

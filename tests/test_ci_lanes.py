@@ -40,6 +40,8 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert '-m "browser and browser_responsive" $(BROWSER_TESTS)' in makefile
     assert "--junitxml=$(BROWSER_RESULTS)/full.xml" in makefile
     assert '-m "browser and browser_full" $(BROWSER_TESTS)' in makefile
+    assert "--junitxml=$(BROWSER_RESULTS)/htmx4-preview.xml" in makefile
+    assert '-m "browser and browser_htmx4" $(BROWSER_TESTS)' in makefile
     assert "$(UV_RUN) fura check --agent-only --json" in makefile
     assert "fura docs-reference" in makefile
     assert "generated-cli-config.md --check" in makefile
@@ -87,7 +89,11 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
         job = jobs[lane]
         commands = [step.get("run") for step in job["steps"] if "run" in step]
         if lane == "browser":
-            assert {"make ci-browser-smoke", "make ci-browser-full"} <= set(commands)
+            assert {
+                "make ci-browser-smoke",
+                "make ci-browser-htmx4-preview",
+                "make ci-browser-full",
+            } <= set(commands)
         else:
             assert f"make ci-{lane}" in commands
         setup = next(

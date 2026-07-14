@@ -329,7 +329,9 @@ class TestAuthorStaleRoute:
         assert "window.__furaDocsAuthorReloadState" in response.text
         assert "if (window.__furaDocsAuthorReload) return;" not in response.text
         assert 'marker.dataset.furaAuthorSseBound === "1"' in response.text
-        assert 'marker.addEventListener("htmx:sseMessage"' in response.text
+        assert 'marker.addEventListener("htmx:" + "sseMessage"' in response.text
+        assert '["htmx", "after", "sse", "connection"].join(":")' in response.text
+        assert '["htmx", "sse", "error"].join(":")' in response.text
         assert 'marker.dataset.furaSseExtensionActive === "1"' in response.text
         assert "if (htmxOwnsAuthorSse(marker))" in response.text
         assert "if (!allowCompatibilityFallback && markerDeclaresHtmxSse(marker))" in response.text
