@@ -70,7 +70,8 @@ when the pull request is merged or closed.
 The protected `/preview-manifest.json` is the evidence boundary: it reports the
 reviewed SHA, Railway environment and deployment IDs, frozen catalog
 fingerprint, surface URLs, and readiness checks. A newer head commit supersedes
-the prior deployment rather than reusing its identity.
+the prior deployment rather than reusing its identity. Reviewers should treat
+that manifest—not a remembered preview URL—as the source of truth.
 
 ## Live does not yet mean no-redeploy publishing
 
