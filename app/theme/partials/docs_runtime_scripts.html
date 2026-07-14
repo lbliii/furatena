@@ -459,7 +459,12 @@
         window.htmx &&
         (
           marker.dataset.furaSseExtensionActive === "1" ||
-          Boolean(marker._htmx && marker._htmx.sse)
+          Boolean(marker._htmx && marker._htmx.sse) ||
+          (
+            !markerUsesHtmx4Sse(marker) &&
+            markerDeclaresHtmxSse(marker) &&
+            typeof window.htmx.createEventSource === "function"
+          )
         )
       );
     }
@@ -469,6 +474,10 @@
       var extensions = marker.getAttribute("hx-ext") || marker.getAttribute("data-hx-ext") || "";
       return Boolean(marker.getAttribute("hx-" + "sse:connect")) ||
         extensions.split(/\s*,\s*|\s+/).indexOf("sse") >= 0;
+    }
+
+    function markerUsesHtmx4Sse(marker) {
+      return Boolean(marker && marker.getAttribute("hx-" + "sse:connect"));
     }
 
     function clearSseOwnershipProbe() {
@@ -490,30 +499,27 @@
     function bindHtmxSse(marker) {
       if (!marker || marker.dataset.furaAuthorSseBound === "1") return;
       marker.dataset.furaAuthorSseBound = "1";
-      marker.addEventListener("htmx:" + "sseMessage", function (event) {
+      var handleMessage = function (event) {
         applyAuthorInvalidation(payloadFromSseEvent(event));
-      });
-      marker.addEventListener("author-invalidate", function (event) {
-        applyAuthorInvalidation(payloadFromSseEvent(event));
-      });
-      marker.addEventListener("htmx:" + "sseOpen", function () {
+      };
+      var handleOpen = function () {
         stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
-      });
-      marker.addEventListener(["htmx", "after", "sse", "connection"].join(":"), function () {
-        stopPollingFallback();
-        window.__furaAuthorReloadMode = "sse";
-      });
-      marker.addEventListener("htmx:" + "sseError", function () {
+      };
+      var handleError = function () {
         window.setTimeout(function () {
           if (document.body.contains(marker)) startPollingFallback();
         }, 500);
-      });
-      marker.addEventListener(["htmx", "sse", "error"].join(":"), function () {
-        window.setTimeout(function () {
-          if (document.body.contains(marker)) startPollingFallback();
-        }, 500);
-      });
+      };
+      if (markerUsesHtmx4Sse(marker)) {
+        marker.addEventListener("author-invalidate", handleMessage);
+        marker.addEventListener(["htmx", "after", "sse", "connection"].join(":"), handleOpen);
+        marker.addEventListener(["htmx", "sse", "error"].join(":"), handleError);
+      } else {
+        marker.addEventListener("htmx:" + "sseMessage", handleMessage);
+        marker.addEventListener("htmx:" + "sseOpen", handleOpen);
+        marker.addEventListener("htmx:" + "sseError", handleError);
+      }
     }
 
     function startSseReload(allowCompatibilityFallback) {

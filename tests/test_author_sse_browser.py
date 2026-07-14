@@ -515,6 +515,7 @@ async def test_htmx4_preview_sse_signal_exposes_focus_regression(
         _dirty_page(page_path, "Updated through the htmx 4 SSE extension.")
         await page.wait_for_function("window.__furaAuthorReloadCount >= 1", timeout=20_000)
         await asyncio.sleep(0.5)
+        assert await page.evaluate("window.__furaAuthorReloadCount") == 1
         # Known beta5 blocker: the content reload succeeds but active focus is
         # lost during v4 SSE processing. In repeated runs the control may also
         # be removed before the manual reload fetch settles.

@@ -199,7 +199,11 @@ def _htmx_assets_markup(preview_version: str | None) -> Markup:
     )
 
 
-def _author_sse_markup(node: Any, preview_version: str | None) -> Markup:
+def _author_sse_markup(
+    node: Any,
+    preview_version: str | None,
+    include_reload_trigger: bool = True,
+) -> Markup:
     slug = html.escape(str(node.slug), quote=True)
     if preview_version is not None:
         return Markup(
@@ -208,15 +212,20 @@ def _author_sse_markup(node: Any, preview_version: str | None) -> Markup:
             'hx-target="this"></div>'
         )
     url = html.escape(str(node.url), quote=True)
+    reload_trigger = ""
+    if include_reload_trigger:
+        reload_trigger = (
+            f'<button type="button" hidden hx-get="{url}" '
+            'hx-trigger="sse:author-invalidate" hx-target="#page-root" '
+            'hx-select="#page-root" hx-swap="outerHTML" '
+            'hx-headers=\'{"HX-Docs-Author-Reload":"1"}\'></button>'
+        )
     return Markup(
         '<div id="fura-author-sse" hidden hx-ext="sse" '
         f'sse-connect="/docs/_author/events?slug={slug}" '
         'hx-disinherit="hx-target hx-swap" hx-target="this">'
         '<div hidden sse-swap="author-invalidate" hx-target="this" hx-swap="none"></div>'
-        f'<button type="button" hidden hx-get="{url}" '
-        'hx-trigger="sse:author-invalidate" hx-target="#page-root" '
-        'hx-select="#page-root" hx-swap="outerHTML" '
-        'hx-headers=\'{"HX-Docs-Author-Reload":"1"}\'></button></div>'
+        f"{reload_trigger}</div>"
     )
 
 
@@ -428,7 +437,11 @@ class DocsApp:
             lambda: _htmx_assets_markup(self.htmx_preview_version)
         )
         app.template_global("fura_author_sse_markup")(
-            lambda node: _author_sse_markup(node, self.htmx_preview_version)
+            lambda node, include_reload_trigger=True: _author_sse_markup(
+                node,
+                self.htmx_preview_version,
+                include_reload_trigger,
+            )
         )
         app.template_global("fura_effects_code")(lambda: self.config.theme.effects.code)
         app.template_global("fura_effects_cards")(lambda: self.config.theme.effects.cards)
