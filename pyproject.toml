@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "furatena"
-version = "0.1.0"
+version = "0.1.1"
 description = "Hypermedia documentation catalog for Chirp — live graph, dual IR, fura CLI"
 readme = "README.md"
 requires-python = ">=3.14,<3.15"
@@ -101,7 +101,7 @@ line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "UP", "B", "SIM", "I", "RUF", "ANN201"]
+select = ["E", "W", "F", "UP", "B", "SIM", "I", "RUF", "ANN201", "S110", "S112"]
 ignore = ["E501"]
 
 [tool.ruff.lint.per-file-ignores]
@@ -123,6 +123,46 @@ markers = [
     "browser_full: complete browser regression tier run on main",
 ]
 
+[tool.towncrier]
+directory = "changelog.d"
+filename = "CHANGELOG.md"
+package = "furatena"
+package_dir = "src"
+start_string = "<!-- towncrier release notes start -->\n"
+title_format = "## [{version}] — {project_date}"
+issue_format = "[#{issue}](https://github.com/lbliii/furatena/issues/{issue})"
+underlines = ["", "", ""]
+
+[[tool.towncrier.type]]
+directory = "added"
+name = "Added"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "changed"
+name = "Changed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "deprecated"
+name = "Deprecated"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "removed"
+name = "Removed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "fixed"
+name = "Fixed"
+showcontent = true
+
+[[tool.towncrier.type]]
+directory = "security"
+name = "Security"
+showcontent = true
+
 [dependency-groups]
 dev = [
     "pytest>=9.0",
@@ -133,4 +173,5 @@ dev = [
     "playwright>=1.61.0",
     "coverage[toml]>=7.10",
     "ty>=0.0.57",
+    "towncrier>=25.8.0",
 ]

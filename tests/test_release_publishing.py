@@ -31,14 +31,14 @@ def test_release_metadata_is_deterministic_and_free_threaded(tmp_path: Path) -> 
     dist = tmp_path / "dist"
     output = tmp_path / "release"
     dist.mkdir()
-    wheel = dist / "furatena-0.1.0-py3-none-any.whl"
-    sdist = dist / "furatena-0.1.0.tar.gz"
+    wheel = dist / "furatena-0.1.1-py3-none-any.whl"
+    sdist = dist / "furatena-0.1.1.tar.gz"
     wheel.write_bytes(b"wheel")
     sdist.write_bytes(b"sdist")
 
     completed = _run_prepare(
         "--tag",
-        "v0.1.0",
+        "v0.1.1",
         "--commit",
         "a" * 40,
         "--dist-dir",
@@ -49,7 +49,7 @@ def test_release_metadata_is_deterministic_and_free_threaded(tmp_path: Path) -> 
 
     assert completed.returncode == 0, completed.stderr
     manifest = json.loads((output / "release-manifest.json").read_text(encoding="utf-8"))
-    assert manifest["tag"] == "v0.1.0"
+    assert manifest["tag"] == "v0.1.1"
     assert manifest["commit"] == "a" * 40
     assert manifest["runtime"] == {
         "PYTHON_GIL": "0",
@@ -92,9 +92,19 @@ def test_release_workflow_separates_build_from_oidc_publish_identity() -> None:
     assert "pypa/gh-action-pypi-publish@release/v1" in source
     assert "actions/upload-artifact@v7" in source
     assert "actions/download-artifact@v8" in source
-    assert "--generate-notes" in source
+    assert "towncrier build --draft" in source
+    assert "--notes-file" in source
     assert "--verify-tag" in source
     assert "--fail-on-no-commits" in source
+
+
+def test_private_repository_skips_only_unavailable_github_provenance_storage() -> None:
+    source = WORKFLOW.read_text(encoding="utf-8")
+
+    assert "if: ${{ !github.event.repository.private }}" in source
+    assert "if: ${{ github.event.repository.private }}" in source
+    assert "user-owned private repository" in source
+    assert "PyPI Trusted Publishing attestations remain release requirements" in source
 
 
 def test_release_runbook_covers_yank_rollback_and_compromise() -> None:
@@ -103,7 +113,8 @@ def test_release_runbook_covers_yank_rollback_and_compromise() -> None:
     for required in (
         "trusted publisher",
         "sha256sums",
-        "attestation verify",
+        "pypi-attestations verify pypi",
+        "user-owned private repositories",
         "yank and rollback",
         "compromised-release response",
         "do not delete",

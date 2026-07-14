@@ -103,11 +103,23 @@ draft, private, protected, and archived source, then scans all generated files
 Version tags use the separate `release.yml` workflow. It accepts only an exact
 `vMAJOR.MINOR.PATCH` matching package metadata on a commit reachable from
 `main`. Unprivileged jobs rerun the fast, contract, agent, and isolated release
-lanes and produce checksums. Separate jobs then generate GitHub provenance,
-publish through PyPI OIDC, and create the GitHub release with generated notes;
-project code never runs in the PyPI credential-bearing job. See
+lanes and produce checksums. Separate jobs then generate GitHub provenance when
+repository visibility supports it, publish through PyPI OIDC with PyPI
+attestations, and create the GitHub release with Towncrier notes; project code
+never runs in the PyPI credential-bearing job. See
 [RELEASING.md](RELEASING.md) for setup, verification, rollback, and compromise
 procedures.
+
+## Repository hygiene
+
+`make hygiene` validates Towncrier fragment names and content, requires
+release-note intent on pull requests, rejects silent `except` paths through
+Ruff `S110`/`S112`, and ratchets statically visible raise messages against
+`docs/raise-message-baseline.txt`. It is a dependency of `make ci-fast`.
+
+The reusable per-module coverage design is documented in
+[COVERAGE_RATCHET.md](COVERAGE_RATCHET.md), including the measured-floor and
+stale-baseline rules needed to copy the lane safely.
 
 ## Core coverage ratchets
 

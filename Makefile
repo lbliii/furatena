@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint format format-check ty-audit ty-ratchet benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
+.PHONY: help install test lint format format-check hygiene changelog-draft ty-audit ty-ratchet benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-browser-htmx4-preview \
@@ -42,6 +42,8 @@ help:
 	@echo "  make ty-ratchet   enforce owned ty diagnostic budgets"
 	@echo "  make format       apply Ruff 0.15.20 formatting"
 	@echo "  make format-check verify Ruff 0.15.20 formatting"
+	@echo "  make hygiene      changelog and actionable-error hygiene gates"
+	@echo "  make changelog-draft preview unreleased Towncrier notes"
 	@echo "  make benchmark    index/freeze/query/search timing report"
 	@echo "  make author-benchmark  author startup/request/validation timing report"
 	@echo "  make retrieval-benchmark  known-answer ranking quality/cost report"
@@ -95,6 +97,13 @@ format:
 format-check:
 	$(UV_RUN) ruff format --check .
 
+hygiene:
+	$(UV_RUN) python scripts/check_changelog_fragments.py
+	$(UV_RUN) python scripts/lint_raise_messages.py
+
+changelog-draft:
+	$(UV_RUN) towncrier build --draft --version "$${VERSION:-NEXT}"
+
 ty-audit:
 	$(UV_RUN) python scripts/check_ty_diagnostics.py --report-only --json
 
@@ -128,7 +137,7 @@ agent: ci-agent
 
 release: ci-release
 
-ci-fast: format-check
+ci-fast: format-check hygiene
 	$(UV_RUN) ruff check src tests app
 	$(MAKE) ty-ratchet
 	$(UV_RUN) ty check \
@@ -177,6 +186,7 @@ ci-fast: format-check
 		tests/test_access_isolation.py \
 		tests/test_support_policy.py \
 		tests/test_release_publishing.py \
+		tests/test_hygiene_baseline.py \
 		tests/test_activation_measurement.py \
 		tests/test_adoption_scorecard.py \
 		tests/test_afdocs_score_lane.py \
