@@ -61,7 +61,9 @@ class ContentDeploymentConfig:
             if host.strip()
         )
         if not allowed_hosts:
-            raise ContentDeploymentError("FURA_CONTENT_ALLOWED_HOSTS must not be empty")
+            raise ContentDeploymentError(
+                "FURA_CONTENT_ALLOWED_HOSTS must include at least one permitted public Git hostname."
+            )
         parsed = urlsplit(repository)
         if (
             parsed.scheme != "https"
@@ -74,15 +76,19 @@ class ContentDeploymentConfig:
         ):
             raise ContentDeploymentError(
                 "FURA_CONTENT_REPOSITORY must be an HTTPS public Git URL without "
-                "credentials, query, or fragment on an allowed host"
+                "credentials, query, or fragment on an allowed host."
             )
         ref = values.get("FURA_CONTENT_REF", "main").strip()
         if _REF_PATTERN.fullmatch(ref) is None or ref.startswith("-") or ".." in ref:
-            raise ContentDeploymentError("FURA_CONTENT_REF contains unsafe syntax")
+            raise ContentDeploymentError(
+                "FURA_CONTENT_REF contains unsafe Git reference syntax and cannot be resolved."
+            )
         subdirectory = values.get("FURA_CONTENT_SUBDIRECTORY", "app").strip().strip("/")
         subpath = Path(subdirectory)
         if not subdirectory or subpath.is_absolute() or ".." in subpath.parts:
-            raise ContentDeploymentError("FURA_CONTENT_SUBDIRECTORY must be a safe relative path")
+            raise ContentDeploymentError(
+                "FURA_CONTENT_SUBDIRECTORY must name a safe relative application path."
+            )
         state_root = (
             Path(values.get("FURA_CONTENT_STATE_ROOT", "/data/furatena")).expanduser().resolve()
         )
@@ -163,14 +169,18 @@ class ContentDeploymentStore:
                     or not (app_root / "docs.yaml").is_file()
                 ):
                     raise ContentDeploymentError(
-                        f"content subdirectory must contain docs.yaml: {self.config.subdirectory}"
+                        "Managed content subdirectory must contain a docs.yaml configuration file: "
+                        f"{self.config.subdirectory}."
                     )
                 freeze = dict(self._freezer(app_root, frozen))
                 self._validate_frozen(frozen, freeze)
                 generation_id = self._generation_id(resolved_ref, started)
                 generation = self.generations / generation_id
                 if generation.exists():
-                    raise ContentDeploymentError(f"generation already exists: {generation_id}")
+                    raise ContentDeploymentError(
+                        "Managed content generation already exists and cannot be replaced: "
+                        f"{generation_id}."
+                    )
                 receipt = {
                     "schema_version": 1,
                     "generation": generation_id,
@@ -270,7 +280,9 @@ class ContentDeploymentStore:
             active = self._link_target(self.active)
             lkg = self._link_target(self.last_known_good)
             if lkg is None:
-                raise ContentDeploymentError("no valid last-known-good generation is available")
+                raise ContentDeploymentError(
+                    "No valid last-known-good content generation is available for rollback."
+                )
             self._replace_link(self.active, lkg)
             if active is not None:
                 self._replace_link(self.last_known_good, active)

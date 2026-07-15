@@ -131,7 +131,9 @@ async def _authorized_content_operation(
 ) -> tuple[ContentDeploymentStore, bytes] | Response:
     store = _content_store()
     if store is None:
-        raise NotFound("Managed content is not configured")
+        raise NotFound(
+            "Managed content operations are unavailable because deployment is not configured."
+        )
     body = await request.body()
     signature = request.headers.get("x-fura-signature-256") or request.headers.get(
         "x-hub-signature-256"
@@ -245,7 +247,9 @@ def register_public_routes(docs: Any, app: App) -> None:
     def content_status(request: Request):
         store = _content_store()
         if store is None:
-            raise NotFound("Managed content is not configured")
+            raise NotFound(
+                "Managed content status is unavailable because deployment is not configured."
+            )
         return _content_json(store.status())
 
     @app.route("/_fura/content/refresh", methods=["POST"], referenced=False)
