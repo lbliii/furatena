@@ -1,0 +1,83 @@
+name: Monitor live deployment SLOs
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      origin:
+        description: Optional HTTPS origin override
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-slo-production
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe production and preserve evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out probe and policy
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Run point-in-time SLO and artifact checks
+        id: probe
+        continue-on-error: true
+        env:
+          ORIGIN: ${{ inputs.origin }}
+        run: |
+          arguments=(--output live-slo/report.json)
+          if [ -n "$ORIGIN" ]; then
+            arguments+=(--origin "$ORIGIN")
+          fi
+          python scripts/check_live_slo.py "${arguments[@]}"
+
+      - name: Upload immutable probe evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: live-slo-${{ github.run_id }}-${{ github.run_attempt }}
+          path: live-slo/report.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Open or update the operational alert
+        if: steps.probe.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Operational alert: live deployment SLO breach"
+          summary=$(jq -r '.failures | map("- " + .) | join("\n")' live-slo/report.json)
+          body=$(printf 'The production monitor detected an SLO breach.\n\n%s\n\nEvidence: %s' "$summary" "$RUN_URL")
+          number=$(gh issue list --state open --search "$title in:title" --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+
+      - name: Close the operational alert after recovery
+        if: steps.probe.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Operational alert: live deployment SLO breach"
+          number=$(gh issue list --state open --search "$title in:title" --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          if [ -n "$number" ]; then
+            gh issue close "$number" --comment "Production probes recovered. Evidence: $RUN_URL"
+          fi
+
+      - name: Enforce the probe result
+        if: steps.probe.outcome == 'failure'
+        run: exit 1

@@ -100,15 +100,14 @@ artifact and public referrer. Export also derives unique canaries for every
 draft, private, protected, and archived source, then scans all generated files
 (including extracted PDF text and inventory payloads) for policy leaks.
 
-Version tags use the separate `release.yml` workflow. It accepts only an exact
-`vMAJOR.MINOR.PATCH` matching package metadata on a commit reachable from
-`main`. Unprivileged jobs rerun the fast, contract, agent, and isolated release
-lanes and produce checksums. Separate jobs then generate GitHub provenance when
-repository visibility supports it, publish through PyPI OIDC with PyPI
-attestations, and create the GitHub release with Towncrier notes; project code
-never runs in the PyPI credential-bearing job. See
-[RELEASING.md](RELEASING.md) for setup, verification, rollback, and compromise
-procedures.
+The separate `private-image.yml` workflow publishes the proprietary commercial
+artifact. A merge to `main` builds one candidate, adds an SBOM and provenance,
+scans the published digest, and pulls and boots that exact subject in a clean
+job. Protected manual operations promote or revoke an existing digest without
+rebuilding it. Furatena is not published to PyPI; the isolated wheel and sdist
+lane remains an internal packaging-integrity check. See
+[RELEASING.md](RELEASING.md) for registry setup, verification, promotion,
+rollback, revocation, and compromise procedures.
 
 ## Repository hygiene
 

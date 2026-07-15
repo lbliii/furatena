@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
+import signal
+import threading
 from collections.abc import Mapping
 from typing import Any
 
@@ -15,6 +18,12 @@ from chirp.server.conditional import evaluate_conditional_response
 from furatena.catalog.build_identity import deployed_build_identity
 from furatena.catalog.catalog_shards import catalog_shard_path, is_safe_mount_id
 from furatena.catalog.channel_manifest import channel_manifest
+from furatena.catalog.content_deployment import (
+    ContentDeploymentConfig,
+    ContentDeploymentError,
+    ContentDeploymentStore,
+    refresh_authorized,
+)
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.develop_exports import DEVELOP_EXPORTS, develop_export
 from furatena.catalog.docs_app import (
@@ -85,6 +94,60 @@ _GRAPH_EDGE_KINDS = frozenset(item.value for item in EdgeKind)
 _CATALOG_QUERY_MEDIA_TYPE = "application/vnd.furatena.catalog-query+json;version=1"
 _CATALOG_ACCEPT_QUERY = f'{_CATALOG_QUERY_MEDIA_TYPE.partition(";")[0]};version="1"'
 _CATALOG_QUERY_CACHE_CONTROL = "private, max-age=0, must-revalidate"
+_CONTENT_NO_STORE = (("Cache-Control", "private, no-store"),)
+
+
+def _content_store() -> ContentDeploymentStore | None:
+    config = ContentDeploymentConfig.from_environment()
+    return ContentDeploymentStore(config) if config is not None else None
+
+
+def _schedule_content_restart() -> None:
+    if os.environ.get("FURA_CONTENT_RESTART_AFTER_PROMOTION", "1").strip().lower() not in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        return
+
+    def _terminate() -> None:
+        os.kill(os.getpid(), signal.SIGTERM)
+
+    threading.Timer(1.0, _terminate).start()
+
+
+def _content_json(payload: Mapping[str, Any], *, status: int = 200) -> Response:
+    return Response(
+        json.dumps(dict(payload), indent=2),
+        status=status,
+        content_type="application/json; charset=utf-8",
+        headers=_CONTENT_NO_STORE,
+    )
+
+
+async def _authorized_content_operation(
+    request: Request,
+) -> tuple[ContentDeploymentStore, bytes] | Response:
+    store = _content_store()
+    if store is None:
+        raise NotFound("Managed content is not configured")
+    body = await request.body()
+    signature = request.headers.get("x-fura-signature-256") or request.headers.get(
+        "x-hub-signature-256"
+    )
+    if not refresh_authorized(
+        request.headers.get("authorization"),
+        body,
+        signature,
+    ):
+        return Response(
+            json.dumps({"error": "content operation authorization failed"}),
+            status=401,
+            content_type="application/json; charset=utf-8",
+            headers=(*_CONTENT_NO_STORE, ("WWW-Authenticate", 'Bearer realm="Furatena content"')),
+        )
+    return store, body
 
 
 def _catalog_query_error(params: Mapping[str, Any], edge_kind: str | None) -> Response | None:
@@ -177,6 +240,39 @@ def register_public_routes(docs: Any, app: App) -> None:
             status=int(body["http_status"]),
             content_type="application/json; charset=utf-8",
         )
+
+    @app.route("/_fura/content/status", referenced=False)
+    def content_status(request: Request):
+        store = _content_store()
+        if store is None:
+            raise NotFound("Managed content is not configured")
+        return _content_json(store.status())
+
+    @app.route("/_fura/content/refresh", methods=["POST"], referenced=False)
+    async def content_refresh(request: Request):
+        authorized = await _authorized_content_operation(request)
+        if isinstance(authorized, Response):
+            return authorized
+        store, _body = authorized
+        try:
+            receipt = store.refresh(trigger="http")
+        except ContentDeploymentError as exc:
+            return _content_json({"status": "failed", "error": str(exc)}, status=422)
+        _schedule_content_restart()
+        return _content_json({**receipt, "restart_scheduled": True})
+
+    @app.route("/_fura/content/rollback", methods=["POST"], referenced=False)
+    async def content_rollback(request: Request):
+        authorized = await _authorized_content_operation(request)
+        if isinstance(authorized, Response):
+            return authorized
+        store, _body = authorized
+        try:
+            receipt = store.rollback()
+        except ContentDeploymentError as exc:
+            return _content_json({"status": "failed", "error": str(exc)}, status=409)
+        _schedule_content_restart()
+        return _content_json({**receipt, "restart_scheduled": True})
 
     @app.route("/preview-manifest.json", referenced=True)
     def preview_manifest_json(request: Request):

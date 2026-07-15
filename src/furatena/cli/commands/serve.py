@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import os
+from pathlib import Path
 from typing import Any
 
 from furatena.cli.commands._shared import (
@@ -67,12 +68,16 @@ def _run_serve(args: argparse.Namespace) -> None:
         mode = ServeMode.PREVIEW
     elif args.hybrid:
         mode = ServeMode.HYBRID
+    configured_frozen = os.environ.get("FURA_FROZEN_DIR", "").strip()
+    frozen_dir = (
+        Path(configured_frozen).expanduser().resolve() if configured_frozen else app_root / "frozen"
+    )
     serve = resolve_serve_config(
         docs_root=app_root,
         content_roots=tuple(mount.content_root for mount in mounts),
         mode=mode,
-        frozen_dir=app_root / "frozen",
-        env_frozen=bool(os.environ.get("FURA_FROZEN")),
+        frozen_dir=frozen_dir,
+        env_frozen=bool(configured_frozen or os.environ.get("FURA_FROZEN")),
     )
     host = args.host or "127.0.0.1"
     if serve.mode == ServeMode.AUTHOR and not _is_loopback_host(host):

@@ -1,0 +1,26 @@
+name: Refresh Furatena content
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Request an atomic content refresh
+        env:
+          REFRESH_URL: ${{ secrets.FURATENA_REFRESH_URL }}
+          REFRESH_TOKEN: ${{ secrets.FURATENA_REFRESH_TOKEN }}
+        run: |
+          test -n "$REFRESH_URL"
+          test -n "$REFRESH_TOKEN"
+          curl --fail --silent --show-error --request POST \
+            --header "Authorization: Bearer $REFRESH_TOKEN" \
+            "$REFRESH_URL"

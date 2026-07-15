@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "origin": "https://furatena-production.up.railway.app",
+  "samples": 5,
+  "timeout_seconds": 30,
+  "objectives": {
+    "probe_availability_percent": 100.0,
+    "ready_p95_milliseconds": 750,
+    "home_p95_milliseconds": 1000,
+    "artifact_integrity_percent": 100.0,
+    "private_image_identity": true,
+    "managed_content_identity": true
+  },
+  "service_level": {
+    "window_days": 30,
+    "availability_percent": 99.9,
+    "ready_p95_milliseconds": 750,
+    "artifact_integrity_percent": 100.0
+  }
+}
