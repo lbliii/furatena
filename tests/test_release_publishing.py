@@ -151,6 +151,10 @@ def test_private_image_workflow_has_separate_candidate_and_lifecycle_authority()
     assert jobs["lifecycle"]["permissions"] == {"contents": "write", "packages": "read"}
     assert "pypi" not in source.lower()
     assert "PYPI_TOKEN" not in source
+    assert "pull_request:" in source
+    assert "github.event.pull_request.head.repo.full_name == github.repository" in source
+
+
 def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() -> None:
     source = WORKFLOW.read_text(encoding="utf-8")
 
