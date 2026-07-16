@@ -72,6 +72,10 @@ fura serve --workers 8
 
 Worker count also respects **`FURA_WORKERS`**.
 
+That value controls catalog indexing. **`FURA_SERVER_WORKERS`** independently
+controls Pounce serving processes; leave it unset for automatic local sizing.
+The volume-backed Railway private image fixes it at one serving process.
+
 ## Version channels
 
 Release notes under `releases/*.md` enable version channels. Select a channel:

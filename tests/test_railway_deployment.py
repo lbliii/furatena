@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from furatena.catalog.docs_app import _server_keep_alive_timeout
+from furatena.catalog.docs_app import _server_keep_alive_timeout, _server_workers
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -41,6 +41,7 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     assert "freeze --full --workers 1" in dockerfile
     assert "ARG FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA" in dockerfile
     assert "FURA_DISTRIBUTION=private-image" in dockerfile
+    assert "FURA_SERVER_WORKERS=1" in dockerfile
     assert "ca-certificates git" in dockerfile
     assert "--preview" in start
     assert "--workers 1" in start
@@ -58,6 +59,33 @@ def test_railway_uses_pounce_0_9_2_without_keep_alive_workaround() -> None:
 def test_keep_alive_timeout_reaches_chirp_app_config(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FURA_KEEP_ALIVE_TIMEOUT", "75")
     assert _server_keep_alive_timeout() == 75.0
+
+
+def test_private_image_defaults_to_one_serving_worker(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FURA_DISTRIBUTION", "private-image")
+    monkeypatch.delenv("FURA_SERVER_WORKERS", raising=False)
+    assert _server_workers() == 1
+
+
+def test_local_runtime_keeps_automatic_serving_workers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FURA_DISTRIBUTION", raising=False)
+    monkeypatch.delenv("FURA_SERVER_WORKERS", raising=False)
+    assert _server_workers() == 0
+
+
+def test_serving_worker_override_is_explicit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FURA_SERVER_WORKERS", "2")
+    assert _server_workers() == 2
+
+
+@pytest.mark.parametrize("value", ("0", "-1", "not-a-number"))
+def test_serving_worker_override_rejects_invalid_values(
+    monkeypatch: pytest.MonkeyPatch,
+    value: str,
+) -> None:
+    monkeypatch.setenv("FURA_SERVER_WORKERS", value)
+    with pytest.raises(ValueError, match="FURA_SERVER_WORKERS must be a positive integer"):
+        _server_workers()
 
 
 @pytest.mark.parametrize("value", ("0", "-1", "not-a-number"))

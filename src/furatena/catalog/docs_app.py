@@ -265,6 +265,26 @@ def _server_keep_alive_timeout() -> float:
     return timeout
 
 
+def _server_workers() -> int:
+    """Return the Pounce serving-process count for this deployment.
+
+    Pounce uses ``0`` for automatic sizing. Private-image deployments instead
+    default to one serving process because the Railway volume is the v1 content
+    generation and lease authority.
+    """
+    raw = os.environ.get("FURA_SERVER_WORKERS", "").strip()
+    if not raw:
+        distribution = os.environ.get("FURA_DISTRIBUTION", "").strip().lower()
+        return 1 if distribution == "private-image" else 0
+    try:
+        workers = int(raw)
+    except ValueError as exc:
+        raise ValueError("FURA_SERVER_WORKERS must be a positive integer") from exc
+    if workers <= 0:
+        raise ValueError("FURA_SERVER_WORKERS must be a positive integer")
+    return workers
+
+
 def _active_form_proof() -> str:
     """Return the request token, or no token while rendering an error handler."""
     try:
@@ -419,6 +439,7 @@ class DocsApp:
             env=environment,
             secret_key=_session_secret(environment),
             keep_alive_timeout=_server_keep_alive_timeout(),
+            workers=_server_workers(),
         )
         app = App(app_config)
         use_chirp_ui(app)

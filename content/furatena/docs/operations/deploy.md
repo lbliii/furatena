@@ -24,6 +24,7 @@ recovery steps, follow [[docs/get-started/first-github-pages-deploy|First GitHub
 | **`FURA_BASE_URL`** | Public origin for canonical, OG, sitemap, and JSON exports |
 | **`FURA_CHANNEL`** | Active release channel (`latest` or a release id) |
 | **`FURA_WORKERS`** | Parallel indexing pool size (default `min(cpu, 8)`) |
+| **`FURA_SERVER_WORKERS`** | Pounce serving-process count (`1` for the volume-backed Railway private image; unset/automatic locally) |
 | **`FURA_FROZEN=1`** | Legacy alias for preview mode |
 | **`FURA_MODE=author`** | Legacy alias for author mode |
 

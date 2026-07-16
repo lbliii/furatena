@@ -801,16 +801,16 @@ implementation treats absence as significant or supplies behavior elsewhere.
 |---|---|---|---|
 | `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:242` |
 | `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:248` |
-| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:399` |
+| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:419` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1538`, `furatena/cli/commands/serve.py:42` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1559`, `furatena/cli/commands/serve.py:42` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:188`, `furatena/catalog/static_export.py:315`, `furatena/catalog/static_export.py:321`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:192`, `furatena/catalog/static_export.py:314`, `furatena/catalog/static_export.py:319`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:46` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:43`, `furatena/catalog/preview_security.py:103` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:44` |
 | `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:106` |
 | `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:17` |
-| `FURA_DISTRIBUTION` | read | 'source' | `furatena/catalog/build_identity.py:49` |
+| `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:49`, `furatena/catalog/docs_app.py:277` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:242` |
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:80` |
 | `FURA_FROZEN_DIR` | read | '' | `furatena/cli/commands/serve.py:71` |
@@ -831,6 +831,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_PREVIEW_SHA` | read | '' | `furatena/catalog/preview_security.py:102` |
 | `FURA_PR_PREVIEW` | read | '' | `furatena/catalog/preview_security.py:100` |
 | `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:174` |
+| `FURA_SERVER_WORKERS` | read | '' | `furatena/catalog/docs_app.py:275` |
 | `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:248` |
 | `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:316`, `furatena/catalog/static_export.py:324` |
 | `FURA_STRUCTURED_LOGS` | read | '' | `furatena/catalog/observability.py:136` |
