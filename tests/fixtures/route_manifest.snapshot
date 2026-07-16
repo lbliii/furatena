@@ -1,6 +1,9 @@
 # Generated pre-refactor route contract. Update intentionally with route changes.
-# handler-origins-sha256: 6d00698b1b8271d4dd721ce9431c034e33f8d3028288d053f26f8897781b6614
+# handler-origins-sha256: 72b87d3a0a526e5556c0314734ec9058cc31bcb867b106eda379ddea5e479456
 GET|/|-|furatena|home|html-document|dynamic:view-kind|-
+POST|/_fura/content/refresh|-|application|content_refresh|html-document|-|-
+POST|/_fura/content/rollback|-|application|content_rollback|html-document|-|-
+GET|/_fura/content/status|-|application|content_status|html-document|-|-
 GET|/agents.md|-|furatena|default_agents|markdown|dynamic:view-kind|-
 GET|/agents/|-|furatena|default_agents|html-document|dynamic:view-kind|-
 GET|/agents/{slug:path}|-|furatena|default_agents|html-document|dynamic:view-kind|-

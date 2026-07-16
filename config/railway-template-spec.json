@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "template": {
+    "name": "Furatena Docs Platform",
+    "description": "A production-shaped proprietary documentation platform with public-Git content, search, graph APIs, agent artifacts, atomic refresh, and rollback.",
+    "service_name": "Furatena",
+    "source_type": "private-docker-image",
+    "source": "ghcr.io/lbliii/furatena@sha256:<promoted-stable-digest>",
+    "hidden_registry_credentials": true,
+    "public_networking": true,
+    "start_command": "/app/scripts/railway-start.sh",
+    "healthcheck_path": "/readyz",
+    "healthcheck_timeout_seconds": 300,
+    "replicas": 1,
+    "overlap_seconds": 5,
+    "draining_seconds": 15,
+    "restart_policy": "on_failure",
+    "restart_max_retries": 3,
+    "volume": {
+      "name": "furatena-data",
+      "mount_path": "/data/furatena",
+      "required": true
+    }
+  },
+  "variables": [
+    {
+      "name": "FURA_CONTENT_REPOSITORY",
+      "required": true,
+      "secret": false,
+      "description": "Public HTTPS Git repository containing the docs app"
+    },
+    {
+      "name": "FURA_CONTENT_REF",
+      "required": false,
+      "secret": false,
+      "default": "main"
+    },
+    {
+      "name": "FURA_CONTENT_SUBDIRECTORY",
+      "required": false,
+      "secret": false,
+      "default": "app"
+    },
+    {
+      "name": "FURA_CONTENT_ALLOWED_HOSTS",
+      "required": false,
+      "secret": false,
+      "default": "github.com"
+    },
+    {
+      "name": "FURA_CONTENT_STATE_ROOT",
+      "required": false,
+      "secret": false,
+      "default": "/data/furatena"
+    },
+    {
+      "name": "FURA_CONTENT_REFRESH_TOKEN",
+      "required": true,
+      "secret": true,
+      "default": "${{secret(48)}}"
+    },
+    {
+      "name": "FURA_SESSION_SECRET",
+      "required": true,
+      "secret": true,
+      "default": "${{secret(48)}}"
+    },
+    {
+      "name": "FURA_BASE_URL",
+      "required": true,
+      "secret": false,
+      "default": "https://${{RAILWAY_PUBLIC_DOMAIN}}"
+    },
+    {
+      "name": "FURA_IMAGE_VERSION",
+      "required": true,
+      "secret": false,
+      "release_bound": true
+    },
+    {
+      "name": "FURA_IMAGE_CHANNEL",
+      "required": true,
+      "secret": false,
+      "default": "stable",
+      "release_bound": true
+    },
+    {
+      "name": "FURA_IMAGE_DIGEST",
+      "required": true,
+      "secret": false,
+      "release_bound": true
+    },
+    {
+      "name": "FURA_ENV",
+      "required": false,
+      "secret": false,
+      "default": "production"
+    },
+    {
+      "name": "FURA_STRUCTURED_LOGS",
+      "required": false,
+      "secret": false,
+      "default": "1"
+    }
+  ],
+  "publication_gates": [
+    "stable image record exists for the exact source digest",
+    "registry subject and attestation verify",
+    "hidden registry credentials are configured",
+    "SSH and image source editing are disabled by Railway",
+    "one volume is attached at /data/furatena",
+    "clean-account conformance passes",
+    "live demo SLO check passes",
+    "support, update, rollback, revocation, and licensing terms are published"
+  ]
+}

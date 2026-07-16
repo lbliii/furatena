@@ -634,6 +634,10 @@ def test_meta_reports_deployed_build_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("FURA_BUILD_GIT_SHA", "f9fd2413b7327d10f7b3f79b38ff1fc850f8cf0d")
+    monkeypatch.setenv("FURA_DISTRIBUTION", "private-image")
+    monkeypatch.setenv("FURA_IMAGE_CHANNEL", "stable")
+    monkeypatch.setenv("FURA_IMAGE_DIGEST", f"sha256:{'a' * 64}")
+    monkeypatch.setenv("FURA_IMAGE_VERSION", "1.2.3")
 
     async def _fetch():
         return await docs_client.get("/meta.json")
@@ -641,7 +645,13 @@ def test_meta_reports_deployed_build_identity(
     response = asyncio.run(_fetch())
     payload = json.loads(response.text)
     build = payload["build"]
+    assert build["distribution"] == "private-image"
     assert build["git_sha"] == "f9fd2413b7327d10f7b3f79b38ff1fc850f8cf0d"
+    assert build["image"] == {
+        "channel": "stable",
+        "digest": f"sha256:{'a' * 64}",
+        "version": "1.2.3",
+    }
     assert build["packages"]["bengal-chirp"]
     assert build["packages"]["bengal-pounce"]
     assert build["freeze_fingerprint"]

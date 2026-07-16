@@ -86,6 +86,8 @@ backpressure.
 - [HTTP QUERY prototype](docs/HTTP_QUERY.md)
 - [htmx 4 preview report](docs/HTMX4_PREVIEW.md)
 - [Pull-request preview contract](docs/PR_PREVIEW_CONTRACT.md)
+- [Railway proprietary template architecture](docs/RAILWAY_TEMPLATE_ARCHITECTURE.md)
+- [Live SLOs and no-SSH operations](docs/LIVE_OPERATIONS.md)
 - [Compatibility and support policy](docs/COMPATIBILITY.md)
 - [Release and incident runbook](docs/RELEASING.md)
 - [CI lanes](docs/CI.md)

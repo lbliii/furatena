@@ -1,0 +1,215 @@
+name: Prove Railway private-image template conformance
+
+on:
+  pull_request:
+    paths:
+      - config/railway-template-spec.json
+      - scripts/verify_template_spec.py
+      - tests/test_railway_template_conformance.py
+      - .github/workflows/railway-template-conformance.yml
+  workflow_dispatch:
+    inputs:
+      template_code:
+        description: Published or private Railway template code
+        required: true
+        type: string
+      content_repository:
+        description: Public conformance content repository
+        required: true
+        default: https://github.com/lbliii/furatena-content-starter.git
+        type: string
+      first_ref:
+        description: Initial known-good content ref
+        required: true
+        default: main
+        type: string
+      second_ref:
+        description: Updated content ref used to prove rollback
+        required: true
+        default: conformance-v2
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-template-conformance
+  cancel-in-progress: false
+
+jobs:
+  static-contract:
+    name: Validate composer contract and starter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - run: python scripts/verify_template_spec.py
+
+  clean-account:
+    name: Deploy, fault, restart, update, and roll back
+    if: github.event_name == 'workflow_dispatch'
+    needs: static-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: railway-template-conformance
+    env:
+      RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+      RAILWAY_CLI_VERSION: 5.25.0
+      SERVICE: Furatena
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Create a disposable clean-account project
+        id: project
+        env:
+          TEMPLATE_CODE: ${{ inputs.template_code }}
+          CONTENT_REPOSITORY: ${{ inputs.content_repository }}
+          CONTENT_REF: ${{ inputs.first_ref }}
+        run: |
+          set -euo pipefail
+          mkdir -p conformance-workspace conformance-evidence
+          refresh_token=$(openssl rand -hex 32)
+          session_secret=$(openssl rand -hex 32)
+          echo "::add-mask::$refresh_token"
+          echo "refresh_token=$refresh_token" >> "$GITHUB_OUTPUT"
+          pushd conformance-workspace >/dev/null
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" init \
+            --name "furatena-conformance-${GITHUB_RUN_ID}" --json > ../conformance-evidence/project.json
+          project_id=$(jq -r '.id // .project.id' ../conformance-evidence/project.json)
+          test -n "$project_id" && test "$project_id" != null
+          echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" deploy --template "$TEMPLATE_CODE" \
+            --variable "FURA_CONTENT_REPOSITORY=$CONTENT_REPOSITORY" \
+            --variable "FURA_CONTENT_REF=$CONTENT_REF" \
+            --variable "FURA_CONTENT_SUBDIRECTORY=app" \
+            --variable "FURA_CONTENT_REFRESH_TOKEN=$refresh_token" \
+            --variable "FURA_SESSION_SECRET=$session_secret"
+          popd >/dev/null
+
+      - name: Wait for the first deployment and discover its domain
+        id: live
+        run: |
+          set -euo pipefail
+          pushd conformance-workspace >/dev/null
+          for attempt in $(seq 1 90); do
+            npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" deployment list \
+              --service "$SERVICE" --json > ../conformance-evidence/deployments-initial.json
+            status=$(jq -r '.[0].status // "MISSING"' ../conformance-evidence/deployments-initial.json)
+            if [ "$status" = SUCCESS ]; then break; fi
+            if [ "$status" = FAILED ] || [ "$status" = CRASHED ]; then exit 1; fi
+            sleep 10
+          done
+          test "$(jq -r '.[0].status' ../conformance-evidence/deployments-initial.json)" = SUCCESS
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" domain list \
+            --service "$SERVICE" --json > ../conformance-evidence/domains.json
+          domain=$(jq -r '.. | .domain? // empty' ../conformance-evidence/domains.json | head -n 1)
+          if [ -z "$domain" ]; then
+            npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" domain \
+              --service "$SERVICE" --json > ../conformance-evidence/domain-created.json
+            domain=$(jq -r '.. | .domain? // empty' ../conformance-evidence/domain-created.json | head -n 1)
+          fi
+          test -n "$domain"
+          echo "origin=https://$domain" >> "$GITHUB_OUTPUT"
+          popd >/dev/null
+
+      - name: Prove first activation and private-image identity
+        env:
+          ORIGIN: ${{ steps.live.outputs.origin }}
+        run: |
+          python scripts/check_live_slo.py --origin "$ORIGIN" \
+            --output conformance-evidence/initial-slo.json
+          curl --fail --silent "$ORIGIN/_fura/content/status" \
+            > conformance-evidence/content-initial.json
+
+      - name: Inject an unreachable ref and require last-known-good service
+        env:
+          ORIGIN: ${{ steps.live.outputs.origin }}
+        run: |
+          initial=$(jq -r '.active_generation' conformance-evidence/content-initial.json)
+          pushd conformance-workspace >/dev/null
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" variable set \
+            FURA_CONTENT_REF=refs/heads/furatena-conformance-missing \
+            --service "$SERVICE" --json >/dev/null
+          for attempt in $(seq 1 90); do
+            status=$(npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" deployment list \
+              --service "$SERVICE" --json | jq -r '.[0].status // "MISSING"')
+            if [ "$status" = SUCCESS ]; then break; fi
+            if [ "$status" = FAILED ] || [ "$status" = CRASHED ]; then exit 1; fi
+            sleep 10
+          done
+          popd >/dev/null
+          curl --fail --silent "$ORIGIN/readyz" >/dev/null
+          curl --fail --silent "$ORIGIN/_fura/content/status" \
+            > conformance-evidence/content-after-bad-ref.json
+          test "$(jq -r '.active_generation' conformance-evidence/content-after-bad-ref.json)" = "$initial"
+
+      - name: Activate a second generation and prove restart stability
+        env:
+          ORIGIN: ${{ steps.live.outputs.origin }}
+          SECOND_REF: ${{ inputs.second_ref }}
+        run: |
+          pushd conformance-workspace >/dev/null
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" variable set \
+            "FURA_CONTENT_REF=$SECOND_REF" --service "$SERVICE" --json >/dev/null
+          for attempt in $(seq 1 90); do
+            status=$(npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" deployment list \
+              --service "$SERVICE" --json | jq -r '.[0].status // "MISSING"')
+            if [ "$status" = SUCCESS ]; then break; fi
+            if [ "$status" = FAILED ] || [ "$status" = CRASHED ]; then exit 1; fi
+            sleep 10
+          done
+          popd >/dev/null
+          curl --fail --silent "$ORIGIN/_fura/content/status" \
+            > conformance-evidence/content-second.json
+          first=$(jq -r '.active_generation' conformance-evidence/content-initial.json)
+          second=$(jq -r '.active_generation' conformance-evidence/content-second.json)
+          test "$second" != "$first"
+          pushd conformance-workspace >/dev/null
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" redeploy \
+            --service "$SERVICE" --yes --json >/dev/null
+          popd >/dev/null
+          sleep 30
+          curl --retry 20 --retry-delay 5 --retry-all-errors --fail --silent \
+            "$ORIGIN/_fura/content/status" > conformance-evidence/content-after-restart.json
+          test "$(jq -r '.active_generation' conformance-evidence/content-after-restart.json)" = "$second"
+
+      - name: Roll back atomically and require the hold to survive restart
+        env:
+          ORIGIN: ${{ steps.live.outputs.origin }}
+          REFRESH_TOKEN: ${{ steps.project.outputs.refresh_token }}
+        run: |
+          curl --fail --silent --request POST \
+            --header "Authorization: Bearer $REFRESH_TOKEN" \
+            "$ORIGIN/_fura/content/rollback" > conformance-evidence/rollback.json
+          sleep 10
+          curl --retry 20 --retry-delay 5 --retry-all-errors --fail --silent \
+            "$ORIGIN/_fura/content/status" > conformance-evidence/content-rolled-back.json
+          first=$(jq -r '.active_generation' conformance-evidence/content-initial.json)
+          test "$(jq -r '.active_generation' conformance-evidence/content-rolled-back.json)" = "$first"
+          test "$(jq -r '.rollback_hold' conformance-evidence/content-rolled-back.json)" = true
+          python scripts/verify-live-artifacts.py "$ORIGIN" \
+            > conformance-evidence/final-artifacts.json
+
+      - name: Capture Railway control-plane state
+        if: always()
+        run: |
+          pushd conformance-workspace >/dev/null
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" status --json \
+            > ../conformance-evidence/final-status.json || true
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" deployment list \
+            --service "$SERVICE" --json > ../conformance-evidence/final-deployments.json || true
+          popd >/dev/null
+
+      - name: Upload conformance evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: railway-template-conformance-${{ github.run_id }}
+          path: conformance-evidence/
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Delete the disposable project
+        if: always() && steps.project.outputs.project_id != ''
+        run: >-
+          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" delete
+          --project "${{ steps.project.outputs.project_id }}" --yes --json

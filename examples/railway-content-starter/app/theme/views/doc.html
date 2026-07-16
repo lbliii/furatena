@@ -1,0 +1,11 @@
+{% extends "shell.html" %}
+
+{% block page_root %}
+<main id="page-root" class="chirp-theme-docs-layout" data-fura-surface="catalog">
+  <article>
+    <h1>{{ node.title }}</h1>
+    {% if node.description %}<p>{{ node.description }}</p>{% end %}
+    {{ node | doc_body }}
+  </article>
+</main>
+{% end %}

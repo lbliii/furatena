@@ -32,13 +32,19 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
 
     assert "uv python install 3.14t" in dockerfile
+    assert "python:3.14-slim@sha256:" in dockerfile
+    assert "ghcr.io/astral-sh/uv:0.10.8@sha256:" in dockerfile
     assert "PYTHON_GIL=0" in dockerfile
     assert "sys._is_gil_enabled()" in dockerfile
     assert "sys._is_gil_enabled()" in start
     assert "freeze --full --workers 1" in dockerfile
-    assert "FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA" in dockerfile
+    assert "ARG FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA" in dockerfile
+    assert "FURA_DISTRIBUTION=private-image" in dockerfile
+    assert "ca-certificates git" in dockerfile
     assert "--preview" in start
     assert "--workers 1" in start
+    assert "fura content reconcile" in start
+    assert "FURA_FROZEN_DIR" in start
 
 
 def test_railway_uses_pounce_0_9_2_without_keep_alive_workaround() -> None:

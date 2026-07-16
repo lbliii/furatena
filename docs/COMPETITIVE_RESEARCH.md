@@ -2,6 +2,15 @@
 
 Research snapshot: **2026-07-13**.
 
+> **Implementation note (2026-07-14):** The state audit below is a dated
+> baseline and intentionally does not count unmerged work. The
+> `codex/mature-railway-template` implementation adds a proprietary
+> digest-addressed image lifecycle, adopter public-Git content generations,
+> authenticated atomic refresh/rollback, a five-minute SLO monitor, no-SSH
+> operations, a public content starter, and disposable clean-account Railway
+> conformance. Treat those capabilities as release claims only after the branch,
+> private image, live demo, and Railway template pass their publication gates.
+
 This report analyzes 28 first-party blog posts, migration accounts, customer case
 studies, and official product references. It focuses on the market around Furatena:
 hosted documentation platforms, open-source documentation frameworks, custom docs

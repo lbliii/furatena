@@ -1,41 +1,65 @@
 # Railway deployment
 
-Furatena runs on Railway as one free-threaded, frozen-catalog replica. The
-Docker build installs CPython `3.14t`, verifies that importing the server stack
-does not enable the GIL, and runs `fura freeze`. The runtime serves that artifact
-in preview mode; source indexing and author mutations are not exposed.
+The commercial Furatena service runs as one private, digest-pinned GHCR image
+plus one Railway volume. Adopter-owned public Git content is fetched, validated,
+frozen, and selected independently of image publication. Furatena itself is not
+published to PyPI and the deployer receives neither source access nor an
+interactive source-modification path.
 
-## Service configuration
+See [RAILWAY_TEMPLATE_ARCHITECTURE.md](RAILWAY_TEMPLATE_ARCHITECTURE.md) for
+the accepted architecture, [RELEASING.md](RELEASING.md) for image promotion and
+revocation, and [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents.
 
-The canonical service is linked to `lbliii/furatena`, branch `main`. Railway's
-GitHub source integration rebuilds on every merge. `railway.toml` selects the
-Dockerfile, one replica, and `/readyz` as the admission healthcheck.
+## Service shape
 
-Set `FURA_BASE_URL` to the service's HTTPS origin. The Dockerfile declares it as
-a build argument as well as a runtime variable so frozen canonical links and
-on-request responses agree.
+- source: exact `ghcr.io/lbliii/furatena@sha256:...` private-image subject;
+- registry authority: Railway registry credential, read-only and hidden from
+  the application environment;
+- runtime: CPython 3.14t with `PYTHON_GIL=0`, one worker, one replica;
+- persistence: one volume mounted for `/data/furatena`;
+- admission: `/readyz` with five-second overlap and 15-second drain;
+- content: HTTPS public Git URL, exact resolved commit, bounded checkout;
+- activation: immutable generations plus atomic `active` and
+  `last-known-good` selectors.
 
-`PYTHON_GIL=0`, `FURA_MODE=preview`, and `FURA_WORKERS=1` are fixed in the image.
-The start script refuses to boot if the imported application stack has enabled
-the GIL. Pounce 0.9.2 fixes active HTTP/2 response reaping, slow flow-control
-drains, and partial sync-worker writes for large buffered responses, so the
-service uses its normal idle keep-alive behavior without the old 75-second
-workaround. Railway overlaps replacements for five seconds and gives the
-retiring deployment 15 seconds to drain before termination.
+One replica is intentional in v1 because the filesystem lease and volume are
+the generation authority. Multi-replica rollout requires a shared coordination
+design and is outside this template version.
 
-## Deploy
+## Required variables
 
-From a clean `main` checkout:
+| Variable | Purpose |
+| --- | --- |
+| `FURA_BASE_URL` | Public HTTPS origin |
+| `FURA_CONTENT_REPOSITORY` | Adopter-owned public HTTPS Git URL |
+| `FURA_CONTENT_REF` | Branch, tag, or exact commit policy input |
+| `FURA_CONTENT_SUBDIRECTORY` | App root within the repository; default `app` |
+| `FURA_CONTENT_REFRESH_TOKEN` | Independent 32+ character refresh/rollback bearer |
+| `FURA_IMAGE_VERSION` | Promoted commercial version |
+| `FURA_IMAGE_CHANNEL` | `stable` for a production-approved digest |
+| `FURA_IMAGE_DIGEST` | Exact deployed `sha256:...` digest for runtime identity |
+| `FURA_SESSION_SECRET` | Stable production session secret |
 
-```console
-railway up --detach -m "Deploy Furatena frozen docs service"
-railway deployment list --service furatena --environment production --json
-```
+Optional bounds and behavior are documented in the architecture configuration
+table. Never place the GHCR registry credential in a normal application
+variable. Configure it only through Railway's private image credentials.
 
-Do not treat a queued deployment as complete. Wait for the newest deployment to
-reach `SUCCESS`, then verify the domain and runtime.
+## First activation
 
-## Smoke runbook
+1. Promote a scanned candidate digest through the protected
+   `private-image-production` environment.
+2. Configure the Railway service from that exact digest and attach the volume.
+3. Set required variables and deploy. Startup runs `fura content reconcile`;
+   with no active generation it must successfully fetch and freeze content
+   before the server starts.
+4. Wait for the newest deployment to reach `SUCCESS` and `/readyz` to return
+   HTTP 200.
+5. Run the smoke and SLO gates below and preserve their JSON receipts.
+
+Do not treat a queued deployment as complete. Do not switch the template or
+production to a candidate tag, a channel tag, or an unverified digest.
+
+## Smoke gate
 
 Replace `$ORIGIN` with the Railway HTTPS origin and require every command to
 succeed:
@@ -43,6 +67,8 @@ succeed:
 ```console
 curl --fail --silent --show-error "$ORIGIN/healthz"
 curl --fail --silent --show-error "$ORIGIN/readyz"
+curl --fail --silent --show-error "$ORIGIN/meta.json"
+curl --fail --silent --show-error "$ORIGIN/_fura/content/status"
 curl --fail --silent --show-error "$ORIGIN/catalog/query.json"
 curl --fail --silent --show-error "$ORIGIN/search/semantic?q=deployment"
 curl --fail --silent --show-error "$ORIGIN/tools.json"
@@ -51,29 +77,32 @@ curl --fail --silent --show-error "$ORIGIN/sitemap.xml"
 curl --fail --silent --show-error \
   -H 'Accept: text/markdown' "$ORIGIN/docs/get-started/"
 python scripts/verify-live-artifacts.py "$ORIGIN"
-curl --fail --silent --show-error "$ORIGIN/meta.json" | \
-  python -c 'import json,sys; build=json.load(sys.stdin)["build"]; assert build["git_sha"] != "unknown"; print(json.dumps(build, sort_keys=True))'
+python scripts/check_live_slo.py --origin "$ORIGIN" --output /tmp/furatena-slo.json
 ```
 
-The artifact verifier downloads `catalog.json`, the default paginated graph
-query, `search.json`, `semantic.json`, and `llms-full.txt`. It rejects truncated
-bodies, parses every JSON payload, checks each declared count against its
-delivered collection, and requires the graph query's unpaginated `total` to
-match the frozen catalog. Graph-query `page_count` reflects its default limit,
-while search intentionally contains only searchable document nodes.
+`/meta.json` must report:
 
-Record the printed git SHA, `bengal-chirp` and `bengal-pounce` versions, and
-freeze fingerprint with the deployment smoke result. These values identify the
-exact code, server stack, and frozen catalog that the runbook verified.
+- `distribution=private-image`;
+- the expected image version, `stable` channel, exact digest, and source commit;
+- an active content generation and exact resolved Git commit;
+- known server dependency versions and a non-empty freeze fingerprint.
 
-See [`POUNCE_0_9_DEPLOYMENT_VERIFICATION.md`](POUNCE_0_9_DEPLOYMENT_VERIFICATION.md)
-for the Pounce 0.9 HEAD, drain, reload, canary, and production-proof record.
+The artifact verifier rejects truncated bodies and count mismatches across the
+catalog, graph query, search, semantic, and agent bulk surfaces. The SLO probe
+adds latency, availability, identity, and evidence checks.
 
-Also confirm the server process itself is free-threaded:
+## Routine changes
 
-```console
-railway ssh --service furatena --environment production -- \
-  python -c 'import sys; print(sys._is_gil_enabled())'
-```
+- Content-only change: call the authenticated content refresh endpoint. The
+  image digest remains unchanged, a new generation receipt is written, and the
+  process restarts against the new selector.
+- Content rollback: call the rollback endpoint; it selects last-known-good and
+  restarts without fetching or rebuilding.
+- Application change: build one candidate image, scan/attest/smoke the digest,
+  promote that digest, canary it, then update production.
+- Image rollback: select the prior stable digest from its durable release
+  record. Do not rebuild the old commit.
 
-The required output is `False`.
+All normal diagnosis and recovery uses HTTP contracts, GitHub evidence, and
+Railway deployment/log/metrics controls. Container SSH is break-glass only and
+is not part of the verification or rollback procedure.

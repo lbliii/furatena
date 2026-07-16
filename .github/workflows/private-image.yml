@@ -1,0 +1,265 @@
+name: Publish proprietary image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Build a candidate, promote an existing digest, or revoke a digest
+        required: true
+        type: choice
+        options: [candidate, promote, revoke]
+        default: candidate
+      version:
+        description: Immutable commercial version (required for promote or revoke)
+        required: false
+        type: string
+      digest:
+        description: Existing sha256 digest (required for promote or revoke)
+        required: false
+        type: string
+      commit:
+        description: Forty-character source commit for the digest being promoted
+        required: false
+        type: string
+      reason:
+        description: Incident or policy reason (required for revoke)
+        required: false
+        type: string
+      replacement_digest:
+        description: Optional known-good replacement for a revoked digest
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+concurrency:
+  group: private-image-${{ github.event_name }}-${{ inputs.operation || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    name: Build, scan, attest, and publish candidate
+    if: >-
+      github.event_name == 'push' ||
+      inputs.operation == 'candidate' ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Check out the exact source commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Sign in to the private registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure BuildKit
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Derive immutable candidate metadata
+        id: metadata
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=candidate-,format=long
+          labels: |
+            org.opencontainers.image.title=Furatena
+            org.opencontainers.image.description=Proprietary Furatena documentation platform runtime
+            org.opencontainers.image.revision=${{ github.sha }}
+            com.furatena.image.channel=candidate
+
+      - name: Build and push the candidate with SBOM and provenance
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          build-args: |
+            FURA_BUILD_GIT_SHA=${{ github.sha }}
+            FURA_IMAGE_VERSION=candidate-${{ github.sha }}
+            FURA_IMAGE_CHANNEL=candidate
+          provenance: mode=max
+          sbom: true
+
+      - name: Prepare release evidence
+        run: mkdir -p release
+
+      - name: Generate the immutable candidate record
+        run: >-
+          python scripts/private_image_release.py candidate
+          --image "${IMAGE_NAME}"
+          --digest "${{ steps.build.outputs.digest }}"
+          --commit "${GITHUB_SHA}"
+          --output release/image-record.json
+
+      # Pin the audited 0.35.0 commit. Mutable Trivy action tags were involved in
+      # a March 2026 supply-chain incident and must not be used here.
+      - name: Scan the published digest
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          format: json
+          output: release/trivy.json
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Attest the registry subject
+        uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Retain candidate evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: private-image-${{ github.sha }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 90
+
+  smoke:
+    name: Pull and boot the exact candidate digest
+    needs: candidate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Sign in to the private registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull and verify the supported runtime
+        env:
+          SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
+        run: |
+          docker pull "$SUBJECT"
+          docker run --rm "$SUBJECT" python -c 'import sys; assert sys.version_info[:2] == (3, 14); assert not sys._is_gil_enabled()'
+
+      - name: Boot the digest and require readiness
+        env:
+          SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
+        run: |
+          docker run --detach --name furatena-smoke --publish 18000:8000 "$SUBJECT"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18000/readyz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs furatena-smoke
+          exit 1
+
+      - name: Stop the smoke container
+        if: always()
+        run: docker rm --force furatena-smoke 2>/dev/null || true
+
+  lifecycle:
+    name: Promote or revoke an exact digest
+    if: github.event_name == 'workflow_dispatch' && inputs.operation != 'candidate'
+    runs-on: ubuntu-latest
+    environment: private-image-production
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Check out lifecycle tooling
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Sign in to the private registry
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure registry inspection
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Require the exact registry subject
+        run: docker buildx imagetools inspect "${IMAGE_NAME}@${{ inputs.digest }}"
+
+      - name: Verify candidate provenance before lifecycle action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh attestation verify
+          "oci://${IMAGE_NAME}@${{ inputs.digest }}"
+          --repo "$GITHUB_REPOSITORY"
+
+      - name: Create lifecycle record
+        env:
+          OPERATION: ${{ inputs.operation }}
+          VERSION: ${{ inputs.version }}
+          DIGEST: ${{ inputs.digest }}
+          COMMIT: ${{ inputs.commit }}
+          REASON: ${{ inputs.reason }}
+          REPLACEMENT_DIGEST: ${{ inputs.replacement_digest }}
+        run: |
+          mkdir -p release
+          arguments=("$OPERATION" --image "$IMAGE_NAME" --digest "$DIGEST" --output release/image-record.json)
+          if [ "$OPERATION" = promote ]; then
+            arguments+=(--version "$VERSION" --commit "$COMMIT")
+          else
+            arguments+=(--reason "$REASON" --version "$VERSION")
+            if [ -n "$REPLACEMENT_DIGEST" ]; then
+              arguments+=(--replacement-digest "$REPLACEMENT_DIGEST")
+            fi
+          fi
+          python scripts/private_image_release.py "${arguments[@]}"
+
+      - name: Publish the durable lifecycle record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          OPERATION: ${{ inputs.operation }}
+          COMMIT: ${{ inputs.commit }}
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          if [ "$OPERATION" = promote ]; then
+            gh release create "image-v${VERSION}" release/image-record.json \
+              --target "$COMMIT" \
+              --title "Furatena image v${VERSION}" \
+              --notes "Approved production image: ${IMAGE_NAME}@${DIGEST}"
+          else
+            asset="revocation-${DIGEST#sha256:}.json"
+            cp release/image-record.json "release/$asset"
+            gh release upload "image-v${VERSION}" "release/$asset" --clobber
+          fi
+
+      - name: Retain lifecycle evidence
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: image-${{ inputs.operation }}-${{ github.run_id }}
+          path: release/
+          if-no-files-found: error
+          retention-days: 90

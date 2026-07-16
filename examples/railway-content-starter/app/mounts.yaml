@@ -1,0 +1,10 @@
+mounts:
+  - id: docs
+    label: Documentation
+    content_root: content
+    default: true
+    extensions: [".md", ".mdx", ".html"]
+    format_map:
+      ".md": patitas-markdown
+      ".mdx": mdx
+      ".html": html

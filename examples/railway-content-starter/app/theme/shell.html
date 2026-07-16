@@ -1,0 +1,10 @@
+{% extends "layouts/fura_shell.html" %}
+
+{% block title %}{% if node %}{{ node.title }}{% else %}{{ site_name | default('Documentation') }}{% end %}{% end %}
+
+{% block head %}
+{% for href in docs_stylesheets() %}<link rel="stylesheet" href="{{ href }}">{% end %}
+{% include "partials/head_meta.html" %}
+{% end %}
+
+{% block content %}{% block page_root %}{% end %}{% end %}
