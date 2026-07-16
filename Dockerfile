@@ -58,7 +58,8 @@ ENV FURA_BASE_URL=$FURA_BASE_URL \
 COPY . .
 RUN uv sync --locked --no-dev --python 3.14t \
     && python -c 'import sys; from furatena.catalog.docs_app import DocsApp; assert not sys._is_gil_enabled(), "Furatena requires a GIL-disabled runtime"' \
-    && fura --app-root /app/app freeze --full --workers 1
+    && fura --app-root /app/app freeze --full --workers 1 \
+    && rm -f /usr/local/bin/uv
 
 EXPOSE 8000
 CMD ["/app/scripts/railway-start.sh"]

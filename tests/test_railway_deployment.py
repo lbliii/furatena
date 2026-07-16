@@ -32,6 +32,7 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
 
     assert "uv python install 3.14t" in dockerfile
+    assert "rm -f /usr/local/bin/uv" in dockerfile
     assert "python:3.14-slim@sha256:" in dockerfile
     assert "ghcr.io/astral-sh/uv:0.10.8@sha256:" in dockerfile
     assert "PYTHON_GIL=0" in dockerfile
