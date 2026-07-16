@@ -38,7 +38,13 @@ design and is outside this template version.
 | `FURA_IMAGE_VERSION` | Promoted commercial version |
 | `FURA_IMAGE_CHANNEL` | `stable` for a production-approved digest |
 | `FURA_IMAGE_DIGEST` | Exact deployed `sha256:...` digest for runtime identity |
+| `FURA_SERVER_WORKERS` | Pounce serving-process count; defaults to `1` for the private image |
 | `FURA_SESSION_SECRET` | Stable production session secret |
+
+`FURA_SERVER_WORKERS` is separate from `FURA_WORKERS`: the former controls
+Pounce serving processes, while the latter controls parallel catalog indexing.
+Keep the serving value at `1` for the v1 volume-backed template. Local
+development leaves it unset so Pounce may size its serving pool automatically.
 
 Optional bounds and behavior are documented in the architecture configuration
 table. Never place the GHCR registry credential in a normal application

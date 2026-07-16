@@ -32,6 +32,7 @@ def test_committed_reference_matches_active_implementation() -> None:
         "FURA_LANG",
         "FURA_PORT",
         "FURA_SESSION_SECRET",
+        "FURA_SERVER_WORKERS",
         "FURA_WORKERS",
     } <= set(environment)
     assert "Error and remediation examples" in rendered

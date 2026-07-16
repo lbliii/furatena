@@ -187,6 +187,24 @@ class TestDevReloadWiring:
 
 
 class TestServeDebugAndCache:
+    def test_private_image_pins_one_pounce_serving_worker(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from furatena.catalog.docs_app import DocsApp
+        from furatena.catalog.runtime import ServeConfig
+
+        monkeypatch.setenv("FURA_DISTRIBUTION", "private-image")
+        monkeypatch.delenv("FURA_SERVER_WORKERS", raising=False)
+        serve = ServeConfig(ServeMode.PREVIEW, FROZEN_DIR, True, False)
+        docs = DocsApp.from_paths(
+            APP_ROOT / "docs.yaml",
+            repo_root=REPO,
+            autodoc=False,
+            serve=serve,
+        )
+
+        assert docs.app.config.workers == 1
+
     def test_preview_disables_debug(self) -> None:
         if not FROZEN_DIR.is_dir():
             pytest.skip("no frozen catalog")

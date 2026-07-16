@@ -125,3 +125,4 @@ fura theme diff directives/callout.html
 | `FURA_CHANNEL` | Version channel (`latest` or release id) |
 | `FURA_FROZEN=1` | Legacy alias for preview mode |
 | `FURA_WORKERS` | Default worker count for indexing |
+| `FURA_SERVER_WORKERS` | Pounce serving-process count; unset selects automatic sizing |

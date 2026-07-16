@@ -71,6 +71,13 @@ generation and report degraded freshness without promoting partial output.
 | `FURA_CONTENT_REFRESH_ON_START` | No | No | Resolve and reconcile content before readiness; defaults to true |
 | `FURA_CONTENT_RESTART_AFTER_PROMOTION` | No | No | Gracefully restart the process after an HTTP promotion; defaults to true |
 | `FURA_IMAGE_CHANNEL` | No | No | Informational release channel recorded in build identity |
+| `FURA_SERVER_WORKERS` | No | No | Pounce serving-process count; private-image v1 defaults to one |
+
+`FURA_SERVER_WORKERS` is intentionally distinct from the catalog indexing pool
+configured by `FURA_WORKERS`. V1 keeps exactly one serving process because the
+mounted filesystem supplies the generation and lease authority. The
+free-threaded runtime remains available for supported in-process catalog work;
+Pounce resolves one serving worker to its single-process async mode.
 
 The repository URL parser rejects non-HTTPS schemes, embedded credentials,
 fragments, local/file paths, disallowed hosts, and ambiguous path traversal.
