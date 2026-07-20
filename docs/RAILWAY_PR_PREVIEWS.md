@@ -53,10 +53,13 @@ review credential is a separate, out-of-band operator action.
 
 The controller re-reads the GitHub pull request before touching Railway. It
 rejects forks, bots, and superseded SHAs; waits for the matching Railway PR
-environment; applies the variables through `railway environment edit`; and
-performs an explicit source redeploy. A Railway success is reported as ready
-only when its provider metadata and protected manifest both match the current
-40-character PR head SHA. New synchronize events cancel older controller runs.
+environment by explicit project ID and its deterministic `<repo>-pr-<number>`
+name; applies the variables through `railway environment edit`; and performs an
+explicit source redeploy. It never relies on mutable local Railway linking, so
+the workspace-scoped automation token does not need account-wide project
+discovery. A Railway success is reported as ready only when its provider
+metadata and protected manifest both match the current 40-character PR head
+SHA. New synchronize events cancel older controller runs.
 
 ## Lifecycle mapping
 
