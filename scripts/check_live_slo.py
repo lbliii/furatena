@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+META_PARSE_ERRORS = (OSError, UnicodeDecodeError, json.JSONDecodeError)
 
 
 def _request(origin: str, path: str, *, timeout: float) -> tuple[int, bytes, float]:
@@ -95,10 +96,10 @@ def evaluate_live_slo(
             f"home p95 {home_p95:.3f}ms exceeds {objectives['home_p95_milliseconds']}ms"
         )
 
-    status, meta_body, _elapsed = requester(origin, "/meta.json", timeout=timeout)
     try:
+        status, meta_body, _elapsed = requester(origin, "/meta.json", timeout=timeout)
         meta = json.loads(meta_body) if status == 200 else {}
-    except UnicodeDecodeError, json.JSONDecodeError:
+    except META_PARSE_ERRORS:
         meta = {}
     build = meta.get("build") if isinstance(meta, dict) else None
     build = build if isinstance(build, dict) else {}

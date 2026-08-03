@@ -187,6 +187,7 @@ ci-fast: format-check hygiene
 		tests/test_access_isolation.py \
 		tests/test_support_policy.py \
 		tests/test_release_publishing.py \
+		tests/test_live_slo.py \
 		tests/test_hygiene_baseline.py \
 		tests/test_activation_measurement.py \
 		tests/test_adoption_scorecard.py \

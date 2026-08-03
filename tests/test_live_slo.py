@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 from pathlib import Path
@@ -33,6 +34,10 @@ def _config() -> dict:
         },
         "service_level": {"window_days": 30, "availability_percent": 99.9},
     }
+
+
+def test_live_slo_script_parses_on_the_hosted_runner_python() -> None:
+    ast.parse(SCRIPT.read_text(encoding="utf-8"), feature_version=(3, 12))
 
 
 def test_live_slo_accepts_complete_digest_identified_service() -> None:
@@ -90,6 +95,25 @@ def test_live_slo_fails_closed_on_latency_identity_and_artifact() -> None:
     assert any("artifact integrity" in failure for failure in report["failures"])
 
 
+def test_live_slo_fails_closed_on_unreadable_build_identity() -> None:
+    module = _module()
+
+    def request(origin: str, path: str, *, timeout: float):
+        if path == "/meta.json":
+            return 200, b"\xff", 20.0
+        return 200, b"ok", 25.0
+
+    report = module.evaluate_live_slo(
+        _config(),
+        requester=request,
+        artifact_verifier=lambda origin, timeout: {"page_count": 10},
+    )
+
+    assert not report["ok"]
+    assert any("private-image" in failure for failure in report["failures"])
+    assert any("managed-content" in failure for failure in report["failures"])
+
+
 def test_monitor_preserves_evidence_and_routes_alerts_through_github_issues() -> None:
     workflow = (ROOT / ".github" / "workflows" / "live-slo.yml").read_text(encoding="utf-8")
     policy = json.loads((ROOT / "config" / "live-slo.json").read_text(encoding="utf-8"))
@@ -99,6 +123,8 @@ def test_monitor_preserves_evidence_and_routes_alerts_through_github_issues() ->
     assert "gh issue create" in workflow
     assert "gh issue comment" in workflow
     assert "gh issue close" in workflow
+    assert "always() && steps.probe.outcome == 'failure'" in workflow
+    assert "always() && steps.probe.outcome == 'success'" in workflow
     assert "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" in workflow
     assert "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f" in workflow
     assert policy["service_level"] == {
