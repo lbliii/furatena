@@ -49,6 +49,25 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     assert "FURA_FROZEN_DIR" in start
 
 
+def test_exact_digest_smoke_proves_sanitized_content_failures() -> None:
+    workflow = (REPO / ".github/workflows/private-image.yml").read_text(encoding="utf-8")
+    verifier = (REPO / "scripts/verify-content-diagnostics.sh").read_text(encoding="utf-8")
+
+    smoke_job = workflow.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
+    assert "actions/checkout@" in smoke_job
+    assert 'scripts/verify-content-diagnostics.sh "$SUBJECT"' in smoke_job
+    assert "private-image-diagnostics-${{ github.sha }}" in smoke_job
+    for required in (
+        "read-only-state",
+        "missing-subdirectory",
+        "quota-exhaustion",
+        "credential-rejection",
+        "Traceback (most recent call last)",
+        "failed_startup_exit_nonzero",
+    ):
+        assert required in verifier
+
+
 def test_railway_uses_pounce_0_9_2_without_keep_alive_workaround() -> None:
     start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
 

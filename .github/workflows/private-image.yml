@@ -151,6 +151,9 @@ jobs:
       contents: read
       packages: read
     steps:
+      - name: Check out image conformance tooling
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
       - name: Sign in to the private registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
@@ -182,6 +185,20 @@ jobs:
       - name: Stop the smoke container
         if: always()
         run: docker rm --force furatena-smoke 2>/dev/null || true
+
+      - name: Prove sanitized managed-content failure diagnostics
+        env:
+          SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
+        run: scripts/verify-content-diagnostics.sh "$SUBJECT"
+
+      - name: Retain managed-content diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: private-image-diagnostics-${{ github.sha }}
+          path: diagnostic-evidence/
+          if-no-files-found: error
+          retention-days: 90
 
   lifecycle:
     name: Promote or revoke an exact digest
