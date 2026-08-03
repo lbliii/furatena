@@ -1790,8 +1790,14 @@ class DocsApp:
         configure_pounce_display_defaults()
         resolved_host = host or self.app.config.host
         resolved_port = port or self.app.config.port
-        pid_path = dev_server_pid_path(self.repo_root)
-        stop_dev_server(self.repo_root, host=resolved_host, port=resolved_port)
+        runtime_state = self.roots.state if self.roots.managed else None
+        pid_path = dev_server_pid_path(self.repo_root, state_root=runtime_state)
+        stop_dev_server(
+            self.repo_root,
+            host=resolved_host,
+            port=resolved_port,
+            state_root=runtime_state,
+        )
         write_dev_server_record(
             pid_path,
             pid=os.getpid(),
