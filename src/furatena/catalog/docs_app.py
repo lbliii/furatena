@@ -46,6 +46,7 @@ from furatena.catalog.conditional_response import ConditionalResponseMiddleware
 from furatena.catalog.config import DocsConfig, load_docs_config
 from furatena.catalog.csp import GoogleFontsCSPMiddleware
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
+from furatena.catalog.dev_banner import configure_pounce_display_defaults
 from furatena.catalog.dev_reload import (
     browser_reload_dirs,
     clear_dev_server_record,
@@ -1577,6 +1578,7 @@ class DocsApp:
 
     def run_serve(self, *, host: str | None = None, port: int | None = None) -> None:
         """Start the dev or preview server with Furatena reload wiring."""
+        configure_pounce_display_defaults()
         resolved_host = host or self.app.config.host
         resolved_port = port or self.app.config.port
         pid_path = dev_server_pid_path(self.repo_root)

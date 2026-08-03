@@ -1,7 +1,7 @@
 ---
 title: Serve and author
 owner: docs-product
-reviewed_at: "2026-07-07"
+reviewed_at: "2026-08-03"
 description: fura serve modes, live reload, and author invalidation
 draft: false
 weight: 10
@@ -36,6 +36,14 @@ under `content/`.
 | **Hybrid** | `fura serve` when `frozen/` exists | Fast startup with frozen assets, live content |
 
 Legacy env aliases still work: `FURA_MODE=author`, `FURA_FROZEN=1` (preview).
+
+## Server identity
+
+Furatena uses Pounce's built-in display contract for the server banner. The default
+identity shows the Furatena name and version with minimal signage; Pounce still owns
+the final readiness signal. Set `POUNCE_APP_NAME`, `POUNCE_APP_TAGLINE`,
+`POUNCE_APP_VERSION`, or `POUNCE_SIGNAGE` before `fura serve` to override those
+defaults. Furatena preserves values supplied by the caller.
 
 ## What reloads automatically
 
