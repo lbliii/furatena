@@ -50,6 +50,7 @@ def test_transition_table_has_exact_required_states() -> None:
         PublicationState.EXPIRED,
     }
     assert allowed_publication_transitions(PublicationState.EXECUTING) == {
+        PublicationState.REVIEWABLE,
         PublicationState.APPLIED,
         PublicationState.FAILED,
     }
