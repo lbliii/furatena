@@ -24,7 +24,9 @@ cd furatena
 uv sync --group dev
 ```
 
-The CLI is **`fura`** (short for Furatena). Run it via `uv run fura …` or activate `.venv/bin/`.
+The CLI is **`fura`** (short for Furatena). `uv sync` installs it into the project
+environment; it does not make bare `fura` globally available. From a checkout, use
+`uv run fura …` as the canonical zero-install form.
 
 ## Verify the install
 
@@ -34,6 +36,20 @@ uv run fura theme list
 ```
 
 You should see **docs-core** id `furatena` and skin pack `lagoon`.
+
+## Optional bare command
+
+Install an editable uv tool when you explicitly want to type `fura` without `uv run`:
+
+```bash
+uv tool install --editable .
+fura --help
+fura serve
+```
+
+The tool remains linked to this checkout. If `fura` is not found after installation,
+run `uv tool update-shell`, restart the shell, and retry. `uv tool dir --bin` prints
+the executable directory for manual `PATH` inspection.
 
 ## Optional: local Chirp co-development
 

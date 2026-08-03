@@ -39,7 +39,7 @@ def _strict_policy() -> dict[str, object]:
         "policy_id": "test-ratchet",
         "version": "1",
         "dataset_id": "furatena-known-answers",
-        "dataset_version": "1.1.10",
+        "dataset_version": "1.1.11",
         "overall": {
             "recall_at_3_min": 1.0,
             "mrr_min": 1.0,
@@ -150,8 +150,8 @@ def test_active_catalog_matches_packaged_free_threaded_ratchet() -> None:
     assert overall["case_count"] == 8
     assert overall["retrieval_case_count"] == 7
     assert overall["negative_case_count"] == 1
-    assert overall["recall_at_3"] == 0.714286
-    assert overall["mrr"] >= 0.671429
+    assert overall["recall_at_3"] == 0.857143
+    assert overall["mrr"] >= 0.785714
     assert overall["no_result_rate"] == 0.0
     assert overall["stale_answer_failures"] == 0
     assert overall["private_leaks"] == 0

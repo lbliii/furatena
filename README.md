@@ -19,7 +19,22 @@ uv run fura --app-root /tmp/my-docs check --content-only
 uv run fura --app-root /tmp/my-docs serve
 ```
 
-(`fura` lives in `.venv/bin/` — use `uv run`, `make serve`, or `./app/run` unless you've activated the venv.)
+`uv run fura serve` is the canonical zero-install command from a checkout. `uv sync`
+installs `fura` into the project environment, but does not place a bare `fura` command
+on your global shell path. `make serve` and `./app/run` are convenience launchers for
+the same CLI path.
+
+To opt into a bare, globally available command backed by this checkout:
+
+```bash
+uv tool install --editable .
+fura --help
+fura serve
+```
+
+If the install reports that the uv tool directory is missing from `PATH`, run
+`uv tool update-shell`, restart the shell, and retry `fura --help`. Use
+`uv tool dir --bin` to inspect the executable directory.
 
 Open http://127.0.0.1:8001/
 

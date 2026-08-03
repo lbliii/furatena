@@ -26,6 +26,10 @@ Or use the app wrapper:
 ./app/run
 ```
 
+Both `make serve` and `./app/run` delegate to `uv run fura serve`. The wrapper defaults
+to the fast dogfood setting `CHIRP_SKIP_CONTRACT_CHECKS=1`; set the variable explicitly
+to override it. All serve flags pass through unchanged.
+
 Open http://127.0.0.1:8001/
 
 The default instance dogfoods this documentation corpus under `content/furatena/`.
@@ -49,9 +53,9 @@ uv run fura export             # static HTML → app/public/
 
 | Mode | Command | Use when |
 |------|---------|----------|
-| Author (default) | `fura serve` | Editing content — live index + reload |
-| Author forced | `fura serve --author` | Ignore frozen cache |
-| Preview | `fura serve --preview` | Prod-like — frozen only |
+| Author (default) | `uv run fura serve` | Editing content — live index + reload |
+| Author forced | `uv run fura serve --author` | Ignore frozen cache |
+| Preview | `uv run fura serve --preview` | Prod-like — frozen only |
 
 ## Next
 

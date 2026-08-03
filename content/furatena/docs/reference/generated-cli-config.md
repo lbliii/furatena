@@ -13,7 +13,7 @@ category: reference
 
 This page is generated from the active CLI parser, configuration dataclasses, and
 environment lookups. Edit the implementation or generator, then run
-`fura docs-reference --output content/furatena/docs/reference/generated-cli-config.md`;
+`uv run fura docs-reference --output content/furatena/docs/reference/generated-cli-config.md`;
 do not hand-edit the tables.
 
 ## CLI commands and options

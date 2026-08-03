@@ -16,7 +16,7 @@
         "cases": [
           {
             "case_id": "navigate-installation",
-            "relevant_rank": 5
+            "relevant_rank": 3
           },
           {
             "case_id": "troubleshoot-stale-pages-deploy",
@@ -39,10 +39,10 @@
             "relevant_rank": null
           }
         ],
-        "mrr": 0.7,
+        "mrr": 0.722222,
         "negative_case_count": 1,
         "no_result_rate": 0.0,
-        "recall_at_3": 0.666667,
+        "recall_at_3": 0.833333,
         "retrieval_case_count": 6
       },
       "serialized_index_bytes": 987734
@@ -63,7 +63,7 @@
         "cases": [
           {
             "case_id": "navigate-installation",
-            "relevant_rank": 4
+            "relevant_rank": 2
           },
           {
             "case_id": "troubleshoot-stale-pages-deploy",
@@ -86,10 +86,10 @@
             "relevant_rank": null
           }
         ],
-        "mrr": 0.708333,
+        "mrr": 0.75,
         "negative_case_count": 1,
         "no_result_rate": 0.0,
-        "recall_at_3": 0.666667,
+        "recall_at_3": 0.833333,
         "retrieval_case_count": 6
       },
       "serialized_index_bytes": 0
@@ -110,7 +110,7 @@
         "cases": [
           {
             "case_id": "navigate-installation",
-            "relevant_rank": 4
+            "relevant_rank": 2
           },
           {
             "case_id": "troubleshoot-stale-pages-deploy",
@@ -133,10 +133,10 @@
             "relevant_rank": null
           }
         ],
-        "mrr": 0.708333,
+        "mrr": 0.75,
         "negative_case_count": 1,
         "no_result_rate": 0.0,
-        "recall_at_3": 0.666667,
+        "recall_at_3": 0.833333,
         "retrieval_case_count": 6
       },
       "serialized_index_bytes": 987734
@@ -191,7 +191,7 @@
   },
   "dataset": {
     "id": "furatena-known-answers",
-    "version": "1.1.10"
+    "version": "1.1.11"
   },
   "default_algorithm": "reranked_hybrid",
   "environment": {
