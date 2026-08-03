@@ -172,6 +172,8 @@ preserve room for additional pages without changing the public prefix.
 | `/structure.json` | `json` | Content-IR heading/directive structure keyed by public node. |
 | `/surface.json` | `json` | Product-surface manifest and linked machine-readable URLs. |
 | `/tools.json` | `json` | Agent tool descriptors, schemas, and API-operation discovery metadata. |
+| `/versions.json` | `json` | Mount-keyed edition discovery hub for version-aware consumers. |
+| `/versions/mounts/{mount_id}` | `json` | Mike-compatible edition array for one public versioned mount. |
 
 The mount-shard contract is inventoried as both
 `route:GET /catalog/mounts/{mount_id}` and
@@ -284,8 +286,8 @@ their effective actor, roles, or teams.
 
 Anonymous export permission is applied consistently to browser/static routes,
 `/catalog.json`, `/catalog/api-operations.json`, `/search.json`, `/tools.json`,
-`/meta.json`, `/structure.json`, `/llms.txt`, `/llms-full.txt`, `/sitemap.xml`,
-`/index.txt`, MCP resources, retrieval, graph traversal, and semantic search.
+`/meta.json`, `/structure.json`, `/versions.json`, `/llms.txt`, `/llms-full.txt`,
+`/sitemap.xml`, `/index.txt`, MCP resources, retrieval, graph traversal, and semantic search.
 `include_private=true` is an author inspection capability, never a public export
 setting. GitHub Pages and unauthenticated sessions always fail closed.
 

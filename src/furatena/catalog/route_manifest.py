@@ -80,6 +80,7 @@ _RESPONSE_CONTRACTS = {
     "edition_llms_full_txt": "text",
     "catalog_retrieve": "json",
     "catalog_mount_json": "json",
+    "versions_mount_json": "json",
     "og_image": "image",
     "favicon": "image",
     "inventory_inv": "binary",

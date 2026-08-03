@@ -60,6 +60,7 @@ from furatena.catalog.runtime import ServeMode
 from furatena.catalog.semantic import retrieve_node, semantic_index_json, semantic_search_json
 from furatena.catalog.sitemap import sitemap_xml
 from furatena.catalog.structure_index import build_structure_index
+from furatena.catalog.version_artifacts import versions_for_mount, versions_manifest
 from furatena.cli.authoring import (
     author_new,
     author_read_source,
@@ -1175,6 +1176,43 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             indent=2,
         )
         return Response(body, content_type="application/json; charset=utf-8")
+
+    @app.route("/versions.json", referenced=True)
+    def versions_json_route(request: Request):
+        self._ensure_catalog()
+        body = json.dumps(
+            versions_manifest(
+                self.catalog,
+                base_url=self._site_base(request),
+                base_path=os.environ.get("FURA_BASE_PATH", ""),
+            ),
+            indent=2,
+        )
+        return Response(body, content_type="application/json; charset=utf-8")
+
+    @app.route("/versions/mounts/{mount_id}", referenced=True)
+    def versions_mount_json(request: Request, mount_id: str):
+        self._ensure_catalog()
+        if not mount_id.endswith(".json"):
+            raise NotFound(f"Versions artifact was not found for the requested mount: {mount_id}.")
+        mount_id = mount_id[: -len(".json")]
+        if not is_safe_mount_id(mount_id):
+            raise NotFound(f"Versions artifact was not found for the requested mount: {mount_id}.")
+        try:
+            payload = versions_for_mount(
+                self.catalog,
+                mount_id,
+                base_url=self._site_base(request),
+                base_path=os.environ.get("FURA_BASE_PATH", ""),
+            )
+        except KeyError:
+            raise NotFound(
+                f"Versions artifact was not found for the requested mount: {mount_id}."
+            ) from None
+        return Response(
+            json.dumps(payload, indent=2),
+            content_type="application/json; charset=utf-8",
+        )
 
     @app.route("/deployment-profiles.json", referenced=True)
     def deployment_profiles_json_route(request: Request):

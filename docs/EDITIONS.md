@@ -271,8 +271,12 @@ context from the first response onward.
 
 ## `versions.json` and channel discovery (#354)
 
-Each versioned mount exposes a Mike-compatible array containing the four Bengal/Mike
-fields without changing their meaning:
+Each versioned mount exposes a Mike-compatible array at
+`/versions/mounts/<mount-id>.json` (route pattern
+`GET /versions/mounts/{mount_id}`), containing the four Bengal/Mike fields without
+changing their meaning. `latest` is first and titled `Latest`; release titles preserve
+their normalized edition id. The configured alias-to-edition map is inverted into each
+entry's sorted `aliases` array:
 
 ```json
 [
@@ -285,7 +289,13 @@ fields without changing their meaning:
 ]
 ```
 
-The hub-level `/versions.json` is a keyed map so mount identity cannot collide:
+`url_prefix` is root-relative and composes the deployment base path, canonical edition
+segment, and mount prefix in that order. For example, release `0.8.2` on mount `/docs`
+under deployment base `/project` uses `/project/v0.8.2/docs`; the same mount's moving
+latest edition uses `/project/docs`.
+
+The hub-level `/versions.json` is a keyed map so mount identity cannot collide with
+another mount or with a per-mount Mike array:
 
 ```json
 {

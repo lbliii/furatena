@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import json
+from collections.abc import Iterator, Mapping
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -92,6 +93,60 @@ def _state_editions(state: dict[str, Any]) -> tuple[GitEditionSnapshot, ...]:
         for item in last_known_good.get("editions") or []
         if isinstance(item, dict)
     )
+
+
+def _frozen_editions(
+    frozen_root: Path,
+    mounts: tuple[MountConfig, ...],
+) -> dict[str, tuple[GitEditionSnapshot, ...]]:
+    """Restore immutable edition discovery state persisted in ``channels.json``."""
+    path = frozen_root / "channels.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError, json.JSONDecodeError, TypeError, ValueError:
+        return {}
+    if not isinstance(payload, Mapping):
+        return {}
+    sync = payload.get("sync")
+    sources = sync.get("sources") if isinstance(sync, Mapping) else None
+    if not isinstance(sources, list):
+        return {}
+
+    configured = {mount.id for mount in mounts}
+    restored: dict[str, tuple[GitEditionSnapshot, ...]] = {}
+    for source in sources:
+        if not isinstance(source, Mapping):
+            continue
+        mount_id = str(source.get("mount") or "")
+        editions = source.get("editions")
+        if mount_id not in configured or not isinstance(editions, list):
+            continue
+        snapshots: list[GitEditionSnapshot] = []
+        for edition in editions:
+            if not isinstance(edition, Mapping):
+                continue
+            edition_id = str(edition.get("id") or "")
+            ref = str(edition.get("ref") or "")
+            resolved_ref = str(edition.get("resolved_ref") or "")
+            if not edition_id or not ref or not resolved_ref:
+                continue
+            content_root = frozen_root / "mounts" / mount_id
+            if edition_id != "latest":
+                content_root /= edition_id
+            snapshots.append(
+                GitEditionSnapshot(
+                    id=edition_id,
+                    ref=ref,
+                    resolved_ref=resolved_ref,
+                    content_root=content_root,
+                    status=str(edition.get("status") or ""),
+                    prerelease=bool(edition.get("prerelease")),
+                    discovered_at=str(edition.get("discovered_at") or ""),
+                )
+            )
+        if snapshots:
+            restored[mount_id] = tuple(snapshots)
+    return restored
 
 
 def _normalize_prefix(prefix: str) -> str:
@@ -250,6 +305,8 @@ class CatalogRegistry:
         self.mounts = (
             mounts if serve_mode == ServeMode.PREVIEW else self._sync_mount_sources(mounts)
         )
+        if serve_mode == ServeMode.PREVIEW and self.scoped_frozen_dir is not None:
+            self._discovered_editions.update(_frozen_editions(self.scoped_frozen_dir, self.mounts))
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
         self._edition_shards: dict[str, dict[str, DocCatalog]] = {}
