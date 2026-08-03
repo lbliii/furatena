@@ -28,6 +28,27 @@ Presentation is site-global. A `delivery.mounts.<id>.theme` value that differs f
 selection fails validation with a migration diagnostic. Publish mounts that require distinct
 presentation as separate sites.
 
+## Built-in complete layouts
+
+Furatena ships two immutable complete layouts in the installed package:
+
+- `docs` is the default. It is the full documentation experience used by the Furatena catalog,
+  including rich navigation, search, API-reference, collection, portal, error, and empty states.
+  Existing sites that only configure `theme.use: lagoon` keep Lagoon as the compatibility skin.
+- `vanilla` is a restrained, neutral layout with the same eight semantic view kinds. It uses
+  native links and GET search forms, one layout stylesheet, responsive system typography, visible
+  focus states, reduced-motion handling, and print rules. Select it with
+  `presentation: {layout: vanilla}`; no skin is implied by `theme.use` once a layout is explicit.
+
+Both layouts render live, frozen, static, fragment, and PDF inputs without a project `theme/` or
+`templates/` fixture. Their presentation choice does not change Content IR, visibility filtering,
+search documents, catalog JSON, or agent text. Lagoon remains a supported skin and can be selected
+explicitly with `presentation.skin` when a complete layout should use it.
+
+To customize a built-in, shadow only the files you own in project `templates/` or publish a sparse
+override pack. Installed layout files are never copied into or rewritten inside the project, so a
+Furatena upgrade cannot overwrite adopter-owned templates.
+
 ## Repository-local packs
 
 Repository-local packs live anywhere below `presentation/` and require no Python package:
@@ -108,9 +129,9 @@ Template resolution is first-match-wins:
 
 `theme.use` remains a deprecated skin selector and public `furatena.themes` entry points are
 adapted to presentation records during the compatibility window. `theme.id: furatena` and
-`theme.id: chirp` remain compatibility aliases for the current docs-core layout. Existing project
-`theme/` and `templates/` directories continue to work. Migrate reusable packs to a v1 manifest
-and select them through `presentation.layout` / `presentation.skin`.
+`theme.id: chirp` remain compatibility aliases for the docs-core/default-layout bundle. Existing
+project `theme/` and `templates/` directories continue to work. Migrate reusable packs to a v1
+manifest and select them through `presentation.layout` / `presentation.skin`.
 
 ## Provenance and caching
 

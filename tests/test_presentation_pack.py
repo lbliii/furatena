@@ -332,14 +332,14 @@ def test_managed_discovery_rejects_symlinked_local_pack(tmp_path: Path) -> None:
         discover_presentation_packs(docs, roots=_roots(site, tmp_path, managed=True))
 
 
-def test_legacy_theme_selection_uses_path_free_compatibility_record(tmp_path: Path) -> None:
+def test_legacy_theme_selection_uses_packaged_docs_with_path_free_record(tmp_path: Path) -> None:
     site = tmp_path / "site"
     docs = DocsConfig(root=site, theme=ThemeConfig(id="furatena", use="lagoon"))
 
     record = resolve_presentation(docs, roots=_roots(site, tmp_path)).record.to_dict()
 
-    assert record["layout"]["id"] == "furatena-compat-layout"
-    assert record["layout"]["source"] == "compatibility"
+    assert record["layout"]["id"] == "docs"
+    assert record["layout"]["source"] == "packaged"
     assert record["skin"]["source"] == "compatibility"
     assert "root" not in json.dumps(record)
     assert record["content_digest"]

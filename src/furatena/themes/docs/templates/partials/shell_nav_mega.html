@@ -1,0 +1,42 @@
+{# Mega-menu panel items for the app-surface site nav. #}
+{% from "partials/docs_nav_icons.html" import docs_icon %}
+
+{% def shell_mega_overview(href: str, eyebrow: str, title: str, description: str) %}
+<a class="chirp-theme-shell__mega-header chirp-theme-shell__mega-overview"
+   href="{{ href }}"{{ route_link_attrs(href) | html_attrs }}>
+  <span class="chirp-theme-shell__mega-eyebrow">{{ eyebrow }}</span>
+  <strong>{{ title }}</strong>
+  <p>{{ description }}</p>
+  <span class="chirp-theme-shell__mega-overview-cta" aria-hidden="true">
+    {{ docs_icon('arrow-right', 14) }}
+    <span>Section overview</span>
+  </span>
+</a>
+{% end %}
+
+{% def shell_mega_item(href: str, title: str, description: str, icon: str = "book-open") %}
+<a class="chirpui-dropdown__item chirp-theme-shell__mega-item"
+   href="{{ href }}"{{ route_link_attrs(href) | html_attrs }}>
+  <span class="chirp-theme-shell__mega-item-mark" aria-hidden="true">{{ docs_icon(icon, 16) }}</span>
+  <span class="chirp-theme-shell__mega-item-copy">
+    <span class="chirp-theme-shell__mega-item-title"><bdi>{{ title }}</bdi></span>
+    <span class="chirp-theme-shell__mega-item-desc">{{ description }}</span>
+  </span>
+</a>
+{% end %}
+
+{% def shell_nav_dropdown(label: str, current_path: str = "", match: str = "", href: str = "", active: bool = false) %}
+{% set _cp = current_path if match else "" %}
+{% set _active = active if not match else ((_cp == href) if match == "exact" else (_cp == href or _cp.startswith(href ~ "/")) if match == "prefix" else active) %}
+<div class="chirpui-navbar-dropdown chirp-theme-shell__nav-dropdown" data-fura-shell-mega>
+  <button type="button"
+          class="chirpui-navbar-dropdown__trigger chirpui-navbar__link chirp-theme-shell__nav-link{% if _active %} chirpui-navbar__link--active{% end %}"
+          aria-haspopup="true"
+          aria-expanded="false">
+    {{ label }}
+  </button>
+  <div class="chirp-theme-shell__nav-dropdown-menu chirpui-dropdown__menu">
+    {% slot %}
+  </div>
+</div>
+{% end %}
