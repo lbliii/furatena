@@ -39,6 +39,7 @@ def validate_template_spec(spec: dict[str, Any], *, require_digest: bool = False
         "FURA_IMAGE_VERSION",
         "FURA_IMAGE_CHANNEL",
         "FURA_IMAGE_DIGEST",
+        "RAILWAY_RUN_UID",
     }
     missing = sorted(required - variables.keys())
     if missing:
@@ -49,6 +50,11 @@ def validate_template_spec(spec: dict[str, Any], *, require_digest: bool = False
             failures.append(f"{secret} must be a generated secret")
     if (variables.get("FURA_IMAGE_CHANNEL") or {}).get("default") != "stable":
         failures.append("template image channel must default to stable")
+    run_uid = variables.get("RAILWAY_RUN_UID") or {}
+    if run_uid.get("default") != "0" or not run_uid.get("required") or run_uid.get("secret"):
+        failures.append("RAILWAY_RUN_UID must be the required non-secret root bootstrap value 0")
+    if (variables.get("FURA_CONTENT_STATE_ROOT") or {}).get("default") != "/data/furatena":
+        failures.append("FURA_CONTENT_STATE_ROOT must default to the Railway volume mount")
     gates = set(spec.get("publication_gates") or [])
     for phrase in ("clean-account conformance passes", "live demo SLO check passes"):
         if phrase not in gates:

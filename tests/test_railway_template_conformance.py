@@ -31,6 +31,17 @@ def test_composer_spec_has_private_image_volume_secrets_and_gates() -> None:
         "required": True,
     }
     assert template["replicas"] == 1
+    variables = {item["name"]: item for item in payload["variables"]}
+    assert variables["RAILWAY_RUN_UID"] == {
+        "name": "RAILWAY_RUN_UID",
+        "required": True,
+        "secret": False,
+        "default": "0",
+        "description": (
+            "Start only the volume ownership bootstrap as root; Furatena immediately drops "
+            "to uid/gid 65532"
+        ),
+    }
 
 
 def test_public_content_starter_has_no_proprietary_package_dependency() -> None:

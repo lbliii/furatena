@@ -74,8 +74,8 @@ assert_failure read-only-state \
   "${common[@]}" \
   --mount "type=volume,source=$READ_ONLY_VOLUME,target=/data/furatena,readonly"
 assert_log_contains read-only-state "FURA_CONTENT_STATE_ROOT=/data/furatena"
-assert_log_contains read-only-state "/data/furatena/leases"
-assert_log_contains read-only-state "writable Railway volume at /data/furatena"
+assert_log_contains read-only-state "is not writable by uid=65532"
+assert_log_contains read-only-state "Mount the Railway volume at /data/furatena and set RAILWAY_RUN_UID=0"
 
 assert_failure missing-subdirectory \
   "${common[@]}" \
@@ -94,6 +94,7 @@ assert_failure credential-rejection \
   --read-only \
   --network none \
   --tmpfs /tmp:rw,nosuid,nodev,noexec,size=268435456 \
+  --env FURA_CONTENT_STATE_ROOT=/tmp \
   --env "FURA_CONTENT_REPOSITORY=https://$CREDENTIAL_USER:$CREDENTIAL_SECRET@github.com/lbliii/furatena-content-starter.git"
 assert_log_contains credential-rejection "FURA_CONTENT_REPOSITORY must be an HTTPS public Git URL"
 assert_log_contains credential-rejection "without credentials"

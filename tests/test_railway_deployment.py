@@ -31,13 +31,27 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     dockerfile = (REPO / "Dockerfile").read_text(encoding="utf-8")
     start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
 
-    assert "uv python install 3.14t" in dockerfile
+    assert "uv python install --install-dir /opt/python 3.14t" in dockerfile
+    assert "UV_PYTHON_INSTALL_DIR=/opt/python" in dockerfile
+    assert "USER ${FURA_RUNTIME_UID}:${FURA_RUNTIME_GID}" in dockerfile
+    assert "FURA_RUNTIME_UID=65532" in dockerfile
+    assert "FURA_RUNTIME_GID=65532" in dockerfile
+    assert "--no-create-home --home-dir /tmp/furatena-home" in dockerfile
+    assert "gosu passwd" in dockerfile
+    assert 'os.path.realpath(sys.executable).startswith("/opt/python/")' in dockerfile
+    assert 'chown -R "$FURA_RUNTIME_UID:$FURA_RUNTIME_GID" /app/app/.docs-cache' in dockerfile
+    assert '--group "$FURA_RUNTIME_GID" /app/.context' in dockerfile
     assert "rm -f /usr/local/bin/uv" in dockerfile
     assert "python:3.14-slim@sha256:" in dockerfile
     assert "ghcr.io/astral-sh/uv:0.10.8@sha256:" in dockerfile
     assert "PYTHON_GIL=0" in dockerfile
     assert "sys._is_gil_enabled()" in dockerfile
     assert "sys._is_gil_enabled()" in start
+    assert "RAILWAY_RUN_UID:-}" in start
+    assert "RAILWAY_VOLUME_MOUNT_PATH:-}" in start
+    assert 'chown -R -h "$RUNTIME_UID:$RUNTIME_GID" "$CONTENT_STATE_ROOT"' in start
+    assert 'exec "$privilege_drop" "$RUNTIME_UID:$RUNTIME_GID"' in start
+    assert "os.getuid() == expected != 0" in start
     assert "freeze --full --workers 1" in dockerfile
     assert "ARG FURA_BUILD_GIT_SHA=$RAILWAY_GIT_COMMIT_SHA" in dockerfile
     assert "FURA_DISTRIBUTION=private-image" in dockerfile
@@ -56,7 +70,7 @@ def test_exact_digest_smoke_proves_sanitized_content_failures() -> None:
     smoke_job = workflow.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
     assert "actions/checkout@" in smoke_job
     assert 'scripts/verify-content-diagnostics.sh "$SUBJECT"' in smoke_job
-    assert "private-image-diagnostics-${{ github.sha }}" in smoke_job
+    assert "private-image-conformance-${{ github.sha }}" in smoke_job
     for required in (
         "read-only-state",
         "missing-subdirectory",
@@ -64,6 +78,33 @@ def test_exact_digest_smoke_proves_sanitized_content_failures() -> None:
         "credential-rejection",
         "Traceback (most recent call last)",
         "failed_startup_exit_nonzero",
+        "is not writable by uid=65532",
+        "Mount the Railway volume at /data/furatena and set RAILWAY_RUN_UID=0",
+        "--env FURA_CONTENT_STATE_ROOT=/tmp",
+    ):
+        assert required in verifier
+
+
+def test_exact_digest_smoke_proves_unprivileged_volume_lifecycle() -> None:
+    workflow = (REPO / ".github/workflows/private-image.yml").read_text(encoding="utf-8")
+    verifier = (REPO / "scripts/verify-unprivileged-image.sh").read_text(encoding="utf-8")
+
+    smoke_job = workflow.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
+    assert "actions/checkout@" in smoke_job
+    assert "os.getuid() == 65532" in workflow
+    assert 'scripts/verify-unprivileged-image.sh "$SUBJECT"' in smoke_job
+    assert "private-image-conformance-${{ github.sha }}" in smoke_job
+    for required in (
+        "--read-only",
+        "--user 0:0",
+        "RAILWAY_RUN_UID=0",
+        "RAILWAY_VOLUME_MOUNT_PATH=/data/furatena",
+        "runtime_uid",
+        "FIRST_GENERATION",
+        "SECOND_GENERATION",
+        "/_fura/content/rollback",
+        "restart-after-rollback",
+        "recovered-from-last-known-good",
     ):
         assert required in verifier
 
@@ -77,6 +118,9 @@ def test_pull_request_image_conformance_does_not_publish_to_ghcr() -> None:
     assert "load: ${{ github.event_name == 'pull_request' }}" in candidate
     assert "Verify the pull-request runtime without publishing" in candidate
     assert "Prove pull-request managed-content diagnostics" in candidate
+    assert "Prove pull-request unprivileged managed-content lifecycle" in candidate
+    assert 'scripts/verify-unprivileged-image.sh "$SUBJECT"' in candidate
+    assert "runtime-evidence/" in candidate
     assert "if: github.event_name != 'pull_request'" in smoke
 
 

@@ -42,6 +42,9 @@ proprietary image, dependency versions, image digest, and release channel.
 
 - One Railway application service sourced from a private container image.
 - One volume mounted at `/data/furatena` for content generations and receipts.
+- A stable application identity at UID/GID 65532. Railway starts only the
+  volume-ownership bootstrap as root, after which PID 1 is replaced by the
+  unprivileged Furatena process.
 - One Railway-provided public domain, with documented custom-domain support.
 - One replica initially. Operation leases and generation manifests must remain
   replica-safe so a later multi-replica profile does not change the contract.
@@ -64,6 +67,7 @@ generation and report degraded freshness without promoting partial output.
 | `FURA_CONTENT_SUBDIRECTORY` | No | No | Repository-relative app/content root |
 | `FURA_CONTENT_ALLOWED_HOSTS` | No | No | Comma-separated Git host allowlist; defaults to `github.com` |
 | `FURA_CONTENT_STATE_ROOT` | No | No | Volume state root; defaults to `/data/furatena` |
+| `RAILWAY_RUN_UID` | Template | No | Railway volume compatibility value `0`; permits the bounded ownership bootstrap before privilege drop |
 | `FURA_CONTENT_REFRESH_TOKEN` | Template | Yes | Bearer secret for the refresh operation |
 | `FURA_CONTENT_WEBHOOK_SECRET` | No | Yes | Separate GitHub webhook HMAC secret when webhook delivery is enabled |
 | `FURA_CONTENT_MAX_BYTES` | No | No | Upper bound for fetched repository data |
@@ -143,10 +147,15 @@ change semantic request identity.
 
 ## Startup and reconciliation
 
-Startup imports the server stack and verifies free-threaded Python before
-touching persistent state. It then:
+Railway volumes are mounted root-owned, so the template sets the documented
+`RAILWAY_RUN_UID=0` compatibility value. The startup wrapper accepts that root
+identity only when `RAILWAY_VOLUME_MOUNT_PATH` exactly matches
+`FURA_CONTENT_STATE_ROOT`, rejects symlinked roots and markers, repairs only the
+mounted state tree, and immediately replaces itself with UID/GID 65532. The
+unprivileged process then verifies its UID, the application-owned interpreter,
+and GIL-disabled runtime before catalog work. It then:
 
-1. validates volume ownership and state schema;
+1. verifies volume writability and the state schema;
 2. reconciles expired leases and incomplete staging directories;
 3. restores a valid orphaned active or last-known-good pointer;
 4. optionally refreshes the configured source;
@@ -202,6 +211,8 @@ not authored queries or content bodies.
   canaries through HTML, navigation, search, static/frozen artifacts, PDF,
   catalog, DCP, `llms` outputs, tools, or MCP resources.
 - Refresh authority is independent from registry pull authority.
+- Root authority is limited to the volume-ownership bootstrap; the Python,
+  catalog, Git, and server processes run as UID/GID 65532.
 - Public Git fetches have bounded time, byte, file-count, and path policies.
 - Repository identity and resolved commit are audit fields; content bodies are
   not audit fields.

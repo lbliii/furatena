@@ -54,6 +54,13 @@
       "default": "/data/furatena"
     },
     {
+      "name": "RAILWAY_RUN_UID",
+      "required": true,
+      "secret": false,
+      "default": "0",
+      "description": "Start only the volume ownership bootstrap as root; Furatena immediately drops to uid/gid 65532"
+    },
+    {
       "name": "FURA_CONTENT_REFRESH_TOKEN",
       "required": true,
       "secret": true,

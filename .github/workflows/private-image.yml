@@ -15,6 +15,7 @@ on:
       - scripts/private_image_release.py
       - scripts/railway-start.sh
       - scripts/verify-content-diagnostics.sh
+      - scripts/verify-unprivileged-image.sh
       - src/**
       - uv.lock
   pull_request:
@@ -183,6 +184,12 @@ jobs:
           SUBJECT: ${{ steps.metadata.outputs.tags }}
         run: scripts/verify-content-diagnostics.sh "$SUBJECT"
 
+      - name: Prove pull-request unprivileged managed-content lifecycle
+        if: github.event_name == 'pull_request'
+        env:
+          SUBJECT: ${{ steps.metadata.outputs.tags }}
+        run: scripts/verify-unprivileged-image.sh "$SUBJECT"
+
       - name: Retain candidate evidence
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -191,6 +198,7 @@ jobs:
           path: |
             release/
             diagnostic-evidence/
+            runtime-evidence/
           if-no-files-found: error
           retention-days: 90
 
@@ -203,7 +211,7 @@ jobs:
       contents: read
       packages: read
     steps:
-      - name: Check out image conformance tooling
+      - name: Check out runtime conformance tooling
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Sign in to the private registry
@@ -218,7 +226,7 @@ jobs:
           SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
         run: |
           docker pull "$SUBJECT"
-          docker run --rm "$SUBJECT" python -c 'import sys; assert sys.version_info[:2] == (3, 14); assert not sys._is_gil_enabled()'
+          docker run --rm "$SUBJECT" python -c 'import os, sys; assert os.getuid() == 65532; assert os.path.realpath(sys.executable).startswith("/opt/python/"); assert sys.version_info[:2] == (3, 14); assert not sys._is_gil_enabled()'
 
       - name: Boot the digest and require readiness
         env:
@@ -243,12 +251,19 @@ jobs:
           SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
         run: scripts/verify-content-diagnostics.sh "$SUBJECT"
 
-      - name: Retain managed-content diagnostic evidence
+      - name: Prove unprivileged managed-content lifecycle on a read-only root
+        env:
+          SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
+        run: scripts/verify-unprivileged-image.sh "$SUBJECT"
+
+      - name: Retain exact-image conformance evidence
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: private-image-diagnostics-${{ github.sha }}
-          path: diagnostic-evidence/
+          name: private-image-conformance-${{ github.sha }}
+          path: |
+            diagnostic-evidence/
+            runtime-evidence/
           if-no-files-found: error
           retention-days: 90
 

@@ -166,6 +166,7 @@ def test_private_image_workflow_has_separate_candidate_and_lifecycle_authority()
         "scripts/private_image_release.py",
         "scripts/railway-start.sh",
         "scripts/verify-content-diagnostics.sh",
+        "scripts/verify-unprivileged-image.sh",
         "src/**",
         "uv.lock",
     }
