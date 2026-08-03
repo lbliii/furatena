@@ -65,6 +65,21 @@ variable. Configure it only through Railway's private image credentials.
 Do not treat a queued deployment as complete. Do not switch the template or
 production to a candidate tag, a channel tag, or an unverified digest.
 
+### Startup failure recovery
+
+Managed-content configuration and storage failures stop startup before the
+server accepts traffic. Expected failures are reported as concise `content
+failed:` diagnostics with identifier `fura.content_deployment`, without a
+Python traceback. Correct the named `FURA_*` setting and redeploy.
+
+`FURA_CONTENT_STATE_ROOT` defaults to `/data/furatena` and must resolve inside
+the writable persistent Railway volume. A diagnostic that names a read-only,
+permission-denied, quota, or disk-capacity failure means the volume is absent,
+mounted at the wrong path, or cannot accept the generation state. Attach or
+repair the volume at `/data/furatena`; do not make the application root
+writable as a workaround. Startup remains nonzero when no last-known-good
+generation is available.
+
 ## Smoke gate
 
 Replace `$ORIGIN` with the Railway HTTPS origin and require every command to

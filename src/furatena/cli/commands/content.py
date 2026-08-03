@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import json
+import os
+from pathlib import Path
 from typing import Any
 
 from furatena.catalog.content_deployment import (
@@ -11,7 +14,13 @@ from furatena.catalog.content_deployment import (
     ContentDeploymentError,
     ContentDeploymentStore,
 )
+from furatena.catalog.exceptions import CatalogError
 from furatena.cli.commands._shared import CommandModule
+
+
+class _ContentCommandError(CatalogError):
+    code = "fura.content_deployment"
+    exit_code = 4
 
 
 def _store() -> ContentDeploymentStore:
@@ -22,22 +31,47 @@ def _store() -> ContentDeploymentStore:
 
 
 def _run_content(args: argparse.Namespace) -> None:
-    store = _store()
-    if args.content_command == "refresh":
-        result = store.refresh(trigger=args.trigger)
-    elif args.content_command == "rollback":
-        result = store.rollback()
-    elif args.content_command == "reconcile":
-        result = store.reconcile()
-        if store.startup_refresh_needed():
-            try:
-                result = store.refresh(trigger="startup")
-            except Exception:
-                if result["active_generation"] is None:
-                    raise
-                result = {**store.status(), "status": "degraded", "refresh_failed": True}
-    else:
-        result = store.status()
+    store: ContentDeploymentStore | None = None
+    try:
+        store = _store()
+        if args.content_command == "refresh":
+            result = store.refresh(trigger=args.trigger)
+        elif args.content_command == "rollback":
+            result = store.rollback()
+        elif args.content_command == "reconcile":
+            result = store.reconcile()
+            if store.startup_refresh_needed():
+                try:
+                    result = store.refresh(trigger="startup")
+                except Exception:
+                    if result["active_generation"] is None:
+                        raise
+                    result = {**store.status(), "status": "degraded", "refresh_failed": True}
+        else:
+            result = store.status()
+    except ContentDeploymentError as exc:
+        raise _ContentCommandError(
+            str(exc),
+            operation=f"content {args.content_command}",
+        ) from exc
+    except OSError as exc:
+        if exc.errno not in {errno.EACCES, errno.EDQUOT, errno.ENOSPC, errno.EPERM, errno.EROFS}:
+            raise
+        state_root = (
+            store.config.state_root
+            if store is not None
+            else Path(os.environ.get("FURA_CONTENT_STATE_ROOT", "/data/furatena"))
+        )
+        attempted_path = Path(exc.filename) if exc.filename else state_root
+        reason = exc.strerror or exc.__class__.__name__
+        raise _ContentCommandError(
+            f"FURA_CONTENT_STATE_ROOT={state_root} cannot store managed content "
+            f"at {attempted_path}: {reason}. Mount a writable Railway volume at "
+            "/data/furatena or set FURA_CONTENT_STATE_ROOT to a writable persistent directory, "
+            "then retry.",
+            path=attempted_path,
+            operation=f"content {args.content_command}",
+        ) from exc
     print(json.dumps(result, indent=2, sort_keys=True))
 
 
