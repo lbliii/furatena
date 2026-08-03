@@ -20,6 +20,18 @@ from furatena.catalog.preview_reporting import report_preview_state
 
 _SHA = re.compile(r"[0-9a-f]{40}")
 _TERMINAL_FAILURES = {"CANCELED", "CRASHED", "FAILED", "NEEDS_APPROVAL", "SKIPPED"}
+_ALLOWED_RAILWAY_COMMANDS = {
+    ("deployment", "list"),
+    ("domain", "list"),
+    ("environment", "edit"),
+    ("redeploy",),
+    ("status",),
+}
+_SENSITIVE_DIAGNOSTIC_VALUE = re.compile(
+    r'(?i)(["\']?(?:authorization|password|secret|token|api[_-]?key)["\']?\s*[:=]\s*["\']?)'
+    r"([^\s,}\"']+)"
+)
+_GITHUB_TOKEN = re.compile(r"\b(?:github_pat_|gh[pousr]_)[A-Za-z0-9_]+\b")
 
 
 class PreviewControllerError(RuntimeError):
@@ -49,6 +61,15 @@ class PreviewDeployment:
     domain: str
 
 
+@dataclass(frozen=True, slots=True)
+class _ProtectedServiceState:
+    source_repo: str
+    source_image: str
+    deployed_repo: str
+    deployed_branch: str
+    deployed_sha: str
+
+
 RailwayCall = Callable[[Sequence[str], Mapping[str, object] | None], Any]
 
 
@@ -75,6 +96,11 @@ class RailwayCLI:
         arguments: Sequence[str],
         input_payload: Mapping[str, object] | None = None,
     ) -> Any:
+        if not _railway_command_allowed(arguments):
+            command_name = " ".join(arguments[:3]) or "<empty>"
+            raise PreviewControllerError(
+                f"Railway command {command_name!r} is outside the sealed preview command set."
+            )
         command = ["railway", *arguments]
         completed = subprocess.run(
             command,
@@ -121,6 +147,8 @@ def configure_preview(
     try:
         environment = _wait_for_environment(railway, config, deadline, sleep, clock)
         environment_id = _required_text(environment, "id", "Railway environment")
+        _require_preview_service(environment, config)
+        protected_state = _protected_service_state(railway, config)
         details_url = (
             f"https://railway.com/project/{config.project_id}/service/{config.service_id}"
             f"?environmentId={environment_id}"
@@ -181,6 +209,7 @@ def configure_preview(
             sleep,
             clock,
         )
+        _assert_protected_service_unchanged(railway, config, protected_state)
         origin = f"https://{domain}"
         report = publish(
             state="ready",
@@ -195,14 +224,22 @@ def configure_preview(
             )
         return PreviewDeployment(environment_id, deployment_id, domain)
     except PreviewControllerError as error:
+        failure = error
+        if "protected_state" in locals():
+            try:
+                _assert_protected_service_unchanged(railway, config, protected_state)
+            except PreviewControllerError as isolation_error:
+                failure = isolation_error
         if not failure_already_published:
             publish(
                 state="failed",
                 origin="",
-                remediation=str(error),
+                remediation=str(failure),
                 details_url=details_url,
             )
-        raise
+        if failure is error:
+            raise
+        raise failure from error
 
 
 def _wait_for_environment(
@@ -248,6 +285,94 @@ def _preview_environment_name(config: ControllerConfig) -> str:
             "GitHub repository name cannot identify its Railway PR environment"
         )
     return f"{slug}-pr-{config.pr_number}"
+
+
+def _require_preview_service(environment: Mapping[str, Any], config: ControllerConfig) -> None:
+    services = _connection_records(environment, "serviceInstances")
+    if any(service.get("serviceId") == config.service_id for service in services):
+        return
+    raise PreviewControllerError(
+        f"Railway PR environment {_preview_environment_name(config)!r} does not contain "
+        f"service {config.service_id!r}; configure PR environments to duplicate the base service."
+    )
+
+
+def _protected_service_state(
+    railway: RailwayCall, config: ControllerConfig
+) -> _ProtectedServiceState:
+    payload = railway(
+        (
+            "status",
+            "--project",
+            config.project_id,
+            "--environment",
+            "production",
+            "--json",
+        ),
+        None,
+    )
+    production = next(
+        (
+            environment
+            for environment in _connection_records(payload, "environments")
+            if environment.get("name") == "production"
+        ),
+        None,
+    )
+    if production is None:
+        raise PreviewControllerError(
+            "Railway production isolation cannot be verified because the production environment is missing."
+        )
+    instance = next(
+        (
+            service
+            for service in _connection_records(production, "serviceInstances")
+            if service.get("serviceId") == config.service_id
+        ),
+        None,
+    )
+    if instance is None:
+        raise PreviewControllerError(
+            "Railway production isolation cannot be verified because the protected service is missing."
+        )
+    source = instance.get("source")
+    latest = instance.get("latestDeployment")
+    meta = latest.get("meta") if isinstance(latest, Mapping) else None
+    state = _ProtectedServiceState(
+        source_repo=str(source.get("repo") or "") if isinstance(source, Mapping) else "",
+        source_image=str(source.get("image") or "") if isinstance(source, Mapping) else "",
+        deployed_repo=str(meta.get("repo") or "") if isinstance(meta, Mapping) else "",
+        deployed_branch=str(meta.get("branch") or "") if isinstance(meta, Mapping) else "",
+        deployed_sha=str(meta.get("commitHash") or "") if isinstance(meta, Mapping) else "",
+    )
+    _assert_protected_service_safe(config, state)
+    return state
+
+
+def _assert_protected_service_unchanged(
+    railway: RailwayCall,
+    config: ControllerConfig,
+    baseline: _ProtectedServiceState,
+) -> None:
+    current = _protected_service_state(railway, config)
+    if (current.source_repo, current.source_image) != (
+        baseline.source_repo,
+        baseline.source_image,
+    ):
+        raise PreviewControllerError(
+            "Railway preview control changed the protected production source; refusing to publish."
+        )
+
+
+def _assert_protected_service_safe(config: ControllerConfig, state: _ProtectedServiceState) -> None:
+    if state.deployed_repo != config.repository or state.deployed_branch != "main":
+        raise PreviewControllerError(
+            "Railway production must remain deployed from the repository main branch during preview control."
+        )
+    if state.deployed_sha == config.expected_sha:
+        raise PreviewControllerError(
+            "Railway production received the pull-request head; refusing to publish the preview."
+        )
 
 
 def _wait_for_deployment(
@@ -438,7 +563,13 @@ def _redact(value: str, secret_values: Sequence[str]) -> str:
     sanitized = value.replace("\n", " ")
     for secret in secret_values:
         sanitized = sanitized.replace(secret, "[REDACTED]")
+    sanitized = _SENSITIVE_DIAGNOSTIC_VALUE.sub(r"\1[REDACTED]", sanitized)
+    sanitized = _GITHUB_TOKEN.sub("[REDACTED]", sanitized)
     return sanitized[:500]
+
+
+def _railway_command_allowed(arguments: Sequence[str]) -> bool:
+    return any(tuple(arguments[: len(prefix)]) == prefix for prefix in _ALLOWED_RAILWAY_COMMANDS)
 
 
 def _github_pull_request(repository: str, pr_number: int, token: str) -> Mapping[str, Any]:
