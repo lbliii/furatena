@@ -152,9 +152,12 @@ adds latency, availability, identity, and evidence checks.
 
 ## Routine changes
 
-- Content-only change: call the authenticated content refresh endpoint. The
-  image digest remains unchanged, a new generation receipt is written, and the
-  process restarts against the new selector.
+- Content-only change: POST a v1 refresh request containing the current active
+  commit, exact requested commit, and idempotency key. HTTP 202 identifies the
+  durable status operation; promotion remains distinct from restart and
+  readiness. The image digest remains unchanged.
+  Poll `GET /_fura/content/operations/{operation_id}` with the same bearer for
+  the versioned operation state.
 - Content rollback: call the rollback endpoint; it selects last-known-good and
   restarts without fetching or rebuilding.
 - Application change: build one candidate image, scan/attest/smoke the digest,
@@ -165,3 +168,8 @@ adds latency, availability, identity, and evidence checks.
 All normal diagnosis and recovery uses HTTP contracts, GitHub evidence, and
 Railway deployment/log/metrics controls. Container SSH is break-glass only and
 is not part of the verification or rollback procedure.
+
+The request body cannot override the one configured repository, ref, or
+subdirectory, and cannot supply actor identity. Empty-body refresh is a v1-only
+migration compatibility mode that follows the configured ref without exact
+commit or caller idempotency guarantees. Webhooks are not a v1 transport.

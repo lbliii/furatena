@@ -22,7 +22,13 @@ from furatena.catalog.content_deployment import (
     ContentDeploymentConfig,
     ContentDeploymentError,
     ContentDeploymentStore,
-    refresh_authorized,
+)
+from furatena.catalog.content_refresh import (
+    ContentRefreshActor,
+    ContentRefreshConflict,
+    ContentRefreshRequest,
+    ContentRefreshService,
+    authenticate_content_actor,
 )
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.develop_exports import DEVELOP_EXPORTS, develop_export
@@ -103,19 +109,22 @@ def _content_store() -> ContentDeploymentStore | None:
     return ContentDeploymentStore(config) if config is not None else None
 
 
-def _schedule_content_restart() -> None:
+def _schedule_content_restart() -> bool:
     if os.environ.get("FURA_CONTENT_RESTART_AFTER_PROMOTION", "1").strip().lower() not in {
         "1",
         "true",
         "yes",
         "on",
     }:
-        return
+        return False
 
     def _terminate() -> None:
         os.kill(os.getpid(), signal.SIGTERM)
 
-    threading.Timer(1.0, _terminate).start()
+    timer = threading.Timer(1.0, _terminate)
+    timer.daemon = True
+    timer.start()
+    return True
 
 
 def _content_json(payload: Mapping[str, Any], *, status: int = 200) -> Response:
@@ -129,28 +138,25 @@ def _content_json(payload: Mapping[str, Any], *, status: int = 200) -> Response:
 
 async def _authorized_content_operation(
     request: Request,
-) -> tuple[ContentDeploymentStore, bytes] | Response:
+) -> tuple[ContentDeploymentStore, bytes, ContentRefreshActor] | Response:
     store = _content_store()
     if store is None:
         raise NotFound(
             "Managed content operations are unavailable because deployment is not configured."
         )
     body = await request.body()
-    signature = request.headers.get("x-fura-signature-256") or request.headers.get(
-        "x-hub-signature-256"
-    )
-    if not refresh_authorized(
+    actor = authenticate_content_actor(
         request.headers.get("authorization"),
-        body,
-        signature,
-    ):
+        transport="http",
+    )
+    if actor is None:
         return Response(
             json.dumps({"error": "content operation authorization failed"}),
             status=401,
             content_type="application/json; charset=utf-8",
             headers=(*_CONTENT_NO_STORE, ("WWW-Authenticate", 'Bearer realm="Furatena content"')),
         )
-    return store, body
+    return store, body, actor
 
 
 def _catalog_query_error(params: Mapping[str, Any], edge_kind: str | None) -> Response | None:
@@ -251,33 +257,121 @@ def register_public_routes(docs: Any, app: App) -> None:
             raise NotFound(
                 "Managed content status is unavailable because deployment is not configured."
             )
-        return _content_json(store.status())
+        service = ContentRefreshService(store)
+        latest = service.latest()
+        raw_status = store.status()
+        raw_receipt = raw_status.get("receipt")
+        receipt = (
+            {
+                key: raw_receipt.get(key)
+                for key in (
+                    "schema_version",
+                    "generation",
+                    "status",
+                    "resolved_ref",
+                    "image_digest",
+                    "build_commit",
+                    "promoted_at",
+                )
+            }
+            if isinstance(raw_receipt, dict)
+            else None
+        )
+        running_content = deployed_build_identity(self)["content"]
+        if raw_status.get("rollback_hold"):
+            lifecycle_state = "rollback"
+        elif running_content.get("activation_pending_restart"):
+            lifecycle_state = "stale"
+        elif latest is not None and latest.state.value in {"queued", "staging"}:
+            lifecycle_state = "staging"
+        elif latest is not None and latest.state.value == "failed":
+            lifecycle_state = "degraded" if raw_status.get("active_generation") else "failed"
+        else:
+            lifecycle_state = "active" if raw_status.get("active_generation") else "failed"
+        return _content_json(
+            {
+                "configured": True,
+                "status": raw_status.get("status"),
+                "lifecycle_state": lifecycle_state,
+                "active_generation": raw_status.get("active_generation"),
+                "last_known_good_generation": raw_status.get("last_known_good_generation"),
+                "rollback_hold": bool(raw_status.get("rollback_hold")),
+                "receipt": receipt,
+                "replica_contract": "single_replica_v1",
+                "latest_refresh_operation": (
+                    latest.public_dict(
+                        status_url=f"/_fura/content/operations/{latest.operation_id}",
+                        include_failure_message=False,
+                    )
+                    if latest is not None
+                    else None
+                ),
+            }
+        )
 
     @app.route("/_fura/content/refresh", methods=["POST"], referenced=False)
     async def content_refresh(request: Request):
         authorized = await _authorized_content_operation(request)
         if isinstance(authorized, Response):
             return authorized
-        store, _body = authorized
+        store, body, actor = authorized
+        service = ContentRefreshService(store, restart_scheduler=_schedule_content_restart)
         try:
-            receipt = store.refresh(trigger="http")
-        except ContentDeploymentError as exc:
-            return _content_json({"status": "failed", "error": str(exc)}, status=422)
-        _schedule_content_restart()
-        return _content_json({**receipt, "restart_scheduled": True})
+            if not body.strip():
+                receipt = service.submit_compatibility(actor=actor)
+            else:
+                raw = json.loads(body)
+                if not isinstance(raw, dict):
+                    raise ValueError("The content refresh request body must be a JSON object.")
+                receipt = service.submit(ContentRefreshRequest.from_dict(raw), actor=actor)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return _content_json(
+                {"error": {"code": "invalid_refresh_request", "message": str(exc)}},
+                status=400,
+            )
+        except ContentRefreshConflict as exc:
+            return _content_json(
+                {"error": {"code": exc.code, "message": str(exc)}},
+                status=409,
+            )
+        status_url = f"/_fura/content/operations/{receipt.operation_id}"
+        return _content_json(receipt.public_dict(status_url=status_url), status=202)
+
+    @app.route("/_fura/content/operations/{operation_id}", referenced=False)
+    async def content_refresh_operation(request: Request, operation_id: str):
+        authorized = await _authorized_content_operation(request)
+        if isinstance(authorized, Response):
+            return authorized
+        store, _body, _actor = authorized
+        receipt = ContentRefreshService(store).get(operation_id)
+        if receipt is None:
+            raise NotFound("The requested durable content refresh operation was not found.")
+        status_url = f"/_fura/content/operations/{receipt.operation_id}"
+        return _content_json(receipt.public_dict(status_url=status_url))
 
     @app.route("/_fura/content/rollback", methods=["POST"], referenced=False)
     async def content_rollback(request: Request):
         authorized = await _authorized_content_operation(request)
         if isinstance(authorized, Response):
             return authorized
-        store, _body = authorized
+        store, body, actor = authorized
         try:
-            receipt = store.rollback()
+            reason = "Operator requested content rollback."
+            if body.strip():
+                raw = json.loads(body)
+                if not isinstance(raw, dict) or set(raw) - {"reason"}:
+                    raise ValueError("The content rollback request body may contain only reason.")
+                reason = str(raw.get("reason") or "").strip()
+            receipt = store.rollback(actor=actor.actor, reason=reason)
+        except (json.JSONDecodeError, ValueError) as exc:
+            return _content_json(
+                {"error": {"code": "invalid_rollback_request", "message": str(exc)}},
+                status=400,
+            )
         except ContentDeploymentError as exc:
             return _content_json({"status": "failed", "error": str(exc)}, status=409)
-        _schedule_content_restart()
-        return _content_json({**receipt, "restart_scheduled": True})
+        restart_scheduled = _schedule_content_restart()
+        return _content_json({**receipt, "restart_scheduled": restart_scheduled})
 
     @app.route("/preview-manifest.json", referenced=True)
     def preview_manifest_json(request: Request):

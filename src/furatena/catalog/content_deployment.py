@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import json
 import os
@@ -27,6 +26,7 @@ from furatena.catalog.operation_lease import (
 _TRUE = frozenset({"1", "true", "yes", "on"})
 _REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+-]{0,254}$")
 _SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+_UNSET = object()
 _PROTECTED_MANAGED_PATHS = frozenset(
     {
         ".docs-cache",
@@ -46,6 +46,14 @@ _PROTECTED_MANAGED_PATHS = frozenset(
 
 class ContentDeploymentError(RuntimeError):
     """A content generation could not be safely prepared or selected."""
+
+
+class ContentDeploymentConflict(ContentDeploymentError):
+    """A deterministic request conflict that must not mutate active content."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        super().__init__(message)
 
 
 @dataclass(frozen=True, slots=True)
@@ -233,7 +241,17 @@ class ContentDeploymentStore:
         self._freezer = freezer or self._freeze
         self._clock = clock
 
-    def refresh(self, *, trigger: str = "manual") -> dict[str, Any]:
+    def refresh(
+        self,
+        *,
+        trigger: str = "manual",
+        expected_active_commit: str | None | object = _UNSET,
+        requested_commit: str | None = None,
+        actor: str | None = None,
+        operation_id: str | None = None,
+        semantic_digest: str | None = None,
+        idempotency_key_digest: str | None = None,
+    ) -> dict[str, Any]:
         """Build and atomically activate one immutable generation."""
         with OperationLease(
             self.leases,
@@ -243,6 +261,13 @@ class ContentDeploymentStore:
             lease_seconds=operation_lease_seconds(),
         ):
             self.reconcile()
+            current = self._active_receipt()
+            current_commit = str(current.get("resolved_ref") or "") if current is not None else None
+            if expected_active_commit is not _UNSET and current_commit != expected_active_commit:
+                raise ContentDeploymentConflict(
+                    code="stale_active_commit",
+                    message="The expected active content commit no longer matches the selected generation.",
+                )
             started = self._clock()
             attempt_id = uuid.uuid4().hex
             workspace = self.staging / attempt_id
@@ -250,14 +275,28 @@ class ContentDeploymentStore:
             frozen = workspace / "frozen"
             self.staging.mkdir(parents=True, exist_ok=True)
             try:
-                resolved_ref = self._checkout(source)
+                resolved_ref = (
+                    self._checkout(source, requested_commit=requested_commit)
+                    if requested_commit is not None
+                    else self._checkout(source)
+                )
+                if requested_commit is not None and resolved_ref != requested_commit:
+                    raise ContentDeploymentConflict(
+                        code="unreachable_commit",
+                        message="The exact requested commit is not reachable under the configured ref policy.",
+                    )
                 source_bytes, source_files = self._validate_source(source)
-                current = self._active_receipt()
                 image_digest = os.environ.get("FURA_IMAGE_DIGEST", "unknown").strip() or "unknown"
+                build_commit = (
+                    os.environ.get("FURA_BUILD_GIT_SHA")
+                    or os.environ.get("RAILWAY_GIT_COMMIT_SHA")
+                    or "unknown"
+                ).strip() or "unknown"
                 if (
                     current is not None
                     and current.get("resolved_ref") == resolved_ref
                     and current.get("image_digest") == image_digest
+                    and current.get("build_commit", "unknown") == build_commit
                 ):
                     if trigger != "startup":
                         self._set_rollback_hold(False)
@@ -293,8 +332,17 @@ class ContentDeploymentStore:
                     "trigger": trigger,
                     "repository": self.config.repository,
                     "requested_ref": self.config.ref,
+                    "requested_commit": requested_commit,
+                    "expected_active_commit": (
+                        expected_active_commit if expected_active_commit is not _UNSET else None
+                    ),
                     "resolved_ref": resolved_ref,
                     "image_digest": image_digest,
+                    "build_commit": build_commit,
+                    "actor": actor,
+                    "operation_id": operation_id,
+                    "semantic_digest": semantic_digest,
+                    "idempotency_key_digest": idempotency_key_digest,
                     "subdirectory": self.config.subdirectory,
                     "source_bytes": source_bytes,
                     "source_files": source_files,
@@ -344,6 +392,10 @@ class ContentDeploymentStore:
                     "trigger": trigger,
                     "repository": self.config.repository,
                     "requested_ref": self.config.ref,
+                    "requested_commit": requested_commit,
+                    "expected_active_commit": (
+                        expected_active_commit if expected_active_commit is not _UNSET else None
+                    ),
                     "failed_at": _iso(self._clock()),
                     "error": str(exc) or exc.__class__.__name__,
                 }
@@ -381,7 +433,12 @@ class ContentDeploymentStore:
             "rollback_hold": bool(self._read_state().get("rollback_hold")),
         }
 
-    def rollback(self) -> dict[str, Any]:
+    def rollback(
+        self,
+        *,
+        actor: str = "legacy-local",
+        reason: str = "Legacy rollback request.",
+    ) -> dict[str, Any]:
         """Atomically select last-known-good and retain the prior active generation."""
         with OperationLease(
             self.leases,
@@ -405,6 +462,8 @@ class ContentDeploymentStore:
                 "status": "active",
                 "active_generation": lkg.name,
                 "last_known_good_generation": active.name if active else None,
+                "actor": _required_text(actor, "rollback actor"),
+                "reason": _required_text(reason, "rollback reason"),
                 "recorded_at": _iso(self._clock()),
             }
             self.receipts.mkdir(parents=True, exist_ok=True)
@@ -451,7 +510,16 @@ class ContentDeploymentStore:
             return False
         return self.config.refresh_on_start
 
-    def _checkout(self, target: Path) -> str:
+    def resolve_requested_commit(self, requested_commit: str) -> str:
+        """Resolve one exact commit under configured ref policy without promotion."""
+        commit = _full_commit(requested_commit, "requested_commit")
+        workspace = self.staging / f"resolve-{uuid.uuid4().hex}"
+        try:
+            return self._checkout(workspace, requested_commit=commit)
+        finally:
+            shutil.rmtree(workspace, ignore_errors=True)
+
+    def _checkout(self, target: Path, *, requested_commit: str | None = None) -> str:
         target.mkdir(parents=True)
         env = {
             **os.environ,
@@ -460,6 +528,8 @@ class ContentDeploymentStore:
             "GIT_CONFIG_GLOBAL": os.devnull,
             "GIT_ALLOW_PROTOCOL": "https",
         }
+        if requested_commit is not None:
+            requested_commit = _full_commit(requested_commit, "requested_commit")
         commands = (
             ("git", "init", "--quiet", str(target)),
             ("git", "-C", str(target), "remote", "add", "origin", self.config.repository),
@@ -469,13 +539,11 @@ class ContentDeploymentStore:
                 str(target),
                 "fetch",
                 "--quiet",
-                "--depth=1",
                 "--no-tags",
                 "--filter=blob:limit=16m",
                 "origin",
                 self.config.ref,
             ),
-            ("git", "-C", str(target), "checkout", "--quiet", "--detach", "FETCH_HEAD"),
         )
         for command in commands:
             completed = subprocess.run(
@@ -489,6 +557,42 @@ class ContentDeploymentStore:
             if completed.returncode != 0:
                 message = completed.stderr.strip() or completed.stdout.strip() or "git failed"
                 raise ContentDeploymentError(f"public Git checkout failed: {message}")
+        if requested_commit is not None:
+            reachable = subprocess.run(
+                (
+                    "git",
+                    "-C",
+                    str(target),
+                    "merge-base",
+                    "--is-ancestor",
+                    requested_commit,
+                    "FETCH_HEAD",
+                ),
+                env=env,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if reachable.returncode != 0:
+                raise ContentDeploymentConflict(
+                    code="unreachable_commit",
+                    message="The exact requested commit is not reachable under the configured ref policy.",
+                )
+        checkout_target = requested_commit or "FETCH_HEAD"
+        completed = subprocess.run(
+            ("git", "-C", str(target), "checkout", "--quiet", "--detach", checkout_target),
+            env=env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if completed.returncode != 0:
+            raise ContentDeploymentConflict(
+                code="unreachable_commit",
+                message="The exact requested commit is not reachable under the configured ref policy.",
+            )
         completed = subprocess.run(
             ("git", "-C", str(target), "rev-parse", "HEAD"),
             env=env,
@@ -635,18 +739,18 @@ def refresh_authorized(
     *,
     environ: Mapping[str, str] | None = None,
 ) -> bool:
-    """Authenticate a refresh with either an independent bearer or webhook secret."""
+    """Authenticate the v1 refresh bearer; webhook transport remains deferred."""
+    del body, signature
     values = os.environ if environ is None else environ
     token = values.get("FURA_CONTENT_REFRESH_TOKEN", "").strip()
-    provided = (authorization or "").removeprefix("Bearer ").strip()
-    if token and len(token) >= 32 and hmac.compare_digest(provided, token):
-        return True
-    secret = values.get("FURA_CONTENT_WEBHOOK_SECRET", "").strip()
-    if not secret or len(secret) < 32 or not signature:
-        return False
-    provided_signature = signature.removeprefix("sha256=").strip().lower()
-    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(provided_signature, expected)
+    scheme, separator, provided = (authorization or "").partition(" ")
+    return bool(
+        separator
+        and scheme.casefold() == "bearer"
+        and token
+        and len(token) >= 32
+        and hmac.compare_digest(provided.strip(), token)
+    )
 
 
 def _positive_int(value: str, label: str) -> int:
@@ -658,6 +762,23 @@ def _positive_int(value: str, label: str) -> int:
         ) from exc
     if normalized < 1:
         raise ContentDeploymentError(f"FURA_CONTENT_MAX_{label.upper()} must be positive")
+    return normalized
+
+
+def _full_commit(value: str, label: str) -> str:
+    normalized = str(value or "").strip().lower()
+    if _SHA_PATTERN.fullmatch(normalized) is None:
+        raise ContentDeploymentConflict(
+            code="invalid_commit",
+            message=f"{label} must be an exact lowercase 40-character Git commit.",
+        )
+    return normalized
+
+
+def _required_text(value: str, label: str) -> str:
+    normalized = str(value or "").strip()
+    if not normalized:
+        raise ContentDeploymentError(f"{label} is required")
     return normalized
 
 

@@ -69,7 +69,6 @@ generation and report degraded freshness without promoting partial output.
 | `FURA_CONTENT_STATE_ROOT` | No | No | Volume state root; defaults to `/data/furatena` |
 | `RAILWAY_RUN_UID` | Template | No | Railway volume compatibility value `0`; permits the bounded ownership bootstrap before privilege drop |
 | `FURA_CONTENT_REFRESH_TOKEN` | Template | Yes | Bearer secret for the refresh operation |
-| `FURA_CONTENT_WEBHOOK_SECRET` | No | Yes | Separate GitHub webhook HMAC secret when webhook delivery is enabled |
 | `FURA_CONTENT_MAX_BYTES` | No | No | Upper bound for fetched repository data |
 | `FURA_CONTENT_MAX_FILES` | No | No | Upper bound for checked-out files |
 | `FURA_CONTENT_REFRESH_ON_START` | No | No | Resolve and reconcile content before readiness; defaults to true |
@@ -117,15 +116,17 @@ move together.
 The semantic operation is:
 
 ```text
-refresh(repository, ref, expected_active_commit, requested_commit,
-        idempotency_key, actor)
+refresh(configured_repository, configured_ref, configured_subdirectory,
+        expected_active_commit, requested_commit, idempotency_key,
+        authenticated_actor)
 ```
 
 The refresh controller:
 
 1. authenticates the request and validates repository policy;
 2. acquires the content-generation lease;
-3. resolves the ref and rejects a stale or superseded requested commit;
+3. rejects a stale active commit and proves the exact requested commit is
+   reachable from the configured ref;
 4. returns the prior receipt for an identical idempotency key and digest;
 5. fetches the exact commit into a new staging directory;
 6. validates configuration, content, public-projection canaries, and limits;
@@ -135,15 +136,29 @@ The refresh controller:
 10. records the receipt, audit event, and operational status.
 
 The same idempotency key with a different semantic digest is a conflict. A
-newer requested commit supersedes older pending work. Duplicate webhook or CLI
-deliveries converge on one receipt. A failed step leaves the active pointer
-unchanged.
+second request while one operation is pending is also a conflict under the
+explicit single-replica v1 contract. Duplicate HTTP or CLI deliveries with the
+same key and semantic digest converge on one receipt. A failed step leaves the
+active pointer unchanged and preserves last-known-good.
 
-The initial implementation exposes one authenticated HTTP operation plus a CLI
-client. GitHub webhooks are an optional transport over the same operation and
-must validate `X-Hub-Signature-256`, delivery identity, repository identity,
-ref, and commit before dispatch. Transport timestamps and delivery IDs do not
-change semantic request identity.
+The v1 implementation exposes bearer-authenticated HTTP plus the CLI over the
+same durable operation model. It returns HTTP 202 with a sanitized local status
+URL; key collision, stale active state, unreachable commit, and concurrent
+pending work return deterministic HTTP 409 codes. Repository, ref,
+subdirectory, and actor are never accepted from the body. Actor identity comes
+from the authenticated credential or local process transport. Webhook transport
+is deferred beyond v1.
+
+An empty-body POST remains available only for the lifetime of the v1 contract.
+It follows the configured ref for migration compatibility and explicitly makes
+no exact-commit or caller-controlled idempotency guarantee. New integrations
+must send `furatena.content-refresh.request` v1 with all three request fields.
+
+Promotion, activation, restart scheduling, and readiness are distinct durable
+states. Startup reconciliation is local: it marks interrupted pre-promotion
+work failed, preserves last-known-good, and marks a promoted generation ready
+only when the running generation, image digest, and build commit match its
+receipt.
 
 ## Startup and reconciliation
 
@@ -166,6 +181,11 @@ If no generation exists and the first refresh fails, readiness fails. If a
 previous generation exists, a later refresh failure preserves service and marks
 content freshness degraded. Corrupt active and last-known-good manifests fail
 closed.
+
+Sanitized content status and readiness expose only lifecycle and immutable
+identifiers. They distinguish `active`, `staging`, `degraded`, `stale`,
+`rollback`, and `failed` without returning state-root, checkout, or artifact
+filesystem paths.
 
 ## Image lifecycle
 
@@ -204,6 +224,11 @@ The official demo has external probes for health, readiness, representative
 HTML, search, catalog/query, `llms.txt`, build identity, content freshness, and
 bulk artifact integrity. Alerts carry correlation IDs and stable check names,
 not authored queries or content bodies.
+
+The final Railway acceptance gate remains an external conformance run: record
+one reviewed commit becoming active under the same Railway deployment ID and
+unchanged application image digest, then retain the operation, generation, and
+probe receipts as release evidence.
 
 ## Security and privacy invariants
 
