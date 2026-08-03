@@ -826,14 +826,14 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:221` |
 | `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:216` |
 | `FURA_PLATFORM_ROOT` | read | '', '/app/app' | `furatena/catalog/content_deployment.py:538`, `furatena/catalog/renderer_fingerprint.py:65` |
-| `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:149`, `furatena/cli/commands/serve.py:118`, `furatena/cli/commands/serve.py:48`, `furatena/cli/commands/stop.py:17` |
+| `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:151`, `furatena/cli/commands/serve.py:118`, `furatena/cli/commands/serve.py:48`, `furatena/cli/commands/stop.py:17` |
 | `FURA_PREVIEW_AUTH_TOKEN` | read | '' | `furatena/catalog/preview_security.py:159` |
 | `FURA_PREVIEW_ORIGIN` | read | '' | `furatena/catalog/preview_security.py:105` |
 | `FURA_PREVIEW_PR_NUMBER` | read | '' | `furatena/catalog/preview_security.py:101` |
 | `FURA_PREVIEW_REVIEW_URL` | read | '' | `furatena/catalog/preview_security.py:104` |
 | `FURA_PREVIEW_SHA` | read | '' | `furatena/catalog/preview_security.py:102` |
 | `FURA_PR_PREVIEW` | read | '' | `furatena/catalog/preview_security.py:100` |
-| `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:174` |
+| `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:176` |
 | `FURA_SERVER_WORKERS` | read | '' | `furatena/catalog/docs_app.py:278` |
 | `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:251` |
 | `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:316`, `furatena/catalog/static_export.py:324` |
