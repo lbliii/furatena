@@ -805,11 +805,11 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:423` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
 | `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1747`, `furatena/cli/commands/serve.py:42` |
-| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1187`, `furatena/catalog/route_registrars.py:1206`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
+| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1271`, `furatena/catalog/route_registrars.py:1290`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:46` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:43`, `furatena/catalog/preview_security.py:103` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:36`, `furatena/cli/commands/serve.py:44` |
-| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:108` |
+| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:116` |
 | `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:17`, `furatena/cli/commands/content.py:63` |
 | `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:49`, `furatena/catalog/docs_app.py:279` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:244` |

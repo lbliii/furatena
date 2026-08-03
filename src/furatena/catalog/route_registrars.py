@@ -24,6 +24,11 @@ from furatena.catalog.content_deployment import (
     ContentDeploymentStore,
     refresh_authorized,
 )
+from furatena.catalog.content_ir_diff import (
+    DEFAULT_CONTENT_IR_DIFF_LIMIT,
+    ContentIRDiffError,
+    diff_content_ir,
+)
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
 from furatena.catalog.develop_exports import DEVELOP_EXPORTS, develop_export
 from furatena.catalog.docs_app import (
@@ -91,6 +96,9 @@ _CATALOG_QUERY_FILTERS = frozenset(
         "limit",
         "offset",
     }
+)
+_CONTENT_IR_DIFF_FILTERS = frozenset(
+    {"mount", "slug", "from", "to", "include_eol", "limit", "offset"}
 )
 _GRAPH_EDGE_KINDS = frozenset(item.value for item in EdgeKind)
 _CATALOG_QUERY_MEDIA_TYPE = "application/vnd.furatena.catalog-query+json;version=1"
@@ -1072,6 +1080,82 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             Response(json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"),
             request=request,
             query_input=params,
+        )
+
+    @app.route("/catalog/diff", referenced=True)
+    def catalog_content_ir_diff(request: Request):
+        self._ensure_catalog()
+        unknown = sorted(set(request.query) - _CONTENT_IR_DIFF_FILTERS)
+        from_edition = str(request.query.get("from") or "").strip()
+        to_edition = str(request.query.get("to") or "").strip()
+        invalid: dict[str, Any] = {}
+        if unknown:
+            invalid["unknown"] = unknown
+        if not from_edition:
+            invalid["from"] = request.query.get("from")
+        if not to_edition:
+            invalid["to"] = request.query.get("to")
+        include_eol_raw = request.query.get("include_eol")
+        if include_eol_raw is not None and str(include_eol_raw).strip().lower() not in {
+            "0",
+            "1",
+            "false",
+            "no",
+            "off",
+            "on",
+            "true",
+            "yes",
+        }:
+            invalid["include_eol"] = include_eol_raw
+        try:
+            limit = int(request.query.get("limit") or DEFAULT_CONTENT_IR_DIFF_LIMIT)
+            offset = int(request.query.get("offset") or 0)
+        except TypeError, ValueError:
+            invalid["pagination"] = {
+                "limit": request.query.get("limit"),
+                "offset": request.query.get("offset"),
+            }
+            limit = DEFAULT_CONTENT_IR_DIFF_LIMIT
+            offset = 0
+        if invalid:
+            return Response(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "ok": False,
+                        "error": {
+                            "code": "invalid_query",
+                            "message": "Invalid Content IR diff query.",
+                            "recovery": "Pass from/to editions and only documented diff parameters.",
+                            "invalid": invalid,
+                        },
+                    },
+                    indent=2,
+                ),
+                status=400,
+                content_type="application/json; charset=utf-8",
+            )
+        try:
+            payload = diff_content_ir(
+                self.catalog,
+                mount=str(request.query.get("mount") or self.catalog.default_mount.id),
+                slug=str(request.query["slug"]) if "slug" in request.query else None,
+                from_edition=from_edition,
+                to_edition=to_edition,
+                include_eol=_query_bool(request, "include_eol", default=False),
+                subject=self._output_access_subject(request),
+                limit=limit,
+                offset=offset,
+            )
+        except ContentIRDiffError as exc:
+            return Response(
+                json.dumps(exc.to_payload(), indent=2),
+                status=exc.status,
+                content_type="application/json; charset=utf-8",
+            )
+        return Response(
+            json.dumps(payload, indent=2),
+            content_type="application/json; charset=utf-8",
         )
 
     @app.route("/catalog/source-health.json", referenced=True)
