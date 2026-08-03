@@ -8,6 +8,13 @@ part of the core publication-plan schema.
 The implementation lives in `furatena.catalog.publication_provider`. Version 1
 JSON Schemas ship under `furatena/catalog/schemas/publication-provider/v1/`.
 
+The concrete commit and pull-request adapter lives in
+`furatena.catalog.publication_git_provider`. `GitChangesetProvider` receives the
+source checkout, an external private state directory, and a changeset loader that
+returns the unified diff bound to each request. Pull-request profiles additionally
+provide a `GitReviewGateway`; that boundary translates provider-specific review
+APIs while Git isolation and branch safety remain provider-neutral.
+
 ## Profiles
 
 Every workflow selects one `PublicationProfileConfig`. The selection and its
@@ -111,6 +118,21 @@ use an isolated worktree, temporary checkout, or equivalent provider workspace a
 the exact approved base. The user's current branch, index, staged files, untracked
 files, ignored files, and conflicts are not inputs.
 
+`GitChangesetProvider` requires a full Git commit ID for
+`repository_base_revision` and keeps its state directory outside the source
+repository. It applies the digest-verified patch to a detached worktree, compares
+Git's staged create/modify/delete/move records with the exact approved operations,
+and commits there with explicit author and workflow-committer identities. Commit
+trailers correlate the commit to the publication plan, deterministic change ID,
+and trusted workflow actor. It never runs a broad staging command.
+
+Pull-request branches use the request's deterministic branch name. Local refs are
+created only when absent, remote refs are pushed with a create-only lease, and any
+different local or remote revision is a conflict rather than a force update. The
+review gateway must upsert by deterministic change ID and return its observed head
+and base; mismatches stop reconciliation. Protected review targets are recorded
+and never bypassed.
+
 A detached checkout is acceptable only as an isolated workspace with an explicit
 base revision and deterministic change identity. Source and target repository IDs
 are separate, so forks and remote mounts cannot silently select a push target.
@@ -135,6 +157,17 @@ Provider failures reuse the workflow dispositions:
 `reconciliation_required`. Reconciliation reports `pending`, `matched`,
 `diverged`, or `manual_action_required`; it does not guess that a timed-out commit,
 push, review creation, or external handoff failed.
+
+The Git adapter persists atomic, mode-restricted correlation metadata under one
+directory per change and serializes operations with a file lock, which is safe for
+threads and cooperating worker processes under GIL-disabled Python. After a
+timeout, `reconcile` inspects the correlated commit, remote branch, and review
+instead of repeating an uncertain effect. A retry reuses the same worktree,
+commit, branch, and review. `cleanup` removes only the isolated worktree and local
+metadata, and refuses cleanup if the provider branch contains an external
+revision. This makes preparation and commit failures resumable without touching
+the user's checkout; provider-side branch or review cleanup remains an explicit
+operator action.
 
 ## Dry runs
 
@@ -171,9 +204,10 @@ missing, ambiguous, or unknown change records.
 
 ## Ownership boundaries
 
-This module owns profiles, immutable provider records, canonical IDs/digests,
+The contract module owns profiles, immutable provider records, canonical IDs/digests,
 path/revision validation, dry-run plans, external bundles, projections, and the
-provider protocol. #391 owns a concrete isolated Git implementation. #387 owns
-workflow orchestration, persistence, idempotent operation sequencing, and when to
-enter reconciliation. Provider adapters cannot weaken plan guards or expand the
-approved path set.
+provider protocol. The Git adapter owns isolated Git worktrees, commits,
+deterministic branch publication, and review reconciliation. #387 owns workflow
+orchestration, persistence, idempotent operation sequencing, and when to enter
+reconciliation. Provider adapters cannot weaken plan guards or expand the approved
+path set.
