@@ -30,7 +30,7 @@ def dataset():
 def test_known_answer_dataset_covers_required_query_and_content_classes(dataset) -> None:
     assert dataset.schema_version == 1
     assert dataset.dataset_id == "furatena-known-answers"
-    assert dataset.version == "1.1.11"
+    assert dataset.version == "1.1.12"
     assert validate_known_answer_dataset(dataset) == ()
     assert {case.query_class for case in dataset.cases} >= {
         "navigational",

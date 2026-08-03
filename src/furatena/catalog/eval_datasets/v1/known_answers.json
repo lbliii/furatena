@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "dataset_id": "furatena-known-answers",
-  "version": "1.1.11",
+  "version": "1.1.12",
   "description": "Representative prose, API, release, operations, negative, and access-boundary retrieval questions.",
   "corpora": [
     {
@@ -10,7 +10,7 @@
       "root": ".",
       "mount": "furatena",
       "url_prefix": "",
-      "revision": "sha256:44a454be8ff7d52dd68497e3f012414cd63d2eeb920ed3aaba60947468def104",
+      "revision": "sha256:365e8e2ae3d4f0c7e9d4b167617ed3ac6da1a43a6c7604fd88bc2601ad984b5c",
       "sources": [
         {
           "path": "content/furatena/docs/get-started/installation.md",
@@ -34,7 +34,7 @@
         },
         {
           "path": "content/furatena/docs/reference/integrator-operations.md",
-          "sha256": "5fd7c28be85800b00cee4a5bf305aacef92717a8dc635566ed273dcf358ea38f"
+          "sha256": "267d8bfbdb919c71cb978caa4f86a5118a1fd678f2cff174780e57e18aef3c5a"
         },
         {
           "path": "content/furatena/releases/_index.md",
