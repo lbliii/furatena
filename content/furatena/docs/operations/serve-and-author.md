@@ -17,11 +17,17 @@ category: operations
 
 ```bash
 uv run fura serve
-# or
+# equivalent convenience launchers
+make serve
 ./app/run
 ```
 
 Default URL: http://127.0.0.1:8001/
+
+The checkout command is canonical: both convenience launchers delegate to
+`uv run fura serve` and preserve every flag and the CLI exit status. `./app/run`
+defaults `CHIRP_SKIP_CONTRACT_CHECKS` to `1` for fast local dogfooding while preserving
+an explicit caller value, for example `CHIRP_SKIP_CONTRACT_CHECKS=0 ./app/run --author`.
 
 The app reads `app/docs.yaml`, loads mounts from `app/mounts.yaml`, and indexes markdown
 under `content/`.
@@ -30,10 +36,10 @@ under `content/`.
 
 | Mode | How | Use when |
 |------|-----|----------|
-| **Author** (default) | `fura serve` | Editing content — live index + partial reload |
-| **Author forced** | `fura serve --author` | Ignore `app/frozen/` cache |
-| **Preview** | `fura serve --preview` | Prod-like — serve frozen shards only |
-| **Hybrid** | `fura serve` when `frozen/` exists | Fast startup with frozen assets, live content |
+| **Author** (default) | `uv run fura serve` | Editing content — live index + partial reload |
+| **Author forced** | `uv run fura serve --author` | Ignore `app/frozen/` cache |
+| **Preview** | `uv run fura serve --preview` | Prod-like — serve frozen shards only |
+| **Hybrid** | `uv run fura serve` when `frozen/` exists | Fast startup with frozen assets, live content |
 
 Legacy env aliases still work: `FURA_MODE=author`, `FURA_FROZEN=1` (preview).
 
@@ -75,7 +81,7 @@ for author routes and do not include the dashboard.
 Speed up large corpora:
 
 ```bash
-fura serve --workers 8
+uv run fura serve --workers 8
 ```
 
 Worker count also respects **`FURA_WORKERS`**.
@@ -89,8 +95,8 @@ The volume-backed Railway private image fixes it at one serving process.
 Release notes under `releases/*.md` enable version channels. Select a channel:
 
 ```bash
-FURA_CHANNEL=latest fura serve          # default
-FURA_CHANNEL=0.8.0 fura serve           # specific release id
+FURA_CHANNEL=latest uv run fura serve          # default
+FURA_CHANNEL=0.8.0 uv run fura serve           # specific release id
 ```
 
 The docs rail shows a version selector when multiple channels exist for the active mount.

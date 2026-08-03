@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "dataset_id": "furatena-known-answers",
-  "version": "1.1.10",
+  "version": "1.1.11",
   "description": "Representative prose, API, release, operations, negative, and access-boundary retrieval questions.",
   "corpora": [
     {
@@ -10,15 +10,15 @@
       "root": ".",
       "mount": "furatena",
       "url_prefix": "",
-      "revision": "sha256:14071aa0f0d9b9b36275441f3577c589afa68e7d8c0272f062e0110d51cf6779",
+      "revision": "sha256:44a454be8ff7d52dd68497e3f012414cd63d2eeb920ed3aaba60947468def104",
       "sources": [
         {
           "path": "content/furatena/docs/get-started/installation.md",
-          "sha256": "22faa50ad9f6d02e71fbb835453b7a3cfbf4510893e2450e10676c154d1abd94"
+          "sha256": "048ebe86c5ff4c78f432fe44d0f85f45a85a204632981b3cc42d6b007cd0e034"
         },
         {
           "path": "content/furatena/docs/get-started/quickstart.md",
-          "sha256": "4f0d3bf08aa29a1fd66c10517acc1d6e90f6f0b0595fd7007837bcf29001f91c"
+          "sha256": "c46a828e0d383da22a97c6602504b22f91aa99383acb3542bba1207f23d5ca2c"
         },
         {
           "path": "content/furatena/docs/get-started/first-github-pages-deploy.md",

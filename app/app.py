@@ -1,9 +1,8 @@
-"""Furatena — hypermedia documentation app.
+"""Importable ASGI application for the default Furatena documentation site.
 
-Configure the app in ``docs.yaml``. Run::
+Configure the app in ``docs.yaml``. Start it through the canonical CLI::
 
-    ./app/run
-    fura serve
+    uv run fura serve
 """
 
 from __future__ import annotations
@@ -42,7 +41,6 @@ _require_deps()
 
 from chirp.app import App
 
-from furatena.catalog.dev_banner import format_serve_startup
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.registry import load_mounts
 from furatena.catalog.runtime import ServeMode, resolve_serve_config
@@ -88,17 +86,3 @@ embedding_index = _docs.embedding_index
 def create_app() -> App:
     """Factory for tests and ``fura serve``."""
     return app
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("FURA_PORT", "8001"))
-    host = os.environ.get("FURA_HOST", "127.0.0.1")
-    url = f"http://{host}:{port}/"
-    for line in format_serve_startup(
-        _docs.serve,
-        page_count=len(catalog.nodes),
-        mount_count=len(catalog.mounts),
-        url=url,
-    ):
-        print(line)
-    _docs.run_serve(port=port, host=host)

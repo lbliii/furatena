@@ -3,9 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
+cd "$ROOT"
+export CHIRP_SKIP_CONTRACT_CHECKS="${CHIRP_SKIP_CONTRACT_CHECKS:-1}"
 
-exec uv run \
-  --directory "$ROOT" \
-  env FURA_SKIP_CONTRACT_CHECKS="${FURA_SKIP_CONTRACT_CHECKS:-1}" \
-  python "$ROOT/app/app.py" "$@"
+exec uv run fura serve "$@"
