@@ -15,7 +15,7 @@ revocation, and [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents.
 - source: exact `ghcr.io/lbliii/furatena@sha256:...` private-image subject;
 - registry authority: Railway registry credential, read-only and hidden from
   the application environment;
-- runtime: CPython 3.14t with `PYTHON_GIL=0`, one worker, one replica;
+- runtime: CPython 3.14t with `PYTHON_GIL=0`, UID/GID 65532, one worker, one replica;
 - persistence: one volume mounted for `/data/furatena`;
 - admission: `/readyz` with five-second overlap and 15-second drain;
 - content: HTTPS public Git URL, exact resolved commit, bounded checkout;
@@ -40,6 +40,7 @@ design and is outside this template version.
 | `FURA_IMAGE_DIGEST` | Exact deployed `sha256:...` digest for runtime identity |
 | `FURA_SERVER_WORKERS` | Pounce serving-process count; defaults to `1` for the private image |
 | `FURA_SESSION_SECRET` | Stable production session secret |
+| `RAILWAY_RUN_UID` | Required value `0` for the bounded volume bootstrap; the application immediately drops to UID/GID 65532 |
 
 `FURA_SERVER_WORKERS` is separate from `FURA_WORKERS`: the former controls
 Pounce serving processes, while the latter controls parallel catalog indexing.
@@ -49,6 +50,12 @@ development leaves it unset so Pounce may size its serving pool automatically.
 Optional bounds and behavior are documented in the architecture configuration
 table. Never place the GHCR registry credential in a normal application
 variable. Configure it only through Railway's private image credentials.
+
+Railway mounts volumes as root, so a non-root image needs the platform's
+`RAILWAY_RUN_UID=0` compatibility setting. Furatena uses that authority only to
+validate `/data/furatena` and repair its ownership, then `exec`s the server as
+UID/GID 65532. A missing or mismatched volume path fails before Python starts;
+the application, Git checkout, freeze, and HTTP server never run as root.
 
 ## First activation
 
