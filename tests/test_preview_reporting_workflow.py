@@ -19,6 +19,18 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
         "repository_dispatch",
         "workflow_dispatch",
     }
+    assert set(triggers["pull_request_target"]["paths"]) == {
+        ".github/workflows/preview-report.yml",
+        "Dockerfile",
+        "app/**",
+        "config/**",
+        "content/**",
+        "pyproject.toml",
+        "scripts/railway-start.sh",
+        "scripts/railway_preview_controller.py",
+        "src/**",
+        "uv.lock",
+    }
     assert workflow["permissions"] == {
         "contents": "read",
         "checks": "write",
@@ -36,10 +48,12 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
     assert "user.type != 'Bot'" in railway["if"]
     assert railway["env"]["RAILWAY_API_TOKEN"] == "${{ secrets.RAILWAY_API_TOKEN }}"
     assert "FURA_PREVIEW_AUTH_TOKEN" not in railway["env"]
+    assert railway["timeout-minutes"] == 10
     assert railway["steps"][0]["with"]["ref"] == ("${{ github.event.repository.default_branch }}")
     commands = [step.get("run", "") for step in railway["steps"]]
     assert "npm install --global @railway/cli@5.25.0" in commands
     assert any("scripts/railway_preview_controller.py" in command for command in commands)
+    assert any("--timeout-seconds 480" in command for command in commands)
 
 
 def test_reporter_upserts_one_check_and_marker_comment() -> None:

@@ -118,7 +118,9 @@ def test_monitor_preserves_evidence_and_routes_alerts_through_github_issues() ->
     workflow = (ROOT / ".github" / "workflows" / "live-slo.yml").read_text(encoding="utf-8")
     policy = json.loads((ROOT / "config" / "live-slo.json").read_text(encoding="utf-8"))
 
-    assert 'cron: "*/5 * * * *"' in workflow
+    assert 'cron: "17 */6 * * *"' in workflow
+    assert "cancel-in-progress: true" in workflow
+    assert "retention-days: 30" in workflow
     assert "issues: write" in workflow
     assert "gh issue create" in workflow
     assert "gh issue comment" in workflow

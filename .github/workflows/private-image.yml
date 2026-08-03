@@ -3,8 +3,23 @@ name: Publish proprietary image
 on:
   push:
     branches: [main]
+    paths: &image-inputs
+      - .dockerignore
+      - .github/workflows/private-image.yml
+      - Dockerfile
+      - LICENSE
+      - app/**
+      - config/**
+      - content/**
+      - pyproject.toml
+      - scripts/private_image_release.py
+      - scripts/railway-start.sh
+      - scripts/verify-content-diagnostics.sh
+      - src/**
+      - uv.lock
   pull_request:
     branches: [main]
+    paths: *image-inputs
   workflow_dispatch:
     inputs:
       operation:

@@ -122,8 +122,15 @@ def test_pdf_proof_fixture_and_workflow_cover_both_rendering_heads() -> None:
     assert "beforeprint" in print_runtime
     assert "afterprint" in print_runtime
     assert "cleanPrintUrl" in print_runtime
-    for rendering_input in ("app/**", "content/**", "src/**", "scripts/pdf_proof.py"):
+    for rendering_input in (
+        "app/**",
+        "content/**",
+        "src/furatena/catalog/render.py",
+        "src/furatena/themes/**",
+        "scripts/pdf_proof.py",
+    ):
         assert rendering_input in workflow
+    assert '"src/**"' not in workflow
     assert baseline["owner"] == "issue-433"
     assert baseline["allowed_failures"] == {}
 

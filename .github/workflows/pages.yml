@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
@@ -21,10 +22,29 @@ jobs:
   fast:
     name: Fast lint and unit checks
     runs-on: ubuntu-latest
+    outputs:
+      coverage-required: ${{ steps.scope.outputs.coverage-required }}
+      browser-required: ${{ steps.scope.outputs.browser-required }}
+      release-required: ${{ steps.scope.outputs.release-required }}
     steps:
       - uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0
+      - name: Classify required CI lanes
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ACTION: ${{ github.event.action }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [[ "$EVENT_NAME" != pull_request || "$EVENT_ACTION" == ready_for_review ]]; then
+            python scripts/classify_ci_paths.py --force-all --github-output "$GITHUB_OUTPUT"
+          else
+            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" |
+              python scripts/classify_ci_paths.py --github-output "$GITHUB_OUTPUT"
+          fi
       - uses: astral-sh/setup-uv@v8.2.0
         with:
           python-version: "3.14t"
@@ -54,6 +74,8 @@ jobs:
 
   coverage:
     name: Core coverage ratchets
+    needs: fast
+    if: needs.fast.outputs.coverage-required == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
@@ -91,6 +113,8 @@ jobs:
 
   browser:
     name: Author browser flows
+    needs: fast
+    if: needs.fast.outputs.browser-required == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -141,6 +165,8 @@ jobs:
 
   release:
     name: Package and CLI smoke
+    needs: fast
+    if: needs.fast.outputs.release-required == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0

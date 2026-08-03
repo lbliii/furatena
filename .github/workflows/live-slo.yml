@@ -2,7 +2,7 @@ name: Monitor live deployment SLOs
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "17 */6 * * *"
   workflow_dispatch:
     inputs:
       origin:
@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: live-slo-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   probe:
@@ -48,7 +48,7 @@ jobs:
           name: live-slo-${{ github.run_id }}-${{ github.run_attempt }}
           path: live-slo/report.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 30
 
       - name: Open or update the operational alert
         if: always() && steps.probe.outcome == 'failure'

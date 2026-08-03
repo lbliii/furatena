@@ -3,6 +3,17 @@ name: Report Furatena PR preview
 on:
   pull_request_target:
     types: [opened, reopened, synchronize, closed]
+    paths:
+      - .github/workflows/preview-report.yml
+      - Dockerfile
+      - app/**
+      - config/**
+      - content/**
+      - pyproject.toml
+      - scripts/railway-start.sh
+      - scripts/railway_preview_controller.py
+      - src/**
+      - uv.lock
   repository_dispatch:
     types: [furatena-preview]
   workflow_dispatch:
@@ -90,7 +101,7 @@ jobs:
        github.event.pull_request.user.type != 'Bot') ||
       (github.event_name == 'workflow_dispatch' && inputs.configure_railway)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     env:
       GITHUB_TOKEN: ${{ github.token }}
       RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
@@ -119,3 +130,4 @@ jobs:
           --repository "${GITHUB_REPOSITORY}"
           --pr-number "${PR_NUMBER}"
           --expected-sha "${EXPECTED_SHA}"
+          --timeout-seconds 480

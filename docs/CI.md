@@ -65,11 +65,14 @@ semantic changes and regenerate line-number-derived references before review.
 
 ## Branch gates and artifacts
 
-Pull requests run the `fast`, `contract`, `coverage`, `release`, and
-browser-smoke jobs for early lint, unit, hypermedia/diagnostic, core coverage,
-distribution, and critical real-browser feedback. Pushes to `main` and manual
-runs replace browser smoke with the full browser tier and add the `export` and
-`agent` safety jobs.
+Pull requests always run the `fast` and `contract` jobs for early lint, unit,
+hypermedia, and diagnostic feedback. The fast job classifies the complete
+base-to-head path diff and adds `coverage` for Python/test/coverage-policy
+changes, browser smoke for content/render/theme/browser changes, and `release`
+for source or packaging changes. Marking a draft ready for review forces all
+three expensive PR lanes even when the changed paths would otherwise skip them.
+Pushes to `main` and manual runs force all seven lanes, replace browser smoke
+with the full browser tier, and add the `export` and `agent` safety jobs.
 GitHub Pages deploys only after all seven jobs pass.
 
 Each job scopes the uv cache with its GitHub job name, so a cache or install
@@ -101,13 +104,19 @@ draft, private, protected, and archived source, then scans all generated files
 (including extracted PDF text and inventory payloads) for policy leaks.
 
 The separate `private-image.yml` workflow publishes the proprietary commercial
-artifact. A merge to `main` builds one candidate, adds an SBOM and provenance,
+artifact when an image input changes. A qualifying merge to `main` builds one
+candidate, adds an SBOM and provenance,
 scans the published digest, and pulls and boots that exact subject in a clean
 job. Protected manual operations promote or revoke an existing digest without
 rebuilding it. Furatena is not published to PyPI; the isolated wheel and sdist
 lane remains an internal packaging-integrity check. See
 [RELEASING.md](RELEASING.md) for registry setup, verification, promotion,
 rollback, revocation, and compromise procedures.
+
+The external production evidence workflow runs every six hours, keeps receipts
+for 30 days, and cancels a superseded probe. Five-minute availability sampling
+belongs in a dedicated uptime service; GitHub Actions retains the slower,
+auditable artifact-integrity receipt and operational-issue routing.
 
 ## Repository hygiene
 
