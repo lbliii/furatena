@@ -170,8 +170,12 @@ def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() 
     }
     for action, sha in pins.items():
         assert f"{action}@{sha}" in source
-    assert "provenance: mode=max" in source
-    assert "sbom: true" in source
+    assert (
+        "provenance: ${{ github.event_name == 'pull_request' && 'false' || 'mode=max' }}" in source
+    )
+    assert "sbom: ${{ github.event_name == 'pull_request' && 'false' || 'true' }}" in source
+    assert "push: ${{ github.event_name != 'pull_request' }}" in source
+    assert "load: ${{ github.event_name == 'pull_request' }}" in source
     assert "severity: CRITICAL,HIGH" in source
     assert "subject-digest: ${{ steps.build.outputs.digest }}" in source
     assert "push-to-registry: true" in source

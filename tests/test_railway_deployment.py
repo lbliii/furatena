@@ -68,6 +68,18 @@ def test_exact_digest_smoke_proves_sanitized_content_failures() -> None:
         assert required in verifier
 
 
+def test_pull_request_image_conformance_does_not_publish_to_ghcr() -> None:
+    workflow = (REPO / ".github/workflows/private-image.yml").read_text(encoding="utf-8")
+    candidate = workflow.split("  candidate:\n", 1)[1].split("\n  smoke:\n", 1)[0]
+    smoke = workflow.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
+
+    assert "push: ${{ github.event_name != 'pull_request' }}" in candidate
+    assert "load: ${{ github.event_name == 'pull_request' }}" in candidate
+    assert "Verify the pull-request runtime without publishing" in candidate
+    assert "Prove pull-request managed-content diagnostics" in candidate
+    assert "if: github.event_name != 'pull_request'" in smoke
+
+
 def test_railway_uses_pounce_0_9_2_without_keep_alive_workaround() -> None:
     start = (REPO / "scripts" / "railway-start.sh").read_text(encoding="utf-8")
 

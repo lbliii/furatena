@@ -66,6 +66,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Sign in to the private registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           registry: ghcr.io
@@ -88,12 +89,13 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             com.furatena.image.channel=candidate
 
-      - name: Build and push the candidate with SBOM and provenance
+      - name: Build the candidate with governed publication inputs
         id: build
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           platforms: linux/amd64
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
@@ -101,8 +103,8 @@ jobs:
             FURA_BUILD_GIT_SHA=${{ github.sha }}
             FURA_IMAGE_VERSION=candidate-${{ github.sha }}
             FURA_IMAGE_CHANNEL=candidate
-          provenance: mode=max
-          sbom: true
+          provenance: ${{ github.event_name == 'pull_request' && 'false' || 'mode=max' }}
+          sbom: ${{ github.event_name == 'pull_request' && 'false' || 'true' }}
 
       - name: Prepare release evidence
         run: mkdir -p release
@@ -117,10 +119,10 @@ jobs:
 
       # Pin the audited 0.35.0 commit. Mutable Trivy action tags were involved in
       # a March 2026 supply-chain incident and must not be used here.
-      - name: Scan the published digest
+      - name: Scan the candidate image
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
-          image-ref: ${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          image-ref: ${{ github.event_name == 'pull_request' && steps.metadata.outputs.tags || format('{0}@{1}', env.IMAGE_NAME, steps.build.outputs.digest) }}
           format: json
           output: release/trivy.json
           severity: CRITICAL,HIGH
@@ -128,23 +130,58 @@ jobs:
           exit-code: "1"
 
       - name: Attest the registry subject
+        if: github.event_name != 'pull_request'
         uses: actions/attest@c32b4b8b198b65d0bd9d63490e847ff7b53989d4 # v4.0.0
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
 
+      - name: Verify the pull-request runtime without publishing
+        if: github.event_name == 'pull_request'
+        env:
+          SUBJECT: ${{ steps.metadata.outputs.tags }}
+        run: docker run --rm "$SUBJECT" python -c 'import sys; assert sys.version_info[:2] == (3, 14); assert not sys._is_gil_enabled()'
+
+      - name: Boot the pull-request image and require readiness
+        if: github.event_name == 'pull_request'
+        env:
+          SUBJECT: ${{ steps.metadata.outputs.tags }}
+        run: |
+          docker run --detach --name furatena-pr-smoke --publish 18000:8000 "$SUBJECT"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18000/readyz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs furatena-pr-smoke
+          exit 1
+
+      - name: Stop the pull-request smoke container
+        if: always() && github.event_name == 'pull_request'
+        run: docker rm --force furatena-pr-smoke 2>/dev/null || true
+
+      - name: Prove pull-request managed-content diagnostics
+        if: github.event_name == 'pull_request'
+        env:
+          SUBJECT: ${{ steps.metadata.outputs.tags }}
+        run: scripts/verify-content-diagnostics.sh "$SUBJECT"
+
       - name: Retain candidate evidence
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: private-image-${{ github.sha }}
-          path: release/
+          path: |
+            release/
+            diagnostic-evidence/
           if-no-files-found: error
           retention-days: 90
 
   smoke:
     name: Pull and boot the exact candidate digest
+    if: github.event_name != 'pull_request'
     needs: candidate
     runs-on: ubuntu-latest
     permissions:
