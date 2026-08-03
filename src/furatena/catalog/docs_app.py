@@ -373,7 +373,10 @@ class DocsApp:
             platform_root=self.roots.platform,
             state_root=self.roots.state / "theme",
         )
-        self.views = ViewRegistry(config)
+        self.views = ViewRegistry(
+            config,
+            presentation_views=dict(self.theme.view_templates),
+        )
         self.catalog = CatalogRegistry.from_config(
             config.mounts_path or config.root / "mounts.yaml",
             repo_root=repo_root,
@@ -497,6 +500,7 @@ class DocsApp:
         app.template_global("fura_author")(lambda: self.serve.auto_reload)
         app.template_global("fura_author_mode")(lambda: self._is_author_mode())
         app.template_global("docs_stylesheets")(lambda: self.theme.stylesheet_hrefs)
+        app.template_global("fura_presentation")(self.theme.presentation.to_dict)
         app.template_global("fura_htmx4_preview")(lambda: self.htmx_preview_version is not None)
         app.template_global("fura_htmx_version")(lambda: self.htmx_preview_version or "2.0.4")
         app.template_global("fura_htmx_assets")(

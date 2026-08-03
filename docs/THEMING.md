@@ -2,6 +2,10 @@
 
 Furatena separates **data** (catalog graph), **views** (how nodes render), and **theme** (look-and-feel). There is no build step for production — in dev, edits reload automatically (see below).
 
+Reusable presentation extensions use the strict, versioned layout/skin/override contract in
+[PRESENTATION_PACKS.md](PRESENTATION_PACKS.md). The `theme.id`, `theme.use`, `theme/`, and
+`templates/` behaviors below remain the documented compatibility path.
+
 **Views architecture:** see [VIEWS.md](VIEWS.md) for view kinds, resolution order,
 folder layout, Kida composition rules, and how views differ from shell, partials,
 and directives.

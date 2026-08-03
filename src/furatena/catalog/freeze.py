@@ -51,6 +51,7 @@ from furatena.catalog.operation_lease import (
     operation_timeout_seconds,
 )
 from furatena.catalog.packaging import prune_stale_files, validate_packaging_lifecycle
+from furatena.catalog.presentation_pack import resolve_presentation
 from furatena.catalog.registry import CatalogRegistry
 from furatena.catalog.renderer_fingerprint import (
     read_renderer_fingerprint,
@@ -59,7 +60,6 @@ from furatena.catalog.renderer_fingerprint import (
 )
 from furatena.catalog.seo import docs_base_url
 from furatena.catalog.structure_index import build_structure_index
-from furatena.catalog.theme_pack import load_theme_pack
 from furatena.catalog.vendor_paths import VENDOR_FILES, vendor_dir
 from furatena.catalog.workers import resolve_workers
 
@@ -389,6 +389,14 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
                 mount.content_root,
                 label=f"content root for mount {mount.id!r}",
             )
+    presentation_roots = managed_roots or ApplicationRoots(
+        site=options.app_root.resolve(),
+        platform=(options.platform_root or options.app_root).resolve(),
+        state=(options.state_root or options.app_root / ".docs-cache").resolve(),
+        output=base_out_dir.resolve(),
+        managed=False,
+    )
+    presentation = resolve_presentation(docs_config, roots=presentation_roots)
     validate_packaging_lifecycle(
         registry,
         target="catalog freeze",
@@ -397,12 +405,13 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
     index_seconds = time.perf_counter() - index_start
     base = docs_base_url()
 
-    skin_pack_root = load_theme_pack(docs_config.theme.use).root if docs_config.theme.use else None
+    skin_pack_root = presentation.skin.root if presentation.skin is not None else None
     renderer_fp = renderer_fingerprint(
         options.app_root,
         theme_id=docs_config.theme.id,
         skin_pack_root=skin_pack_root,
         platform_root=options.platform_root,
+        presentation_digest=presentation.record.content_digest,
     )
     stored_renderer = read_renderer_fingerprint(out_dir)
     renderer_changed = options.full_rebuild or stored_renderer != renderer_fp
@@ -606,6 +615,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             renderer_fingerprint=renderer_fp,
             renderer_changed=renderer_changed,
             edition_statuses=[status.public_record() for status in edition_status],
+            presentation=presentation.record.to_dict(),
         )
         formatted = ", ".join(f"{mount}: {error}" for mount, error in sorted(failed_mounts.items()))
         raise ExportError(
@@ -636,6 +646,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         renderer_fingerprint=renderer_fp,
         renderer_changed=renderer_changed,
         edition_statuses=[status.public_record() for status in edition_status],
+        presentation=presentation.record.to_dict(),
     )
     export_seconds = time.perf_counter() - export_start
 

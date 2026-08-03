@@ -5,8 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from furatena.catalog.application_roots import ApplicationRoots
 from furatena.catalog.assets import bundle_css, load_assets_manifest
 from furatena.catalog.config import DocsConfig, ThemeConfig
+from furatena.catalog.presentation_pack import (
+    PresentationPack,
+    PresentationRecord,
+    resolve_presentation,
+)
 from furatena.catalog.theme_assets import packaged_theme_assets_from_root
 from furatena.catalog.theme_pack import resolve_theme_paths
 from furatena.catalog.theme_preset import write_theme_preset
@@ -30,6 +36,8 @@ class DocsTheme:
     stylesheet_hrefs: tuple[str, ...]
     static_mounts: tuple[ThemeAssets, ...]
     browser_reload_dirs: tuple[Path, ...]
+    presentation: PresentationRecord
+    view_templates: tuple[tuple[str, str], ...]
 
     @classmethod
     def from_docs_config(
@@ -43,7 +51,15 @@ class DocsTheme:
         theme_cfg = docs.theme
         theme_dir = docs.theme_dir
         cache_dir = state_root or docs.root / ".docs-cache"
-        skin = resolve_theme_paths(docs)
+        roots = ApplicationRoots(
+            site=docs.root.resolve(),
+            platform=(platform_root or docs.root).resolve(),
+            state=cache_dir.resolve(),
+            output=docs.root.resolve(),
+            managed=platform_root is not None and platform_root.resolve() != docs.root.resolve(),
+        )
+        presentation = resolve_presentation(docs, roots=roots)
+        skin = resolve_theme_paths(docs, presentation=presentation)
         packaged = packaged_theme_assets_from_root(theme_cfg.id, skin.app_assets_root)
 
         stylesheet_hrefs: list[str] = []
@@ -56,7 +72,8 @@ class DocsTheme:
 
         manifest = load_assets_manifest(frozen_dir) if frozen_dir is not None else None
         if manifest and manifest.get("theme_css"):
-            assets_dir = frozen_dir / "assets"  # type: ignore[union-attr]
+            assert frozen_dir is not None
+            assets_dir = frozen_dir / "assets"
             static_mounts.append(ThemeAssets(url_prefix="/docs-assets", directory=assets_dir))
             stylesheet_hrefs.append(f"/docs-assets/{manifest['theme_css']}")
             fonts_prefix = manifest.get("fonts_prefix")
@@ -104,6 +121,13 @@ class DocsTheme:
                         ThemeAssets(url_prefix="/docs-theme/branding", directory=branding_dir)
                     )
 
+        _append_presentation_assets(
+            (presentation.layout,),
+            stylesheet_hrefs=stylesheet_hrefs,
+            static_mounts=static_mounts,
+            browser_reload_dirs=browser_reload_dirs,
+        )
+
         preset_path = write_theme_preset(theme_cfg, cache_dir=cache_dir)
         if preset_path.is_file():
             static_mounts.append(
@@ -111,18 +135,21 @@ class DocsTheme:
             )
             stylesheet_hrefs.append("/docs-theme/generated/theme-preset.css")
 
-        static_mounts.append(
-            ThemeAssets(url_prefix="/docs-theme/tokens", directory=skin.tokens.parent)
-        )
-        stylesheet_hrefs.append(f"/docs-theme/tokens/{skin.tokens.name}")
-        browser_reload_dirs.append(skin.tokens.parent)
+        if skin.tokens is not None:
+            static_mounts.append(
+                ThemeAssets(url_prefix="/docs-theme/tokens", directory=skin.tokens.parent)
+            )
+            stylesheet_hrefs.append(f"/docs-theme/tokens/{skin.tokens.name}")
+            browser_reload_dirs.append(skin.tokens.parent)
 
-        static_mounts.append(
-            ThemeAssets(url_prefix="/docs-theme/local", directory=skin.styles.parent)
-        )
-        stylesheet_hrefs.append(f"/docs-theme/local/{skin.styles.name}")
-        stylesheet_hrefs.append(f"/docs-theme/local/{skin.directives.name}")
-        browser_reload_dirs.append(skin.styles.parent)
+        if skin.styles is not None:
+            static_mounts.append(
+                ThemeAssets(url_prefix="/docs-theme/local", directory=skin.styles.parent)
+            )
+            stylesheet_hrefs.append(f"/docs-theme/local/{skin.styles.name}")
+            if skin.directives is not None:
+                stylesheet_hrefs.append(f"/docs-theme/local/{skin.directives.name}")
+            browser_reload_dirs.append(skin.styles.parent)
 
         if skin.fonts_dir is not None:
             static_mounts.append(
@@ -130,17 +157,30 @@ class DocsTheme:
             )
             browser_reload_dirs.append(skin.fonts_dir)
 
-        template_roots: list[Path] = []
+        _append_presentation_assets(
+            presentation.overrides,
+            stylesheet_hrefs=stylesheet_hrefs,
+            static_mounts=static_mounts,
+            browser_reload_dirs=browser_reload_dirs,
+        )
+
+        template_roots: list[Path] = list(presentation.override_template_roots)
         if skin.templates is not None:
             template_roots.append(skin.templates)
             browser_reload_dirs.append(skin.templates)
         template_roots.append(theme_dir)
+        if presentation.layout_template_roots:
+            template_roots.extend(presentation.layout_template_roots)
+            browser_reload_dirs.extend(presentation.layout_template_roots)
         platform_theme = (platform_root or docs.root) / "theme"
         if platform_theme != theme_dir:
             template_roots.append(platform_theme)
 
-        static_mounts.append(ThemeAssets(url_prefix="/docs-theme/local/js", directory=skin.js_dir))
-        browser_reload_dirs.append(skin.js_dir)
+        if skin.js_dir is not None:
+            static_mounts.append(
+                ThemeAssets(url_prefix="/docs-theme/local/js", directory=skin.js_dir)
+            )
+            browser_reload_dirs.append(skin.js_dir)
 
         vendor_root = Path(vendor_dir())
         if (
@@ -156,7 +196,29 @@ class DocsTheme:
             stylesheet_hrefs=tuple(stylesheet_hrefs),
             static_mounts=tuple(static_mounts),
             browser_reload_dirs=tuple(dict.fromkeys(browser_reload_dirs)),
+            presentation=presentation.record,
+            view_templates=presentation.layout.templates,
         )
+
+
+def _append_presentation_assets(
+    packs: tuple[PresentationPack, ...],
+    *,
+    stylesheet_hrefs: list[str],
+    static_mounts: list[ThemeAssets],
+    browser_reload_dirs: list[Path],
+) -> None:
+    for pack in packs:
+        for asset in pack.assets:
+            path = pack.asset_path(asset.role)
+            if path is None:
+                continue
+            url_prefix = f"/docs-presentation/{pack.id}/{asset.role}"
+            directory = path if path.is_dir() else path.parent
+            static_mounts.append(ThemeAssets(url_prefix=url_prefix, directory=directory))
+            browser_reload_dirs.append(directory)
+            if asset.role in {"tokens", "styles", "directives"} and path.is_file():
+                stylesheet_hrefs.append(f"{url_prefix}/{path.name}")
 
 
 # Re-export for freeze/tests that import the legacy private helpers.

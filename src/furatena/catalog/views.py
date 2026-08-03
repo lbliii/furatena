@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
@@ -62,11 +63,16 @@ class CollectionSection:
 class ViewRegistry:
     """Resolve catalog nodes to view templates and enrich compose views."""
 
-    def __init__(self, config: DocsConfig) -> None:
+    def __init__(
+        self,
+        config: DocsConfig,
+        *,
+        presentation_views: Mapping[str, str] | None = None,
+    ) -> None:
         self.config = config
-        self._collections_path = (
-            config.compose.get("collection").data if "collection" in config.compose else None
-        )
+        self._views = {**dict(presentation_views or {}), **config.views}
+        collection = config.compose.get("collection")
+        self._collections_path = collection.data if collection is not None else None
         self._collections = self._load_collections(self._collections_path)
 
     @staticmethod
@@ -94,17 +100,17 @@ class ViewRegistry:
         explicit = meta.get("view") or meta.get("template")
         if explicit:
             key = str(explicit)
-            mapped = self.config.views.get(key)
+            mapped = self._views.get(key)
             if mapped:
                 return mapped
             stem = key.removesuffix(".html")
-            mapped = self.config.views.get(stem)
+            mapped = self._views.get(stem)
             if mapped:
                 return mapped
             return key
 
         if node.url == "/" or node.slug in ("", "index"):
-            home_view = self.config.views.get("home")
+            home_view = self._views.get("home")
             if home_view:
                 return home_view
 
@@ -116,18 +122,16 @@ class ViewRegistry:
         if view_kind == "doc" and catalog is not None and is_section_root(node):
             child_count = catalog.direct_child_count(node.slug, mount=node.mount)
             if child_count > 0:
-                doc_list = self.config.views.get("doc_list")
+                doc_list = self._views.get("doc_list")
                 if doc_list:
                     return doc_list
 
-        return (
-            self.config.views.get(view_kind) or self.config.views.get("default") or "views/doc.html"
-        )
+        return self._views.get(view_kind) or self._views.get("default") or "views/doc.html"
 
     def surface(self, view_template: str) -> Surface:
         """Return ``app`` or ``catalog`` surface for a resolved view template."""
         for spec in VIEW_KINDS:
-            mapped = self.config.views.get(spec.template_key) or spec.default_template
+            mapped = self._views.get(spec.template_key) or spec.default_template
             if mapped == view_template:
                 return spec.surface
         if view_template in DEFAULT_CATALOG_VIEW_TEMPLATES:

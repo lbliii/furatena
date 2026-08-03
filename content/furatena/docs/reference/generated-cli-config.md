@@ -569,6 +569,11 @@ Paths use dotted docs.yaml notation; `mounts[]` identifies one mounts.yaml entry
 | `theme.overrides.js` | no | `str \| None` | — | `furatena.catalog.config:ThemeOverridesConfig.js` |
 | `theme.overrides.fonts` | no | `str \| None` | — | `furatena.catalog.config:ThemeOverridesConfig.fonts` |
 | `theme.overrides.templates` | no | `str \| None` | — | `furatena.catalog.config:ThemeOverridesConfig.templates` |
+| `presentation` | no | `PresentationConfig` | `PresentationConfig(layout=None, skin=None, overrides=(), trusted_capabilities=frozenset())` | `furatena.catalog.config:DocsConfig.presentation` |
+| `presentation.layout` | no | `str \| None` | — | `furatena.catalog.config:PresentationConfig.layout` |
+| `presentation.skin` | no | `str \| None` | — | `furatena.catalog.config:PresentationConfig.skin` |
+| `presentation.overrides` | no | `tuple[str, ...]` | — | `furatena.catalog.config:PresentationConfig.overrides` |
+| `presentation.trusted_capabilities` | no | `frozenset[str]` | — | `furatena.catalog.config:PresentationConfig.trusted_capabilities` |
 | `site` | no | `SiteConfig` | `SiteConfig(name='Furatena', tagline='Live documentation from markdown', description="Write markdown. Get a fast, searchable doc site that reloads while you work — and exports to GitHub Pages when you're ready to ship.", mark='𐂛', home=SiteHomeConfig(aria_label='Overview', hero_points=(), cta_primary=SiteCtaConfig(label='Get started', href='/docs/get-started/'), cta_secondary=SiteCtaConfig(label='Reference', href='/docs/reference/'), metrics=(), metrics_head=None, visual=SiteHomeVisualConfig(aria_label='Product preview', eyebrow='Example interface', title='Docs as data, HTML on demand.', description='Your markdown becomes a live, queryable catalog — pages update instantly, no rebuild loop.', proof_tags=('htmx', 'catalog', 'freeze'), feature_title='Author reload', feature_body='Edit markdown and see partial swaps on the open page — no export loop.', cta_label='Open get started', cta_href='/docs/get-started/'), ideas=None, explore=None, pipeline=None, deployments=None, sources=None, exports=None, quick_start=None, workflows=None, brand=None, stack=None, cta=None), navigation=None)` | `furatena.catalog.config:DocsConfig.site` |
 | `site.name` | no | `str` | `Furatena` | `furatena.catalog.config:SiteConfig.name` |
 | `site.tagline` | no | `str` | `Live documentation from markdown` | `furatena.catalog.config:SiteConfig.tagline` |
@@ -802,9 +807,9 @@ implementation treats absence as significant or supplies behavior elsewhere.
 |---|---|---|---|
 | `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:245` |
 | `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:251` |
-| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:445` |
+| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:448` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:42` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1769`, `furatena/cli/commands/serve.py:42` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1773`, `furatena/cli/commands/serve.py:42` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:188`, `furatena/catalog/static_export.py:315`, `furatena/catalog/static_export.py:321`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:192`, `furatena/catalog/static_export.py:314`, `furatena/catalog/static_export.py:319`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:46` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:43`, `furatena/catalog/preview_security.py:103` |
@@ -825,7 +830,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:36`, `furatena/cli/commands/serve.py:38`, `furatena/cli/commands/serve.py:40` |
 | `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:221` |
 | `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:216` |
-| `FURA_PLATFORM_ROOT` | read | '', '/app/app' | `furatena/catalog/content_deployment.py:538`, `furatena/catalog/renderer_fingerprint.py:65` |
+| `FURA_PLATFORM_ROOT` | read | '', '/app/app' | `furatena/catalog/content_deployment.py:538`, `furatena/catalog/renderer_fingerprint.py:68` |
 | `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:151`, `furatena/cli/commands/serve.py:118`, `furatena/cli/commands/serve.py:48`, `furatena/cli/commands/stop.py:17` |
 | `FURA_PREVIEW_AUTH_TOKEN` | read | '' | `furatena/catalog/preview_security.py:159` |
 | `FURA_PREVIEW_ORIGIN` | read | '' | `furatena/catalog/preview_security.py:105` |
