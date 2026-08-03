@@ -511,7 +511,7 @@ Command parser contract.
 
 | Argument or option | Required | Default | Choices | Type | Purpose |
 |---|---:|---|---|---|---|
-| `directory` | no | `app/theme-skin` | — | — | Output directory (default app/theme-skin) |
+| `directory` | no | `theme-skin` | — | — | Output directory relative to the app root (default: theme-skin) |
 | `--force` | no | false | — | — | Overwrite existing scaffold files |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
