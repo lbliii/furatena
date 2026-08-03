@@ -174,6 +174,25 @@ jobs:
           docker logs furatena-pr-smoke
           exit 1
 
+      - name: Smoke pull-request reader, search, catalog, and agent surfaces
+        if: github.event_name == 'pull_request'
+        run: |
+          curl --fail --silent --show-error --header 'Accept: text/markdown' \
+            http://127.0.0.1:18000/docs/get-started/ > /tmp/furatena-reader.md
+          curl --fail --silent --show-error \
+            'http://127.0.0.1:18000/search/semantic?q=deployment' > /tmp/furatena-search.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/catalog/query.json > /tmp/furatena-catalog.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/tools.json > /tmp/furatena-tools.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/llms.txt > /tmp/furatena-llms.txt
+          test -s /tmp/furatena-reader.md
+          test -s /tmp/furatena-search.json
+          test -s /tmp/furatena-catalog.json
+          test -s /tmp/furatena-tools.json
+          test -s /tmp/furatena-llms.txt
+
       - name: Stop the pull-request smoke container
         if: always() && github.event_name == 'pull_request'
         run: docker rm --force furatena-pr-smoke 2>/dev/null || true
@@ -241,6 +260,24 @@ jobs:
           done
           docker logs furatena-smoke
           exit 1
+
+      - name: Smoke exact-digest reader, search, catalog, and agent surfaces
+        run: |
+          curl --fail --silent --show-error --header 'Accept: text/markdown' \
+            http://127.0.0.1:18000/docs/get-started/ > /tmp/furatena-reader.md
+          curl --fail --silent --show-error \
+            'http://127.0.0.1:18000/search/semantic?q=deployment' > /tmp/furatena-search.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/catalog/query.json > /tmp/furatena-catalog.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/tools.json > /tmp/furatena-tools.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/llms.txt > /tmp/furatena-llms.txt
+          test -s /tmp/furatena-reader.md
+          test -s /tmp/furatena-search.json
+          test -s /tmp/furatena-catalog.json
+          test -s /tmp/furatena-tools.json
+          test -s /tmp/furatena-llms.txt
 
       - name: Stop the smoke container
         if: always()

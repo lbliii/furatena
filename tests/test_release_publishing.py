@@ -204,6 +204,28 @@ def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() 
     assert "private-image-production" in source
 
 
+def test_private_image_smokes_reader_search_catalog_and_agent_surfaces() -> None:
+    source = WORKFLOW.read_text(encoding="utf-8")
+    candidate = source.split("  candidate:\n", 1)[1].split("\n  smoke:\n", 1)[0]
+    smoke = source.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
+
+    for job in (candidate, smoke):
+        for required in (
+            "Accept: text/markdown",
+            "/docs/get-started/",
+            "/search/semantic?q=deployment",
+            "/catalog/query.json",
+            "/tools.json",
+            "/llms.txt",
+        ):
+            assert required in job
+        assert "test -s /tmp/furatena-reader.md" in job
+        assert "test -s /tmp/furatena-search.json" in job
+        assert "test -s /tmp/furatena-catalog.json" in job
+        assert "test -s /tmp/furatena-tools.json" in job
+        assert "test -s /tmp/furatena-llms.txt" in job
+
+
 def test_release_runbook_covers_promotion_rollback_and_compromise() -> None:
     runbook = (ROOT / "docs" / "RELEASING.md").read_text(encoding="utf-8").lower()
 
