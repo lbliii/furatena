@@ -51,7 +51,7 @@ jobs:
           retention-days: 90
 
       - name: Open or update the operational alert
-        if: steps.probe.outcome == 'failure'
+        if: always() && steps.probe.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -67,7 +67,7 @@ jobs:
           fi
 
       - name: Close the operational alert after recovery
-        if: steps.probe.outcome == 'success'
+        if: always() && steps.probe.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -79,5 +79,5 @@ jobs:
           fi
 
       - name: Enforce the probe result
-        if: steps.probe.outcome == 'failure'
+        if: always() && steps.probe.outcome == 'failure'
         run: exit 1
