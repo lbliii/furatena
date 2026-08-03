@@ -228,6 +228,8 @@ def test_promotion_failure_restores_latest_and_edition_set(
         ({"sort": "newest"}, "sort 'newest' is unsupported"),
         ({"pattern": "v["}, "pattern 'v[' is malformed"),
         ({"include_prereleases": "yes"}, "include_prereleases must be true or false"),
+        ({"aliases": []}, "aliases must be a mapping"),
+        ({"aliases": {"stable": "bad/id"}}, "must be 'latest' or a URL-safe edition id"),
     ],
 )
 def test_mount_policy_validation_is_actionable(

@@ -10,6 +10,7 @@ import re
 import secrets
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 import yaml
@@ -56,7 +57,7 @@ from furatena.catalog.dev_reload import (
     write_dev_server_record,
 )
 from furatena.catalog.develop_exports import DevelopExport
-from furatena.catalog.embedding_providers import build_embedding_index
+from furatena.catalog.embedding_providers import EmbeddingSearchIndex, build_embedding_index
 from furatena.catalog.embeddings import EmbeddingIndex
 from furatena.catalog.error_experience import build_error_context
 from furatena.catalog.export import (
@@ -403,6 +404,8 @@ class DocsApp:
             list(self.catalog.nodes),
             documents=self.catalog.ast_documents(),
         )
+        self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
+        self._edition_embedding_lock = RLock()
         if self.serve.warn_stale_freeze:
             print("Note: content is newer than frozen/ — run `fura freeze` for a fresh export.")
         self.app = self._build_app()
@@ -677,6 +680,189 @@ class DocsApp:
         ):
             raise NotFound("Page not found.")
         return self._render_negotiated_node(match.node, request, locale_match=match)
+
+    def _edition_route_for_request(self, request: Request, segment: str):
+        from furatena.catalog.edition_routing import route_for_segment
+
+        path = self.catalog.strip_identity_route(request.path)
+        content_path = path[len(f"/{segment}") :] or "/"
+        mount = self.catalog._resolve_mount(content_path)
+        route = route_for_segment(
+            path,
+            segment,
+            edition_ids=self.catalog.edition_ids_for(mount.id),
+            aliases=self.catalog.edition_aliases_for(mount.id),
+        )
+        if route is None or not self.catalog.has_edition(mount.id, route.edition):
+            raise NotFound(f"Edition route not found: {path}")
+        return mount, route
+
+    def _edition_redirect(self, route) -> Response:
+        target = self.catalog.scoped_url(route.canonical_path)
+        return Response("", status=301).with_header("Location", target)
+
+    def _edition_embedding_index(self, edition: str) -> EmbeddingSearchIndex:
+        if edition == "latest":
+            return self.embedding_index
+        with self._edition_embedding_lock:
+            cached = self._edition_embedding_indexes.get(edition)
+            if cached is not None:
+                return cached
+            with self.catalog.use_edition(edition):
+                index = build_embedding_index(
+                    list(self.catalog.nodes),
+                    documents=self.catalog.ast_documents(),
+                )
+            self._edition_embedding_indexes[edition] = index
+            return index
+
+    @staticmethod
+    def _edition_mismatch(request: Request, edition: str) -> Response | None:
+        query_edition = (request.query.get("edition") or "").strip()
+        if not query_edition or query_edition == edition:
+            return None
+        return Response(
+            json.dumps(
+                {
+                    "error": "edition context mismatch",
+                    "path_edition": edition,
+                    "query_edition": query_edition,
+                    "recovery": "remove edition= or make it match the path edition",
+                },
+                indent=2,
+            ),
+            status=400,
+            content_type="application/json; charset=utf-8",
+        )
+
+    def _render_edition_catalog_page(self, request: Request, segment: str):
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        with self.catalog.use_edition(route.edition):
+            return self._render_catalog_page(request)
+
+    def _edition_sitemap(self, request: Request, segment: str) -> Response:
+        from furatena.catalog.sitemap import sitemap_xml
+
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        with self.catalog.use_edition(route.edition):
+            body = sitemap_xml(
+                self.catalog,
+                base_url=self._site_base(request),
+                subject=self._output_access_subject(request),
+            )
+        return Response(body, content_type="application/xml; charset=utf-8")
+
+    def _edition_llms(self, request: Request, segment: str, *, full: bool = False) -> Response:
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        with self.catalog.use_edition(route.edition):
+            if full:
+                body = llms_full_txt(
+                    self.catalog,
+                    site_name=self.config.site.name,
+                    subject=self._output_access_subject(request),
+                )
+            else:
+                body = llms_index_txt(
+                    self.catalog,
+                    site_name=self.config.site.name,
+                    site_description=self.config.site.description,
+                    subject=self._output_access_subject(request),
+                )
+        return Response(body, content_type="text/plain; charset=utf-8")
+
+    def _edition_catalog_query(self, request: Request, segment: str) -> Response:
+        from furatena.catalog.query import DEFAULT_GRAPH_QUERY_LIMIT, query_catalog_graph
+
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        mismatch = self._edition_mismatch(request, route.edition)
+        if mismatch is not None:
+            return mismatch
+        params = request.query
+        with self.catalog.use_edition(route.edition):
+            payload = query_catalog_graph(
+                self.catalog,
+                mount=params.get("mount"),
+                edition=route.edition,
+                tag=params.get("tag"),
+                format=params.get("format"),
+                owner=params.get("owner") or params.get("team"),
+                locale=params.get("locale") or params.get("lang"),
+                subject=self._output_access_subject(request),
+                limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
+                offset=int(params.get("offset") or 0),
+            )
+        return Response(
+            json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"
+        )
+
+    def _edition_semantic_search(self, request: Request, segment: str) -> Response:
+        from furatena.catalog.semantic import semantic_search_json
+
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        mismatch = self._edition_mismatch(request, route.edition)
+        if mismatch is not None:
+            return mismatch
+        query = (request.query.get("q") or "").strip()
+        if not query:
+            payload = {"schema_version": 1, "query": "", "count": 0, "results": []}
+        else:
+            with self.catalog.use_edition(route.edition):
+                payload = semantic_search_json(
+                    self.catalog,
+                    self._edition_embedding_index(route.edition),
+                    query,
+                    base_url=self._site_base(request),
+                    mount=(request.query.get("mount") or "").strip() or None,
+                    edition=route.edition,
+                    tag=(request.query.get("tag") or "").strip() or None,
+                    subject=self._output_access_subject(request),
+                )
+        return Response(
+            json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"
+        )
+
+    def _register_edition_routes(self, app: App) -> None:
+        """Register concrete edition routes discovered during source synchronization."""
+        tenant_prefix = self.catalog.route_prefix.rstrip("/")
+        for route_segment in self.catalog.edition_route_segments():
+            base = f"{tenant_prefix}/{route_segment}" if tenant_prefix else f"/{route_segment}"
+
+            @app.route(f"{base}/sitemap.xml", referenced=True)
+            def edition_sitemap(request: Request, _segment=route_segment):
+                return self._edition_sitemap(request, _segment)
+
+            @app.route(f"{base}/llms.txt", referenced=True)
+            def edition_llms_txt(request: Request, _segment=route_segment):
+                return self._edition_llms(request, _segment)
+
+            @app.route(f"{base}/llms-full.txt", referenced=True)
+            def edition_llms_full_txt(request: Request, _segment=route_segment):
+                return self._edition_llms(request, _segment, full=True)
+
+            @app.route(f"{base}/catalog/query.json", referenced=True)
+            def edition_catalog_query(request: Request, _segment=route_segment):
+                return self._edition_catalog_query(request, _segment)
+
+            @app.route(f"{base}/search/semantic", referenced=True)
+            def edition_search_semantic(request: Request, _segment=route_segment):
+                return self._edition_semantic_search(request, _segment)
+
+            @app.route(f"{base}/", referenced=True)
+            @app.route(f"{base}/{{slug:path}}", referenced=True)
+            def edition_catalog_page(request: Request, slug: str = "", _segment=route_segment):
+                return self._render_edition_catalog_page(request, _segment)
+
+            edition_catalog_page.__name__ = f"edition_{route_segment.replace('-', '_')}"
 
     def _register_mount_routes(self, app: App) -> None:
         """Register URL handlers from mount configuration."""
@@ -1466,6 +1652,7 @@ class DocsApp:
         )
 
         register_public_routes(self, app)
+        self._register_edition_routes(app)
         self._register_mount_routes(app)
         register_author_routes(self, app)
         register_search_routes(self, app)

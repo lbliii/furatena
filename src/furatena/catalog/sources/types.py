@@ -86,6 +86,9 @@ class GitEditionPolicy:
     strip_prefix: str = "v"
     sort: str = "semver-desc"
     include_prereleases: bool = False
+    aliases: dict[str, str] = field(
+        default_factory=lambda: {"latest": "latest", "stable": "latest"}
+    )
     overrides: dict[str, GitEditionOverride] = field(default_factory=dict)
 
     @classmethod
@@ -130,6 +133,29 @@ class GitEditionPolicy:
             raise ValueError(
                 f"mount {mount_id!r} editions.include_prereleases must be true or false"
             )
+        aliases_raw = raw.get("aliases")
+        if aliases_raw is None:
+            aliases_raw = {"latest": "latest", "stable": "latest"}
+        if not isinstance(aliases_raw, dict):
+            raise ValueError(
+                f"mount {mount_id!r} editions.aliases must be a mapping; "
+                "configure alias-to-edition entries."
+            )
+        aliases: dict[str, str] = {}
+        for alias_raw, target_raw in aliases_raw.items():
+            alias = str(alias_raw).strip()
+            target = str(target_raw).strip()
+            if not _EDITION_ID_RE.fullmatch(alias):
+                raise ValueError(
+                    f"mount {mount_id!r} edition alias {alias!r} must be URL-safe; "
+                    "use letters, numbers, dots, underscores, or hyphens."
+                )
+            if target != "latest" and not _EDITION_ID_RE.fullmatch(target):
+                raise ValueError(
+                    f"mount {mount_id!r} edition alias {alias!r} target {target!r} "
+                    "must be 'latest' or a URL-safe edition id; correct the target."
+                )
+            aliases[alias] = target
         overrides_raw = raw.get("overrides") or {}
         if not isinstance(overrides_raw, dict):
             raise ValueError(f"mount {mount_id!r} editions.overrides must be a mapping")
@@ -153,6 +179,7 @@ class GitEditionPolicy:
             strip_prefix=str(raw["strip_prefix"] if raw.get("strip_prefix") is not None else "v"),
             sort=sort,
             include_prereleases=include_prereleases,
+            aliases=aliases,
             overrides=overrides,
         )
 
@@ -164,6 +191,7 @@ class GitEditionPolicy:
             "strip_prefix": self.strip_prefix,
             "sort": self.sort,
             "include_prereleases": self.include_prereleases,
+            "aliases": dict(sorted(self.aliases.items())),
             "overrides": {
                 edition_id: override.to_dict()
                 for edition_id, override in sorted(self.overrides.items())

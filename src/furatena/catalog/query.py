@@ -33,12 +33,15 @@ def _page_matches(
     page: PageRecord,
     *,
     mount: str,
+    edition: str,
     tag: str,
     format_value: str,
     owner: str,
     locale: str,
 ) -> bool:
     if mount and page.get("mount") != mount:
+        return False
+    if edition and page.get("edition") != edition:
         return False
     if tag and tag not in {str(item).lower() for item in page.get("tags") or ()}:
         return False
@@ -96,6 +99,7 @@ def query_catalog_graph(
     catalog,
     *,
     mount: str | None = None,
+    edition: str | None = None,
     tag: str | None = None,
     format: str | None = None,
     owner: str | None = None,
@@ -125,6 +129,7 @@ def query_catalog_graph(
         else catalog_graph(catalog, include_private=include_private, subject=subject)
     )
     mount_value = _clean(mount)
+    edition_value = _clean(edition)
     tag_value = _clean_lower(tag)
     format_value = _clean_lower(format)
     owner_value = _clean_lower(owner)
@@ -139,6 +144,7 @@ def query_catalog_graph(
         if _page_matches(
             page,
             mount=mount_value,
+            edition=edition_value,
             tag=tag_value,
             format_value=format_value,
             owner=owner_value,
@@ -188,6 +194,7 @@ def query_catalog_graph(
         "edition": graph.get("edition"),
         "query": {
             "mount": mount_value or None,
+            "edition": edition_value or None,
             "tag": tag_value or None,
             "format": format_value or None,
             "owner": owner_value or None,
