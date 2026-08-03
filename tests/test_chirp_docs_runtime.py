@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import time
 from pathlib import Path
@@ -15,8 +16,12 @@ FROZEN_DIR = APP_ROOT / "frozen"
 
 sys.path.insert(0, str(REPO / "src"))
 
+from furatena import __version__
 from furatena.catalog.assets import bundle_css
-from furatena.catalog.dev_banner import format_serve_startup
+from furatena.catalog.dev_banner import (
+    configure_pounce_display_defaults,
+    format_serve_startup,
+)
 from furatena.catalog.dev_reload import (
     DevServerRecord,
     browser_reload_dirs,
@@ -184,6 +189,39 @@ class TestDevReloadWiring:
         )
         assert "no live reload" in lines[0]
         assert "reload:" not in lines[0]
+
+    def test_pounce_display_uses_furatena_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        names = (
+            "POUNCE_APP_NAME",
+            "POUNCE_APP_TAGLINE",
+            "POUNCE_APP_VERSION",
+            "POUNCE_SIGNAGE",
+        )
+        for name in names:
+            monkeypatch.delenv(name, raising=False)
+
+        configure_pounce_display_defaults()
+
+        assert os.environ["POUNCE_APP_NAME"] == "Furatena"
+        assert os.environ["POUNCE_APP_TAGLINE"] == "Live documentation from markdown"
+        assert os.environ["POUNCE_APP_VERSION"] == __version__
+        assert os.environ["POUNCE_SIGNAGE"] == "minimal"
+
+    def test_pounce_display_preserves_operator_overrides(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        overrides = {
+            "POUNCE_APP_NAME": "Custom docs",
+            "POUNCE_APP_TAGLINE": "Custom tagline",
+            "POUNCE_APP_VERSION": "2026.8",
+            "POUNCE_SIGNAGE": "off",
+        }
+        for name, value in overrides.items():
+            monkeypatch.setenv(name, value)
+
+        configure_pounce_display_defaults()
+
+        assert {name: os.environ[name] for name in overrides} == overrides
 
 
 class TestServeDebugAndCache:
