@@ -16,13 +16,14 @@ An operator does not need a shell inside the running container.
 | Runtime identity | exact private-image digest | required |
 | Content identity | active generation + exact Git commit | required |
 
-The monitor runs every five minutes. Each run samples readiness and the home
+The GitHub evidence monitor runs every six hours. Each run samples readiness and the home
 page, checks `/meta.json`, downloads and validates the complete catalog/search/
-semantic/agent artifact set, and retains a JSON receipt for 90 days. A failed
+semantic/agent artifact set, and retains a JSON receipt for 30 days. A failed
 run opens or updates one GitHub operational-alert issue; a later passing run
 closes it with recovery evidence. GitHub's scheduler is the initial external
-probe, so the 30-day calculation should be moved to a dedicated uptime vendor
-before a contractual SLA is offered.
+evidence collector, not a low-latency uptime service. Use a dedicated uptime
+vendor for five-minute availability sampling and before a contractual SLA is
+offered.
 
 Run the same gate locally or from an incident workstation:
 

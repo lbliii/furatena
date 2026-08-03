@@ -95,8 +95,15 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     workflow_path = REPO / ".github" / "workflows" / "pages.yml"
     workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
     jobs = workflow["jobs"]
+    triggers = workflow.get("on") or workflow.get(True)
 
     assert workflow["env"]["PYTHON_GIL"] == "0"
+    assert triggers["pull_request"]["types"] == [
+        "opened",
+        "synchronize",
+        "reopened",
+        "ready_for_review",
+    ]
     assert set(jobs) == {*LANES, "deploy", "hosted-pdf-proof"}
     for lane in LANES:
         job = jobs[lane]
@@ -119,8 +126,20 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
         assert jobs[lane]["if"] == "github.event_name != 'pull_request'"
     assert "if" not in jobs["fast"]
     assert "if" not in jobs["contract"]
-    assert "if" not in jobs["browser"]
-    assert "if" not in jobs["release"]
+    assert jobs["coverage"]["needs"] == "fast"
+    assert jobs["coverage"]["if"] == "needs.fast.outputs.coverage-required == 'true'"
+    assert jobs["browser"]["needs"] == "fast"
+    assert jobs["browser"]["if"] == "needs.fast.outputs.browser-required == 'true'"
+    assert jobs["release"]["needs"] == "fast"
+    assert jobs["release"]["if"] == "needs.fast.outputs.release-required == 'true'"
+    assert jobs["fast"]["outputs"] == {
+        "coverage-required": "${{ steps.scope.outputs.coverage-required }}",
+        "browser-required": "${{ steps.scope.outputs.browser-required }}",
+        "release-required": "${{ steps.scope.outputs.release-required }}",
+    }
+    scope = next(step for step in jobs["fast"]["steps"] if step.get("id") == "scope")
+    assert "scripts/classify_ci_paths.py --force-all" in scope["run"]
+    assert "git diff --name-only --diff-filter=ACMR" in scope["run"]
     assert jobs["browser"]["timeout-minutes"] == 10
     assert set(jobs["deploy"]["needs"]) == set(LANES)
     export_lane = next(
@@ -143,3 +162,17 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     assert diagnostics["with"]["path"] == "browser-results/*.xml"
     assert diagnostics["with"]["retention-days"] == 14
     assert all("--reruns" not in str(step.get("run") or "") for step in jobs["browser"]["steps"])
+
+
+def test_pdf_proof_workflow_routes_only_render_relevant_source_changes() -> None:
+    workflow_path = REPO / ".github" / "workflows" / "pdf-proof.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    triggers = workflow.get("on") or workflow.get(True)
+
+    for event in ("push", "pull_request"):
+        paths = set(triggers[event]["paths"])
+        assert "src/**" not in paths
+        assert "src/furatena/catalog/render.py" in paths
+        assert "src/furatena/catalog/_templates/**" in paths
+        assert "src/furatena/themes/**" in paths
+        assert "src/furatena/catalog/access.py" not in paths

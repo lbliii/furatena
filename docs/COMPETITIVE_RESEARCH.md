@@ -6,7 +6,7 @@ Research snapshot: **2026-07-13**.
 > baseline and intentionally does not count unmerged work. The
 > `codex/mature-railway-template` implementation adds a proprietary
 > digest-addressed image lifecycle, adopter public-Git content generations,
-> authenticated atomic refresh/rollback, a five-minute SLO monitor, no-SSH
+> authenticated atomic refresh/rollback, scheduled SLO evidence, no-SSH
 > operations, a public content starter, and disposable clean-account Railway
 > conformance. Treat those capabilities as release claims only after the branch,
 > private image, live demo, and Railway template pass their publication gates.

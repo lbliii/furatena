@@ -17,10 +17,12 @@ The report records:
 - regressions for mixed themes, dark print backgrounds, low-ink text-bearing pages,
   clipped edges, and a mostly blank final page.
 
-The dedicated `Cross-head PDF proof` workflow runs when any app, content, renderer, theme,
-dependency, or proof-harness input changes and uploads every PDF, PNG, and report. After a
-successful Pages deployment, the main deployment workflow prints and verifies the live
-`/proof/pdf-stress/` page again.
+The dedicated `Cross-head PDF proof` workflow runs when app, content, source
+adapter, renderer, template, theme, PDF command, dependency, or proof-harness
+inputs change and uploads every PDF, PNG, and report. Unrelated catalog modules
+do not start this cross-head job. After a successful Pages deployment, the main
+deployment workflow prints and verifies the live `/proof/pdf-stress/` page
+again.
 
 ## Native conformance policy
 

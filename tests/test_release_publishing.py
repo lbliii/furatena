@@ -136,6 +136,7 @@ def test_private_image_workflow_has_separate_candidate_and_lifecycle_authority()
     source = WORKFLOW.read_text(encoding="utf-8")
     workflow = yaml.safe_load(source)
     jobs = workflow["jobs"]
+    triggers = workflow.get("on") or workflow.get(True)
 
     assert set(jobs) == {"candidate", "smoke", "lifecycle"}
     assert workflow["permissions"] == {"contents": "read"}
@@ -153,6 +154,23 @@ def test_private_image_workflow_has_separate_candidate_and_lifecycle_authority()
     assert "PYPI_TOKEN" not in source
     assert "pull_request:" in source
     assert "github.event.pull_request.head.repo.full_name == github.repository" in source
+    expected_inputs = {
+        ".dockerignore",
+        ".github/workflows/private-image.yml",
+        "Dockerfile",
+        "LICENSE",
+        "app/**",
+        "config/**",
+        "content/**",
+        "pyproject.toml",
+        "scripts/private_image_release.py",
+        "scripts/railway-start.sh",
+        "scripts/verify-content-diagnostics.sh",
+        "src/**",
+        "uv.lock",
+    }
+    assert set(triggers["push"]["paths"]) == expected_inputs
+    assert set(triggers["pull_request"]["paths"]) == expected_inputs
 
 
 def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() -> None:
