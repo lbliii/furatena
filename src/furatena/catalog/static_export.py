@@ -495,13 +495,20 @@ def _collect_routes(docs_app: DocsApp, options: StaticExportOptions) -> list[str
     from furatena.catalog.access import AccessPermission, accessible_nodes
     from furatena.catalog.i18n import collect_i18n_export_routes, collect_i18n_home_routes
 
-    public_nodes = accessible_nodes(
-        docs_app.catalog,
-        docs_app.catalog.nodes,
-        permission=AccessPermission.EXPORT,
-    )
-    public_urls = {node.url for node in public_nodes}
-    routes = {docs_app.catalog.scoped_url(_canonical_export_path(url)) for url in public_urls}
+    routes: set[str] = set()
+    public_urls: set[str] = set()
+    for edition in _export_editions(docs_app):
+        with docs_app.catalog.use_edition(edition):
+            public_nodes = accessible_nodes(
+                docs_app.catalog,
+                docs_app.catalog.nodes,
+                permission=AccessPermission.EXPORT,
+            )
+            edition_urls = {node.url for node in public_nodes}
+            public_urls.update(edition_urls)
+            routes.update(
+                docs_app.catalog.scoped_url(_canonical_export_path(url)) for url in edition_urls
+            )
     i18n = docs_app.config.i18n
     if i18n.enabled:
         routes.update(collect_i18n_home_routes(i18n))
@@ -542,6 +549,25 @@ def _sidecar_routes() -> tuple[str, ...]:
     )
 
 
+def _export_editions(docs_app: DocsApp) -> tuple[str, ...]:
+    editions = {"latest"}
+    for mount in docs_app.catalog.mounts:
+        editions.update(docs_app.catalog.edition_ids_for(mount.id))
+    return tuple(sorted(editions, key=lambda item: (item != "latest", item)))
+
+
+def _edition_sidecar_routes(docs_app: DocsApp) -> tuple[str, ...]:
+    from furatena.catalog.edition_routing import edition_path
+
+    routes: list[str] = []
+    for edition in _export_editions(docs_app):
+        if edition == "latest":
+            continue
+        for path in ("/sitemap.xml", "/llms.txt", "/llms-full.txt"):
+            routes.append(docs_app.catalog.scoped_url(edition_path(path, edition)))
+    return tuple(routes)
+
+
 def _robots_txt(*, site_url: str | None, base_path: str) -> str:
     _ = base_path
     origin = (site_url or "http://127.0.0.1:8080").rstrip("/")
@@ -569,16 +595,18 @@ def _index_txt_routes(docs_app: DocsApp) -> list[str]:
     from furatena.catalog.access import AccessPermission, accessible_nodes
 
     routes: list[str] = []
-    nodes = docs_app.catalog.nodes
-    public_nodes = accessible_nodes(
-        docs_app.catalog,
-        nodes,
-        permission=AccessPermission.EXPORT,
-    )
-    public_urls = {node.url for node in public_nodes}
-    for node in public_nodes:
-        url = node.url.rstrip("/")
-        routes.append(docs_app.catalog.scoped_url(f"{url}/index.txt"))
+    public_urls: set[str] = set()
+    for edition in _export_editions(docs_app):
+        with docs_app.catalog.use_edition(edition):
+            public_nodes = accessible_nodes(
+                docs_app.catalog,
+                docs_app.catalog.nodes,
+                permission=AccessPermission.EXPORT,
+            )
+            public_urls.update(node.url for node in public_nodes)
+            for node in public_nodes:
+                url = node.url.rstrip("/")
+                routes.append(docs_app.catalog.scoped_url(f"{url}/index.txt"))
     i18n = docs_app.config.i18n
     if i18n.enabled and i18n.fallback_to_default:
         from furatena.catalog.i18n import collect_i18n_export_routes
@@ -595,12 +623,7 @@ def _markdown_routes(docs_app: DocsApp) -> list[str]:
     from furatena.catalog.access import AccessPermission, accessible_nodes
 
     routes: set[str] = set()
-    public_nodes = accessible_nodes(
-        docs_app.catalog,
-        docs_app.catalog.nodes,
-        permission=AccessPermission.EXPORT,
-    )
-    public_urls = {node.url for node in public_nodes}
+    public_urls: set[str] = set()
 
     def add_aliases(url: str) -> None:
         base = url.rstrip("/")
@@ -610,8 +633,16 @@ def _markdown_routes(docs_app: DocsApp) -> list[str]:
         routes.add(docs_app.catalog.scoped_url(f"{base}.md"))
         routes.add(docs_app.catalog.scoped_url(f"{base}/index.md"))
 
-    for node in public_nodes:
-        add_aliases(node.url)
+    for edition in _export_editions(docs_app):
+        with docs_app.catalog.use_edition(edition):
+            public_nodes = accessible_nodes(
+                docs_app.catalog,
+                docs_app.catalog.nodes,
+                permission=AccessPermission.EXPORT,
+            )
+            public_urls.update(node.url for node in public_nodes)
+            for node in public_nodes:
+                add_aliases(node.url)
     i18n = docs_app.config.i18n
     if i18n.enabled and i18n.fallback_to_default:
         from furatena.catalog.i18n import collect_i18n_export_routes
@@ -671,7 +702,11 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     if renderer_fp is None:
         renderer_fp = renderer_fingerprint(docs_root)
     route_fps: dict[str, str] = {}
-    sidecar_routes = (*_sidecar_routes(), *_catalog_shard_routes(docs_app))
+    sidecar_routes = (
+        *_sidecar_routes(),
+        *_edition_sidecar_routes(docs_app),
+        *_catalog_shard_routes(docs_app),
+    )
     try:
         client = _ExportClient(docs_app.create_app())
         async with client:

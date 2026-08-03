@@ -112,6 +112,7 @@ class CatalogGraphRecord(TypedDict, total=False):
 
 class GraphQuerySpec(TypedDict):
     mount: str | None
+    edition: str | None
     tag: str | None
     format: str | None
     owner: str | None

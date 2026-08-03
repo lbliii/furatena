@@ -786,6 +786,7 @@ Paths use dotted docs.yaml notation; `mounts[]` identifies one mounts.yaml entry
 | `mounts[].editions.strip_prefix` | no | `str` | `v` | `furatena.catalog.sources.types:GitEditionPolicy.strip_prefix` |
 | `mounts[].editions.sort` | no | `str` | `semver-desc` | `furatena.catalog.sources.types:GitEditionPolicy.sort` |
 | `mounts[].editions.include_prereleases` | no | `bool` | false | `furatena.catalog.sources.types:GitEditionPolicy.include_prereleases` |
+| `mounts[].editions.aliases` | no | `dict[str, str]` | `{'latest': 'latest', 'stable': 'latest'}` | `furatena.catalog.sources.types:GitEditionPolicy.aliases` |
 | `mounts[].editions.overrides` | no | `dict[str, GitEditionOverride]` | `{}` | `furatena.catalog.sources.types:GitEditionPolicy.overrides` |
 | `mounts[].editions.overrides[].status` | no | `str` | `legacy` | `furatena.catalog.sources.types:GitEditionOverride.status` |
 | `mounts[].editions.overrides[].release_date` | no | `str \| None` | — | `furatena.catalog.sources.types:GitEditionOverride.release_date` |
@@ -799,26 +800,26 @@ implementation treats absence as significant or supplies behavior elsewhere.
 
 | Variable | Modes | Observed defaults | Implementation sources |
 |---|---|---|---|
-| `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:243` |
-| `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:249` |
-| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:420` |
+| `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:244` |
+| `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:250` |
+| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:423` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1560`, `furatena/cli/commands/serve.py:42` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1747`, `furatena/cli/commands/serve.py:42` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/static_export.py:188`, `furatena/catalog/static_export.py:315`, `furatena/catalog/static_export.py:321`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:192`, `furatena/catalog/static_export.py:314`, `furatena/catalog/static_export.py:319`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:46` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:43`, `furatena/catalog/preview_security.py:103` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:44` |
-| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:106` |
+| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:107` |
 | `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:17`, `furatena/cli/commands/content.py:63` |
-| `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:49`, `furatena/catalog/docs_app.py:278` |
-| `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:243` |
+| `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:49`, `furatena/catalog/docs_app.py:279` |
+| `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:244` |
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:80` |
 | `FURA_FROZEN_DIR` | read | '' | `furatena/cli/commands/serve.py:71` |
 | `FURA_HTMX_PREVIEW` | read | '' | `furatena/catalog/vendor_paths.py:33` |
 | `FURA_IMAGE_CHANNEL` | read | 'development' | `furatena/catalog/build_identity.py:52` |
 | `FURA_IMAGE_DIGEST` | read | 'unknown' | `furatena/catalog/build_identity.py:53`, `furatena/catalog/content_deployment.py:152` |
 | `FURA_IMAGE_VERSION` | read | 'development' | `furatena/catalog/build_identity.py:54` |
-| `FURA_KEEP_ALIVE_TIMEOUT` | read | '5' | `furatena/catalog/docs_app.py:259` |
+| `FURA_KEEP_ALIVE_TIMEOUT` | read | '5' | `furatena/catalog/docs_app.py:260` |
 | `FURA_LANG` | read | '' | `furatena/catalog/i18n.py:112` |
 | `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:36`, `furatena/cli/commands/serve.py:38`, `furatena/cli/commands/serve.py:40` |
 | `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:221` |
@@ -831,8 +832,8 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_PREVIEW_SHA` | read | '' | `furatena/catalog/preview_security.py:102` |
 | `FURA_PR_PREVIEW` | read | '' | `furatena/catalog/preview_security.py:100` |
 | `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:174` |
-| `FURA_SERVER_WORKERS` | read | '' | `furatena/catalog/docs_app.py:276` |
-| `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:249` |
+| `FURA_SERVER_WORKERS` | read | '' | `furatena/catalog/docs_app.py:277` |
+| `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:250` |
 | `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:316`, `furatena/catalog/static_export.py:324` |
 | `FURA_STRUCTURED_LOGS` | read | '' | `furatena/catalog/observability.py:136` |
 | `FURA_TELEMETRY` | read | 'none' | `furatena/catalog/observability.py:142` |

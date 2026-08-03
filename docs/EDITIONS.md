@@ -82,6 +82,12 @@ mounts:
 as Bengal. The mount's configured source ref becomes `latest`; no second latest-ref
 vocabulary is introduced.
 
+`aliases` maps URL-safe public segments to `latest` or a normalized release id. When
+omitted, `/latest/` and `/stable/` both redirect to the unprefixed latest edition;
+mounts may pin `stable` to a discovered release as shown above. An alias never becomes
+an edition id and a configured target that is not available for the resolved mount is
+not routable.
+
 Discovery runs as part of source sync:
 
 1. Resolve the mount's head ref and all candidate tags through the `SourceProvider`.

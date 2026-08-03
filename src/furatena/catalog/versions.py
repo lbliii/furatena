@@ -86,9 +86,9 @@ def node_matches_channel(node_version: str | None, channel_id: str) -> bool:
 
 def channel_href(channel_id: str) -> str:
     """URL for switching to a docs version channel."""
-    if channel_id == "latest":
-        return "/docs/"
-    return f"/releases/{channel_id}/"
+    from furatena.catalog.edition_routing import edition_path
+
+    return edition_path("/docs/", channel_id)
 
 
 def channel_context(

@@ -136,8 +136,8 @@ class DocCatalog:
         channel: str | None = None,
         autodoc: bool = True,
         mount: str = "chirp",
-        url_prefix: str = "",
         edition: str | None = None,
+        url_prefix: str = "",
         lazy_html: bool = False,
         cached_autodoc_nodes: list[DocNode] | None = None,
         source_config: MountSourceConfig | None = None,
@@ -721,6 +721,12 @@ class DocCatalog:
             effective_lang = self.i18n_config.default_language
         if self._doc_nodes is not None and self._doc_nodes_lang == effective_lang:
             return self._doc_nodes
+
+        def matches_active_edition(node: DocNode) -> bool:
+            if self.active_channel != "latest":
+                return node.edition == self.active_channel
+            return node_matches_channel(node.meta.get("doc_version"), self.active_channel)
+
         has_docs_tree = (self.content_root / "docs").is_dir()
         if has_docs_tree:
             candidates = [
@@ -730,14 +736,14 @@ class DocCatalog:
                     _is_docs_tree_slug(n.slug, self.i18n_config)
                     or n.meta.get("source") == "autodoc"
                 )
-                and node_matches_channel(n.meta.get("doc_version"), self.active_channel)
+                and matches_active_edition(n)
                 and node_matches_language(n, effective_lang or n.lang, self.i18n_config)
             ]
         else:
             candidates = [
                 n
                 for n in self.nodes
-                if node_matches_channel(n.meta.get("doc_version"), self.active_channel)
+                if matches_active_edition(n)
                 and node_matches_language(n, effective_lang or n.lang, self.i18n_config)
             ]
         self._doc_nodes = sorted(
@@ -1140,6 +1146,7 @@ class DocCatalog:
         *,
         content_root: Path | None = None,
         mount: str = "chirp",
+        edition: str | None = None,
         lazy_html: bool = True,
         catalog_nav: CatalogNavConfig | None = None,
     ) -> DocCatalog:
@@ -1166,7 +1173,7 @@ class DocCatalog:
         catalog.repo_root = content_root or frozen_dir
         catalog.autodoc_enabled = False
         catalog.mount = mount
-        catalog.url_prefix = ""
+        catalog.url_prefix = "" if edition in (None, "latest") else f"/{edition}"
         catalog.lazy_html = lazy_html
         catalog.active_channel = str(
             raw.get("channel") or raw.get("edition") or active_channel_id()
@@ -1295,8 +1302,13 @@ class DocCatalog:
                 value = page.get(key)
                 if isinstance(value, dict):
                     meta[key] = value
+            page_url = str(page["url"])
+            if edition and edition != "latest":
+                from furatena.catalog.edition_routing import edition_path
+
+                page_url = edition_path(page_url, edition)
             node = DocNode(
-                url=page["url"],
+                url=page_url,
                 slug=slug,
                 title=page.get("title", ""),
                 description=page.get("description", ""),

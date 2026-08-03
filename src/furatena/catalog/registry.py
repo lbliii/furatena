@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from threading import Lock
+from threading import Lock, RLock
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -219,7 +222,10 @@ class CatalogRegistry:
         self.autodoc_config = autodoc_config
         self.autodoc_enabled = autodoc
         self.auto_reload = auto_reload
-        self.active_channel = channel or active_channel_id()
+        self._default_channel = channel or active_channel_id()
+        self._edition_context: ContextVar[str] = ContextVar(
+            f"furatena_edition_{id(self)}", default=self._default_channel
+        )
         self.i18n_config = i18n_config or DocsI18nConfig()
         self.catalog_nav = catalog_nav
         self.site_mark = site_mark
@@ -246,10 +252,14 @@ class CatalogRegistry:
         )
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
+        self._edition_shards: dict[str, dict[str, DocCatalog]] = {}
+        self._edition_shards_lock = RLock()
         self._mount_for_url: list[tuple[str, MountConfig]] = []
         self._edges: list[EdgeRecord] | None = None
         self._namespaces: list[NamespaceRecord] | None = None
-        self._query_graph_cache: dict[tuple[bool, AccessSubject | None], CatalogGraphRecord] = {}
+        self._query_graph_cache: dict[
+            tuple[str, bool, AccessSubject | None], CatalogGraphRecord
+        ] = {}
         self._query_graph_lock = Lock()
         self._generation = 0
         self._generation_lock = Lock()
@@ -728,6 +738,110 @@ class CatalogRegistry:
         """Identity-scoped frozen root, or None when no frozen dir is configured."""
         return self.scoped_frozen_dir
 
+    @property
+    def active_channel(self) -> str:
+        """Edition selected for the current request context."""
+        return self._edition_context.get()
+
+    @contextmanager
+    def use_edition(self, edition: str) -> Iterator[None]:
+        """Scope catalog reads to one edition without cross-request shared mutation."""
+        token = self._edition_context.set(edition)
+        try:
+            yield
+        finally:
+            self._edition_context.reset(token)
+
+    def edition_ids_for(self, mount_id: str) -> tuple[str, ...]:
+        """Public edition ids discovered for one mount, including ``latest``."""
+        ids = tuple(snapshot.id for snapshot in self.discovered_editions_for(mount_id))
+        return ids or ("latest",)
+
+    def edition_aliases_for(self, mount_id: str) -> dict[str, str]:
+        """Configured alias-to-edition mapping for one mount."""
+        mount = next((item for item in self.mounts if item.id == mount_id), None)
+        if mount is None or mount.editions is None:
+            return {}
+        return dict(mount.editions.aliases)
+
+    def has_edition(self, mount_id: str, edition: str) -> bool:
+        return edition in self.edition_ids_for(mount_id)
+
+    def edition_route_segments(self) -> tuple[str, ...]:
+        """All concrete edition and alias segments needed by the live router."""
+        from furatena.catalog.edition_routing import edition_segment
+
+        segments: set[str] = set()
+        for mount in self.mounts:
+            segments.update(self.edition_aliases_for(mount.id))
+            segments.update(
+                edition_segment(edition)
+                for edition in self.edition_ids_for(mount.id)
+                if edition != "latest"
+            )
+        return tuple(sorted(segment for segment in segments if segment))
+
+    def _active_shards(self) -> dict[str, DocCatalog]:
+        edition = self.active_channel
+        if edition == self._default_channel or edition == "latest":
+            return self._shards
+        with self._edition_shards_lock:
+            cached = self._edition_shards.get(edition)
+            if cached is not None:
+                return cached
+            shards = self._load_edition_shards(edition)
+            self._edition_shards[edition] = shards
+            return shards
+
+    def _load_edition_shards(self, edition: str) -> dict[str, DocCatalog]:
+        from furatena.catalog.edition_routing import edition_path
+
+        shards: dict[str, DocCatalog] = {}
+        for mount in self.mounts:
+            snapshot = next(
+                (item for item in self.discovered_editions_for(mount.id) if item.id == edition),
+                None,
+            )
+            if snapshot is None:
+                continue
+            candidate = (
+                self.frozen_root / "mounts" / mount.id / edition
+                if self.frozen_root is not None
+                else None
+            )
+            if candidate is not None and (candidate / "catalog.json").is_file():
+                shard = DocCatalog.from_frozen(
+                    candidate,
+                    content_root=snapshot.content_root,
+                    mount=mount.id,
+                    edition=edition,
+                    lazy_html=False,
+                    catalog_nav=self.catalog_nav if mount.default else None,
+                )
+            else:
+                git = mount.source.git
+                source = mount.source.with_git_sync_state(
+                    resolved_ref=snapshot.resolved_ref,
+                    source_url=git.source_url if git is not None else None,
+                )
+                edition_mount = replace(
+                    mount,
+                    content_root=snapshot.content_root,
+                    url_prefix=edition_path(mount.url_prefix or "/", edition),
+                    source=source,
+                )
+                shard = self._build_live_shard(
+                    edition_mount,
+                    cached_autodoc=None,
+                    edition=edition,
+                )
+            shard._renderer.attach_reference_context(
+                catalog=self,
+                inventory_store=self._inventory_store,
+            )
+            shards[mount.id] = shard
+        return shards
+
     def query_graph_snapshot(
         self,
         *,
@@ -735,7 +849,7 @@ class CatalogRegistry:
         subject: AccessSubject | None = None,
     ) -> CatalogGraphRecord:
         """Return one access-scoped graph serialization per catalog generation."""
-        key = (include_private, subject)
+        key = (self.active_channel, include_private, subject)
         with self._query_graph_lock:
             cached = self._query_graph_cache.get(key)
             if cached is not None:
@@ -819,11 +933,12 @@ class CatalogRegistry:
         mount_hint, edition_hint, slug = _split_qualified_target(target, self)
         effective_edition = edition or edition_hint
 
-        if mount_hint and mount_hint in self._shards:
+        shards = self._active_shards()
+        if mount_hint and mount_hint in shards:
             return self._resolve_link_slug(slug, mount=mount_hint, edition=effective_edition)
 
         mounts_to_try: list[str] = []
-        if source_mount and source_mount in self._shards:
+        if source_mount and source_mount in shards:
             mounts_to_try.append(source_mount)
         default_id = self.default_mount.id
         if default_id not in mounts_to_try:
@@ -960,6 +1075,10 @@ class CatalogRegistry:
 
     def _resolve_mount(self, url: str) -> MountConfig:
         url = self.strip_identity_route(url)
+        if self.active_channel != "latest":
+            from furatena.catalog.edition_routing import edition_segment, strip_edition_path
+
+            url = strip_edition_path(url, edition_segment(self.active_channel))
         normalized = url if url.endswith("/") or url == "/" else f"{url}/"
         for prefix, mount in self._mount_for_url:
             if prefix == "/":
@@ -972,7 +1091,7 @@ class CatalogRegistry:
         return default
 
     def _shard_for_node(self, node: DocNode) -> DocCatalog:
-        return self._shards[node.mount]
+        return self._active_shards()[node.mount]
 
     @property
     def default_mount(self) -> MountConfig:
@@ -984,12 +1103,15 @@ class CatalogRegistry:
 
     def channels_for(self, mount_id: str | None = None) -> tuple[DocChannel, ...]:
         """Release/version channels for one mount shard."""
-        if mount_id and mount_id in self._shards:
-            return self._shards[mount_id].channels
-        default = self._shards.get(self.default_mount.id)
-        if default is None and self._shards:
-            default = next(iter(self._shards.values()))
-        return default.channels if default is not None else ()
+        target_mount = mount_id or self.default_mount.id
+        return tuple(
+            DocChannel(
+                id=edition,
+                label="Latest" if edition == "latest" else f"v{edition}",
+                default=edition == "latest",
+            )
+            for edition in self.edition_ids_for(target_mount)
+        )
 
     def discovered_editions_for(self, mount_id: str) -> tuple[GitEditionSnapshot, ...]:
         """Return source-sync edition provenance without expanding mount config."""
@@ -998,26 +1120,27 @@ class CatalogRegistry:
     @property
     def nodes(self) -> tuple[DocNode, ...]:
         items: list[DocNode] = []
-        for shard in self._shards.values():
+        for shard in self._active_shards().values():
             items.extend(shard.nodes)
         return tuple(items)
 
     def get(self, url: str) -> DocNode | None:
         url = self.strip_identity_route(url)
         mount = self._resolve_mount(url)
-        shard = self._shards.get(mount.id)
+        shard = self._active_shards().get(mount.id)
         return shard.get(url) if shard is not None else None
 
     def get_by_slug(self, slug: str, *, mount: str | None = None) -> DocNode | None:
+        shards = self._active_shards()
         if mount is not None:
-            shard = self._shards.get(mount)
+            shard = shards.get(mount)
             if shard is None:
                 return None
             return shard.get_by_slug(slug)
         if len(self.mounts) == 1:
-            shard = self._shards.get(self.mounts[0].id)
+            shard = shards.get(self.mounts[0].id)
             return shard.get_by_slug(slug) if shard is not None else None
-        default = self._shards.get(self.default_mount.id)
+        default = shards.get(self.default_mount.id)
         return default.get_by_slug(slug) if default is not None else None
 
     def get_by_node_id(self, node_id: str) -> DocNode | None:
@@ -1027,13 +1150,15 @@ class CatalogRegistry:
 
     @property
     def translation_index(self) -> dict[str, dict[str, str]]:
+        if self.active_channel != "latest":
+            return build_translation_index(self.nodes)
         if self._translation_index is None:
             self._translation_index = build_translation_index(self.nodes)
         return self._translation_index
 
     def doc_nodes(self, *, lang: str | None = None) -> list[DocNode]:
         items: list[DocNode] = []
-        for shard in self._shards.values():
+        for shard in self._active_shards().values():
             items.extend(shard.doc_nodes(lang=lang))
         return sorted(items, key=lambda n: (n.mount, n.section, n.weight, n.title))
 
@@ -1049,8 +1174,9 @@ class CatalogRegistry:
     def portal_mounts(self) -> list[dict[str, Any]]:
         """Mount cards for the federated portal page."""
         cards: list[dict[str, Any]] = []
+        shards = self._active_shards()
         for mount in self.mounts:
-            shard = self._shards.get(mount.id)
+            shard = shards.get(mount.id)
             if shard is None:
                 continue
             home = shard.get(mount.url_prefix or "/")
@@ -1076,6 +1202,10 @@ class CatalogRegistry:
         return html
 
     def backlinks_for(self, node: DocNode) -> list[dict[str, str]]:
+        if self.active_channel != "latest":
+            backlinks = build_federated_backlinks(list(self.nodes), catalog=self)
+            key = normalize_internal_url(node.url) or node.url
+            return backlinks.get(key, [])
         if self._federated_backlinks:
             key = normalize_internal_url(node.url) or node.url
             return self._federated_backlinks.get(key, [])
@@ -1109,7 +1239,8 @@ class CatalogRegistry:
         lang: str | None = None,
         mount: str | None = None,
     ) -> int:
-        shard = self._shards.get(mount) if mount is not None else self._shard_for_slug(slug)
+        shards = self._active_shards()
+        shard = shards.get(mount) if mount is not None else self._shard_for_slug(slug)
         return shard.direct_child_count(slug, lang=lang) if shard is not None else 0
 
     def _catalog_rail_for_mount(self, active_url: str | None) -> list[dict[str, Any]] | None:
@@ -1117,7 +1248,7 @@ class CatalogRegistry:
         if not active_url or active_url in ("/", "/portal/", "/search"):
             return None
         mount = self._resolve_mount(active_url)
-        shard = self._shards.get(mount.id)
+        shard = self._active_shards().get(mount.id)
         if shard is None:
             return None
         if mount.default or active_url.startswith("/shared"):
@@ -1130,8 +1261,9 @@ class CatalogRegistry:
         *,
         lang: str | None = None,
     ) -> list[dict[str, Any]]:
+        shards = self._active_shards()
         if len(self.mounts) == 1:
-            shard = self._shards.get(self.mounts[0].id)
+            shard = shards.get(self.mounts[0].id)
             if shard is None:
                 return []
             return shard.catalog_rail_items(
@@ -1170,9 +1302,10 @@ class CatalogRegistry:
         node = self.get_by_slug(slug)
         if node is not None:
             return self._shard_for_node(node)
-        if not self._shards:
+        shards = self._active_shards()
+        if not shards:
             return None
-        return self._shards.get(self.mounts[0].id) or next(iter(self._shards.values()))
+        return shards.get(self.mounts[0].id) or next(iter(shards.values()))
 
     def docs_section_nav(
         self,
@@ -1180,12 +1313,13 @@ class CatalogRegistry:
         *,
         lang: str | None = None,
     ) -> list[dict[str, Any]]:
+        shards = self._active_shards()
         if len(self.mounts) == 1:
-            shard = self._shards.get(self.mounts[0].id)
+            shard = shards.get(self.mounts[0].id)
             return shard.docs_section_nav(active_url, lang=lang) if shard is not None else []
         if active_url:
             mount = self._resolve_mount(active_url)
-            shard = self._shards.get(mount.id)
+            shard = shards.get(mount.id)
             if shard is not None:
                 return shard.docs_section_nav(active_url, lang=lang)
         return self.nav_tree(active_url=active_url, lang=lang)
@@ -1194,6 +1328,7 @@ class CatalogRegistry:
         self, active_url: str | None = None, *, lang: str | None = None
     ) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
+        shards = self._active_shards()
         if len(self.mounts) > 1:
             items.append(
                 {
@@ -1203,7 +1338,7 @@ class CatalogRegistry:
                 }
             )
         for mount in self.mounts:
-            shard = self._shards.get(mount.id)
+            shard = shards.get(mount.id)
             if shard is None:
                 continue
             section_items = shard.nav_tree(active_url=active_url)
@@ -1241,14 +1376,15 @@ class CatalogRegistry:
         return search_nodes(nodes, query, limit=limit, documents=self.ast_documents())
 
     def graph_edges(self) -> list[EdgeRecord]:
-        if self._edges is not None:
+        latest = self.active_channel == "latest"
+        if latest and self._edges is not None:
             return self._edges
         from furatena.catalog.graph_schema import build_translation_edges, edge_record
 
         url_index = {node.url: node.node_id for node in self.nodes}
         nodes_by_id = {node.node_id: node for node in self.nodes}
         edges: list[EdgeRecord] = []
-        for shard in self._shards.values():
+        for shard in self._active_shards().values():
             if not shard.auto_reload and getattr(shard, "_frozen_edges", None) is not None:
                 edges.extend(shard.graph_edges())
             else:
@@ -1262,17 +1398,20 @@ class CatalogRegistry:
                 )
         if self.i18n_config.enabled:
             edges.extend(edge_record(edge) for edge in build_translation_edges(self.nodes))
-        self._edges = edges
+        if latest:
+            self._edges = edges
         return edges
 
     def namespaces(self) -> list[NamespaceRecord]:
-        if self._namespaces is not None:
+        latest = self.active_channel == "latest"
+        if latest and self._namespaces is not None:
             return self._namespaces
         from furatena.catalog.graph_schema import namespace_record
 
         records: list[NamespaceRecord] = []
+        shards = self._active_shards()
         for mount in self.mounts:
-            shard = self._shards.get(mount.id)
+            shard = shards.get(mount.id)
             if shard is None:
                 continue
             records.append(
@@ -1286,13 +1425,14 @@ class CatalogRegistry:
                     site=self.catalog_identity.get("site"),
                 )
             )
-        self._namespaces = records
+        if latest:
+            self._namespaces = records
         return records
 
     def ast_documents(self) -> dict[str, Document]:
         """Merge live Patitas AST documents from all mount shards."""
         documents: dict[str, Document] = {}
-        for shard in self._shards.values():
+        for shard in self._active_shards().values():
             documents.update(shard.ast_documents())
         return documents
 

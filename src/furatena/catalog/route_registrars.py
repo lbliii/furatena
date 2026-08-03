@@ -70,6 +70,7 @@ from furatena.cli.authoring import (
 _CATALOG_QUERY_FILTERS = frozenset(
     {
         "mount",
+        "edition",
         "tag",
         "format",
         "owner",
@@ -834,20 +835,37 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         tag = (request.query.get("tag") or "").strip() or None
         url_prefix = (request.query.get("url_prefix") or "").strip() or None
         subject = self._output_access_subject(request)
-        if not query:
-            body = {"schema_version": 1, "query": "", "count": 0, "results": []}
-        else:
-            body = semantic_search_json(
-                self.catalog,
-                self.embedding_index,
-                query,
-                base_url=base,
-                mount=mount,
-                edition=edition,
-                tag=tag,
-                url_prefix=url_prefix,
-                subject=subject,
+        selected_edition = edition or "latest"
+        target_mount = mount or self.catalog.default_mount.id
+        if not self.catalog.has_edition(target_mount, selected_edition):
+            return Response(
+                json.dumps(
+                    {
+                        "error": "unknown edition",
+                        "edition": selected_edition,
+                        "mount": target_mount,
+                        "recovery": "choose an edition reported by channels.json",
+                    },
+                    indent=2,
+                ),
+                status=400,
+                content_type="application/json; charset=utf-8",
             )
+        with self.catalog.use_edition(selected_edition):
+            if not query:
+                body = {"schema_version": 1, "query": "", "count": 0, "results": []}
+            else:
+                body = semantic_search_json(
+                    self.catalog,
+                    self._edition_embedding_index(selected_edition),
+                    query,
+                    base_url=base,
+                    mount=mount,
+                    edition=selected_edition,
+                    tag=tag,
+                    url_prefix=url_prefix,
+                    subject=subject,
+                )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
     @app.route("/catalog/retrieve", referenced=True)
@@ -1014,20 +1032,41 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         )
         if query_error is not None:
             return _catalog_query_response(query_error, request=request)
-        payload = query_catalog_graph(
-            self.catalog,
-            mount=params.get("mount"),
-            tag=params.get("tag"),
-            format=params.get("format"),
-            owner=params.get("owner") or params.get("team"),
-            locale=params.get("locale") or params.get("lang"),
-            edge_kind=str(edge_kind) if edge_kind is not None else None,
-            source=str(source) if source is not None else None,
-            target=str(target) if target is not None else None,
-            subject=self._output_access_subject(request),
-            limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
-            offset=int(params.get("offset") or 0),
-        )
+        requested_edition = str(params.get("edition") or "latest").strip()
+        target_mount = str(params.get("mount") or self.catalog.default_mount.id).strip()
+        if not self.catalog.has_edition(target_mount, requested_edition):
+            return _catalog_query_response(
+                Response(
+                    json.dumps(
+                        {
+                            "error": "unknown edition",
+                            "edition": requested_edition,
+                            "mount": target_mount,
+                            "recovery": "choose an edition reported by channels.json",
+                        },
+                        indent=2,
+                    ),
+                    status=400,
+                    content_type="application/json; charset=utf-8",
+                ),
+                request=request,
+            )
+        with self.catalog.use_edition(requested_edition):
+            payload = query_catalog_graph(
+                self.catalog,
+                mount=params.get("mount"),
+                edition=requested_edition,
+                tag=params.get("tag"),
+                format=params.get("format"),
+                owner=params.get("owner") or params.get("team"),
+                locale=params.get("locale") or params.get("lang"),
+                edge_kind=str(edge_kind) if edge_kind is not None else None,
+                source=str(source) if source is not None else None,
+                target=str(target) if target is not None else None,
+                subject=self._output_access_subject(request),
+                limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
+                offset=int(params.get("offset") or 0),
+            )
         return _catalog_query_response(
             Response(json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"),
             request=request,
