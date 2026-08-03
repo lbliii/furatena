@@ -169,8 +169,9 @@ class ContentDeploymentStore:
                     or not (app_root / "docs.yaml").is_file()
                 ):
                     raise ContentDeploymentError(
-                        "Managed content subdirectory must contain a docs.yaml configuration file: "
-                        f"{self.config.subdirectory}."
+                        "FURA_CONTENT_SUBDIRECTORY="
+                        f"{self.config.subdirectory} must contain a docs.yaml configuration file; "
+                        "correct the configured subdirectory and retry."
                     )
                 freeze = dict(self._freezer(app_root, frozen))
                 self._validate_frozen(frozen, freeze)

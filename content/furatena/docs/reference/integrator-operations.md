@@ -232,6 +232,7 @@ configuration errors exit 3, and source conflicts exit 4. Pattern ids ending in
 | `fura.mcp*`, `fura.evals.*` | MCP protocol/policy/rate/token or deterministic eval failure; repair policy/schema before retry. |
 | `fura.migration.*`, `fura.migrate*` | Source-format compatibility or incomplete migration; use the migration report and suggested mapping. |
 | `fura.content`, `fura.api`, `fura.dcp`, `fura.check` | Content, OpenAPI, graph-schema, or aggregate validation; fix the cited source. |
+| `fura.content_deployment` | Managed-content configuration or persistent-state failure; correct the named `FURA_*` setting or writable Railway volume and retry. |
 | `fura.impact.stale_public_output`, `fura.visibility_leak` | Public artifact is stale or exposes protected content; rebuild or block promotion. |
 | `fura.identity.*` | Trusted gateway claims are missing, ambiguous, spoofable, or conflict with tenant/site identity; reject the request and repair the deployment-owned claim mapping. |
 | `fura.docs_quality.*`, `fura.docs_quality.exemption` | Documentation completeness or stale exemption; follow the named owner and page-type recommendation. |
@@ -245,7 +246,7 @@ Exact rule-id index:
 - `fura.agent.output_schema`, `fura.agent.parameter_description`, `fura.agent.permission_note`, `fura.agent.resource_metadata`, `fura.agent.tool_description`
 - `fura.agent_safety.private_leak`, `fura.agent_safety.stale_context`
 - `fura.api`, `fura.author`, `fura.author.authorization`, `fura.author.conflict`, `fura.author.csrf`, `fura.author.method`, `fura.author.target`
-- `fura.check`, `fura.content`, `fura.dcp`, `fura.docs_reference.drift`, `fura.evals.*`, `fura.evals.retrieval_regression`
+- `fura.check`, `fura.content`, `fura.content_deployment`, `fura.dcp`, `fura.docs_reference.drift`, `fura.evals.*`, `fura.evals.retrieval_regression`
 - `fura.docs_quality.*`, `fura.docs_quality.exemption`
 - `fura.impact.stale_public_output`, `fura.lifecycle`, `fura.mcp`, `fura.mcp.author`, `fura.mcp.privileged_token`, `fura.mcp.rate_limit`
 - `fura.identity.*`

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import hmac
 import json
@@ -15,6 +16,7 @@ from furatena.catalog.content_deployment import (
     ContentDeploymentStore,
     refresh_authorized,
 )
+from furatena.cli.main import main, run_command
 
 
 def _config(root: Path, **changes) -> ContentDeploymentConfig:
@@ -84,6 +86,47 @@ def test_environment_accepts_only_credential_free_allowlisted_https() -> None:
                 "FURA_CONTENT_ALLOWED_HOSTS": "github.com",
             }
         )
+
+
+def test_content_cli_reports_configuration_errors_without_a_traceback(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("FURA_CONTENT_REPOSITORY", raising=False)
+
+    with pytest.raises(SystemExit, match="4"):
+        main(["content", "status"])
+
+    output = capsys.readouterr()
+    assert "FURA_CONTENT_REPOSITORY is not configured" in output.out
+    assert "Traceback" not in output.out
+    assert output.err == ""
+
+
+def test_content_cli_translates_read_only_state_into_railway_recovery(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    state_root = Path("/data/furatena")
+    monkeypatch.setenv("FURA_CONTENT_REPOSITORY", "https://github.com/example/docs.git")
+    monkeypatch.setenv("FURA_CONTENT_STATE_ROOT", str(state_root))
+
+    def read_only(_self: ContentDeploymentStore) -> dict[str, object]:
+        raise OSError(errno.EROFS, "Read-only file system", str(state_root / "leases"))
+
+    monkeypatch.setattr(ContentDeploymentStore, "status", read_only)
+
+    result = run_command(["content", "status"])
+
+    assert result is not None
+    assert not result.ok
+    assert result.exit_code == 4
+    assert result.data["error"]["code"] == "fura.content_deployment"
+    assert result.data["error"]["context"] == {
+        "operation": "content status",
+        "path": "/data/furatena/leases",
+    }
+    assert "FURA_CONTENT_STATE_ROOT=/data/furatena" in result.summary
+    assert "writable Railway volume at /data/furatena" in result.summary
 
 
 def test_refresh_atomically_promotes_and_retains_last_known_good(

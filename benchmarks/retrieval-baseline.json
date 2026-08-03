@@ -1,13 +1,13 @@
 {
   "algorithms": {
     "hybrid": {
-      "estimated_index_memory_bytes": 4763306,
+      "estimated_index_memory_bytes": 6912938,
       "latency_ms_per_query": {
-        "median": 63.198881,
+        "median": 89.098774,
         "samples": [
-          63.198881,
-          63.659357,
-          61.448601
+          90.856595,
+          86.419345,
+          89.098774
         ],
         "unit": "ms"
       },
@@ -16,7 +16,7 @@
         "cases": [
           {
             "case_id": "navigate-installation",
-            "relevant_rank": 4
+            "relevant_rank": 5
           },
           {
             "case_id": "troubleshoot-stale-pages-deploy",
@@ -32,29 +32,29 @@
           },
           {
             "case_id": "find-access-policy-api",
-            "relevant_rank": 2
+            "relevant_rank": 1
           },
           {
             "case_id": "navigate-release-history",
             "relevant_rank": null
           }
         ],
-        "mrr": 0.625,
+        "mrr": 0.7,
         "negative_case_count": 1,
         "no_result_rate": 0.0,
         "recall_at_3": 0.666667,
         "retrieval_case_count": 6
       },
-      "serialized_index_bytes": 697463
+      "serialized_index_bytes": 987734
     },
     "keyword": {
       "estimated_index_memory_bytes": 0,
       "latency_ms_per_query": {
-        "median": 60.571827,
+        "median": 84.612988,
         "samples": [
-          71.580214,
-          57.682226,
-          60.571827
+          84.612988,
+          84.176244,
+          96.077833
         ],
         "unit": "ms"
       },
@@ -95,13 +95,13 @@
       "serialized_index_bytes": 0
     },
     "reranked_hybrid": {
-      "estimated_index_memory_bytes": 4763306,
+      "estimated_index_memory_bytes": 6912938,
       "latency_ms_per_query": {
-        "median": 66.601065,
+        "median": 91.239351,
         "samples": [
-          66.601065,
-          76.681631,
-          61.68575
+          92.223208,
+          89.998399,
+          91.239351
         ],
         "unit": "ms"
       },
@@ -139,16 +139,16 @@
         "recall_at_3": 0.666667,
         "retrieval_case_count": 6
       },
-      "serialized_index_bytes": 697463
+      "serialized_index_bytes": 987734
     },
     "tfidf": {
-      "estimated_index_memory_bytes": 4763306,
+      "estimated_index_memory_bytes": 6912938,
       "latency_ms_per_query": {
-        "median": 4.082566,
+        "median": 5.349708,
         "samples": [
-          4.227994,
-          4.082566,
-          4.043744
+          5.895512,
+          5.349708,
+          5.280012
         ],
         "unit": "ms"
       },
@@ -165,7 +165,7 @@
           },
           {
             "case_id": "find-known-answer-agent-checks",
-            "relevant_rank": null
+            "relevant_rank": 1
           },
           {
             "case_id": "compare-installation-across-surfaces",
@@ -180,24 +180,24 @@
             "relevant_rank": null
           }
         ],
-        "mrr": 0.583333,
+        "mrr": 0.75,
         "negative_case_count": 1,
         "no_result_rate": 0.0,
-        "recall_at_3": 0.666667,
+        "recall_at_3": 0.833333,
         "retrieval_case_count": 6
       },
-      "serialized_index_bytes": 697463
+      "serialized_index_bytes": 987734
     }
   },
   "dataset": {
     "id": "furatena-known-answers",
-    "version": "1.1.0"
+    "version": "1.1.10"
   },
   "default_algorithm": "reranked_hybrid",
   "environment": {
     "gil_enabled": false,
     "implementation": "CPython",
-    "platform": "macOS-26.5.1-arm64-arm-64bit-Mach-O",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
     "python": "3.14.2"
   },
   "filters": {

@@ -809,7 +809,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:43`, `furatena/catalog/preview_security.py:103` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:27`, `furatena/cli/commands/serve.py:44` |
 | `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:106` |
-| `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:17` |
+| `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:17`, `furatena/cli/commands/content.py:63` |
 | `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:49`, `furatena/catalog/docs_app.py:277` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:242` |
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:80` |
