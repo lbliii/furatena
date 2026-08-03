@@ -121,7 +121,7 @@ jobs:
       - name: Install controller dependencies
         run: uv sync --no-dev
       - name: Install pinned Railway CLI
-        run: npm install --global @railway/cli@5.25.0
+        run: npm install --global @railway/cli@5.30.4
       - name: Configure and verify exact-SHA Railway preview
         run: >-
           uv run python scripts/railway_preview_controller.py

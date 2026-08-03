@@ -62,6 +62,14 @@ publication credentials, or private mounts. Furatena's preview serve mode
 independently excludes private and draft catalog nodes and exposes no author
 mutation routes. Preview artifacts are review-only and cannot be promoted.
 
+The Railway controller requires the provider-created PR environment to contain
+an isolated instance of the configured service before it changes variables or
+requests a redeploy. Its command boundary excludes source-link operations, and
+it verifies before and after preview control that production remains on the
+repository's `main` branch and never receives the pull-request head. A missing
+service or unverifiable production state fails the preview without attempting
+to repair provider configuration.
+
 On close or merge, the provider adapter must delete the environment and its
 domain. A teardown is complete only after provider state confirms removal, as
 defined by the [preview lifecycle contract](PR_PREVIEW_CONTRACT.md).
