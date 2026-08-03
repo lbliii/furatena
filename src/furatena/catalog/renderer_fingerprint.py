@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from furatena.catalog.deployment_manifest import read_deployment_manifest
@@ -17,8 +18,7 @@ _SKIP_PARTS = frozenset({".git", ".venv", "venv", "node_modules", "__pycache__",
 def _file_sig(path: Path) -> str:
     if not path.is_file():
         return ""
-    stat = path.stat()
-    return f"{path}:{stat.st_mtime_ns}:{stat.st_size}"
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _tree_sig(root: Path) -> list[str]:
@@ -31,7 +31,7 @@ def _tree_sig(root: Path) -> list[str]:
             continue
         if any(part in _SKIP_PARTS for part in path.parts):
             continue
-        parts.append(_file_sig(path))
+        parts.append(f"{path.relative_to(root).as_posix()}:{_file_sig(path)}")
     return parts
 
 
@@ -51,6 +51,7 @@ def renderer_fingerprint(
     *,
     theme_id: str = "chirp",
     skin_pack_root: Path | None = None,
+    platform_root: Path | None = None,
 ) -> str:
     """Hash renderer templates, handlers, skin pack, docs-core, and app theme."""
     parts: list[str] = [_packaged_theme_sig(theme_id, docs_root)]
@@ -61,6 +62,13 @@ def renderer_fingerprint(
         parts.extend(_tree_sig(skin_pack_root))
     parts.extend(_tree_sig(catalog_root()))
     parts.extend(_tree_sig(docs_root / "theme"))
+    configured_platform = os.environ.get("FURA_PLATFORM_ROOT", "").strip()
+    resolved_platform = platform_root or (
+        Path(configured_platform).expanduser().resolve() if configured_platform else docs_root
+    )
+    platform_theme = resolved_platform / "theme"
+    if platform_theme != docs_root / "theme":
+        parts.extend(_tree_sig(platform_theme))
     digest = hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
     return digest[:16]
 
@@ -117,6 +125,7 @@ def renderer_is_stale(
     *,
     theme_id: str = "chirp",
     skin_pack_root: Path | None = None,
+    platform_root: Path | None = None,
 ) -> bool:
     """True when live renderer differs from the frozen export."""
     stored = read_renderer_fingerprint(frozen_dir)
@@ -126,4 +135,5 @@ def renderer_is_stale(
         docs_root,
         theme_id=theme_id,
         skin_pack_root=skin_pack_root,
+        platform_root=platform_root,
     )

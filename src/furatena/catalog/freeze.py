@@ -9,6 +9,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 
 from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.application_roots import ApplicationRoots
 from furatena.catalog.assets import (
     bundle_css,
     copy_fonts,
@@ -71,6 +72,8 @@ class FreezeCatalogOptions:
     app_root: Path
     repo_root: Path
     output_dir: Path
+    platform_root: Path | None = None
+    state_root: Path | None = None
     full_rebuild: bool = False
     workers: int | None = None
     autodoc: bool = True
@@ -314,8 +317,9 @@ def _write_catalog_shard_route_alias(out_dir: Path, mount_id: str) -> None:
 
 def freeze_catalog(options: FreezeCatalogOptions) -> FreezeCatalogResult:
     """Write frozen catalog files for a docs app."""
+    state_root = options.state_root or options.app_root / ".docs-cache"
     with OperationLease(
-        options.app_root / ".docs-cache" / "operation-leases",
+        state_root / "operation-leases",
         "deployment",
         resource=str(options.output_dir.resolve()),
         timeout_seconds=operation_timeout_seconds(),
@@ -344,6 +348,25 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
     worker_count = resolve_workers(options.workers)
 
     docs_config = load_docs_config(options.docs_config)
+    managed_roots = None
+    if options.platform_root is not None and options.state_root is not None:
+        managed_roots = ApplicationRoots(
+            site=options.app_root.resolve(),
+            platform=options.platform_root.resolve(),
+            state=options.state_root.resolve(),
+            output=options.output_dir.resolve(),
+            managed=True,
+        )
+        managed_roots.validate()
+        for label, path in (
+            ("docs configuration", options.docs_config),
+            ("mount configuration", docs_config.mounts_path),
+            ("rewrite configuration", docs_config.rewrites_path),
+            ("inventory configuration", docs_config.inventories_path),
+            ("locale directory", docs_config.locales_dir),
+        ):
+            if path is not None:
+                managed_roots.require_site_path(path, label=label)
     out_dir = scoped_frozen_dir(base_out_dir, docs_config.identity.to_meta())
     out_dir.mkdir(parents=True, exist_ok=True)
     mounts_path = docs_config.mounts_path or options.app_root / "mounts.yaml"
@@ -358,7 +381,14 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         autodoc_config=options.autodoc_config,
         autodoc=options.autodoc,
         workers=worker_count,
+        state_root=(options.state_root / "source-sync-state" if options.state_root else None),
     )
+    if managed_roots is not None:
+        for mount in registry.mounts:
+            managed_roots.require_site_path(
+                mount.content_root,
+                label=f"content root for mount {mount.id!r}",
+            )
     validate_packaging_lifecycle(
         registry,
         target="catalog freeze",
@@ -372,6 +402,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         options.app_root,
         theme_id=docs_config.theme.id,
         skin_pack_root=skin_pack_root,
+        platform_root=options.platform_root,
     )
     stored_renderer = read_renderer_fingerprint(out_dir)
     renderer_changed = options.full_rebuild or stored_renderer != renderer_fp

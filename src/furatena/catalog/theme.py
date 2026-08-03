@@ -37,10 +37,12 @@ class DocsTheme:
         docs: DocsConfig,
         *,
         frozen_dir: Path | None = None,
+        platform_root: Path | None = None,
+        state_root: Path | None = None,
     ) -> DocsTheme:
         theme_cfg = docs.theme
         theme_dir = docs.theme_dir
-        cache_dir = docs.root / ".docs-cache"
+        cache_dir = state_root or docs.root / ".docs-cache"
         skin = resolve_theme_paths(docs)
         packaged = packaged_theme_assets_from_root(theme_cfg.id, skin.app_assets_root)
 
@@ -133,6 +135,9 @@ class DocsTheme:
             template_roots.append(skin.templates)
             browser_reload_dirs.append(skin.templates)
         template_roots.append(theme_dir)
+        platform_theme = (platform_root or docs.root) / "theme"
+        if platform_theme != theme_dir:
+            template_roots.append(platform_theme)
 
         static_mounts.append(ThemeAssets(url_prefix="/docs-theme/local/js", directory=skin.js_dir))
         browser_reload_dirs.append(skin.js_dir)

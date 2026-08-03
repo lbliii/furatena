@@ -41,6 +41,7 @@ from furatena.catalog.access import (
     author_permission_for,
     evaluate_author_access,
 )
+from furatena.catalog.application_roots import ApplicationRoots
 from furatena.catalog.author_store import AuthorMutationStore, FilesystemAuthorMutationStore
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.conditional_response import ConditionalResponseMiddleware
@@ -335,6 +336,17 @@ class DocsApp:
         observability: OperationalEventEmitter | None = None,
     ) -> None:
         self.config = config
+        self.roots = ApplicationRoots.from_environment(config.root)
+        if self.roots.managed:
+            self.roots.ensure_writable_roots()
+            for label, path in (
+                ("mount configuration", config.mounts_path),
+                ("rewrite configuration", config.rewrites_path),
+                ("inventory configuration", config.inventories_path),
+                ("locale directory", config.locales_dir),
+            ):
+                if path is not None:
+                    self.roots.require_site_path(path, label=label)
         self.htmx_preview_version = resolve_htmx_preview()
         self.locale_service = LocaleResolutionService(config.i18n)
         self.repo_root = repo_root
@@ -356,7 +368,10 @@ class DocsApp:
         self.observability = observability or OperationalEventEmitter.from_environment()
         frozen = self.serve.frozen_dir or frozen_dir
         self.theme = DocsTheme.from_docs_config(
-            config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None
+            config,
+            frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None,
+            platform_root=self.roots.platform,
+            state_root=self.roots.state / "theme",
         )
         self.views = ViewRegistry(config)
         self.catalog = CatalogRegistry.from_config(
@@ -377,7 +392,14 @@ class DocsApp:
             catalog_nav=config.catalog,
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
+            state_root=self.roots.state / "source-sync-state",
         )
+        if self.roots.managed:
+            for mount in self.catalog.mounts:
+                self.roots.require_site_path(
+                    mount.content_root,
+                    label=f"content root for mount {mount.id!r}",
+                )
         self.frozen_artifacts = FrozenArtifactStore(
             self.catalog.frozen_root if self.serve.mode != ServeMode.AUTHOR else None
         )

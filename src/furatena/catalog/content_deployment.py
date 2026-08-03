@@ -27,6 +27,21 @@ from furatena.catalog.operation_lease import (
 _TRUE = frozenset({"1", "true", "yes", "on"})
 _REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+-]{0,254}$")
 _SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+_PROTECTED_MANAGED_PATHS = frozenset(
+    {
+        ".docs-cache",
+        ".preview",
+        "active",
+        "frozen",
+        "generations",
+        "last-known-good",
+        "leases",
+        "operations",
+        "receipts",
+        "staging",
+        "state",
+    }
+)
 
 
 class ContentDeploymentError(RuntimeError):
@@ -85,13 +100,22 @@ class ContentDeploymentConfig:
             )
         subdirectory = values.get("FURA_CONTENT_SUBDIRECTORY", "app").strip().strip("/")
         subpath = Path(subdirectory)
-        if not subdirectory or subpath.is_absolute() or ".." in subpath.parts:
+        if (
+            not subdirectory
+            or subpath.is_absolute()
+            or ".." in subpath.parts
+            or any(part in _PROTECTED_MANAGED_PATHS for part in subpath.parts)
+        ):
             raise ContentDeploymentError(
-                "FURA_CONTENT_SUBDIRECTORY must name a safe relative application path."
+                "FURA_CONTENT_SUBDIRECTORY must name a safe relative application path "
+                "outside protected managed namespaces."
             )
-        state_root = (
-            Path(values.get("FURA_CONTENT_STATE_ROOT", "/data/furatena")).expanduser().resolve()
-        )
+        state_path = Path(values.get("FURA_CONTENT_STATE_ROOT", "/data/furatena")).expanduser()
+        if not state_path.is_absolute() or state_path.is_symlink():
+            raise ContentDeploymentError(
+                "The configured FURA_CONTENT_STATE_ROOT must be an absolute non-symlink path."
+            )
+        state_root = state_path.resolve()
         max_bytes = _positive_int(values.get("FURA_CONTENT_MAX_BYTES", "104857600"), "bytes")
         max_files = _positive_int(values.get("FURA_CONTENT_MAX_FILES", "20000"), "files")
         return cls(
@@ -105,6 +129,86 @@ class ContentDeploymentConfig:
             refresh_on_start=values.get("FURA_CONTENT_REFRESH_ON_START", "1").strip().lower()
             in _TRUE,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class GenerationSelection:
+    """One immutable checkout/site/frozen/receipt selection."""
+
+    generation: str
+    generation_root: Path
+    checkout_root: Path
+    site_root: Path
+    frozen_root: Path
+    receipt_path: Path
+
+    @classmethod
+    def from_generation(cls, generation_root: Path) -> GenerationSelection:
+        root = generation_root.resolve()
+        receipt_path = root / "receipt.json"
+        receipt = _read_json(receipt_path)
+        if receipt is None:
+            raise ContentDeploymentError(
+                f"The managed generation receipt is missing or invalid: {receipt_path}."
+            )
+        generation = str(receipt.get("generation") or root.name)
+        if generation != root.name:
+            raise ContentDeploymentError(
+                f"The managed generation receipt identity does not match its directory: {root}."
+            )
+        selection = receipt.get("selection")
+        if not isinstance(selection, dict):
+            selection = {
+                "checkout": "source",
+                "site": f"source/{str(receipt.get('subdirectory') or 'app').strip('/')}",
+                "frozen": "frozen",
+                "receipt": "receipt.json",
+            }
+        paths = {
+            label: _selection_path(root, selection.get(label), label=label)
+            for label in ("checkout", "site", "frozen", "receipt")
+        }
+        if not paths["checkout"].is_dir() or not paths["site"].is_dir():
+            raise ContentDeploymentError(
+                f"The managed generation checkout and site selection is incomplete: {root}."
+            )
+        if not (paths["site"] / "docs.yaml").is_file():
+            raise ContentDeploymentError(
+                "The managed generation site selection does not contain the required docs.yaml: "
+                f"{paths['site']}."
+            )
+        if not (paths["frozen"] / "catalog.json").is_file():
+            raise ContentDeploymentError(
+                f"The managed generation frozen artifact selection is incomplete: {paths['frozen']}."
+            )
+        if paths["receipt"] != receipt_path:
+            raise ContentDeploymentError(
+                "The managed generation receipt selection must resolve to receipt.json."
+            )
+        return cls(
+            generation=generation,
+            generation_root=root,
+            checkout_root=paths["checkout"],
+            site_root=paths["site"],
+            frozen_root=paths["frozen"],
+            receipt_path=receipt_path,
+        )
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "generation": self.generation,
+            "checkout_root": str(self.checkout_root),
+            "site_root": str(self.site_root),
+            "frozen_root": str(self.frozen_root),
+            "receipt_path": str(self.receipt_path),
+        }
+
+    def require_runtime(self, *, site_root: Path, frozen_root: Path) -> None:
+        if site_root.resolve() != self.site_root or frozen_root.resolve() != self.frozen_root:
+            raise ContentDeploymentError(
+                "The managed runtime roots do not match the active generation receipt; "
+                "reconcile content and restart with the selected site and frozen roots."
+            )
 
 
 class ContentDeploymentStore:
@@ -183,7 +287,7 @@ class ContentDeploymentStore:
                         f"{generation_id}."
                     )
                 receipt = {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "generation": generation_id,
                     "status": "active",
                     "trigger": trigger,
@@ -198,6 +302,12 @@ class ContentDeploymentStore:
                     "frozen_root": str(freeze.get("frozen_root") or frozen),
                     "started_at": _iso(started),
                     "promoted_at": _iso(self._clock()),
+                    "selection": {
+                        "checkout": "source",
+                        "site": f"source/{self.config.subdirectory}",
+                        "frozen": "frozen",
+                        "receipt": "receipt.json",
+                    },
                 }
                 workspace_receipt = workspace / "receipt.json"
                 _write_json(workspace_receipt, receipt)
@@ -205,6 +315,8 @@ class ContentDeploymentStore:
                 os.replace(workspace, generation)
                 receipt["frozen_root"] = str(generation / "frozen")
                 _write_json(generation / "receipt.json", receipt)
+                selection = GenerationSelection.from_generation(generation)
+                _make_tree_read_only(generation)
                 previous = self._link_target(self.active)
                 if previous is not None:
                     self._replace_link(self.last_known_good, previous)
@@ -223,7 +335,7 @@ class ContentDeploymentStore:
                     },
                 )
                 self._prune_generations(keep=5)
-                return receipt
+                return {**receipt, "generation_selection": selection.to_dict()}
             except BaseException as exc:
                 failure = {
                     "schema_version": 1,
@@ -316,7 +428,19 @@ class ContentDeploymentStore:
         status["requested_ref"] = self.config.ref
         status["subdirectory"] = self.config.subdirectory
         status["receipt"] = _read_json(active / "receipt.json") if active is not None else None
+        status["generation_selection"] = (
+            GenerationSelection.from_generation(active).to_dict() if active is not None else None
+        )
         return status
+
+    def active_selection(self) -> GenerationSelection:
+        """Return the one receipt-bound generation selected for serving."""
+        active = self._link_target(self.active)
+        if active is None:
+            raise ContentDeploymentError(
+                "No valid managed content generation is active; refresh or reconcile content first."
+            )
+        return GenerationSelection.from_generation(active)
 
     def startup_refresh_needed(self) -> bool:
         """Return whether startup may follow the desired ref without undoing rollback."""
@@ -411,6 +535,10 @@ class ContentDeploymentStore:
                 app_root=app_root,
                 repo_root=app_root.parent,
                 output_dir=output,
+                platform_root=Path(os.environ.get("FURA_PLATFORM_ROOT", "/app/app"))
+                .expanduser()
+                .resolve(),
+                state_root=self.root / "runtime-state" / "refresh",
                 full_rebuild=True,
                 workers=1,
                 autodoc=False,
@@ -448,12 +576,13 @@ class ContentDeploymentStore:
 
     @staticmethod
     def _generation_valid(generation: Path) -> bool:
-        return (
-            generation.is_dir()
-            and (generation / "receipt.json").is_file()
-            and (generation / "frozen" / "catalog.json").is_file()
-            and (generation / "source").is_dir()
-        )
+        if not generation.is_dir():
+            return False
+        try:
+            GenerationSelection.from_generation(generation)
+        except ContentDeploymentError:
+            return False
+        return True
 
     def _replace_link(self, link: Path, target: Path) -> None:
         if not target.is_relative_to(self.generations.resolve()) or not self._generation_valid(
@@ -496,7 +625,7 @@ class ContentDeploymentStore:
             if generation in protected or retained < keep:
                 retained += 1
                 continue
-            shutil.rmtree(generation, ignore_errors=True)
+            _remove_read_only_tree(generation)
 
 
 def refresh_authorized(
@@ -556,3 +685,46 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     except OSError, json.JSONDecodeError:
         return None
     return value if isinstance(value, dict) else None
+
+
+def _selection_path(root: Path, raw: object, *, label: str) -> Path:
+    relative = Path(str(raw or ""))
+    if not relative.parts or relative.is_absolute() or ".." in relative.parts:
+        raise ContentDeploymentError(
+            f"The managed generation {label} selection must use a safe relative path."
+        )
+    resolved = (root / relative).resolve()
+    if not resolved.is_relative_to(root):
+        raise ContentDeploymentError(
+            f"The managed generation {label} selection escapes its generation: {relative}."
+        )
+    current = root
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ContentDeploymentError(
+                f"The managed generation {label} selection cannot traverse a symbolic link: "
+                f"{current}."
+            )
+    return resolved
+
+
+def _make_tree_read_only(root: Path) -> None:
+    for path in sorted(root.rglob("*"), key=lambda item: len(item.parts), reverse=True):
+        if path.is_symlink():
+            continue
+        path.chmod(0o555 if path.is_dir() else 0o444)
+    root.chmod(0o555)
+
+
+def _remove_read_only_tree(root: Path) -> None:
+    for path in root.rglob("*") if root.is_dir() else ():
+        if path.is_symlink():
+            continue
+        if path.is_dir():
+            path.chmod(0o755)
+        else:
+            path.chmod(0o644)
+    if root.exists():
+        root.chmod(0o755)
+    shutil.rmtree(root, ignore_errors=True)

@@ -141,7 +141,12 @@ def test_refresh_atomically_promotes_and_retains_last_known_good(
     assert first["source_files"] == 2
     first_target = store.active.resolve()
     assert first_target.name.endswith("-aaaaaaaaaaaa")
-    assert json.loads((first_target / "receipt.json").read_text())["status"] == "active"
+    recorded = json.loads((first_target / "receipt.json").read_text())
+    assert recorded["status"] == "active"
+    assert recorded["schema_version"] == 2
+    assert recorded["selection"]["site"] == "source/app"
+    assert first["generation_selection"]["site_root"] == str(first_target / "source" / "app")
+    assert not bool((first_target / "source" / "app" / "docs.yaml").stat().st_mode & 0o222)
 
     monkeypatch.setattr(store, "_checkout", _checkout("b" * 40, title="Second"))
     second = store.refresh(trigger="webhook")
@@ -250,6 +255,21 @@ def test_source_limits_and_symlinks_fail_closed(tmp_path: Path) -> None:
     (source / "link.md").symlink_to("missing.md")
     with pytest.raises(ContentDeploymentError, match="symlinks"):
         store._validate_source(source)
+
+
+def test_managed_subdirectory_and_state_roots_fail_closed() -> None:
+    base = {
+        "FURA_CONTENT_REPOSITORY": "https://github.com/example/docs.git",
+        "FURA_CONTENT_ALLOWED_HOSTS": "github.com",
+    }
+    with pytest.raises(ContentDeploymentError, match="protected managed namespaces"):
+        ContentDeploymentConfig.from_environment(
+            {**base, "FURA_CONTENT_SUBDIRECTORY": "frozen/site"}
+        )
+    with pytest.raises(ContentDeploymentError, match="absolute non-symlink"):
+        ContentDeploymentConfig.from_environment(
+            {**base, "FURA_CONTENT_STATE_ROOT": "relative-state"}
+        )
 
 
 def test_refresh_authority_is_independent_and_constant_time_compatible() -> None:

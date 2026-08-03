@@ -72,6 +72,29 @@ def _run_serve(args: argparse.Namespace) -> None:
     frozen_dir = (
         Path(configured_frozen).expanduser().resolve() if configured_frozen else app_root / "frozen"
     )
+    if os.environ.get("FURA_CONTENT_REPOSITORY", "").strip():
+        from furatena.catalog.application_roots import ApplicationRoots
+        from furatena.catalog.content_deployment import (
+            ContentDeploymentConfig,
+            ContentDeploymentError,
+            ContentDeploymentStore,
+        )
+        from furatena.catalog.exceptions import CatalogConfigError
+
+        roots = ApplicationRoots.from_environment(app_root)
+        roots.ensure_writable_roots()
+        deployment = ContentDeploymentConfig.from_environment()
+        if deployment is None:  # pragma: no cover - guarded by the environment check
+            raise ContentDeploymentError(
+                "The managed content repository is not configured for generation selection."
+            )
+        try:
+            ContentDeploymentStore(deployment).active_selection().require_runtime(
+                site_root=app_root,
+                frozen_root=frozen_dir,
+            )
+        except ContentDeploymentError as exc:
+            raise CatalogConfigError(str(exc), operation="select managed generation") from exc
     serve = resolve_serve_config(
         docs_root=app_root,
         content_roots=tuple(mount.content_root for mount in mounts),
