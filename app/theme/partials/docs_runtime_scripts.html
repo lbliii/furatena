@@ -219,7 +219,22 @@
         var option = select.options[select.selectedIndex];
         if (!option) return;
         var href = option.value;
-        if (href) window.location.href = href;
+        var channel = option.getAttribute("data-channel");
+        var target = null;
+        document.querySelectorAll("[data-docs-version-target]").forEach(function (link) {
+          if (!target && link.getAttribute("data-docs-version-target") === channel) {
+            target = link;
+          }
+        });
+        if (target && window.htmx) {
+          target.click();
+          return;
+        }
+        if (target) {
+          window.location.assign(target.href);
+          return;
+        }
+        if (href) window.location.assign(href);
       });
     });
   }
