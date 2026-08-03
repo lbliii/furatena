@@ -111,6 +111,23 @@ pointer replacement is atomic within the volume. Generation manifests and
 receipts use fsync-and-replace writes. Active source and frozen output always
 move together.
 
+Every newly staged generation writes versioned `manifest.json` and
+`verification.json` records before selector promotion. The manifest binds the
+normalized configured repository/ref, requested and resolved commits, config
+and presentation identity, image/build identity, renderer and freeze
+fingerprints, actor, refresh operation receipt, lifecycle state, and the
+complete source/frozen artifact inventory with byte sizes and SHA-256 digests.
+Verification reparses the manifest and hashes every inventoried artifact before
+promotion; startup does the same full verification before serving, and rollback
+re-verifies the target plus its image/build compatibility before moving either
+selector.
+
+Generations written before this contract remain readable during the v1
+migration window and are reported as `legacy_v1`; they are never represented as
+cryptographically verified. All newly promoted generations require the v1
+manifest and verification records. Corrupt new or recorded generations fail
+closed and move to a bounded quarantine with a sanitized status code.
+
 ## Refresh operation
 
 The semantic operation is:
@@ -156,9 +173,9 @@ must send `furatena.content-refresh.request` v1 with all three request fields.
 
 Promotion, activation, restart scheduling, and readiness are distinct durable
 states. Startup reconciliation is local: it marks interrupted pre-promotion
-work failed, preserves last-known-good, and marks a promoted generation ready
-only when the running generation, image digest, and build commit match its
-receipt.
+work failed, preserves failed staging evidence and last-known-good, and marks a
+promoted generation ready only when the running generation, image digest, and
+build commit match its receipt.
 
 ## Startup and reconciliation
 
@@ -185,7 +202,9 @@ closed.
 Sanitized content status and readiness expose only lifecycle and immutable
 identifiers. They distinguish `active`, `staging`, `degraded`, `stale`,
 `rollback`, and `failed` without returning state-root, checkout, or artifact
-filesystem paths.
+filesystem paths. Quarantine status names only the generation, stable failure
+code, quarantine identity, and timestamp so operators can recover without
+exposing paths or content.
 
 ## Image lifecycle
 

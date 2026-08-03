@@ -20,6 +20,7 @@ from furatena.catalog.catalog_shards import catalog_shard_path, is_safe_mount_id
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.content_deployment import (
     ContentDeploymentConfig,
+    ContentDeploymentConflict,
     ContentDeploymentError,
     ContentDeploymentStore,
 )
@@ -272,14 +273,19 @@ def register_public_routes(docs: Any, app: App) -> None:
                     "image_digest",
                     "build_commit",
                     "promoted_at",
+                    "manifest_digest",
+                    "verification_status",
                 )
             }
             if isinstance(raw_receipt, dict)
             else None
         )
         running_content = deployed_build_identity(self)["content"]
+        verification = raw_status.get("generation_verification")
         if raw_status.get("rollback_hold"):
             lifecycle_state = "rollback"
+        elif isinstance(verification, dict) and verification.get("status") == "degraded":
+            lifecycle_state = "degraded"
         elif running_content.get("activation_pending_restart"):
             lifecycle_state = "stale"
         elif latest is not None and latest.state.value in {"queued", "staging"}:
@@ -297,6 +303,8 @@ def register_public_routes(docs: Any, app: App) -> None:
                 "last_known_good_generation": raw_status.get("last_known_good_generation"),
                 "rollback_hold": bool(raw_status.get("rollback_hold")),
                 "receipt": receipt,
+                "generation_verification": verification,
+                "generation_quarantine": raw_status.get("generation_quarantine"),
                 "replica_contract": "single_replica_v1",
                 "latest_refresh_operation": (
                     latest.public_dict(
@@ -367,6 +375,11 @@ def register_public_routes(docs: Any, app: App) -> None:
             return _content_json(
                 {"error": {"code": "invalid_rollback_request", "message": str(exc)}},
                 status=400,
+            )
+        except ContentDeploymentConflict as exc:
+            return _content_json(
+                {"error": {"code": exc.code, "message": str(exc)}},
+                status=409,
             )
         except ContentDeploymentError as exc:
             return _content_json({"status": "failed", "error": str(exc)}, status=409)
