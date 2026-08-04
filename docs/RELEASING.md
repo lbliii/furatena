@@ -80,11 +80,16 @@ A merge to `main`, or a manual `candidate` operation, performs this sequence:
    channel, and timestamp;
 6. publish a GitHub/Sigstore attestation for the registry subject;
 7. pull the exact subject into a clean job, verify CPython 3.14t is GIL-disabled,
-   boot it, and require `/readyz` to pass.
+   boot it, require `/readyz` and the supported public surfaces to pass, and
+   prove the managed-content diagnostic and unprivileged-volume contracts;
+8. after every exact-digest gate passes, retain a schema-validated promotion
+   receipt binding the digest and source commit to the exact workflow, `main`
+   ref, workflow SHA, run ID, run attempt, and successful conclusion.
 
 The candidate artifact is not production-approved merely because this job
-passes. The workflow artifact is short-term CI evidence; stable promotion also
-creates a durable GitHub release record.
+passes. The workflow artifact is short-term CI evidence and is eligible for
+promotion for seven days; stable promotion also creates a durable GitHub release
+record.
 
 ## Promote a stable digest
 
@@ -94,6 +99,7 @@ Run **Publish proprietary image** manually with:
 - a new immutable `MAJOR.MINOR.PATCH` `version`;
 - the candidate's exact `sha256:...` `digest`;
 - the candidate's forty-character source `commit`;
+- the successful candidate workflow's numeric `candidate_run_id`;
 - the prior known-good `rollback_digest`;
 - a concrete `compatibility` statement; and
 - `migration_notes`, including an explicit no-migration statement when no
@@ -103,11 +109,16 @@ The protected `private-image-production` environment supplies the human gate.
 The lifecycle job first checks the exact digest-named revocation release, then
 proves the subject still exists in GHCR. It accepts only provenance signed by
 this repository's private-image workflow on a GitHub-hosted runner, from the
-submitted source commit on `main`. It then writes a stable record and creates
-`image-v<version>` with that record as an asset. It does not invoke Docker
-build. Never reuse a commercial version or move its release tag to a different
-commit. A failed or unavailable revocation lookup or attestation check blocks
-promotion rather than treating the digest as eligible.
+submitted source commit on `main`. It then downloads the exact run's promotion
+receipt and compares that receipt with current GitHub Actions run metadata.
+Missing artifacts, incomplete, failed, cancelled, or non-successful runs,
+evidence older than seven days, and any digest, commit, repository, workflow,
+ref, run, attempt, or timestamp mismatch fail closed. Only then does it write a
+stable record and create
+`image-v<version>` with that record as an asset. It does not invoke Docker build.
+Never reuse a commercial version or move its release tag to a different commit.
+A failed or unavailable revocation lookup, attestation check, or promotion
+receipt check blocks promotion rather than treating the digest as eligible.
 
 The stable record includes the exact image and rollback subjects, compatibility
 statement, supported content/config contract version and source-revision URLs,
