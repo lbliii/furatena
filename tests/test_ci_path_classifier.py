@@ -37,9 +37,21 @@ def test_content_changes_require_browser_proof_only() -> None:
     assert result == {"coverage": False, "browser": True, "release": False}
 
 
-def test_ready_for_review_forces_full_proof() -> None:
+def test_force_all_keeps_main_and_dispatch_on_full_proof() -> None:
     assert classify_paths((), force_all=True) == {
         "coverage": True,
         "browser": True,
         "release": True,
     }
+
+
+def test_deleted_render_paths_keep_expensive_proof() -> None:
+    result = classify_paths(("src/furatena/catalog/render.py",))
+
+    assert result == {"coverage": True, "browser": True, "release": True}
+
+
+def test_renamed_paths_use_the_post_rename_path() -> None:
+    result = classify_paths(("app/config.py",))
+
+    assert result == {"coverage": False, "browser": True, "release": False}

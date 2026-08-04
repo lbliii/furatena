@@ -91,3 +91,30 @@ def test_pull_request_workflows_cancel_superseded_runs_by_pr_number() -> None:
     lifecycle = private_image["concurrency"]
     assert "private-image-lifecycle" in lifecycle["group"]
     assert "github.sha" in lifecycle["group"]
+
+
+def test_pages_workflow_classifies_pull_requests_from_exact_diffs() -> None:
+    workflow = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+    )
+    scope = next(
+        step
+        for step in workflow["jobs"]["fast"]["steps"]
+        if step.get("id") == "scope"
+    )
+
+    assert "git diff --name-only --diff-filter=ACMRDT" in scope["run"]
+    assert "ready_for_review" not in scope["run"]
+    assert "set -euo pipefail" in scope["run"]
+    assert "git cat-file -e" in scope["run"]
+
+
+def test_ci_event_brake_documentation_records_baseline_and_rollback() -> None:
+    docs = (REPO / "docs" / "CI.md").read_text(encoding="utf-8")
+
+    assert "## CI event brakes" in docs
+    assert "966 workflow runs" in docs
+    assert "2,471 unrounded hosted-runner minutes" in docs
+    assert "**Rollback:**" in docs
+    assert "Convert to draft" in docs
+    assert "ready_for_review` uses the same diff" in docs

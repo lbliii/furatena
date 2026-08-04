@@ -156,8 +156,11 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
         "release-required": "${{ steps.scope.outputs.release-required }}",
     }
     scope = next(step for step in jobs["fast"]["steps"] if step.get("id") == "scope")
+    assert "set -euo pipefail" in scope["run"]
+    assert "git diff --name-only --diff-filter=ACMRDT" in scope["run"]
+    assert "ready_for_review" not in scope["run"]
+    assert "Missing pull-request base or head SHA" in scope["run"]
     assert "scripts/classify_ci_paths.py --force-all" in scope["run"]
-    assert "git diff --name-only --diff-filter=ACMR" in scope["run"]
     assert jobs["browser"]["timeout-minutes"] == 10
     assert set(jobs["deploy"]["needs"]) == set(LANES)
     export_lane = next(
