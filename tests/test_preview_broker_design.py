@@ -89,6 +89,30 @@ def test_broker_endpoint_inventory_is_stable_bounded_and_complete() -> None:
     assert "Secrets are prohibited in\npaths and ordinary query strings" in section
 
 
+def test_oidc_workflow_identity_is_not_confused_with_registration_intent() -> None:
+    architecture = ARCHITECTURE.read_text(encoding="utf-8")
+    threat_model = THREAT_MODEL.read_text(encoding="utf-8")
+
+    assert (
+        "OIDC claims authenticate the trusted workflow context, not the submitted\n"
+        "pull-request number, head SHA, or preview origin."
+    ) in architecture
+    assert (
+        "The binding fields therefore remain request intent until independently\n"
+        "revalidated against current GitHub state and the deployment-provider/controller\n"
+        "authority selected by #521."
+    ) in architecture
+    assert (
+        "GitHub OIDC establishes the trusted workflow principal; it does not assert the\n"
+        "submitted pull-request number, pull-request head SHA, or preview origin."
+    ) in threat_model
+    assert "control payload and handoff topology remain\nowned by that implementation" in (
+        threat_model
+    )
+    assert "event, audience, PR, SHA, and time" not in architecture
+    assert "event/ref/PR/SHA/time" not in threat_model
+
+
 def test_github_app_permission_matrix_cannot_silently_expand() -> None:
     section = _section(
         ARCHITECTURE.read_text(encoding="utf-8"),

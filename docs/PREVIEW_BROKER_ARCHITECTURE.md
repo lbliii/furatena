@@ -71,7 +71,7 @@ canonical preview origin.
 | GitHub user | GitHub App browser or device flow plus a fresh repository-access decision | Receive a short-lived grant for one registered binding | GitHub App private key, another tenant's metadata, or broker signing key |
 | CLI or agent client | GitHub device approval plus one-time code exchange | Receive and present a short-lived Bearer grant for one exact binding | Browser session, reusable GitHub token, client secret, or cross-binding grant |
 | GitHub App installation | Fresh GitHub API state and immutable installation ID | Define one tenant and the repositories the App may inspect | Authority to approve a user without a separate current user-access decision |
-| Trusted preview controller | GitHub Actions OIDC pinned to repository, workflow source/ref, event, audience, PR, SHA, and time | Register, supersede, or close an exact binding | GitHub App private key, broker signing key, database credentials, or user tokens |
+| Trusted preview controller | GitHub Actions OIDC pinned to issuer, audience, immutable repository identity, trusted workflow source/ref, event, actor context, token identity, and time | Submit registration intent; register, supersede, or close only after the current PR/head and provider origin are independently revalidated | GitHub App private key, broker signing key, database credentials, or user tokens |
 | Preview runtime | Issuer pin plus authenticated registration/revocation channel; local JWKS verification | Validate exact-bound grants and establish bounded local sessions | Private signing keys, GitHub tokens, provider credentials, or cross-preview state |
 | GitHub | TLS plus pinned GitHub API/OAuth endpoints | Authenticate users and answer current installation/repository access checks | Preview content, broker signing keys, or provider credentials |
 | Broker operator | Strong operator identity, least-privilege role, and audited elevation | Deploy, observe, rotate, recover, and respond to incidents | Plaintext user codes, grants, OAuth tokens, documentation content, or unrestricted tenant queries |
@@ -100,9 +100,9 @@ Preview runtime <---- JWKS + scoped revocation ---- Broker protocol edge
                     (no normal request-time broker hop)
 ```
 
-1. Trusted controller → broker control API: GitHub OIDC token, idempotency
-   identity, exact repository/PR/head-SHA/origin binding, protocol endpoints,
-   lifetimes, and lifecycle intent.
+1. Trusted controller → broker control API: GitHub OIDC token authenticating
+   the trusted workflow context, plus bounded request intent for idempotency,
+   repository/PR/head-SHA/origin, protocol endpoints, lifetimes, and lifecycle.
 2. Broker → GitHub OIDC metadata: issuer keys and claim validation material.
    The broker does not exchange this token for a general GitHub token.
 3. Browser or device client → broker: versioned authorization request, PKCE or
@@ -124,6 +124,17 @@ Preview runtime <---- JWKS + scoped revocation ---- Broker protocol edge
    repository names are excluded.
 9. Operator → protected control plane: deployment, key-state transitions,
    recovery, and aggregate diagnostics through separately audited roles.
+
+OIDC claims authenticate the trusted workflow context, not the submitted
+pull-request number, head SHA, or preview origin. GitHub's
+[supported OIDC claims](https://docs.github.com/en/actions/reference/security/oidc#oidc-token-claims)
+include no pull-request-number claim, and for `pull_request_target` the workflow
+[`GITHUB_SHA` and `GITHUB_REF`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target)
+describe the trusted default-branch context rather than the pull-request head.
+The binding fields therefore remain request intent until independently
+revalidated against current GitHub state and the deployment-provider/controller
+authority selected by #521. This record does not choose that control payload or
+handoff topology.
 
 There is intentionally no browser/client → preview → broker proxy path and no
 broker → preview-content path. This prevents the broker from becoming a content

@@ -31,6 +31,13 @@ implemented.
 8. No tenant, operator, worker, cache, migration, or backup path can omit the
    installation and repository partition.
 
+GitHub OIDC establishes the trusted workflow principal; it does not assert the
+submitted pull-request number, pull-request head SHA, or preview origin. Those
+binding fields are independently revalidated against current GitHub state and
+the deployment-provider/controller authority selected by #521 before they
+become registration state. The exact control payload and handoff topology remain
+owned by that implementation decision.
+
 ## Assets
 
 | Asset | Security property |
@@ -38,7 +45,7 @@ implemented.
 | Managed signing keys and key state | Non-exportability, controlled use, monotonic rotation/revocation, availability |
 | GitHub App private key and OAuth client secret | Confidentiality, narrow service access, independent rotation |
 | GitHub user access result and transient token | Currentness, transaction-only use, non-retention |
-| Trusted-workflow OIDC assertion | Exact issuer/audience/workflow/repository/event/ref/PR/SHA/time binding and one-time use |
+| Trusted-workflow OIDC assertion | Exact issuer/audience/workflow/repository/event/ref/actor/token/time identity and one-time use; no assertion of pull-request number, pull-request head SHA, or preview origin |
 | Registration and lifecycle state | Exact binding, authenticated provenance, atomic supersession/close, tenant isolation |
 | Authorization/device codes, user codes, state, nonce, PKCE material, JTI, grants, and sessions | Secrecy where applicable, single use, expiry, binding, replay resistance |
 | JWKS and revocation stream | Authenticity, freshness, ordered state, bounded availability |
@@ -159,9 +166,9 @@ logged for debugging.
 
 | Threat or failure scenario | Required mitigation and proof |
 | --- | --- |
-| Registration replay | Exact OIDC issuer/audience/workflow/repository/event/ref/PR/SHA/time checks; JTI HMAC replay row; atomic idempotency; same key/different intent conflict tests |
+| Registration replay | Exact OIDC issuer/audience/workflow/repository/event/ref/actor/token/time checks; independent current PR/head and provider-origin revalidation; JTI HMAC replay row; atomic idempotency; same key/different intent conflict tests |
 | Fork or bot controls trusted workflow | Trusted default-branch `pull_request_target` code only; no PR checkout before registration; explicit bot/fork policy; negative workflow/ref/actor fixtures |
-| Controller confused deputy or origin substitution | Controller may register only claims-bound repository/PR/SHA; canonical HTTPS origin plus provider observation; no caller-selected issuer endpoints; exact tuple tests |
+| Controller confused deputy or origin substitution | OIDC claims bind the controller's repository and trusted workflow identity, while current GitHub state and the deployment-provider/controller authority independently validate PR/head/origin intent; no caller-selected issuer endpoints; exact tuple tests |
 | Origin takeover, DNS reuse, or stale domain | Origin never authorizes by itself; close/revoke old registration before reuse; controller re-proves current provider binding; certificate/DNS monitoring; takeover exercise |
 | Authorization/code/device/user-code/JTI replay | High entropy, broker-secret domain-separated HMAC lookup, atomic consume-before-grant, short expiry, bounded attempts, monotonic revocation, concurrent exchange tests |
 | User-code brute force or account/repository enumeration | Generic responses, progressive per-network/subject/tenant/global limits, no binding disclosure before authorization, fixed timing envelope, abuse telemetry without raw IP |
