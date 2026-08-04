@@ -152,11 +152,15 @@ adds latency, availability, identity, and evidence checks.
 
 ## Routine changes
 
-- Content-only change: call the authenticated content refresh endpoint. The
-  image digest remains unchanged, a new generation receipt is written, and the
-  process restarts against the new selector.
+- Content-only change: POST a v1 refresh request containing the current active
+  commit, exact requested commit, and idempotency key. HTTP 202 identifies the
+  durable status operation; promotion remains distinct from restart and
+  readiness. The image digest remains unchanged.
+  Poll `GET /_fura/content/operations/{operation_id}` with the same bearer for
+  the versioned operation state and sanitized verification result.
 - Content rollback: call the rollback endpoint; it selects last-known-good and
-  restarts without fetching or rebuilding.
+  revalidates that recorded generation's manifest, artifact hashes, and
+  image/build compatibility, then restarts without fetching or rebuilding.
 - Application change: build one candidate image, scan/attest/smoke the digest,
   promote that digest, canary it, then update production.
 - Image rollback: select the prior stable digest from its durable release
@@ -165,3 +169,15 @@ adds latency, availability, identity, and evidence checks.
 All normal diagnosis and recovery uses HTTP contracts, GitHub evidence, and
 Railway deployment/log/metrics controls. Container SSH is break-glass only and
 is not part of the verification or rollback procedure.
+
+The request body cannot override the one configured repository, ref, or
+subdirectory, and cannot supply actor identity. Empty-body refresh is a v1-only
+migration compatibility mode that follows the configured ref without exact
+commit or caller idempotency guarantees. Webhooks are not a v1 transport.
+
+New generations include `manifest.json` and `verification.json` beside their
+receipt. These records bind source, configuration, presentation/runtime
+fingerprints, build identity, refresh operation, and every source/frozen file
+size and SHA-256 digest. Startup performs the full artifact check before
+serving. Pre-contract generations are reported as `legacy_v1` during the v1
+migration window and are not described as cryptographically verified.
