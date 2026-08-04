@@ -918,11 +918,11 @@ implementation treats absence as significant or supplies behavior elsewhere.
 |---|---|---|---|
 | `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:255` |
 | `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:261` |
-| `CHIRP_SKIP_CONTRACT_CHECKS` | read, write | '', None | `furatena/catalog/docs_app.py:463`, `furatena/cli/commands/serve.py:115`, `furatena/cli/commands/serve.py:122`, `furatena/cli/commands/serve.py:135` |
+| `CHIRP_SKIP_CONTRACT_CHECKS` | read, write | '', None | `furatena/catalog/docs_app.py:461`, `furatena/cli/commands/serve.py:115`, `furatena/cli/commands/serve.py:122`, `furatena/cli/commands/serve.py:135` |
 | `CHIRP_TRACEBACK` | read | '' | `furatena/catalog/dev_reload.py:220` |
 | `FURA_ACTIVE_CONTENT_GENERATION` | read | '' | `furatena/catalog/build_identity.py:20`, `furatena/catalog/operational_status.py:167` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:42` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1934`, `furatena/cli/commands/serve.py:47` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1932`, `furatena/cli/commands/serve.py:47` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1535`, `furatena/catalog/route_registrars.py:1554`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:51` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:65`, `furatena/catalog/content_deployment.py:308`, `furatena/catalog/content_deployment.py:551`, `furatena/catalog/content_deployment.py:639`, `furatena/catalog/content_refresh.py:467`, `furatena/catalog/operational_status.py:170`, `furatena/catalog/preview_security.py:103` |
