@@ -231,7 +231,7 @@ configuration errors exit 3, and source conflicts exit 4. Pattern ids ending in
 | Family | Meaning and first response |
 |---|---|
 | `chirp.*`, `chirp.templating` | Chirp route/template/design-system contracts; fix the named upstream contract. |
-| `fura.agent.*`, `fura.agent_safety.*` | MCP/schema/description/parity or public-context safety; run `fura check --agent --json`. |
+| `fura.agent.*`, `fura.agent.mcp_app.*`, `fura.agent_safety.*` | MCP/schema/description/parity, MCP Apps metadata/reachability, or public-context safety; run `fura check --agent --json`. |
 | `fura.author.*`, `fura.lifecycle` | Authorization, CSRF, method, target, revision, or lifecycle failure; inspect diagnostics and rerun a dry run. |
 | `fura.mcp*`, `fura.evals.*` | MCP protocol/policy/rate/token or deterministic eval failure; repair policy/schema before retry. |
 | `fura.migration.*`, `fura.migrate*` | Source-format compatibility or incomplete migration; use the migration report and suggested mapping. |
@@ -248,6 +248,7 @@ Exact rule-id index:
 - `chirp.*`, `chirp.templating`
 - `fura.agent.action_boundary`, `fura.agent.breaking_change`, `fura.agent.contract_diff`, `fura.agent.description`, `fura.agent.duplicate`
 - `fura.agent.input_schema`, `fura.agent.llms_description`, `fura.agent.manifest_alignment`, `fura.agent.milo`, `fura.agent.mutation_boundary`
+- `fura.agent.mcp_app.*`
 - `fura.agent.output_schema`, `fura.agent.parameter_description`, `fura.agent.permission_note`, `fura.agent.resource_metadata`, `fura.agent.tool_description`
 - `fura.agent_safety.private_leak`, `fura.agent_safety.stale_context`
 - `fura.api`, `fura.author`, `fura.author.authorization`, `fura.author.conflict`, `fura.author.csrf`, `fura.author.method`, `fura.author.target`
