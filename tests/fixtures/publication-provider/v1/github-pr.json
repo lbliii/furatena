@@ -4,5 +4,7 @@
   "profile": "pull_request",
   "provider_operations": ["inspect", "prepare", "commit", "propose_review", "observe_review", "reconcile"],
   "protected_base": true,
-  "expected_outcome": "review_open"
+  "expected_outcome": "review_open",
+  "expected_workflow_state": "reviewable",
+  "merged_workflow_state": "applied"
 }

@@ -494,6 +494,9 @@ def test_fixture_inventory_covers_required_provider_scenarios() -> None:
         assert fixture["provider_operations"] == [
             operation.value for operation in provider_operations_for(profile)
         ]
+        if profile == PublicationProfile.PULL_REQUEST:
+            assert fixture["expected_workflow_state"] == "reviewable"
+            assert fixture["merged_workflow_state"] == "applied"
 
 
 def test_provider_protocol_is_runtime_checkable() -> None:
