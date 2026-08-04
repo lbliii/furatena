@@ -70,6 +70,73 @@ Managed deployments require local packs and every declared file to remain within
 site generation. Absolute paths, parent traversal, symlinks, undeclared files, and cross-root
 selection fail before serving.
 
+## Developer workflow
+
+Create a repository-local pack beneath the active site's `presentation/` directory. The default
+remains a skin for compatibility; use an explicit type when starting a complete layout or sparse
+override:
+
+```bash
+fura theme init presentation/product-brand --id product-brand
+fura theme init presentation/product-layout --type layout --id product-layout
+fura theme init presentation/product-overrides --type override --id product-overrides
+```
+
+Every scaffold includes a valid v1 manifest, a repository-local README, and only the files its
+pack type owns. Existing files are preserved unless `--force` is supplied. Layout scaffolds own
+all eight view kinds plus the supporting error, search, author, develop, and marketing templates
+needed by live and static routes. Skin scaffolds retain the legacy `tokens.css`, `styles.css`,
+`directives.css`, `effects.css`, and `skin/*` seams while adding a manifest. Override scaffolds
+start with one sparse `views/doc.html` shadow and a stylesheet.
+
+Run the developer loop from the app root:
+
+```bash
+fura theme check presentation/product-layout
+fura theme preview presentation/product-layout
+fura theme preview presentation/product-layout --check
+fura theme conformance presentation/product-layout
+fura theme conformance presentation/product-layout --check
+```
+
+`theme check` validates manifest compatibility, unsafe paths and symlinks, declared assets,
+script trust, template reachability, named page seams, CSS-token ownership, and the layout print
+contract. Diagnostics name the incompatible surface and a recovery action; `--json` uses the
+standard command envelope and validation failures exit with status 2.
+
+| Diagnostic | Affected contract | Recovery |
+|---|---|---|
+| `fura.presentation.manifest` | Manifest schema, compatibility, assets, scripts, or trust | Correct `presentation-pack.json` using manifest v1. |
+| `fura.presentation.unsafe_path` | Repository-local path safety | Replace symlinks or traversal with regular pack-owned files. |
+| `fura.presentation.template_reachability` | Declared view template loading | Extend a reachable pack template and preserve `page_root`. |
+| `fura.presentation.unsafe_html` | Template escaping | Escape output or use `safe(reason="...")` for a reviewed trusted producer. |
+| `fura.presentation.token_ownership` | CSS token definition ownership | Define each pack-owned token once in the declared token file. |
+| `fura.presentation.unused_tokens` | Declared token consumption | Consume the declared token from pack styles or remove it. |
+| `fura.presentation.print` | Layout print/PDF behavior | Add a print media contract to a declared stylesheet. |
+| `fura.presentation.reference_preview` | Fixture rendering | Run `theme check`, repair the reported surface, and rerun preview. |
+| `fura.presentation.conformance` | Cross-surface checks | Inspect failed checks, repair the named surface, and rerun conformance. |
+| `fura.presentation.generated_drift` | Generated preview/report bytes | Regenerate without `--check`, review, and commit the intended output. |
+
+`theme preview` writes `.fura-preview/` under the pack by default. It renders full and fragment
+HTML for every view kind plus search and error states from synthetic, public-safe fixtures. The
+preview index frames the same server output at mobile, tablet, and desktop widths. Fixture content
+covers long titles, deep navigation, empty states, code, directives, API reference, localization,
+and distinct draft/private/protected/archived canaries without copying adopter content. Per-request
+CSP nonces are replaced only in these offline reference artifacts so repeated generation is byte
+stable; runtime responses retain real nonces.
+
+`theme conformance` writes `.fura-conformance/conformance.json`. It exercises full/fragment HTML,
+accessibility landmarks, search and navigation hooks, responsive and print contracts, public
+static export, PDF generation, and normalized agent output equivalence against the packaged
+vanilla layout. The static-export visibility audit must prove that every synthetic non-public
+canary is absent. Generated outputs are updated without `--check`; CI should use `--check` to fail
+on missing, changed, or unexpected files instead of maintaining snapshots by hand.
+
+Repository-local packs need no Python installation. For organization-wide preinstallation, expose
+the same pack root through `furatena.presentation_packs`; identity, version, compatibility, and
+trust rules do not change. Upgrade the manifest runtime range deliberately, rerun all three
+commands, and review generated drift before publishing a new pack version.
+
 ## Manifest v1
 
 `presentation-pack.json` is validated by the shipped
