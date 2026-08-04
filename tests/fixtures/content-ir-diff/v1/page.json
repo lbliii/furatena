@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "ok": true,
+  "kind": "page",
+  "mount": "docs",
+  "from": {
+    "edition": "1.0.0",
+    "status": "legacy",
+    "source_ref": "v1.0.0",
+    "resolved_ref": "1111111111111111111111111111111111111111"
+  },
+  "to": {
+    "edition": "latest",
+    "status": "current",
+    "source_ref": "main",
+    "resolved_ref": "2222222222222222222222222222222222222222"
+  },
+  "query": {
+    "slug": "guide",
+    "include_eol": false,
+    "limit": 100,
+    "offset": 0
+  },
+  "summary": {
+    "status": "changed",
+    "change_count": 1,
+    "components": {"section": 1, "heading": 0, "directive": 0, "link": 0},
+    "changes": {"added": 0, "removed": 0, "changed": 1, "moved": 0}
+  },
+  "total": 1,
+  "limit": 100,
+  "offset": 0,
+  "next_offset": null,
+  "page": {
+    "slug": "guide",
+    "status": "changed",
+    "from": {
+      "node_id": "docs:1.0.0:guide",
+      "mount": "docs",
+      "edition": "1.0.0",
+      "slug": "guide",
+      "url": "/v1.0.0/guide/",
+      "title": "Guide",
+      "source_path": "guide.md",
+      "provenance": {"provider": "git", "ref": "1111111111111111111111111111111111111111"}
+    },
+    "to": {
+      "node_id": "docs:latest:guide",
+      "mount": "docs",
+      "edition": "latest",
+      "slug": "guide",
+      "url": "/guide/",
+      "title": "Guide",
+      "source_path": "guide.md",
+      "provenance": {"provider": "git", "ref": "2222222222222222222222222222222222222222"}
+    },
+    "structural_hashes": {
+      "from": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "to": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  },
+  "changes": [
+    {
+      "component": "section",
+      "change": "changed",
+      "identity": "guide",
+      "moved": false,
+      "from_index": 0,
+      "to_index": 0,
+      "from": {"id": "guide", "heading": "Guide", "depth": 1, "text": "Old"},
+      "to": {"id": "guide", "heading": "Guide", "depth": 1, "text": "New"}
+    }
+  ],
+  "pages": []
+}

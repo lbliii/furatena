@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/content-ir-diff-v1.schema.json",
+  "title": "Furatena Content IR diff v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "ok",
+    "kind",
+    "mount",
+    "from",
+    "to",
+    "query",
+    "summary",
+    "total",
+    "limit",
+    "offset",
+    "next_offset",
+    "page",
+    "changes",
+    "pages"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "ok": {"const": true},
+    "kind": {"enum": ["page", "mount"]},
+    "mount": {"type": "string", "minLength": 1},
+    "from": {"$ref": "#/$defs/edition"},
+    "to": {"$ref": "#/$defs/edition"},
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "include_eol", "limit", "offset"],
+      "properties": {
+        "slug": {"type": ["string", "null"]},
+        "include_eol": {"type": "boolean"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+        "offset": {"type": "integer", "minimum": 0}
+      }
+    },
+    "summary": {
+      "oneOf": [
+        {"$ref": "#/$defs/pageSummary"},
+        {"$ref": "#/$defs/mountSummary"}
+      ]
+    },
+    "total": {"type": "integer", "minimum": 0},
+    "limit": {"type": "integer", "minimum": 1, "maximum": 500},
+    "offset": {"type": "integer", "minimum": 0},
+    "next_offset": {"type": ["integer", "null"], "minimum": 0},
+    "page": {"oneOf": [{"$ref": "#/$defs/page"}, {"type": "null"}]},
+    "changes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/change"}
+    },
+    "pages": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/page"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "page"}}},
+      "then": {
+        "properties": {
+          "page": {"$ref": "#/$defs/page"},
+          "pages": {"maxItems": 0}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"kind": {"const": "mount"}}},
+      "then": {
+        "properties": {
+          "page": {"type": "null"},
+          "changes": {"maxItems": 0}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "edition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edition", "status", "source_ref", "resolved_ref"],
+      "properties": {
+        "edition": {"type": "string", "minLength": 1},
+        "status": {"enum": ["current", "legacy", "deprecated", "preview", "eol"]},
+        "source_ref": {"type": "string"},
+        "resolved_ref": {"type": "string"}
+      }
+    },
+    "pageReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "mount",
+        "edition",
+        "slug",
+        "url",
+        "title",
+        "source_path",
+        "provenance"
+      ],
+      "properties": {
+        "node_id": {"type": "string", "minLength": 1},
+        "mount": {"type": "string", "minLength": 1},
+        "edition": {"type": "string", "minLength": 1},
+        "slug": {"type": "string"},
+        "url": {"type": "string"},
+        "title": {"type": "string"},
+        "source_path": {"type": "string"},
+        "provenance": {"type": "object"}
+      }
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "to": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "status", "from", "to", "structural_hashes"],
+      "properties": {
+        "slug": {"type": "string"},
+        "status": {"enum": ["added", "removed", "changed", "unchanged"]},
+        "from": {"oneOf": [{"$ref": "#/$defs/pageReference"}, {"type": "null"}]},
+        "to": {"oneOf": [{"$ref": "#/$defs/pageReference"}, {"type": "null"}]},
+        "structural_hashes": {"$ref": "#/$defs/hashes"}
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "change",
+        "identity",
+        "moved",
+        "from_index",
+        "to_index",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "component": {"enum": ["section", "heading", "directive", "link"]},
+        "change": {"enum": ["added", "removed", "changed", "moved"]},
+        "identity": {"type": "string"},
+        "moved": {"type": "boolean"},
+        "from_index": {"type": ["integer", "null"], "minimum": 0},
+        "to_index": {"type": ["integer", "null"], "minimum": 0},
+        "from": {"type": ["object", "null"]},
+        "to": {"type": ["object", "null"]}
+      }
+    },
+    "componentCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section", "heading", "directive", "link"],
+      "properties": {
+        "section": {"type": "integer", "minimum": 0},
+        "heading": {"type": "integer", "minimum": 0},
+        "directive": {"type": "integer", "minimum": 0},
+        "link": {"type": "integer", "minimum": 0}
+      }
+    },
+    "changeCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "changed", "moved"],
+      "properties": {
+        "added": {"type": "integer", "minimum": 0},
+        "removed": {"type": "integer", "minimum": 0},
+        "changed": {"type": "integer", "minimum": 0},
+        "moved": {"type": "integer", "minimum": 0}
+      }
+    },
+    "pageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "change_count", "components", "changes"],
+      "properties": {
+        "status": {"enum": ["added", "removed", "changed", "unchanged"]},
+        "change_count": {"type": "integer", "minimum": 0},
+        "components": {"$ref": "#/$defs/componentCounts"},
+        "changes": {"$ref": "#/$defs/changeCounts"}
+      }
+    },
+    "mountSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "removed", "changed", "unchanged"],
+      "properties": {
+        "added": {"type": "integer", "minimum": 0},
+        "removed": {"type": "integer", "minimum": 0},
+        "changed": {"type": "integer", "minimum": 0},
+        "unchanged": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
