@@ -466,7 +466,7 @@ Command parser contract.
 | `--channel` | no | — | — | — | Version channel (FURA_CHANNEL) |
 | `--base-url` | no | — | — | — | Public origin (FURA_BASE_URL) |
 | `--workers` | no | — | — | `int` | Parallel index workers |
-| `--json` | no | false | — | — | Emit startup as standard command result JSON |
+| `--json` | no | false | — | — | Emit preflight as standard command result JSON |
 
 ### `fura stop`
 
@@ -802,42 +802,43 @@ implementation treats absence as significant or supplies behavior elsewhere.
 |---|---|---|---|
 | `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:244` |
 | `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:250` |
-| `CHIRP_SKIP_CONTRACT_CHECKS` | read | '' | `furatena/catalog/docs_app.py:423` |
+| `CHIRP_SKIP_CONTRACT_CHECKS` | read, write | '', None | `furatena/catalog/docs_app.py:423`, `furatena/cli/commands/serve.py:112`, `furatena/cli/commands/serve.py:92`, `furatena/cli/commands/serve.py:99` |
+| `CHIRP_TRACEBACK` | read | '' | `furatena/catalog/dev_reload.py:218` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:41` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1747`, `furatena/cli/commands/serve.py:42` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1747`, `furatena/cli/commands/serve.py:47` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1271`, `furatena/catalog/route_registrars.py:1290`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
-| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:46` |
+| `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:51` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:43`, `furatena/catalog/preview_security.py:103` |
-| `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:36`, `furatena/cli/commands/serve.py:44` |
+| `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:36`, `furatena/cli/commands/serve.py:49` |
 | `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:116` |
 | `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:17`, `furatena/cli/commands/content.py:63` |
 | `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:49`, `furatena/catalog/docs_app.py:279` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:244` |
-| `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:80` |
-| `FURA_FROZEN_DIR` | read | '' | `furatena/cli/commands/serve.py:71` |
+| `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:85` |
+| `FURA_FROZEN_DIR` | read | '' | `furatena/cli/commands/serve.py:76` |
 | `FURA_HTMX_PREVIEW` | read | '' | `furatena/catalog/vendor_paths.py:33` |
 | `FURA_IMAGE_CHANNEL` | read | 'development' | `furatena/catalog/build_identity.py:52` |
 | `FURA_IMAGE_DIGEST` | read | 'unknown' | `furatena/catalog/build_identity.py:53`, `furatena/catalog/content_deployment.py:152` |
 | `FURA_IMAGE_VERSION` | read | 'development' | `furatena/catalog/build_identity.py:54` |
 | `FURA_KEEP_ALIVE_TIMEOUT` | read | '5' | `furatena/catalog/docs_app.py:260` |
 | `FURA_LANG` | read | '' | `furatena/catalog/i18n.py:112` |
-| `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:36`, `furatena/cli/commands/serve.py:38`, `furatena/cli/commands/serve.py:40` |
+| `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:41`, `furatena/cli/commands/serve.py:43`, `furatena/cli/commands/serve.py:45` |
 | `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:221` |
 | `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:216` |
-| `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:149`, `furatena/cli/commands/serve.py:48`, `furatena/cli/commands/serve.py:95`, `furatena/cli/commands/stop.py:17` |
+| `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:150`, `furatena/cli/commands/serve.py:114`, `furatena/cli/commands/serve.py:53`, `furatena/cli/commands/stop.py:17` |
 | `FURA_PREVIEW_AUTH_TOKEN` | read | '' | `furatena/catalog/preview_security.py:159` |
 | `FURA_PREVIEW_ORIGIN` | read | '' | `furatena/catalog/preview_security.py:105` |
 | `FURA_PREVIEW_PR_NUMBER` | read | '' | `furatena/catalog/preview_security.py:101` |
 | `FURA_PREVIEW_REVIEW_URL` | read | '' | `furatena/catalog/preview_security.py:104` |
 | `FURA_PREVIEW_SHA` | read | '' | `furatena/catalog/preview_security.py:102` |
 | `FURA_PR_PREVIEW` | read | '' | `furatena/catalog/preview_security.py:100` |
-| `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_reload.py:174` |
+| `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_banner.py:132`, `furatena/catalog/dev_reload.py:175` |
 | `FURA_SERVER_WORKERS` | read | '' | `furatena/catalog/docs_app.py:277` |
 | `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:250` |
 | `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:328`, `furatena/catalog/static_export.py:336` |
 | `FURA_STRUCTURED_LOGS` | read | '' | `furatena/catalog/observability.py:136` |
 | `FURA_TELEMETRY` | read | 'none' | `furatena/catalog/observability.py:142` |
-| `FURA_WORKERS` | read, write | '', None | `furatena/catalog/workers.py:20`, `furatena/cli/commands/freeze.py:26`, `furatena/cli/commands/serve.py:50` |
+| `FURA_WORKERS` | read, write | '', None | `furatena/catalog/workers.py:20`, `furatena/cli/commands/freeze.py:26`, `furatena/cli/commands/serve.py:55` |
 
 ## Error and remediation examples
 
