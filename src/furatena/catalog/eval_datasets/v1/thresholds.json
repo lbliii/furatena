@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "policy_id": "furatena-retrieval-ratchet",
-  "version": "1.1.13",
+  "version": "1.1.14",
   "dataset_id": "furatena-known-answers",
-  "dataset_version": "1.1.13",
+  "dataset_version": "1.1.14",
   "measured_on": "2026-08-03",
   "runtime": "CPython 3.14t, PYTHON_GIL=0",
   "platforms": ["darwin-arm64", "linux-x86_64"],
