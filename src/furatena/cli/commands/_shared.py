@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from furatena.catalog.exceptions import CatalogConfigError
 from furatena.cli.contracts import CommandResult, ExitCode
 
 
@@ -44,7 +45,16 @@ def _app_root(args: argparse.Namespace | None = None) -> Path:
 
 def _docs_yaml(args: argparse.Namespace | None = None) -> Path:
     raw = getattr(args, "config", None) if args is not None else None
-    return Path(raw).expanduser().resolve() if raw else _app_root(args) / "docs.yaml"
+    app_root = _app_root(args)
+    path = Path(raw).expanduser().resolve() if raw else app_root / "docs.yaml"
+    if raw and path.parent != app_root:
+        raise CatalogConfigError(
+            "--config must name docs.yaml directly beneath --app-root/FURA_APP_ROOT; "
+            f"received app root {app_root} and config {path}.",
+            path=path,
+            operation="resolve application roots",
+        )
+    return path
 
 
 def _repo_for_app(app_root: Path) -> Path:

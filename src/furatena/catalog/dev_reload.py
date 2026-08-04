@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
+import sys
 import time
 from contextlib import suppress
 from dataclasses import dataclass
@@ -35,9 +36,10 @@ class DevServerRecord:
     port: int
 
 
-def dev_server_pid_path(repo_root: Path) -> Path:
+def dev_server_pid_path(repo_root: Path, *, state_root: Path | None = None) -> Path:
     """PID file for the workspace dev server (Conductor/agent cleanup)."""
-    return (repo_root / ".context" / "fura-serve.pid").resolve()
+    root = state_root if state_root is not None else repo_root
+    return (root / ".context" / "fura-serve.pid").resolve()
 
 
 def read_dev_server_record(path: Path) -> DevServerRecord | None:
@@ -137,13 +139,14 @@ def stop_dev_server(
     *,
     host: str | None = None,
     port: int | None = None,
+    state_root: Path | None = None,
 ) -> bool:
     """Stop a stray Furatena dev server for this workspace.
 
     Uses the PID file written by ``run_serve`` and, as a fallback, any process
     listening on the configured host/port.
     """
-    pid_path = dev_server_pid_path(repo_root)
+    pid_path = dev_server_pid_path(repo_root, state_root=state_root)
     record = read_dev_server_record(pid_path)
     resolved_host = host or (record.host if record else "127.0.0.1")
     resolved_port = port or (record.port if record else int(os.environ.get("FURA_PORT", "8001")))
@@ -210,5 +213,13 @@ def run_docs_dev_server(
         )
     except KeyboardInterrupt:
         pass
+    except Exception as exc:
+        from chirp.server.terminal_errors import format_startup_error
+
+        message = format_startup_error(exc)
+        if message is None or os.environ.get("CHIRP_TRACEBACK", "").lower() == "full":
+            raise
+        print(message, file=sys.stderr)
+        raise SystemExit(1) from exc
     finally:
         os.chdir(previous_cwd)

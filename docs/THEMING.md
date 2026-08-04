@@ -2,6 +2,10 @@
 
 Furatena separates **data** (catalog graph), **views** (how nodes render), and **theme** (look-and-feel). There is no build step for production — in dev, edits reload automatically (see below).
 
+Reusable presentation extensions use the strict, versioned layout/skin/override contract in
+[PRESENTATION_PACKS.md](PRESENTATION_PACKS.md). The `theme.id`, `theme.use`, `theme/`, and
+`templates/` behaviors below remain the documented compatibility path.
+
 **Views architecture:** see [VIEWS.md](VIEWS.md) for view kinds, resolution order,
 folder layout, Kida composition rules, and how views differ from shell, partials,
 and directives.
@@ -55,11 +59,15 @@ Registered packs: `fura theme list` — **docs-core** via `theme.id` (built-in: 
 ### Scaffold a custom skin
 
 ```bash
-fura theme init              # writes app/theme-skin/ by default
-fura theme init my-brand/    # custom directory
+fura theme init                         # writes APP_ROOT/theme-skin/
+fura --app-root site theme init         # writes site/theme-skin/
+fura theme init my-brand/               # relative to the selected app root
+fura theme init /absolute/path/to/brand # absolute targets remain absolute
 ```
 
-The scaffold includes `tokens.css`, `styles.css`, `skin/*`, and a branding README. Wire overrides in `docs.yaml` (see generated README) or register a `furatena.themes` entry point for a reusable pack.
+The scaffold includes `tokens.css`, `styles.css`, `skin/*`, and a branding README. Existing files
+are preserved unless `--force` is supplied. Wire overrides in `docs.yaml` (see generated README)
+or register a `furatena.themes` entry point for a reusable pack.
 
 ### Develop export previews
 

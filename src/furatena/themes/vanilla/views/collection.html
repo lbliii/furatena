@@ -1,0 +1,15 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+<article>
+  <h1>{{ node.title }}</h1>
+  {% if collection_error %}<p role="status">{{ collection_error }}</p>{% end %}
+  {% if collection_sections %}
+    {% for section in collection_sections %}
+    <section id="{{ section.anchor }}" aria-labelledby="collection-title-{{ section.index }}">
+      <h2 id="collection-title-{{ section.index }}">{{ section.node.title }}</h2>
+      <div class="vanilla-prose">{{ section.body_html | safe(reason="trusted HTML from the catalog renderer") }}</div>
+    </section>
+    {% endfor %}
+  {% else %}<p>This collection has no available pages.</p>{% end %}
+</article>
+{% end %}

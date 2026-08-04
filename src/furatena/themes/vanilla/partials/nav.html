@@ -1,0 +1,14 @@
+{% def vanilla_nav_node(item) %}
+{% let children = item.children ?? () %}
+{% let href = item.href ?? '' %}
+{% let title = item.title ?? 'Untitled' %}
+<li>
+  {% if href %}<a href="{{ href }}"{% if item.active ?? false %} aria-current="page"{% end %}>{{ title }}</a>{% else %}<span>{{ title }}</span>{% end %}
+  {% if children %}
+  <ul>
+    {% for child in children %}{{ vanilla_nav_node(child) }}{% endfor %}
+  </ul>
+  {% end %}
+</li>
+{% end %}
+{% for item in nav_items ?? () %}{{ vanilla_nav_node(item) }}{% endfor %}

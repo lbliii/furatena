@@ -79,6 +79,7 @@ _RESPONSE_CONTRACTS = {
     "edition_llms_txt": "text",
     "edition_llms_full_txt": "text",
     "catalog_retrieve": "json",
+    "catalog_content_ir_diff": "json",
     "catalog_mount_json": "json",
     "versions_mount_json": "json",
     "og_image": "image",

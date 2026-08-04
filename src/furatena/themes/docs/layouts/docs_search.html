@@ -1,0 +1,29 @@
+{# Dedicated search workspace — scope rail | command + results | discovery aside. #}
+{% extends "shell.html" %}
+
+{% block page_root %}
+<div id="page-root" class="chirpui-page-fill" data-fura-surface="{{ chirp_docs_surface | default('catalog') }}">
+{% block page_root_inner %}
+{% block page_content %}
+<a href="#page-content" class="skip-link">Skip to main content</a>
+<div class="chirp-theme-docs-layout chirp-theme-docs-layout--with-toc{{ ' ' ~ catalog_layout_extra if catalog_layout_extra else '' }}" data-chirp-theme-surface="{{ catalog_surface | default('search') }}">
+  {% include "partials/search_catalog_sidebar.html" %}
+
+  <div class="chirp-theme-docs-layout__main search-workspace" id="page-content">
+    {% block catalog_article %}{% end %}
+  </div>
+
+  {% block catalog_toc_aside %}
+  <aside class="chirp-theme-docs-layout__toc search-discovery" aria-label="Search discovery">
+    <div id="search-discovery-panel" class="search-discovery__panel">
+      {% include "partials/search_discovery.html" %}
+    </div>
+  </aside>
+  {% end %}
+</div>
+
+{% include "partials/docs_mobile_nav.html" %}
+{% end %}
+{% end %}
+</div>
+{% end %}

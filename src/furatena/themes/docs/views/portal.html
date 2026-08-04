@@ -1,0 +1,21 @@
+{% extends "layouts/docs_app.html" %}
+{% from "chirpui/layout.html" import container, stack, page_header, grid %}
+{% from "chirpui/card.html" import card %}
+
+{% block app_content %}
+{% call container(max_width="72rem") %}
+{% call stack(gap="lg") %}
+{% call page_header("Documentation Portal", subtitle="Federated mounts on one hypermedia graph") %}{% end %}
+
+<p class="fura-meta">{{ page_count }} pages indexed across {{ mounts | length }} mounts.</p>
+
+{% call grid(cols=2, gap="md") %}
+  {% for mount in mounts %}
+  {% call card(title=mount.label, subtitle=(mount.page_count ~ ' pages' ~ (' · default' if mount.default else ''))) %}
+    <p><a href="{{ mount.href }}"{{ route_link_attrs(mount.href) | html_attrs }}>Open mount</a></p>
+  {% end %}
+  {% end %}
+{% end %}
+{% end %}
+{% end %}
+{% end %}

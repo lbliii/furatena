@@ -39,7 +39,7 @@ def _strict_policy() -> dict[str, object]:
         "policy_id": "test-ratchet",
         "version": "1",
         "dataset_id": "furatena-known-answers",
-        "dataset_version": "1.1.12",
+        "dataset_version": "1.1.13",
         "overall": {
             "recall_at_3_min": 1.0,
             "mrr_min": 1.0,

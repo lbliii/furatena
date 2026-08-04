@@ -11,7 +11,7 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 
 | Invariant | Sev | Backing | Proof / anchor |
 | --- | --- | --- | --- |
-| Lagoon remains a packaged, discoverable theme with tested catalog compatibility. | P1 | machine-backed | `uv run pytest tests/test_chirp_docs_theming.py tests/test_chirp_docs_template_stack.py tests/test_theme_lint.py tests/test_theme_pack.py tests/test_theme_preset.py -q` (`theme-suite`) |
+| Lagoon remains a packaged, discoverable theme with tested catalog compatibility. | P1 | machine-backed | `uv run pytest tests/test_builtin_layouts.py tests/test_chirp_docs_theming.py tests/test_chirp_docs_template_stack.py tests/test_theme_lint.py tests/test_theme_pack.py tests/test_theme_preset.py -q` (`theme-suite`) |
 
 ## Guardrails
 

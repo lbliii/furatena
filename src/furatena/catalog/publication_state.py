@@ -67,7 +67,13 @@ _TRANSITIONS: dict[PublicationState, frozenset[PublicationState]] = {
             PublicationState.EXPIRED,
         }
     ),
-    PublicationState.EXECUTING: frozenset({PublicationState.APPLIED, PublicationState.FAILED}),
+    PublicationState.EXECUTING: frozenset(
+        {
+            PublicationState.REVIEWABLE,
+            PublicationState.APPLIED,
+            PublicationState.FAILED,
+        }
+    ),
     PublicationState.FAILED: frozenset(
         {
             PublicationState.VALIDATING,

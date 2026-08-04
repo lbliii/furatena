@@ -25,6 +25,12 @@ from furatena.catalog.access import (
 from furatena.catalog.audit_store import AuditStore, InMemoryAuditStore
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.check import check_catalog
+from furatena.catalog.content_ir_diff import (
+    DEFAULT_CONTENT_IR_DIFF_LIMIT,
+    MAX_CONTENT_IR_DIFF_LIMIT,
+    ContentIRDiffError,
+    diff_content_ir,
+)
 from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
@@ -427,6 +433,56 @@ class FuraMCPServer:
                 "outputSchema": _object_schema("node", "direction", "results"),
             },
             {
+                "name": "diff_content_ir",
+                "description": "Compare normalized Content IR across two editions without rendering HTML.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mount": _string_schema(
+                            "Optional mount id; defaults to the catalog's default mount."
+                        ),
+                        "slug": _string_schema(
+                            "Optional logical page slug; omit it for a mount-level rollup."
+                        ),
+                        "from_edition": _string_schema("Source edition id for the comparison."),
+                        "to_edition": _string_schema("Target edition id for the comparison."),
+                        "include_eol": _boolean_schema(
+                            "Explicitly allow end-of-life editions for archival comparison.",
+                            default=False,
+                        ),
+                        "limit": _integer_schema(
+                            "Maximum page or typed change records to return.",
+                            default=DEFAULT_CONTENT_IR_DIFF_LIMIT,
+                            minimum=1,
+                            maximum=MAX_CONTENT_IR_DIFF_LIMIT,
+                        ),
+                        "offset": _integer_schema(
+                            "Zero-based page or typed change offset.",
+                            default=0,
+                            minimum=0,
+                        ),
+                    },
+                    "required": ["from_edition", "to_edition"],
+                },
+                "outputSchema": _object_schema(
+                    "schema_version",
+                    "ok",
+                    "kind",
+                    "mount",
+                    "from",
+                    "to",
+                    "query",
+                    "summary",
+                    "total",
+                    "limit",
+                    "offset",
+                    "next_offset",
+                    "page",
+                    "changes",
+                    "pages",
+                ),
+            },
+            {
                 "name": "inspect_source_health",
                 "description": "Inspect source roots, mount health, and channel coverage.",
                 "inputSchema": {
@@ -600,6 +656,8 @@ class FuraMCPServer:
                 payload = self._query_graph(arguments)
             elif name == "traverse_graph":
                 payload = self._traverse_graph(arguments)
+            elif name == "diff_content_ir":
+                payload, is_error = self._diff_content_ir(arguments)
             elif name == "inspect_source_health":
                 payload = self.source_health(mount=arguments.get("mount"))
             elif name == "run_checks":
@@ -661,6 +719,23 @@ class FuraMCPServer:
     def source_health(self, *, mount: Any | None = None) -> dict[str, Any]:
         mount_filter = str(mount).strip() if mount else None
         return self.catalog.source_health(mount=mount_filter)
+
+    def _diff_content_ir(self, arguments: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+        try:
+            payload = diff_content_ir(
+                self.catalog,
+                mount=str(arguments.get("mount") or self.catalog.default_mount.id),
+                slug=str(arguments["slug"]) if "slug" in arguments else None,
+                from_edition=str(arguments.get("from_edition") or ""),
+                to_edition=str(arguments.get("to_edition") or ""),
+                include_eol=arguments.get("include_eol", False),
+                subject=self.access_subject,
+                limit=arguments.get("limit", DEFAULT_CONTENT_IR_DIFF_LIMIT),
+                offset=arguments.get("offset", 0),
+            )
+        except ContentIRDiffError as exc:
+            return exc.to_payload(), True
+        return payload, False
 
     def validation_report(self, *, force: bool = False) -> dict[str, Any]:
         service = getattr(self.docs_app, "validation", None)
@@ -1561,6 +1636,32 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
             "traverse_graph",
             {"node_id": node_id, "url": url, "direction": direction, "limit": limit},
         )
+
+    @cli.command(
+        "diff_content_ir",
+        description="Compare normalized Content IR across two editions without rendering HTML.",
+        annotations={"readOnlyHint": True},
+    )
+    def diff_content_ir_tool(
+        from_edition: str,
+        to_edition: str,
+        mount: str = "",
+        slug: str = "",
+        include_eol: bool = False,
+        limit: int = DEFAULT_CONTENT_IR_DIFF_LIMIT,
+        offset: int = 0,
+    ) -> dict:
+        arguments: dict[str, Any] = {
+            "from_edition": from_edition,
+            "to_edition": to_edition,
+            "mount": mount,
+            "include_eol": include_eol,
+            "limit": limit,
+            "offset": offset,
+        }
+        if slug:
+            arguments["slug"] = slug
+        return _milo_tool_payload(server, "diff_content_ir", arguments)
 
     @cli.command(
         "inspect_source_health",

@@ -57,8 +57,12 @@ jobs:
           RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           title="Operational alert: live deployment SLO breach"
-          summary=$(jq -r '.failures | map("- " + .) | join("\n")' live-slo/report.json)
-          body=$(printf 'The production monitor detected an SLO breach.\n\n%s\n\nEvidence: %s' "$summary" "$RUN_URL")
+          service=$(jq -r '.service // "unknown"' live-slo/report.json)
+          image_digest=$(jq -r '.build.image.digest // "unknown"' live-slo/report.json)
+          content_revision=$(jq -r '.build.content.resolved_ref // "unknown"' live-slo/report.json)
+          content_fingerprint=$(jq -r '.build.freeze_fingerprint // "unknown"' live-slo/report.json)
+          summary=$(jq -r '.alerts | map("- [" + .check + "] " + .summary + "\n  Remediation: " + .remediation) | join("\n")' live-slo/report.json)
+          body=$(printf 'The production monitor detected an SLO breach.\n\nService: `%s`\nImage digest: `%s`\nContent revision: `%s`\nContent fingerprint: `%s`\n\nFailed checks:\n%s\n\nEvidence: %s' "$service" "$image_digest" "$content_revision" "$content_fingerprint" "$summary" "$RUN_URL")
           number=$(gh issue list --state open --search "$title in:title" --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
           if [ -n "$number" ]; then
             gh issue comment "$number" --body "$body"

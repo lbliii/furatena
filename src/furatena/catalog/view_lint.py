@@ -23,10 +23,14 @@ if TYPE_CHECKING:
     from furatena.catalog.theme import DocsTheme
 
 
-def _registered_view_templates(docs: DocsConfig) -> dict[str, ViewKindSpec | None]:
+def _registered_view_templates(
+    docs: DocsConfig,
+    theme: DocsTheme,
+) -> dict[str, ViewKindSpec | None]:
     templates: dict[str, ViewKindSpec | None] = {}
+    presentation_views = dict(theme.view_templates)
     for spec in VIEW_KINDS:
-        templates[spec.default_template] = spec
+        templates[presentation_views.get(spec.kind, spec.default_template)] = spec
     for template in docs.views.values():
         if template not in templates:
             templates[template] = None
@@ -51,7 +55,7 @@ def check_view_templates(
     env = env or build_docs_template_env(docs, theme, repo_root=repo_root)
     template_globals = registered_template_globals(env)
 
-    for template_name, kind_spec in sorted(_registered_view_templates(docs).items()):
+    for template_name, kind_spec in sorted(_registered_view_templates(docs, theme).items()):
         try:
             template = env.get_template(template_name)
         except Exception as exc:

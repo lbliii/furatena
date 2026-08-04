@@ -29,6 +29,7 @@ import furatena.catalog.check as check_module
 import furatena.catalog.mcp as mcp_module
 import furatena.catalog.render_context as render_context_module
 from furatena.catalog.benchmarks import assert_free_threading
+from furatena.catalog.dev_banner import compose_serve_preflight
 from furatena.catalog.docs_app import DocsApp
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.validation import ValidationSnapshotService
@@ -190,27 +191,38 @@ def run_author_runtime_benchmark(
             corpus_kind = "synthetic"
 
         def build_docs() -> DocsApp:
-            return DocsApp.from_paths(
-                docs_yaml,
-                repo_root=repo_root,
-                autodoc=False,
-                serve=ServeConfig(ServeMode.AUTHOR, None, False, True),
-                workers=1,
+            with patch.dict(os.environ, {"CHIRP_SKIP_CONTRACT_CHECKS": "1"}):
+                return DocsApp.from_paths(
+                    docs_yaml,
+                    repo_root=repo_root,
+                    autodoc=False,
+                    serve=ServeConfig(ServeMode.AUTHOR, None, False, True),
+                    workers=1,
+                )
+
+        def composed_preflight(docs: DocsApp) -> None:
+            result = compose_serve_preflight(
+                docs.app,
+                docs.serve,
+                page_count=len(docs.catalog.nodes),
+                mount_count=len(docs.catalog.mounts),
+                configured_url="http://127.0.0.1:8001/",
+                run_contract_checks=True,
             )
+            if not result.ok:
+                raise RuntimeError(
+                    "Author benchmark serve preflight failed its composed contract checks."
+                )
 
         construction = _measure_sync(build_docs, repeats=repeats, primary_construction=True)
         startup_cold_samples: list[_OperationSample] = []
         warm_docs: DocsApp | None = None
         for _ in range(repeats):
             docs = build_docs()
-            startup_cold_samples.append(
-                _sample_sync(lambda docs=docs: _silent_call(docs.app.freeze))
-            )
+            startup_cold_samples.append(_sample_sync(lambda docs=docs: composed_preflight(docs)))
             warm_docs = docs
         assert warm_docs is not None
-        startup_warm = _measure_sync(
-            lambda: _silent_call(warm_docs.app._run_debug_checks), repeats=repeats
-        )
+        startup_warm = _measure_sync(lambda: composed_preflight(warm_docs), repeats=repeats)
 
         client = TestClient(warm_docs.create_app())
         page_cold, page_warm = _measure_async_request(
