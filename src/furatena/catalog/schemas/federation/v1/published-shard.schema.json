@@ -25,7 +25,7 @@
     "compression": {"$ref": "#/$defs/compression"},
     "inventory": {
       "type": "array",
-      "minItems": 4,
+      "minItems": 5,
       "maxItems": 100000,
       "items": {"$ref": "#/$defs/inventoryEntry"}
     },
@@ -108,18 +108,20 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "style", "manifest_path", "object_prefix", "fragment_prefix",
-        "lookup", "max_object_bytes", "max_fragment_bytes", "max_inventory_entries"
+        "style", "manifest_path", "object_prefix", "fragment_prefix", "presentation_prefix",
+        "lookup", "max_object_bytes", "max_fragment_bytes", "max_presentation_bytes", "max_inventory_entries"
       ],
       "properties": {
         "style": {"const": "object-set-v1"},
         "manifest_path": {"const": "manifest.json"},
         "object_prefix": {"const": "objects/sha256/"},
         "fragment_prefix": {"const": "fragments/"},
+        "presentation_prefix": {"const": "presentations/"},
         "lookup": {"const": "node-id-map"},
         "max_object_bytes": {"type": "integer", "minimum": 1048576, "maximum": 67108864},
         "max_fragment_bytes": {"type": "integer", "minimum": 65536, "maximum": 4194304},
-        "max_inventory_entries": {"type": "integer", "minimum": 4, "maximum": 100000}
+        "max_presentation_bytes": {"const": 16777216},
+        "max_inventory_entries": {"type": "integer", "minimum": 5, "maximum": 100000}
       }
     },
     "compression": {
@@ -150,26 +152,35 @@
       ],
       "properties": {
         "logical_path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$"},
-        "role": {"enum": ["catalog", "search", "semantic", "fragment"]},
-        "object_url": {"type": "string", "pattern": "^objects/sha256/[0-9a-f]{64}\\.json(?:\\.(?:gz|zst))?$"},
-        "media_type": {"const": "application/json"},
+        "role": {"enum": ["catalog", "search", "semantic", "fragment", "presentation"]},
+        "node_id": {"type": "string", "minLength": 3, "maxLength": 1024},
+        "object_url": {"type": "string", "pattern": "^objects/sha256/[0-9a-f]{64}\\.(?:json|html)(?:\\.(?:gz|zst))?$"},
+        "media_type": {"enum": ["application/json", "text/html; charset=utf-8"]},
         "content_encoding": {"enum": ["identity", "gzip", "zstd"]},
         "uncompressed_size": {"type": "integer", "minimum": 2, "maximum": 67108864},
         "encoded_size": {"type": "integer", "minimum": 2, "maximum": 67108864},
         "sha256": {"$ref": "#/$defs/sha256"},
         "encoded_sha256": {"$ref": "#/$defs/sha256"},
         "required": {"const": true}
-      }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"role": {"enum": ["fragment", "presentation"]}}},
+          "then": {"required": ["node_id"]},
+          "else": {"not": {"required": ["node_id"]}}
+        }
+      ]
     },
     "totals": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["object_count", "fragment_count", "uncompressed_bytes", "encoded_bytes"],
+      "required": ["object_count", "fragment_count", "presentation_count", "uncompressed_bytes", "encoded_bytes"],
       "properties": {
-        "object_count": {"type": "integer", "minimum": 4, "maximum": 100000},
-        "fragment_count": {"type": "integer", "minimum": 1, "maximum": 99997},
-        "uncompressed_bytes": {"type": "integer", "minimum": 8},
-        "encoded_bytes": {"type": "integer", "minimum": 8}
+        "object_count": {"type": "integer", "minimum": 5, "maximum": 100000},
+        "fragment_count": {"type": "integer", "minimum": 1, "maximum": 49998},
+        "presentation_count": {"type": "integer", "minimum": 1, "maximum": 49998},
+        "uncompressed_bytes": {"type": "integer", "minimum": 10},
+        "encoded_bytes": {"type": "integer", "minimum": 10}
       }
     },
     "integrity": {

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import errno
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -84,6 +85,26 @@ def test_environment_accepts_only_credential_free_allowlisted_https() -> None:
                 "FURA_CONTENT_ALLOWED_HOSTS": "github.com",
             }
         )
+
+
+def test_checkout_disables_http_redirects_before_contacting_the_allowed_host(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = ContentDeploymentStore(_config(tmp_path))
+    commands: list[tuple[str, ...]] = []
+
+    def run(command, **_values):
+        normalized = tuple(command)
+        commands.append(normalized)
+        stdout = "a" * 40 + "\n" if normalized[-2:] == ("rev-parse", "HEAD") else ""
+        return subprocess.CompletedProcess(normalized, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    assert store._checkout(tmp_path / "checkout") == "a" * 40
+    fetch = next(command for command in commands if "fetch" in command)
+    assert fetch[:4] == ("git", "-c", "http.followRedirects=false", "-C")
 
 
 def test_content_cli_reports_configuration_errors_without_a_traceback(
