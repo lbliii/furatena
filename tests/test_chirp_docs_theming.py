@@ -361,7 +361,7 @@ class TestThemeHtmlContract:
 
         asyncio.run(_fetch())
 
-    def test_doc_page_catalog_chrome(self, docs_client) -> None:
+    def test_unversioned_doc_page_catalog_chrome(self, docs_client) -> None:
         import asyncio
 
         async def _fetch() -> str:
@@ -371,10 +371,9 @@ class TestThemeHtmlContract:
         html = asyncio.run(_fetch())
         assert 'class="skip-link"' in html
         assert "fura-shell-nav" not in html
-        assert "docs-version-select" in html
-        assert "version-selector__select" in html
-        assert 'class="version-selector__label visually-hidden"' in html
-        assert ">Documentation version</label>" in html
+        rendered_markup = html.split("<script", 1)[0]
+        assert 'class="version-selector"' not in rendered_markup
+        assert "data-docs-version-select" not in rendered_markup
 
     def test_home_page_has_site_nav(self, docs_client) -> None:
         import asyncio
@@ -446,6 +445,10 @@ class TestThemeHtmlContract:
         assert "chirp-theme-home" in html
         assert "chirp-theme-home__hero" in html
         assert "chirp-theme-home__metric-cards" in html
-        assert "Write docs. Preview instantly. Publish anywhere." in html
+        assert "Technical documentation, governed once" in html
+        assert (
+            "The content control plane for human- and agent-facing technical documentation" in html
+        )
+        assert "One corpus controls every documentation surface." in html
         assert "chirp-theme-home__explore" in html
         assert "/docs-assets/theme." in html
