@@ -6,6 +6,8 @@ from pathlib import Path
 
 from reportlab.pdfgen.canvas import Canvas
 
+from furatena.catalog.inventories.models import InventoryEntry
+from furatena.catalog.inventories.sphinx import write_objects_inv_bytes
 from furatena.catalog.registry import CatalogRegistry, MountConfig
 from furatena.catalog.visibility_audit import (
     VisibilityCanary,
@@ -83,3 +85,26 @@ def test_scanner_accepts_public_artifacts_without_canaries(tmp_path: Path) -> No
 
     assert report.ok
     assert report.scanned_artifacts == 1
+
+
+def test_scanner_detects_private_canaries_in_objects_inv_entries(tmp_path: Path) -> None:
+    canaries = (VisibilityCanary("private.md", "private", ("CANARY_PRIVATE_BODY_8M3L",)),)
+    inventory = write_objects_inv_bytes(
+        (
+            InventoryEntry(
+                domain="doc",
+                name="docs/private",
+                objtype="doc",
+                uri="/docs/private/",
+                display_name="CANARY_PRIVATE_BODY_8M3L",
+                priority=1,
+                inventory_id="local-catalog",
+            ),
+        )
+    )
+    (tmp_path / "objects.inv").write_bytes(inventory)
+
+    report = scan_visibility_leaks(tmp_path, canaries)
+
+    assert not report.ok
+    assert [finding.artifact.name for finding in report.findings] == ["objects.inv"]

@@ -9,6 +9,7 @@ for scheduling, not as enforced performance thresholds.
 | --- | --- | --- | --- | --- |
 | Fast | `make ci-fast` | Ruff 0.15.20 formatting and lint (including public return annotations), zero-diagnostic typed boundaries, owned ty diagnostic ratchets, steward-map integrity, and core catalog/config/theme unit tests | None beyond `make install` | ~30 seconds |
 | Contract | `make ci-contract` | Structured `fura check`, authorization, content, response-shape, template, CSP, and boost contracts | None beyond `make install` | ~60 seconds |
+| Public safety | `make ci-public-safety` | Visibility canaries, public projection across delivery surfaces, RBAC filtering, MCP/agent audience isolation, federation and publication privacy scans | None beyond `make install` | ~3 minutes |
 | Coverage | `make ci-coverage` | Branch coverage and per-module ratchets for graph, access, export, and loader foundations | None beyond `make install` | ~60 seconds |
 | Export | `make ci-export` | Static-export and DCP worker tests, a production-shaped Pages build, and an artifact URL crawl | None beyond `make install` | ~3 minutes |
 | Browser | `make ci-browser` | Complete real-browser search, navigation, authoring, and responsive regression tier | `uv run playwright install chromium` | ~90 seconds |
@@ -16,7 +17,7 @@ for scheduling, not as enforced performance thresholds.
 | Release | `make ci-release` | Clean wheel/sdist build, archive audit, and isolated install smoke | None beyond `make install` | ~3 minutes |
 
 Short aliases are available for `make fast`, `make contract`, `make coverage`, `make browser`,
-`make browser-smoke`, `make browser-authoring`, `make browser-responsive`, `make agent`, and `make release`. The existing `make export` command remains a
+`make browser-smoke`, `make browser-authoring`, `make browser-responsive`, `make agent`, `make release`, and `make public-safety`. The existing `make export` command remains a
 direct product export; use `make ci-export` for the complete export CI lane.
 
 The lanes are intentionally independent so CI jobs can run in parallel and
@@ -166,6 +167,9 @@ proof 6.9%.
 `.github/workflows/private-image.yml`, `.github/workflows/pdf-proof.yml`, and
 `.github/workflows/preview-report.yml`, then restore the prior `docs/CI.md`
 event-brake section. No product runtime or schema migrations are involved.
+
+The P0 public-safety source-to-output map lives in
+[ci-public-safety-map.md](ci-public-safety-map.md).
 
 ## Repository hygiene
 
