@@ -24,13 +24,13 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: Build a candidate, promote an existing digest, or revoke a digest
+        description: Build, promote, deprecate, or revoke an exact digest
         required: true
         type: choice
-        options: [candidate, promote, revoke]
+        options: [candidate, promote, deprecate, revoke]
         default: candidate
       version:
-        description: Immutable commercial version (required for promote or revoke)
+        description: Immutable commercial version (required for promote, deprecate, or revoke)
         required: false
         type: string
       digest:
@@ -42,11 +42,27 @@ on:
         required: false
         type: string
       reason:
-        description: Incident or policy reason (required for revoke)
+        description: Policy or incident reason (required for deprecate or revoke)
         required: false
         type: string
       replacement_digest:
-        description: Optional known-good replacement for a revoked digest
+        description: Optional known-good replacement for a deprecated or revoked digest
+        required: false
+        type: string
+      rollback_digest:
+        description: Prior known-good sha256 digest required for promotion
+        required: false
+        type: string
+      compatibility:
+        description: Compatibility statement required for promotion
+        required: false
+        type: string
+      migration_notes:
+        description: Migration guidance or explicit no-migration statement required for promotion
+        required: false
+        type: string
+      support_ends_at:
+        description: ISO-8601 support deadline required for deprecation
         required: false
         type: string
 
@@ -57,7 +73,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 concurrency:
-  group: private-image-${{ github.event_name }}-${{ inputs.operation || github.sha }}
+  group: private-image-${{ github.event_name == 'workflow_dispatch' && inputs.operation != 'candidate' && 'lifecycle' || github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -174,6 +190,25 @@ jobs:
           docker logs furatena-pr-smoke
           exit 1
 
+      - name: Smoke pull-request reader, search, catalog, and agent surfaces
+        if: github.event_name == 'pull_request'
+        run: |
+          curl --fail --silent --show-error --header 'Accept: text/markdown' \
+            http://127.0.0.1:18000/docs/get-started/ > /tmp/furatena-reader.md
+          curl --fail --silent --show-error \
+            'http://127.0.0.1:18000/search/semantic?q=deployment' > /tmp/furatena-search.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/catalog/query.json > /tmp/furatena-catalog.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/tools.json > /tmp/furatena-tools.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/llms.txt > /tmp/furatena-llms.txt
+          test -s /tmp/furatena-reader.md
+          test -s /tmp/furatena-search.json
+          test -s /tmp/furatena-catalog.json
+          test -s /tmp/furatena-tools.json
+          test -s /tmp/furatena-llms.txt
+
       - name: Stop the pull-request smoke container
         if: always() && github.event_name == 'pull_request'
         run: docker rm --force furatena-pr-smoke 2>/dev/null || true
@@ -242,6 +277,24 @@ jobs:
           docker logs furatena-smoke
           exit 1
 
+      - name: Smoke exact-digest reader, search, catalog, and agent surfaces
+        run: |
+          curl --fail --silent --show-error --header 'Accept: text/markdown' \
+            http://127.0.0.1:18000/docs/get-started/ > /tmp/furatena-reader.md
+          curl --fail --silent --show-error \
+            'http://127.0.0.1:18000/search/semantic?q=deployment' > /tmp/furatena-search.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/catalog/query.json > /tmp/furatena-catalog.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/tools.json > /tmp/furatena-tools.json
+          curl --fail --silent --show-error \
+            http://127.0.0.1:18000/llms.txt > /tmp/furatena-llms.txt
+          test -s /tmp/furatena-reader.md
+          test -s /tmp/furatena-search.json
+          test -s /tmp/furatena-catalog.json
+          test -s /tmp/furatena-tools.json
+          test -s /tmp/furatena-llms.txt
+
       - name: Stop the smoke container
         if: always()
         run: docker rm --force furatena-smoke 2>/dev/null || true
@@ -290,9 +343,11 @@ jobs:
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
       - name: Require the exact registry subject
+        if: inputs.operation != 'revoke'
         run: docker buildx imagetools inspect "${IMAGE_NAME}@${{ inputs.digest }}"
 
       - name: Verify candidate provenance before lifecycle action
+        if: inputs.operation != 'revoke'
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
@@ -308,18 +363,38 @@ jobs:
           COMMIT: ${{ inputs.commit }}
           REASON: ${{ inputs.reason }}
           REPLACEMENT_DIGEST: ${{ inputs.replacement_digest }}
+          ROLLBACK_DIGEST: ${{ inputs.rollback_digest }}
+          COMPATIBILITY: ${{ inputs.compatibility }}
+          MIGRATION_NOTES: ${{ inputs.migration_notes }}
+          SUPPORT_ENDS_AT: ${{ inputs.support_ends_at }}
         run: |
           mkdir -p release
-          arguments=("$OPERATION" --image "$IMAGE_NAME" --digest "$DIGEST" --output release/image-record.json)
+          arguments=("$OPERATION" --image "$IMAGE_NAME" --digest "$DIGEST" --source-repository "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" --output release/image-record.json)
           if [ "$OPERATION" = promote ]; then
-            arguments+=(--version "$VERSION" --commit "$COMMIT")
+            arguments+=(--version "$VERSION" --commit "$COMMIT" --rollback-digest "$ROLLBACK_DIGEST" --compatibility "$COMPATIBILITY" --migration-notes "$MIGRATION_NOTES")
           else
             arguments+=(--reason "$REASON" --version "$VERSION")
+            if [ "$OPERATION" = deprecate ]; then
+              arguments+=(--support-ends-at "$SUPPORT_ENDS_AT")
+            fi
             if [ -n "$REPLACEMENT_DIGEST" ]; then
               arguments+=(--replacement-digest "$REPLACEMENT_DIGEST")
             fi
           fi
           python scripts/private_image_release.py "${arguments[@]}"
+
+      - name: Block promotion of a revoked digest
+        if: inputs.operation == 'promote'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          tag="image-revoked-${DIGEST#sha256:}"
+          released_tags="$(gh release list --limit 1000 --json tagName --jq '.[].tagName')"
+          if printf '%s\n' "$released_tags" | grep --fixed-strings --line-regexp --quiet -- "$tag"; then
+            echo "Digest $DIGEST is revoked and cannot be promoted." >&2
+            exit 1
+          fi
 
       - name: Publish the durable lifecycle record
         env:
@@ -334,10 +409,16 @@ jobs:
               --target "$COMMIT" \
               --title "Furatena image v${VERSION}" \
               --notes "Approved production image: ${IMAGE_NAME}@${DIGEST}"
-          else
-            asset="revocation-${DIGEST#sha256:}.json"
+          elif [ "$OPERATION" = deprecate ]; then
+            asset="deprecation-${DIGEST#sha256:}.json"
             cp release/image-record.json "release/$asset"
-            gh release upload "image-v${VERSION}" "release/$asset" --clobber
+            gh release upload "image-v${VERSION}" "release/$asset"
+          else
+            tag="image-revoked-${DIGEST#sha256:}"
+            gh release create "$tag" release/image-record.json \
+              --target "$GITHUB_SHA" \
+              --title "Revoked Furatena image v${VERSION}" \
+              --notes "Do not deploy ${IMAGE_NAME}@${DIGEST}; use the attached remediation record."
           fi
 
       - name: Retain lifecycle evidence

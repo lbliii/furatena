@@ -131,6 +131,20 @@ adds latency, availability, identity, and evidence checks.
 - Image rollback: select the prior stable digest from its durable release
   record. Do not rebuild the old commit.
 
+Railway Docker-image templates do not receive repository-based update
+notifications. Discover stable, deprecated, and revoked image records through
+the public `https://github.com/lbliii/furatena/releases.atom` feed, download the
+attached `image-record.json`, and validate its v1 schema before changing a
+service. Apply only the exact `image@sha256:...` subject; never use a mutable
+channel or version tag as deployment or rollback identity. The stable record
+names compatibility, migration, support, and the prior known-good digest.
+
+For an upgrade, keep the existing volume and all adopter configuration attached
+while changing only the application image subject. Canary the new digest and
+require readiness, public-projection checks, build identity, and active content
+continuity. A failed gate leaves production unchanged and restores the canary
+to the recorded rollback digest.
+
 All normal diagnosis and recovery uses HTTP contracts, GitHub evidence, and
 Railway deployment/log/metrics controls. Container SSH is break-glass only and
 is not part of the verification or rollback procedure.
