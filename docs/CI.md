@@ -66,12 +66,21 @@ semantic changes and regenerate line-number-derived references before review.
 ## Branch gates and artifacts
 
 Pull requests always run the `fast` and `contract` jobs for early lint, unit,
-hypermedia, and diagnostic feedback. The fast job classifies the complete
-base-to-head path diff and adds `coverage` for Python/test/coverage-policy
+hypermedia, and diagnostic feedback. Draft pull requests stop there: coverage,
+browser, release, private-image, PDF, and Railway preview-controller work do
+not start until the pull request leaves draft state. Converting a pull request
+to draft publishes a removed preview report and skips queued preview work.
+Each pull request uses one workflow concurrency group keyed by PR number so a
+new push cancels superseded untrusted work without touching trusted main
+publication or image lifecycle runs. The contract lane waits for the fast lane
+on every event so a lint or unit failure does not start coverage, browser, or
+release work. The fast job classifies the complete
+base-to-head path diff—including additions, copies, modifications, renames,
+deletions, and type changes—and adds `coverage` for Python/test/coverage-policy
 changes, browser smoke for content/render/theme/browser changes, and `release`
-for source or packaging changes. Marking a draft ready for review forces all
-three expensive PR lanes even when the changed paths would otherwise skip them.
-Pushes to `main` and manual runs force all seven lanes, replace browser smoke
+for source or packaging changes. `ready_for_review` uses the same diff
+contract as `synchronize`; diff resolution failures fail closed with an
+actionable diagnostic. Pushes to `main` and manual runs force all seven lanes, replace browser smoke
 with the full browser tier, and add the `export` and `agent` safety jobs.
 GitHub Pages deploys only after all seven jobs pass.
 
@@ -125,6 +134,38 @@ The external production evidence workflow runs every six hours, keeps receipts
 for 30 days, and cancels a superseded probe. Five-minute availability sampling
 belongs in a dedicated uptime service; GitHub Actions retains the slower,
 auditable artifact-integrity receipt and operational-issue routing.
+
+## CI event brakes
+
+Wave 1 of the CI cost saga (#577) adds deterministic brakes so agent-heavy pull
+requests stop paying for obsolete or premature proof.
+
+| Event | Cheap lanes (`fast`, `contract`) | Expensive lanes | Preview / image / PDF |
+| --- | --- | --- | --- |
+| Draft open, sync, or push | Run | Skipped | Skipped |
+| Convert to draft | Run if triggered | Skipped | Preview report publishes `removed` |
+| Ready for review | Run | Same base-to-head diff as sync | Runs when not draft |
+| Superseded push on same PR | New run; prior run canceled | Canceled with workflow | Canceled with workflow |
+| Push to `main` | All lanes | All lanes | N/A (trusted publication) |
+
+**Pre-change baseline (2026-08-01 through 2026-08-04):** 966 workflow runs,
+3,491 job records, and 2,471 unrounded hosted-runner minutes in roughly 29
+hours during agent-heavy development. General validation was 54.3% of cost; PR
+preview reporting and Railway control 21.8%; private-image proof 15.6%; PDF
+proof 6.9%.
+
+**Post-change verification (when hosted runners are available):**
+
+1. Open a draft PR that touches `src/**` and confirm only `fast` and `contract` start.
+2. Mark the PR ready and confirm expensive lanes match the path diff.
+3. Push two commits quickly on a ready PR and confirm the older workflow run shows `cancelled`.
+4. Convert the PR to draft and confirm preview reporting publishes `removed` without Railway work.
+5. Compare unrounded runner minutes for steps 1–4 against the baseline window.
+
+**Rollback:** Revert the workflow commits on `.github/workflows/pages.yml`,
+`.github/workflows/private-image.yml`, `.github/workflows/pdf-proof.yml`, and
+`.github/workflows/preview-report.yml`, then restore the prior `docs/CI.md`
+event-brake section. No product runtime or schema migrations are involved.
 
 ## Repository hygiene
 

@@ -82,12 +82,16 @@ env:
   PYTHON_GIL: "0"
 
 concurrency:
-  group: pdf-proof-${{ github.ref }}
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+    format('pdf-proof-pr-{0}', github.event.pull_request.number) ||
+    format('pdf-proof-{0}', github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   proof:
     name: Browser and native PDF proof
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

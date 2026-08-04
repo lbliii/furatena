@@ -110,6 +110,7 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
         "synchronize",
         "reopened",
         "ready_for_review",
+        "converted_to_draft",
     ]
     assert set(jobs) == {*LANES, "deploy", "hosted-pdf-proof"}
     for lane in LANES:
@@ -132,21 +133,34 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     for lane in ("export", "agent"):
         assert jobs[lane]["if"] == "github.event_name != 'pull_request'"
     assert "if" not in jobs["fast"]
+    assert jobs["contract"]["needs"] == "fast"
     assert "if" not in jobs["contract"]
     assert jobs["coverage"]["needs"] == "fast"
-    assert jobs["coverage"]["if"] == "needs.fast.outputs.coverage-required == 'true'"
+    assert jobs["coverage"]["if"] == (
+        "needs.fast.outputs.coverage-required == 'true' && "
+        "(github.event_name != 'pull_request' || github.event.pull_request.draft == false)"
+    )
     assert jobs["browser"]["needs"] == "fast"
-    assert jobs["browser"]["if"] == "needs.fast.outputs.browser-required == 'true'"
+    assert jobs["browser"]["if"] == (
+        "needs.fast.outputs.browser-required == 'true' && "
+        "(github.event_name != 'pull_request' || github.event.pull_request.draft == false)"
+    )
     assert jobs["release"]["needs"] == "fast"
-    assert jobs["release"]["if"] == "needs.fast.outputs.release-required == 'true'"
+    assert jobs["release"]["if"] == (
+        "needs.fast.outputs.release-required == 'true' && "
+        "(github.event_name != 'pull_request' || github.event.pull_request.draft == false)"
+    )
     assert jobs["fast"]["outputs"] == {
         "coverage-required": "${{ steps.scope.outputs.coverage-required }}",
         "browser-required": "${{ steps.scope.outputs.browser-required }}",
         "release-required": "${{ steps.scope.outputs.release-required }}",
     }
     scope = next(step for step in jobs["fast"]["steps"] if step.get("id") == "scope")
+    assert "set -euo pipefail" in scope["run"]
+    assert "git diff --name-only --diff-filter=ACMRDT" in scope["run"]
+    assert "ready_for_review" not in scope["run"]
+    assert "Missing pull-request base or head SHA" in scope["run"]
     assert "scripts/classify_ci_paths.py --force-all" in scope["run"]
-    assert "git diff --name-only --diff-filter=ACMR" in scope["run"]
     assert jobs["browser"]["timeout-minutes"] == 10
     assert set(jobs["deploy"]["needs"]) == set(LANES)
     export_lane = next(

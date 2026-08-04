@@ -2,7 +2,7 @@ name: Report Furatena PR preview
 
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, closed]
+    types: [opened, reopened, synchronize, closed, converted_to_draft]
     paths:
       - .github/workflows/preview-report.yml
       - Dockerfile
@@ -59,14 +59,16 @@ jobs:
     if: >-
       github.event_name != 'pull_request_target' ||
       github.event.action == 'closed' ||
+      github.event.action == 'converted_to_draft' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
-       github.event.pull_request.user.type != 'Bot')
+       github.event.pull_request.user.type != 'Bot' &&
+       github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ github.token }}
       FURA_PREVIEW_AUTH_TOKEN: ${{ secrets.FURA_PREVIEW_AUTH_TOKEN }}
       PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number || github.event.client_payload.pr_number }}
-      PREVIEW_STATE: ${{ github.event.action == 'closed' && 'removed' || (github.event_name == 'pull_request_target' && 'queued') || github.event.inputs.state || github.event.client_payload.state }}
+      PREVIEW_STATE: ${{ (github.event.action == 'closed' || github.event.action == 'converted_to_draft') && 'removed' || (github.event_name == 'pull_request_target' && 'queued') || github.event.inputs.state || github.event.client_payload.state }}
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.event.inputs.expected_sha || github.event.client_payload.expected_sha }}
       PREVIEW_URL: ${{ github.event.inputs.preview_url || github.event.client_payload.preview_url }}
       DETAILS_URL: ${{ github.event.inputs.details_url || github.event.client_payload.details_url }}
@@ -97,6 +99,8 @@ jobs:
     if: >-
       (github.event_name == 'pull_request_target' &&
        github.event.action != 'closed' &&
+       github.event.action != 'converted_to_draft' &&
+       github.event.pull_request.draft == false &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        github.event.pull_request.user.type != 'Bot') ||
       (github.event_name == 'workflow_dispatch' && inputs.configure_railway)

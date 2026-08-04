@@ -39,6 +39,8 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
     report = workflow["jobs"]["report"]
     assert "head.repo.full_name == github.repository" in report["if"]
     assert "user.type != 'Bot'" in report["if"]
+    assert "converted_to_draft" in report["if"]
+    assert "github.event.pull_request.draft == false" in report["if"]
     checkout = report["steps"][0]
     assert checkout["with"]["ref"] == "${{ github.event.repository.default_branch }}"
 
@@ -46,6 +48,8 @@ def test_preview_reporting_workflow_uses_trusted_default_branch_code() -> None:
     railway = workflow["jobs"]["railway"]
     assert "head.repo.full_name == github.repository" in railway["if"]
     assert "user.type != 'Bot'" in railway["if"]
+    assert "converted_to_draft" in railway["if"]
+    assert "github.event.pull_request.draft == false" in railway["if"]
     assert railway["env"]["RAILWAY_API_TOKEN"] == "${{ secrets.RAILWAY_API_TOKEN }}"
     assert "FURA_PREVIEW_AUTH_TOKEN" not in railway["env"]
     assert railway["timeout-minutes"] == 10

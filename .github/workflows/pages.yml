@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,10 @@ env:
   PYTHON_GIL: "0"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+    format('pages-pr-{0}', github.event.pull_request.number) ||
+    format('{0}-{1}', github.workflow, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -35,15 +38,25 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          EVENT_ACTION: ${{ github.event.action }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [[ "$EVENT_NAME" != pull_request || "$EVENT_ACTION" == ready_for_review ]]; then
-            python scripts/classify_ci_paths.py --force-all --github-output "$GITHUB_OUTPUT"
-          else
-            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            if [[ -z "$BASE_SHA" || -z "$HEAD_SHA" ]]; then
+              echo "Missing pull-request base or head SHA for CI path classification." >&2
+              exit 1
+            fi
+            for sha in "$BASE_SHA" "$HEAD_SHA"; do
+              if ! git cat-file -e "${sha}^{commit}" 2>/dev/null; then
+                echo "Pull-request SHA ${sha} is not available in this checkout." >&2
+                exit 1
+              fi
+            done
+            git diff --name-only --diff-filter=ACMRDT "$BASE_SHA" "$HEAD_SHA" |
               python scripts/classify_ci_paths.py --github-output "$GITHUB_OUTPUT"
+          else
+            python scripts/classify_ci_paths.py --force-all --github-output "$GITHUB_OUTPUT"
           fi
       - uses: astral-sh/setup-uv@v8.2.0
         with:
@@ -58,6 +71,7 @@ jobs:
 
   contract:
     name: Hypermedia and diagnostic contracts
+    needs: fast
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
@@ -75,7 +89,9 @@ jobs:
   coverage:
     name: Core coverage ratchets
     needs: fast
-    if: needs.fast.outputs.coverage-required == 'true'
+    if: >-
+      needs.fast.outputs.coverage-required == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
@@ -114,7 +130,9 @@ jobs:
   browser:
     name: Author browser flows
     needs: fast
-    if: needs.fast.outputs.browser-required == 'true'
+    if: >-
+      needs.fast.outputs.browser-required == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -166,7 +184,9 @@ jobs:
   release:
     name: Package and CLI smoke
     needs: fast
-    if: needs.fast.outputs.release-required == 'true'
+    if: >-
+      needs.fast.outputs.release-required == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
