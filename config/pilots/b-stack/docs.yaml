@@ -1,0 +1,23 @@
+site:
+  name: Furatena b-stack pilot
+  tagline: Eight public projects, one versioned catalog
+
+shell: shell.html
+
+views:
+  doc: views/doc.html
+  doc_list: views/doc_list.html
+  page: views/page.html
+  home: views/home.html
+  changelog: views/changelog.html
+  collection: views/collection.html
+  api_reference: views/api_reference.html
+  portal: views/portal.html
+  default: views/doc.html
+
+theme:
+  use: lagoon
+  id: furatena
+  templates: ../../../app/theme
+
+mounts: mounts.yaml
