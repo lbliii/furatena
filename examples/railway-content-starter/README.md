@@ -81,18 +81,22 @@ Configure these GitHub Actions secrets:
 - `FURATENA_REFRESH_URL`: the deployment's `/_fura/content/refresh` URL;
 - `FURATENA_REFRESH_TOKEN`: the independently generated content refresh bearer.
 
-The included workflow sends an authenticated refresh after a push to `main` or
-a manual dispatch. It reads the active commit, then submits a versioned request
-with that expected value, the exact pushed commit, and a GitHub-run idempotency
-key. Furatena proves the commit is reachable from the configured `main` policy,
-validates and freezes a complete generation, and switches generations atomically
-without rebuilding the application image.
+The included workflow sends an authenticated refresh as a versioned request
+containing the exact pushed commit (`github.sha`), the currently active commit,
+and a run-scoped idempotency key after a push to `main`, or when a maintainer
+starts it manually. Furatena proves that exact commit is reachable under the
+configured `FURA_CONTENT_REF`, validates and freezes a complete
+generation, and switches generations atomically. The accepting process restarts
+to load the new generation; the application image and deployment identity do not
+change.
 
 HTTP 202 returns an operation/status URL. Treat `stale_active_commit`,
 `unreachable_commit`, `idempotency_key_collision`, and `refresh_in_progress` as
-409 conflicts requiring a fresh operator decision. Empty-body POST is v1-only
-migration compatibility and does not provide exact-commit or caller-controlled
-idempotency guarantees. Webhook delivery is deferred beyond v1.
+409 conflicts requiring a fresh operator decision.
+
+An empty-body request exists only as v1 migration compatibility and is not used
+by this starter because it lacks caller-selected exact-commit and idempotency
+controls. Webhook delivery remains deferred beyond v1.
 
 Confirm the new resolved content commit in `/meta.json` and verify the page in
 reader, search, catalog, and agent outputs.

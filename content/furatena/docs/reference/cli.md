@@ -96,7 +96,10 @@ fura theme inspect [PATH]
 fura theme eject PATH
 fura theme eject --all
 fura theme diff PATH
-fura theme init theme-skin
+fura theme init theme-skin [--type layout|skin|override] [--id PACK_ID]
+fura theme check PACK
+fura theme preview PACK [--output DIR] [--check]
+fura theme conformance PACK [--output DIR] [--check]
 ```
 
 | Command | Effect |
@@ -106,7 +109,10 @@ fura theme init theme-skin
 | `theme eject PATH` | Copy the resolved source into the local override path |
 | `theme eject --all` | Copy every inspectable template/asset into local overrides |
 | `theme diff PATH` | Compare a local override with the next upstream source |
-| `theme init DIR` | Scaffold a reusable skin-pack directory |
+| `theme init DIR` | Scaffold a manifest-valid layout, skin (default), or sparse override |
+| `theme check PACK` | Validate compatibility, templates, assets, tokens, scripts, and paths |
+| `theme preview PACK` | Render deterministic full/fragment reference fixtures and responsive frames |
+| `theme conformance PACK` | Exercise accessibility, static, PDF, and presentation-independent agent outputs |
 
 Examples:
 
@@ -114,6 +120,8 @@ Examples:
 fura theme inspect views/doc.html
 fura theme eject directives/callout.html
 fura theme diff directives/callout.html
+fura theme init presentation/product-layout --type layout --id product-layout
+fura theme preview presentation/product-layout --check
 ```
 
 ## Environment
