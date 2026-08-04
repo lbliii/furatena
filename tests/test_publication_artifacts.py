@@ -252,6 +252,35 @@ def test_rebuild_identity_excludes_time_and_optional_attestations(tmp_path: Path
     ]
 
 
+def test_promotion_identity_is_full_verified_and_bound_to_exact_plan(tmp_path: Path) -> None:
+    repository, commit = _repository(tmp_path)
+    service = _service(tmp_path / "store", DeterministicBuilder())
+    request = _request(repository, commit)
+    receipt = service.build(request)
+
+    identity = service.promotion_identity(receipt.artifact_id)
+
+    assert identity["artifact_id"] == receipt.artifact_id
+    assert identity["artifact_digest"] == receipt.artifact_digest
+    assert identity["manifest_digest"] == receipt.manifest_digest
+    assert identity["plan_id"] == request.plan.plan_id
+    assert identity["plan_digest"] == request.plan.plan_digest
+    assert identity["policy_digest"] == request.plan.bindings.policy_digest
+    assert identity["runtime_identity"] == {
+        "platform": "test-linux",
+        "python_abi": "cp314t",
+    }
+    assert set(identity["fingerprints"]) == set(FINGERPRINT_NAMES)
+    assert str(identity["public_projection_digest"]).startswith("sha256:")
+
+    manifest = service.artifacts / receipt.artifact_id / "manifest.json"
+    record = json.loads(manifest.read_text(encoding="utf-8"))
+    record["plan"]["plan_digest"] = digest("tampered-plan")
+    manifest.write_text(json.dumps(record), encoding="utf-8")
+    with pytest.raises(PublicationArtifactError):
+        service.promotion_identity(receipt.artifact_id)
+
+
 def test_replay_repairs_an_interrupted_current_pointer_update(tmp_path: Path) -> None:
     repository, commit = _repository(tmp_path)
     service = _service(tmp_path / "store", DeterministicBuilder())

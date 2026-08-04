@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-promotion/v1/receipt.schema.json",
+  "title": "Furatena publication promotion receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "operation_id", "request_digest",
+    "idempotency_key_digest", "operation", "source_environment", "destination_environment",
+    "artifact", "actor", "plan", "approvals", "policy", "status", "preflight",
+    "previous", "verification", "restoration", "result", "reason", "error",
+    "started_at", "completed_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.promotion-receipt"},
+    "operation_id": {"type": "string", "pattern": "^promotion-operation-[0-9a-f]{24}$"},
+    "request_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "idempotency_key_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "operation": {"enum": ["promote", "rollback"]},
+    "source_environment": {"$ref": "common.schema.json#/$defs/environment"},
+    "destination_environment": {"$ref": "common.schema.json#/$defs/deployed_environment"},
+    "artifact": {"$ref": "common.schema.json#/$defs/artifact"},
+    "actor": {"$ref": "common.schema.json#/$defs/actor"},
+    "plan": {"type": "object"},
+    "approvals": {"type": "object"},
+    "policy": {"type": "object"},
+    "status": {"enum": ["started", "succeeded", "failed", "reconciliation_required"]},
+    "preflight": {"$ref": "common.schema.json#/$defs/preflight"},
+    "previous": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/$defs/deployment"}]},
+    "verification": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/$defs/verification"}]},
+    "restoration": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/$defs/restoration"}]},
+    "result": {"oneOf": [{"type": "null"}, {"$ref": "current.schema.json"}]},
+    "reason": {"type": ["string", "null"]},
+    "error": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/$defs/error"}]},
+    "history_generation": {"type": "integer", "minimum": 1},
+    "started_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "completed_at": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "started"}}},
+      "then": {"properties": {"completed_at": {"type": "null"}}},
+      "else": {
+        "required": ["history_generation"],
+        "properties": {"completed_at": {"type": "string", "format": "date-time"}}
+      }
+    }
+  ]
+}
