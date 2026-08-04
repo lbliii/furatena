@@ -84,6 +84,41 @@ and reconciliation states. The JSON store writes mode-restricted immutable recor
 and an atomic order index; its in-memory counterpart owns state behind an explicit
 lock for free-threaded embedding and tests.
 
+## Immutable publication artifacts
+
+`PublicationArtifactExecutor` wraps an executor result without changing provider
+semantics. It starts a build only after the delegate reports `applied` and an output
+contains an exact 40-character commit. Reviewable pull requests pass through
+unchanged. Trusted composition supplies the approval references and the freeze/export
+builder; the artifact request binds those references, the plan and workflow digests,
+the source repository and commit, actor, and idempotency identity.
+
+`GitPublicationArtifactCheckout` clones the repository into private staging, checks
+out the exact commit with detached HEAD, and verifies the tree is clean before and
+after the builder runs. Uncommitted author-workspace content therefore cannot enter
+the build, and a builder that writes into its source checkout fails closed.
+
+The builder returns explicit configuration, presentation, dependency-lock, runtime,
+toolchain, builder, build-command, renderer, theme, catalog, mount, channel, edition,
+Content IR, and frozen-output identities. It also maps every affected public
+projection to generated files. The service inventories every output with media type,
+size, and SHA-256; scans all generated projections for draft, private, protected, and
+archived source canaries; and promotes staging only after full verification.
+
+The content address covers every deterministic manifest field. Creation time and
+optional provenance/attestation references are declared identity exclusions, so an
+identical build retains one address while each stored manifest still records those
+facts. Only a fully verified artifact can atomically advance the monotonic
+current-artifact generation; failed, partial, or older replayed builds leave the last
+complete pointer unchanged. Full
+verification rejects changed, missing, symbolic-link, or uninventoried files.
+`status` reads the manifest/verification contract, while `readiness` follows the
+current pointer by default, performs full output verification, and fails closed with
+remediation.
+
+Version 1 manifest, verification, and current-pointer schemas ship under
+`furatena/catalog/schemas/publication-artifact/v1/`.
+
 Read APIs expose the current projection, immutable event history, and operation
 receipt status. Audit and public projections omit private paths, diffs, provider
 URLs, actor roles/teams, and operation internals.
