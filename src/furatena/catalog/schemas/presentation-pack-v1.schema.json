@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/presentation-pack-v1.schema.json",
+  "title": "Furatena presentation pack manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "version",
+    "type",
+    "render_context_api_version",
+    "runtime",
+    "templates",
+    "assets",
+    "capabilities",
+    "requires_trust"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+    "version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "type": {"enum": ["layout", "skin", "override"]},
+    "render_context_api_version": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+    "runtime": {
+      "type": "string",
+      "pattern": "^(?:\\*|(?:>=|>|<=|<|==)(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:,(?:>=|>|<=|<|==)(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))*)$"
+    },
+    "templates": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[a-z][a-z0-9_]*$"},
+      "additionalProperties": {"$ref": "#/$defs/relativePath"}
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "path"],
+        "properties": {
+          "role": {
+            "enum": ["tokens", "styles", "directives", "scripts", "fonts", "branding"]
+          },
+          "path": {"$ref": "#/$defs/relativePath"}
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "templates",
+          "styles",
+          "scripts",
+          "fonts",
+          "branding",
+          "route-hooks",
+          "asset-hooks"
+        ]
+      }
+    },
+    "requires_trust": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["scripts", "route-hooks", "asset-hooks"]
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["render_modes", "slots", "semantic_hooks", "component_api"],
+      "properties": {
+        "render_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["full", "fragment"]}
+        },
+        "slots": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
+        },
+        "semantic_hooks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"}
+        },
+        "component_api": {"type": "string", "minLength": 1}
+      }
+    },
+    "deprecated": {"type": "boolean"},
+    "migration": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    }
+  }
+}

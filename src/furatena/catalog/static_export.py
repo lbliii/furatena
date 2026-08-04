@@ -41,6 +41,7 @@ from furatena.catalog.packaging import (
     prune_stale_files,
     validate_packaging_lifecycle,
 )
+from furatena.catalog.version_artifacts import public_versioned_mounts, versions_mount_url
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,6 +277,17 @@ def _catalog_shard_routes(docs_app: DocsApp) -> tuple[str, ...]:
         if (route := catalog_shard_url(str(mount.id))) is not None
     }
     return tuple(sorted(routes))
+
+
+def _versions_mount_routes(docs_app: DocsApp) -> tuple[str, ...]:
+    """Return public Mike-array routes for each versioned mount."""
+    return tuple(
+        sorted(
+            route
+            for mount in public_versioned_mounts(docs_app.catalog)
+            if (route := versions_mount_url(str(mount.id))) is not None
+        )
+    )
 
 
 def _catalog_shard_fingerprint(
@@ -543,6 +555,7 @@ def _sidecar_routes() -> tuple[str, ...]:
         "/meta.json",
         "/surface.json",
         "/channels.json",
+        "/versions.json",
         "/deployment-profiles.json",
         "/inventories.json",
         "/routes.json",
@@ -700,12 +713,23 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     docs_root = docs_app.config.root
     renderer_fp = read_renderer_fingerprint(frozen_dir) if frozen_dir else None
     if renderer_fp is None:
-        renderer_fp = renderer_fingerprint(docs_root)
+        renderer_fp = renderer_fingerprint(
+            docs_root,
+            theme_id=docs_app.config.theme.id,
+            skin_pack_root=(
+                docs_app.theme.presentation.skin.root
+                if docs_app.theme.presentation.skin is not None
+                else None
+            ),
+            platform_root=docs_app.roots.platform,
+            presentation_digest=docs_app.theme.presentation.content_digest,
+        )
     route_fps: dict[str, str] = {}
     sidecar_routes = (
         *_sidecar_routes(),
         *_edition_sidecar_routes(docs_app),
         *_catalog_shard_routes(docs_app),
+        *_versions_mount_routes(docs_app),
     )
     try:
         client = _ExportClient(docs_app.create_app())
@@ -983,6 +1007,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                         "structure.json",
                     ],
                     "paths": artifact_paths,
+                    "presentation": docs_app.theme.presentation.to_dict(),
                 },
             ),
         )
@@ -1028,7 +1053,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
 def export_static_site(docs_app: DocsApp, options: StaticExportOptions) -> StaticExportResult:
     """Render the docs app to a static directory tree."""
     with OperationLease(
-        docs_app.config.root / ".docs-cache" / "operation-leases",
+        docs_app.roots.state / "operation-leases",
         "deployment",
         resource=str(options.output_dir.resolve()),
         timeout_seconds=operation_timeout_seconds(),

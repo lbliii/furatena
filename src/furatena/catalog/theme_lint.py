@@ -7,6 +7,7 @@ from pathlib import Path
 
 from furatena.catalog.config import DocsConfig
 from furatena.catalog.docs_core import load_docs_core
+from furatena.catalog.presentation_pack import PresentationPackError, resolve_presentation
 from furatena.catalog.theme_pack import list_theme_packs, load_theme_pack, resolve_theme_paths
 from furatena.catalog.theme_preset import (
     validate_font_name,
@@ -81,28 +82,34 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
         errors.append(f"theme.id unknown or docs-core missing: {docs.theme.id!r}")
 
     try:
-        skin = resolve_theme_paths(docs)
-    except FileNotFoundError as exc:
-        errors.append(str(exc))
+        presentation = resolve_presentation(docs)
+        skin = resolve_theme_paths(docs, presentation=presentation)
+    except (FileNotFoundError, PresentationPackError) as exc:
+        errors.append(f"presentation invalid: {exc}")
         return sorted(errors), sorted(warnings)
+    minimal_vanilla = presentation.layout.id == "vanilla" and presentation.skin is None
 
     errors.extend(check_safe_filter_reasons(docs))
 
-    for name in _REQUIRED_JS:
-        if not (skin.js_dir / name).is_file():
-            errors.append(f"theme js/{name} missing")
+    if skin.js_dir is not None:
+        for name in _REQUIRED_JS:
+            if not (skin.js_dir / name).is_file():
+                errors.append(f"theme js/{name} missing")
 
-    if skin.fonts_dir is None:
+    if skin.fonts_dir is None and skin.pack is not None:
         warnings.append("theme fonts dir missing (typography may fall back to system fonts)")
 
     branding_dir = skin.app_assets_root / "branding"
-    for rel in ("favicon.svg", "site.webmanifest"):
-        if not (branding_dir / rel).is_file():
-            warnings.append(f"theme/assets/branding/{rel} missing")
+    if not minimal_vanilla:
+        for rel in ("favicon.svg", "site.webmanifest"):
+            if not (branding_dir / rel).is_file():
+                warnings.append(f"theme/assets/branding/{rel} missing")
 
     css_dir = skin.docs_core.css_dir if skin.docs_core is not None else skin.app_assets_root / "css"
     bundled = css_dir / "style.css"
-    if not bundled.is_file():
+    if minimal_vanilla:
+        bundled = None
+    elif not bundled.is_file():
         errors.append("docs-core style.css missing (packaged bundle entry)")
     else:
         text = bundled.read_text(encoding="utf-8")
@@ -119,15 +126,31 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
             if legacy in imports:
                 warnings.append(f"packaged bundle still imports superseded module: {legacy}")
 
-    css_entries = (bundled, skin.tokens, skin.styles, skin.directives)
+    presentation_css = tuple(
+        path
+        for pack in (presentation.layout, *presentation.overrides)
+        for role in ("tokens", "styles", "directives")
+        if (path := pack.asset_path(role)) is not None and path.is_file()
+    )
+    css_entries = (
+        tuple(
+            path
+            for path in (bundled, skin.tokens, skin.styles, skin.directives)
+            if path is not None
+        )
+        + presentation_css
+    )
     css_classes = _effective_css_classes(css_entries)
+    framework_roots = () if minimal_vanilla else (docs.framework_templates_dir,)
     template_roots = tuple(
         path
         for path in (
             docs.templates_dir,
+            *presentation.override_template_roots,
             skin.templates,
             docs.theme_dir,
-            docs.framework_templates_dir,
+            *presentation.layout_template_roots,
+            *framework_roots,
         )
         if path is not None and path.is_dir()
     )
@@ -140,18 +163,20 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
             f"(used by {sources})"
         )
 
-    cache_dir = docs.root / ".docs-cache"
-    preset_path = write_theme_preset(docs.theme, cache_dir=cache_dir)
-    if not preset_path.is_file():
-        errors.append("failed to generate theme-preset.css")
+    if not minimal_vanilla:
+        cache_dir = docs.root / ".docs-cache"
+        preset_path = write_theme_preset(docs.theme, cache_dir=cache_dir)
+        if not preset_path.is_file():
+            errors.append("failed to generate theme-preset.css")
 
     if docs.theme.use is None and not list_theme_packs():
         warnings.append("no furatena.themes entry points registered")
 
-    vendor_root = Path(vendor_dir())
-    for name in VENDOR_FILES:
-        if not (vendor_root / name).is_file():
-            errors.append(f"vendor asset missing: {name}")
+    if not minimal_vanilla:
+        vendor_root = Path(vendor_dir())
+        for name in VENDOR_FILES:
+            if not (vendor_root / name).is_file():
+                errors.append(f"vendor asset missing: {name}")
 
     shell_template = docs.framework_templates_dir / "layouts" / "fura_shell.html"
     if shell_template.is_file():
@@ -162,7 +187,8 @@ def check_theme_assets(docs: DocsConfig) -> tuple[list[str], list[str]]:
             warnings.append("fura_shell.html does not reference vendored htmx script")
 
     if (
-        (branding_dir := skin.app_assets_root / "branding").is_dir()
+        not minimal_vanilla
+        and (branding_dir := skin.app_assets_root / "branding").is_dir()
         and not (branding_dir / "favicon.ico").is_file()
         and not (branding_dir / "favicon.svg").is_file()
     ):

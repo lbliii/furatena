@@ -1,0 +1,14 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+{% let operation = node.meta.api_operation ?? none %}
+<article>
+  <header>
+    <p>API reference</p>
+    <h1>{{ node.title }}</h1>
+    {% if operation %}<p><strong>{{ operation.method }}</strong> <code>{{ operation.path }}</code></p>{% end %}
+  </header>
+  <div class="vanilla-prose">{{ node | doc_body | boost_doc_links }}</div>
+  {% if not operation %}<p role="status">No structured operation metadata is available.</p>{% end %}
+</article>
+{% include "partials/toc.html" %}
+{% end %}

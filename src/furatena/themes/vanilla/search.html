@@ -1,0 +1,19 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+<section aria-labelledby="vanilla-search-title">
+  <h1 id="vanilla-search-title">Search documentation</h1>
+  <form action="/search" method="get" role="search">
+    <label for="vanilla-search-page">Search terms</label>
+    <input id="vanilla-search-page" name="q" type="search" value="{{ search_query }}">
+    <button type="submit">Search</button>
+  </form>
+  {% block search_results %}
+  <div id="search-results-panel" aria-live="polite">
+    {% if hits %}
+    <ol>{% for hit in hits %}<li><a href="{{ search_hit_url(hit) }}">{{ hit.node.title }}</a></li>{% endfor %}</ol>
+    {% elif search_query %}<p role="status">No results matched “{{ search_query }}”.</p>
+    {% else %}<p>Enter a term to search the catalog.</p>{% end %}
+  </div>
+  {% end %}
+</section>
+{% end %}

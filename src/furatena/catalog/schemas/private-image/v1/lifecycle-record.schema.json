@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/private-image/v1/lifecycle-record.schema.json",
+  "title": "Furatena private-image lifecycle record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "record_type", "product", "distribution", "operation", "image", "digest", "subject", "channel", "status", "recorded_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.private-image.lifecycle"},
+    "product": {"const": "furatena"},
+    "distribution": {"const": "private-image"},
+    "operation": {"enum": ["development", "candidate", "promote", "deprecate", "revoke"]},
+    "image": {"type": "string", "pattern": "^ghcr\\.io/[a-z0-9][a-z0-9._/-]*[a-z0-9]$"},
+    "digest": {"$ref": "#/$defs/digest"},
+    "subject": {"type": "string", "pattern": "^ghcr\\.io/[a-z0-9][a-z0-9._/-]*[a-z0-9]@sha256:[0-9a-f]{64}$"},
+    "channel": {"enum": ["development", "candidate", "stable", "deprecated", "revoked"]},
+    "status": {"enum": ["active", "deprecated", "revoked"]},
+    "commit": {"$ref": "#/$defs/commit"},
+    "version": {"$ref": "#/$defs/version"},
+    "compatibility": {"$ref": "#/$defs/compatibility"},
+    "release_notes": {"$ref": "#/$defs/release_notes"},
+    "rollback": {"$ref": "#/$defs/rollback"},
+    "reason": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "affected_digests": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/digest"}
+    },
+    "replacement_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+    "remediation": {"$ref": "#/$defs/remediation"},
+    "support_ends_at": {"type": "string", "format": "date-time"},
+    "recorded_at": {"type": "string", "format": "date-time"}
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "operation": {"enum": ["development", "candidate"]},
+        "channel": {"enum": ["development", "candidate"]},
+        "status": {"const": "active"}
+      },
+      "required": ["commit"]
+    },
+    {
+      "properties": {
+        "operation": {"const": "promote"},
+        "channel": {"const": "stable"},
+        "status": {"const": "active"}
+      },
+      "required": ["commit", "version", "compatibility", "release_notes", "rollback"]
+    },
+    {
+      "properties": {
+        "operation": {"const": "deprecate"},
+        "channel": {"const": "deprecated"},
+        "status": {"const": "deprecated"}
+      },
+      "required": ["version", "reason", "affected_digests", "replacement_digest", "remediation", "support_ends_at"]
+    },
+    {
+      "properties": {
+        "operation": {"const": "revoke"},
+        "channel": {"const": "revoked"},
+        "status": {"const": "revoked"}
+      },
+      "required": ["version", "reason", "affected_digests", "replacement_digest", "remediation"]
+    }
+  ],
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "url"],
+      "properties": {
+        "version": {"const": 1},
+        "url": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/"}
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statement", "content_contract", "configuration_contract"],
+      "properties": {
+        "statement": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "content_contract": {"$ref": "#/$defs/contract"},
+        "configuration_contract": {"$ref": "#/$defs/contract"}
+      }
+    },
+    "release_notes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changelog_url", "migration_notes", "support_policy_url"],
+      "properties": {
+        "changelog_url": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/"},
+        "migration_notes": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "support_policy_url": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/"}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "subject"],
+      "properties": {
+        "digest": {"$ref": "#/$defs/digest"},
+        "subject": {"type": "string", "pattern": "^ghcr\\.io/.+@sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "remediation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "support_url"],
+      "properties": {
+        "action": {"enum": ["select_replacement_digest", "stop_new_deployments_and_contact_support"]},
+        "subject": {"type": "string", "pattern": "^ghcr\\.io/.+@sha256:[0-9a-f]{64}$"},
+        "support_url": {"type": "string", "format": "uri", "pattern": "^https://github\\.com/"}
+      }
+    }
+  }
+}

@@ -293,8 +293,8 @@ def configure(sub: Any) -> None:
     theme_init.add_argument(
         "directory",
         nargs="?",
-        default=str(_app_root() / "theme-skin"),
-        help="Output directory (default app/theme-skin)",
+        default="theme-skin",
+        help="Output directory relative to the app root (default: theme-skin)",
     )
     theme_init.add_argument(
         "--force", action="store_true", help="Overwrite existing scaffold files"

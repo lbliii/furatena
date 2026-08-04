@@ -64,6 +64,34 @@ Run `fura check --agent --json` before publishing MCP changes; it lints tool/res
 Use `fura check --report-format github|junit|checkstyle|markdown` when CI or code review tools need annotations, XML reports, or markdown summaries from the same diagnostics.
 Run `fura evals --json` for deterministic golden-path agent checks. The suite exercises the Milo MCP adapter for prose retrieval, API operation discovery, private-content boundaries, version/channel metadata, stale-impact reports, multi-mount hubs, tool selection, and non-mutating author workflows without paid model calls.
 
+### Compare Content IR across editions
+
+Use the Content IR diff when answering what changed between two documentation
+editions. A page comparison returns typed section, heading, directive, and link
+changes; omit `slug` for the paginated mount rollup of added, removed, changed,
+and unchanged pages.
+
+```text
+GET /catalog/diff?mount=docs&slug=guide&from=1.0.0&to=latest&limit=100
+
+MCP diff_content_ir {
+  "mount": "docs",
+  "slug": "guide",
+  "from_edition": "1.0.0",
+  "to_edition": "latest",
+  "limit": 100,
+  "offset": 0
+}
+```
+
+Both transports return the same `content-ir-diff-v1` payload with explicit mount,
+edition, lifecycle, node, and source provenance. Equal structural hashes return
+`unchanged` without allocating detail. Changed pages paginate typed `changes`; mount
+rollups paginate `pages` and continue from `next_offset`. The service compares
+normalized Content IR and section records only—never rendered HTML. Access policy is
+applied independently in both editions, and an end-of-life edition fails unless the
+caller deliberately sets `include_eol` to true.
+
 Versioned public and trusted-author contract fixtures live under `tests/fixtures/agent-contracts/`. Run `fura agent-diff OLD.json NEW.json --json` to review semantic contract changes without treating keyed-array reordering as drift. Breaking removals, type/version changes, and URL or URI changes require an explicit `--decision` describing the major-version or migration policy.
 
 Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, validation-error repair, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the validation repair and publish round-trip cases perform confirmed writes against a private fixture and restore the original source before finishing.
@@ -127,6 +155,7 @@ MCP tools return both text content and `structuredContent` payloads:
 - `retrieve_node` — node metadata, chunks, backlinks, and similar chunks.
 - `query_graph` — paginated DCP graph projection by mount, tag, format, owner, locale, edge kind, source, and target (`limit` defaults to 100; continue from `next_offset`).
 - `traverse_graph` — backlinks, child pages, outbound links, and neighboring pages.
+- `diff_content_ir` — structural page diff or mount rollup across two explicit editions; read-only, lifecycle-aware, and paginated.
 - `inspect_source_health` — mount roots, tracked extensions, page counts, and channels.
 - `run_checks` — structured validation errors and warnings.
 - `explain_stale_impact` — stale entries, affected chunks, graph context, refresh targets, repair tasks, and owner/source/mount/tenant/workspace/site/output-channel groupings for author workflows.

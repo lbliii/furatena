@@ -16,11 +16,27 @@ jobs:
     steps:
       - name: Request an atomic content refresh
         env:
+          REQUESTED_COMMIT: ${{ github.sha }}
+          IDEMPOTENCY_KEY: refresh-${{ github.run_id }}-${{ github.run_attempt }}
           REFRESH_URL: ${{ secrets.FURATENA_REFRESH_URL }}
           REFRESH_TOKEN: ${{ secrets.FURATENA_REFRESH_TOKEN }}
         run: |
           test -n "$REFRESH_URL"
           test -n "$REFRESH_TOKEN"
+          status_url="${REFRESH_URL%/refresh}/status"
+          expected_commit="$(curl --fail --silent --show-error "$status_url" | jq -r '.receipt.resolved_ref // empty')"
+          if [ -n "$expected_commit" ]; then
+            expected_json="\"$expected_commit\""
+          else
+            expected_json=null
+          fi
+          payload="$(jq -cn \
+            --arg requested "$REQUESTED_COMMIT" \
+            --arg key "$IDEMPOTENCY_KEY" \
+            --argjson expected "$expected_json" \
+            '{schema_version: 1, record_type: "furatena.content-refresh.request", expected_active_commit: $expected, requested_commit: $requested, idempotency_key: $key}')"
           curl --fail --silent --show-error --request POST \
             --header "Authorization: Bearer $REFRESH_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "$payload" \
             "$REFRESH_URL"

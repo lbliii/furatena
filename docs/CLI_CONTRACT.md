@@ -62,6 +62,20 @@ warning threshold applies, including `--warnings-as-errors` and Chirp's deploy
 posture. Terminal, JSON, and CI report formats render this one composed result,
 so no finding is counted or printed twice.
 
+`fura serve` is a blocking server command with a phase-aware startup result. Normal
+author and hybrid startup run the Chirp contract suite exactly once; successful warnings
+are summarized while fatal findings retain their `chirp.<category>` rule, template or
+route origin, and remediation. Human preflight output uses stderr. Pounce owns readiness,
+so Furatena never renders an early `Ready` line. Released Pounce 0.9.2 still emits two
+readiness events in reload-enabled author mode—after binding and after lifespan startup—
+and the one-ready contract remains blocked on an upstream fix and release; Furatena does
+not filter either event. `fura serve --json` writes one command envelope to stdout with
+summary `serve preflight passed` or `serve preflight failed`; `data.phase` is `preflight`,
+`data.ready` is `false`, and `data.configured_url` is explicitly not a readiness claim.
+The payload also includes mode, catalog counts, stale-freeze state, effective reload
+behavior, check counts and elapsed milliseconds. Structured server logging keeps the
+corresponding `furatena.serve.preflight` event and Pounce logs on stderr.
+
 `tests/fixtures/diagnostics.json` is the versioned golden dataset for this
 contract. Its clean, warning-only, and error cases preserve each finding's id,
 severity, message, origin, and remediation, then verify matching summaries and
