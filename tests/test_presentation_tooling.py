@@ -15,6 +15,7 @@ from furatena.catalog.presentation_tooling import (
     generate_reference_preview,
     run_presentation_conformance,
 )
+from furatena.catalog.sources.registry import registered_formats
 from furatena.catalog.theme_init import ScaffoldKind, init_theme_pack
 from furatena.catalog.view_kinds import VIEW_KINDS
 from furatena.cli.main import main, run_command
@@ -88,14 +89,24 @@ def test_preview_covers_full_matrix_and_detects_generated_drift(tmp_path: Path) 
     assert generated.ok and current.ok
     assert generated.files == current.files
     assert set(generated.report["view_kinds"]) == {spec.kind for spec in VIEW_KINDS}
+    assert generated.report["content_formats"] == list(registered_formats())
+    assert set(generated.report["rendered_content_formats"]) | set(
+        generated.report["unavailable_content_formats"]
+    ) == set(generated.report["content_formats"])
+    assert generated.report["fixture_states"] == ["deep_navigation", "empty_state"]
     assert generated.report["extra_states"] == ["error", "search"]
     assert {item["id"] for item in generated.report["responsive_states"]} == {
         "mobile",
         "tablet",
         "desktop",
     }
-    assert len(tuple((output / "full").glob("*.html"))) == 10
-    assert len(tuple((output / "fragment").glob("*.html"))) == 10
+    scenario_count = 12 + len(generated.report["rendered_content_formats"])
+    assert len(tuple((output / "full").glob("*.html"))) == scenario_count
+    assert len(tuple((output / "fragment").glob("*.html"))) == scenario_count
+    preview_manifest = json.loads((output / "preview-manifest.json").read_text(encoding="utf-8"))
+    scenario_ids = {item["id"] for item in preview_manifest["scenarios"]}
+    assert set(generated.report["rendered_content_formats"]) <= scenario_ids
+    assert {"deep_navigation", "empty_state"} <= scenario_ids
 
     changed = output / "full" / "doc.html"
     changed.write_text(changed.read_text(encoding="utf-8") + "<!-- drift -->\n", encoding="utf-8")

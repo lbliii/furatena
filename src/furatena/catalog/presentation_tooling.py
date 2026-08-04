@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import importlib.util
 import json
 import re
 import shutil
@@ -40,6 +41,24 @@ _VIEW_ROUTES = {
     "api_reference": "/api/",
     "page": "/localized/",
     "portal": "/portal/",
+}
+_CONTENT_FORMAT_ROUTES = {
+    "docutils-rst": "/formats/rst/",
+    "html": "/formats/html/",
+    "mdx": "/formats/mdx/",
+    "myst-markdown": "/formats/myst/",
+    "patitas-markdown": "/formats/markdown/",
+}
+_CONTENT_FORMAT_EXTENSIONS = {
+    "docutils-rst": ".rst",
+    "html": ".html",
+    "mdx": ".mdx",
+    "myst-markdown": ".myst",
+    "patitas-markdown": ".md",
+}
+_FIXTURE_ROUTES = {
+    "deep_navigation": "/guides/deep/navigation/topic/",
+    "empty_state": "/empty/",
 }
 _EXTRA_ROUTES = {"search": "/search?q=reference", "error": "/missing/"}
 _RESPONSIVE_STATES = (
@@ -242,6 +261,7 @@ def generate_reference_preview(root: Path, output: Path, *, check: bool = False)
             (),
             {"ok": False, "validation": validation.to_dict()},
         )
+    content_format_routes, unavailable_content_formats = _available_content_format_routes()
     with tempfile.TemporaryDirectory(prefix="fura-presentation-preview-") as temporary:
         workspace = Path(temporary)
         docs = _fixture_app(validation.pack, workspace)
@@ -258,6 +278,10 @@ def generate_reference_preview(root: Path, output: Path, *, check: bool = False)
         "ok": not drift and render_ok,
         "pack": validation.pack.public_record(),
         "view_kinds": sorted(_VIEW_ROUTES),
+        "content_formats": sorted(_CONTENT_FORMAT_ROUTES),
+        "rendered_content_formats": sorted(content_format_routes),
+        "unavailable_content_formats": unavailable_content_formats,
+        "fixture_states": sorted(_FIXTURE_ROUTES),
         "extra_states": sorted(_EXTRA_ROUTES),
         "responsive_states": list(_RESPONSIVE_STATES),
         "fixture_coverage": _fixture_coverage(),
@@ -280,6 +304,7 @@ def run_presentation_conformance(
             (),
             {"ok": False, "validation": validation.to_dict()},
         )
+    content_format_routes, unavailable_content_formats = _available_content_format_routes()
     with tempfile.TemporaryDirectory(prefix="fura-presentation-conformance-") as temporary:
         workspace = Path(temporary)
         target = _fixture_app(validation.pack, workspace / "target")
@@ -325,6 +350,10 @@ def run_presentation_conformance(
             },
             "fixture_coverage": _fixture_coverage(),
             "view_kinds": sorted(_VIEW_ROUTES),
+            "content_formats": sorted(_CONTENT_FORMAT_ROUTES),
+            "rendered_content_formats": sorted(content_format_routes),
+            "unavailable_content_formats": unavailable_content_formats,
+            "fixture_states": sorted(_FIXTURE_ROUTES),
             "responsive_states": list(_RESPONSIVE_STATES),
         }
         files = {"conformance.json": json.dumps(report, indent=2, sort_keys=True) + "\n"}
@@ -360,9 +389,14 @@ def _fixture_app(pack: PresentationPack | None, workspace: Path) -> DocsApp:
         + "compose:\n  collection:\n    data: collections.yaml\n",
         encoding="utf-8",
     )
+    content_format_routes, _unavailable_content_formats = _available_content_format_routes()
+    extensions = ", ".join(
+        f'"{_CONTENT_FORMAT_EXTENSIONS[name]}"' for name in sorted(content_format_routes)
+    )
     (app_root / "mounts.yaml").write_text(
         "mounts:\n  - id: reference\n    label: Reference fixtures\n"
-        "    content_root: content\n    default: true\n",
+        "    content_root: content\n    default: true\n"
+        f"    extensions: [{extensions}]\n",
         encoding="utf-8",
     )
     (app_root / "collections.yaml").write_text(
@@ -405,6 +439,25 @@ def _write_fixture_content(content: Path) -> None:
             "---\ntitle: Deep navigation topic\nlayout: doc\n---\n# Nested topic\n"
         ),
         "empty/_index.md": "---\ntitle: Empty state\nlayout: doc_list\n---\n",
+        "formats/markdown.md": (
+            "---\ntitle: Markdown format fixture\nlayout: doc\n---\n# Markdown fixture\n"
+        ),
+        "formats/html.html": (
+            "---\ntitle: HTML format fixture\nlayout: doc\n---\n"
+            "<h1>HTML fixture</h1><p>Rendered through the HTML adapter.</p>\n"
+        ),
+        "formats/rst.rst": (
+            "---\ntitle: RST format fixture\nlayout: doc\n---\n\n"
+            "RST fixture\n===========\n\nRendered through the docutils adapter.\n"
+        ),
+        "formats/mdx.mdx": (
+            "---\ntitle: MDX format fixture\nlayout: doc\n---\n\n"
+            "# MDX fixture\n\nRendered through the MDX adapter.\n"
+        ),
+        "formats/myst.myst": (
+            "---\ntitle: MyST format fixture\nlayout: doc\n---\n\n"
+            "# MyST fixture\n\nRendered through the MyST adapter.\n"
+        ),
         "collection.md": (
             "---\ntitle: Reference collection\nlayout: collection\ncollection: reference\n---\n"
         ),
@@ -439,7 +492,9 @@ def _write_fixture_content(content: Path) -> None:
 async def _render_routes(docs: DocsApp) -> dict[str, dict[str, Any]]:
     client = TestClient(docs.create_app())
     rendered: dict[str, dict[str, Any]] = {}
-    for name, route in sorted({**_VIEW_ROUTES, **_EXTRA_ROUTES}.items()):
+    content_format_routes, _unavailable_content_formats = _available_content_format_routes()
+    routes = {**_VIEW_ROUTES, **content_format_routes, **_FIXTURE_ROUTES, **_EXTRA_ROUTES}
+    for name, route in sorted(routes.items()):
         full = await client.get(route)
         fragment = await client.get(route, headers={"HX-Request": "true"})
         rendered[name] = {
@@ -572,6 +627,17 @@ def _fixture_coverage() -> list[str]:
         "visibility-private",
         "visibility-protected",
     ]
+
+
+def _available_content_format_routes() -> tuple[dict[str, str], dict[str, str]]:
+    routes = dict(_CONTENT_FORMAT_ROUTES)
+    unavailable: dict[str, str] = {}
+    if importlib.util.find_spec("docutils") is None:
+        routes.pop("docutils-rst")
+        unavailable["docutils-rst"] = (
+            "Install furatena[formats] to include the optional RST adapter in the preview."
+        )
+    return routes, unavailable
 
 
 def _write_or_check(output: Path, files: dict[str, str], *, check: bool) -> tuple[str, ...]:

@@ -118,7 +118,10 @@ standard command envelope and validation failures exit with status 2.
 | `fura.presentation.generated_drift` | Generated preview/report bytes | Regenerate without `--check`, review, and commit the intended output. |
 
 `theme preview` writes `.fura-preview/` under the pack by default. It renders full and fragment
-HTML for every view kind plus search and error states from synthetic, public-safe fixtures. The
+HTML for every view kind, every available shipped content adapter, deep-navigation and empty-state
+routes, plus search and error states from synthetic, public-safe fixtures. Markdown, HTML, MDX,
+and MyST are dependency-free; install `furatena[formats]` to add the optional RST adapter. The
+manifest reports both rendered and unavailable formats with the RST installation recovery. The
 preview index frames the same server output at mobile, tablet, and desktop widths. Fixture content
 covers long titles, deep navigation, empty states, code, directives, API reference, localization,
 and distinct draft/private/protected/archived canaries without copying adopter content. Per-request
