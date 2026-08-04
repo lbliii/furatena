@@ -284,10 +284,35 @@ def test_clean_account_workflow_proves_lifecycle_and_always_deletes_project() ->
         "/_fura/content/rollback",
         "rollback_hold",
         "verify-live-artifacts.py",
-        "if: always() && steps.project.outputs.project_id != ''",
+        "Delete the disposable project with bounded retries",
+        "if: always()",
+        "for attempt in 1 2 3",
+        "timeout 120s",
+        "conformance-evidence/cleanup.json",
         "delete",
     ):
         assert required in source
     assert "RAILWAY_CLI_VERSION: 5.25.0" in source
     assert "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" in source
     assert "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f" in source
+
+
+def test_clean_account_evidence_excludes_raw_control_plane_identifiers() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+    upload = source.split("      - name: Upload conformance evidence\n", 1)[1]
+
+    assert "conformance-evidence/railway-terminal.json" in upload
+    assert "conformance-evidence/cleanup.json" in upload
+    for raw_control_plane_file in (
+        "project.json",
+        "domains.json",
+        "domain-created.json",
+        "deployments-initial.json",
+        "final-deployments.json",
+        "final-status.json",
+    ):
+        assert raw_control_plane_file not in upload
+    assert "path: conformance-evidence/" not in upload
+    assert "latest_deployment_status" in source
+    assert "deployment_statuses" in source
+    assert 'rm -f "${RUNNER_TEMP}/furatena-final-deployments.json"' in source
