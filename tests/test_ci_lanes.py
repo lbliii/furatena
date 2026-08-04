@@ -133,6 +133,7 @@ def test_github_actions_uses_named_make_lanes_and_scoped_caches() -> None:
     for lane in ("export", "agent"):
         assert jobs[lane]["if"] == "github.event_name != 'pull_request'"
     assert "if" not in jobs["fast"]
+    assert jobs["contract"]["needs"] == "fast"
     assert "if" not in jobs["contract"]
     assert jobs["coverage"]["needs"] == "fast"
     assert jobs["coverage"]["if"] == (

@@ -72,7 +72,9 @@ not start until the pull request leaves draft state. Converting a pull request
 to draft publishes a removed preview report and skips queued preview work.
 Each pull request uses one workflow concurrency group keyed by PR number so a
 new push cancels superseded untrusted work without touching trusted main
-publication or image lifecycle runs. The fast job classifies the complete
+publication or image lifecycle runs. The contract lane waits for the fast lane
+on every event so a lint or unit failure does not start coverage, browser, or
+release work. The fast job classifies the complete
 base-to-head path diff and adds `coverage` for Python/test/coverage-policy
 changes, browser smoke for content/render/theme/browser changes, and `release`
 for source or packaging changes. Marking a draft ready for review forces all
