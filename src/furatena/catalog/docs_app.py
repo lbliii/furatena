@@ -11,7 +11,10 @@ import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from furatena.catalog.remote_shards import RemoteRefreshReport, RemoteShardMountRegistry
 
 import yaml
 from chirp import (
@@ -345,6 +348,7 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
     ) -> None:
         self.config = config
         self.roots = ApplicationRoots.from_environment(config.root)
@@ -408,9 +412,12 @@ class DocsApp:
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
             state_root=self.roots.state / "source-sync-state",
+            remote_shards=remote_shards,
         )
         if self.roots.managed:
             for mount in self.catalog.mounts:
+                if mount.source.provider == "remote-shard":
+                    continue
                 self.roots.require_site_path(
                     mount.content_root,
                     label=f"content root for mount {mount.id!r}",
@@ -677,6 +684,18 @@ class DocsApp:
         return match
 
     def _render_catalog_page(
+        self,
+        request: Request,
+        *,
+        requested_lang: str | None = None,
+    ):
+        with self.catalog.read_snapshot():
+            return self._render_catalog_page_in_generation(
+                request,
+                requested_lang=requested_lang,
+            )
+
+    def _render_catalog_page_in_generation(
         self,
         request: Request,
         *,
@@ -1925,6 +1944,7 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
         if autodoc is None:
@@ -1943,7 +1963,12 @@ class DocsApp:
             author_truth_provider=author_truth_provider,
             retrieval_feedback=retrieval_feedback,
             observability=observability,
+            remote_shards=remote_shards,
         )
+
+    def refresh_remote_shards(self) -> RemoteRefreshReport:
+        """Refresh and atomically publish all configured remote shard mounts."""
+        return self.catalog.refresh_remote_shards()
 
     def create_app(self) -> App:
         return self.app

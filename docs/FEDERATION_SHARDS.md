@@ -142,10 +142,11 @@ anchors the canonical shard-manifest digest and byte bound.
 The hub has its own canonical payload digest over contracts, shard records,
 channels, and discovery policy. Its detached signature subject is that digest.
 The reference validator proves shapes, digests, inventory closure, and subject
-binding; #360/#361 must add cryptographic verification against configured
-issuer and workload identities before making a remote shard readable. Missing,
-expired, malformed, untrusted, or mismatched verification material fails
-closed and preserves only a previously verified last-known-good generation.
+binding. The remote reader additionally requires an injected cryptographic
+verifier to approve configured issuer and workload identities before making a
+shard readable. Missing, expired, malformed, untrusted, or mismatched
+verification material fails closed and preserves only a previously verified
+last-known-good generation.
 
 ## Hub manifest and channels discovery
 
@@ -221,6 +222,53 @@ O(1) semantic and browser lookup. Search
 rank merging, global IDF refresh, cross-shard link reconciliation, and global
 sitemap/LLM indexes belong to the later #362+ routing, search, and reconciliation
 work and cannot bypass these verification steps.
+
+## Mounting a verified remote corpus
+
+A hub application declares remote authority explicitly. Its `content_root` is
+only a configuration placeholder and need not exist; the `remote-shard`
+provider fails closed if any source scanner, adapter, or local indexer tries to
+use it:
+
+```yaml
+mounts:
+  - id: product
+    label: Product documentation
+    url_prefix: /product
+    default: true
+    content_root: corpus-does-not-exist
+    source:
+      provider: remote-shard
+```
+
+The host constructs `RemoteShardMountRegistry` with a `StrictHTTPSFetcher` and
+an application-owned `RemoteCryptographicVerifier`, refreshes it, and injects
+it through `DocsApp.from_paths(..., remote_shards=registry)`. Trust policy is
+not inferred from manifest claims. The verifier must enforce the configured
+issuer, workload identity, signature, attestation, and expiration policy for
+both the hub and every shard before returning receipt evidence.
+
+Activation stores immutable verified generations and receipts beneath the
+registry state root, then atomically selects one last-known-good generation per
+mount. `DocsApp.refresh_remote_shards()` refreshes those selections and
+publishes the composed catalog plus derived graph caches as one lock-owned
+generation. A failed mount retains only its own previous verified generation;
+it does not block unrelated mounts. `rollback(mount, fingerprint)` pins a
+retained generation until `unpin(mount)` explicitly resumes hub updates.
+
+Catalog metadata is eager so routes, DCP, and navigation remain O(1) by node
+identity. Presentation HTML and semantic indexes remain lazy. Concurrent first
+reads of the same presentation coalesce behind a temporary per-node flight,
+while reads for different nodes and mounts remain independent. Each in-flight
+request owns the immutable generation from which it resolved the node, so an
+upstream refresh cannot mix an old catalog record with new presentation bytes.
+Each generation's presentation LRU is bounded to 256 entries and 64 MiB of
+decoded sanitized HTML. The two caps bound both metadata-heavy small pages and
+large bodies while holding at most four maximum-size v1 presentations.
+Least-recently-used entries are evicted until both limits hold. A body larger
+than the byte budget is still verified and served but is not cached; failed
+fetches are never cached, and per-node flight records are removed on success or
+failure.
 
 ## Compatibility and DCP migration plan
 
