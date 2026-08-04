@@ -166,6 +166,12 @@ python scripts/verify-live-artifacts.py "$ORIGIN"
 python scripts/check_live_slo.py --origin "$ORIGIN" --output /tmp/furatena-slo.json
 ```
 
+For the isolated eight-mount versioned-corpus pilot, also run the exact-identity
+and edition-aware verifier documented in [B_STACK_PILOT.md](B_STACK_PILOT.md).
+Its retained JSON receipt covers edition routes and redirects, scoped agent
+queries, lifecycle banners, and the Pounce cross-version diff; it does not
+replace this service-wide artifact and SLO gate.
+
 `/meta.json` must report:
 
 - `distribution=private-image`;
