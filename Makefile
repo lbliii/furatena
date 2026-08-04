@@ -22,7 +22,9 @@ CORE_COVERAGE_TESTS = \
 	tests/test_chirp_docs_static_export.py \
 	tests/test_chirp_docs_reference_resolution.py \
 	tests/test_chirp_docs_link_and_inventory_contracts.py
-BROWSER_TESTS = tests/test_author_sse_browser.py
+BROWSER_TESTS = \
+	tests/test_author_sse_browser.py \
+	tests/test_mcp_catalog_search_app_browser.py
 BROWSER_RESULTS ?= browser-results
 PDF_PROOF_RESULTS ?= pdf-proof
 
