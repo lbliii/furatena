@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "manifest_type": "furatena-federation-hub",
+  "generated_at": "2026-08-03T00:00:00Z",
+  "contracts": {
+    "artifact": 1,
+    "dcp_reader_min": 2,
+    "dcp_reader_max": 3,
+    "content_ir_reader_min": 3,
+    "content_ir_reader_max": 3
+  },
+  "shards": {
+    "chirp:0.10.3": {
+      "mount": "chirp",
+      "edition": "0.10.3",
+      "audience": "public",
+      "source_shard_fingerprint": "b84016cc7512e8aea0435ebb5991e662c6778ae55ca3afc1662036cd809fdac3",
+      "fingerprint": "6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70",
+      "artifact_url": "https://artifacts.example.com/shards/sha256/6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70/manifest.json",
+      "lifecycle": {"status": "legacy", "release_date": null, "end_of_life": null},
+      "integrity": {
+        "algorithm": "sha256",
+        "manifest_sha256": "dfa00553b9cbd5fcbedd5dd19d80f215c17e9271390efca034fe76d556bb7734",
+        "manifest_bytes": 4839
+      },
+      "contracts": {"artifact": 1, "dcp": 3, "content_ir": 3},
+      "provenance": {
+        "provider": "git",
+        "repository": "https://github.com/example/chirp.git",
+        "ref": "v0.10.3",
+        "resolved_ref": "e20ae88a77558d708e527b883dd655c0c0c656c2",
+        "source_path": "site/content"
+      },
+      "retention": {"class": "release", "minimum_days": 365, "pinned": true}
+    },
+    "chirp:latest": {
+      "mount": "chirp",
+      "edition": "latest",
+      "audience": "public",
+      "source_shard_fingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "fingerprint": "b59da800300871e1788e3557bdd8e96f9f2872be25b4f002dd4e9c53cf50ce48",
+      "artifact_url": "https://artifacts.example.com/shards/sha256/b59da800300871e1788e3557bdd8e96f9f2872be25b4f002dd4e9c53cf50ce48/manifest.json",
+      "lifecycle": {"status": "current", "release_date": null, "end_of_life": null},
+      "integrity": {
+        "algorithm": "sha256",
+        "manifest_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "manifest_bytes": 4096
+      },
+      "contracts": {"artifact": 1, "dcp": 3, "content_ir": 3},
+      "provenance": {
+        "provider": "git",
+        "repository": "https://github.com/example/chirp.git",
+        "ref": "main",
+        "resolved_ref": "789d53e4c49f3b5d66ff5fa80ac064d82f41c168",
+        "source_path": "site/content"
+      },
+      "retention": {"class": "moving", "minimum_days": 30, "pinned": false}
+    }
+  },
+  "channels": {
+    "chirp": {
+      "latest": "chirp:latest",
+      "stable": "chirp:0.10.3",
+      "editions": ["chirp:latest", "chirp:0.10.3"]
+    }
+  },
+  "discovery": {
+    "channels_field": "remote_federation",
+    "hub_manifest_url": "https://artifacts.example.com/federation/hub-v1.json",
+    "refresh_after_seconds": 300,
+    "max_manifest_bytes": 4194304,
+    "max_shards": 10000,
+    "failure_mode": "last-known-good-or-unavailable"
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "payload_sha256": "5843d717df398d33dadb377ca6ead3630b22ba376e8881486aa0c0158fd44094"
+  },
+  "signatures": [
+    {
+      "kind": "sigstore-bundle",
+      "url": "https://artifacts.example.com/signatures/hub-v1.sigstore.json",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "subject_sha256": "5843d717df398d33dadb377ca6ead3630b22ba376e8881486aa0c0158fd44094",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "identity": "https://github.com/example/furatena/.github/workflows/publish-federation.yml@refs/heads/main"
+    }
+  ]
+}
