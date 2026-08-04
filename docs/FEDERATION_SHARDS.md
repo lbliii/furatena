@@ -13,6 +13,7 @@ The normative schemas are:
 - `schemas/federation/v1/published-shard.schema.json`
 - `schemas/federation/v1/hub-manifest.schema.json`
 - `schemas/federation/v1/channels-extension.schema.json`
+- `schemas/federation/v1/search-index.schema.json`
 
 `furatena.catalog.federation_artifacts` is the reference validator. The golden
 pair under `tests/fixtures/federation/v1/` is the compatibility oracle.
@@ -194,8 +195,9 @@ identities.
 
 Search and semantic indexes are complete shard-local objects. They contain
 only the catalog's public node-id set and are fingerprinted with the artifact.
-Cross-shard rank merging and global IDF refresh are derived hub state owned by
-later work; neither can rewrite an upstream artifact. Likewise, outbound DCP
+Cross-shard rank merging is ephemeral reader state, while an optional global
+IDF refresh remains replaceable derived hub state; neither can rewrite an
+upstream artifact. Likewise, outbound DCP
 edges remain in their publishing shard. Cross-shard reconciliation and global
 sitemap or `llms.txt` indexes are replaceable derived indexes, never additions
 to the signed object inventory.
@@ -218,10 +220,10 @@ Readers perform this bounded sequence:
    or stays on its previously verified generation; unrelated shards continue.
 
 Catalog identity maps and paired per-node fragment/presentation maps provide
-O(1) semantic and browser lookup. Search
-rank merging, global IDF refresh, cross-shard link reconciliation, and global
-sitemap/LLM indexes belong to the later #362+ routing, search, and reconciliation
-work and cannot bypass these verification steps.
+O(1) semantic and browser lookup. Federated search uses the same verified
+object reader and cannot bypass these steps. Global IDF refresh, cross-shard
+link reconciliation, and global sitemap/LLM indexes remain replaceable derived
+work rather than additions to the signed shard.
 
 ## Mounting a verified remote corpus
 
@@ -261,8 +263,8 @@ so an unrelated mount update neither rotates the generation nor discards its
 warm presentation cache.
 
 Catalog metadata is eager so routes, DCP, and navigation remain O(1) by node
-identity. Presentation HTML and semantic indexes remain lazy. Concurrent first
-reads of the same presentation coalesce behind a temporary per-node flight,
+identity. Presentation HTML, search indexes, and semantic indexes remain lazy.
+Concurrent first reads of the same presentation coalesce behind a temporary per-node flight,
 while reads for different nodes and mounts remain independent. Each in-flight
 request owns the immutable generation from which it resolved the node, so an
 upstream refresh cannot mix an old catalog record with new presentation bytes.
@@ -275,6 +277,55 @@ Least-recently-used entries are evicted until both limits hold. A body larger
 than the byte budget is still verified and served but is not cached; failed
 fetches are never cached, and per-node flight records are removed on success or
 failure.
+
+## Federated keyword and TF-IDF search
+
+The publisher writes search index v2 inside the artifact-v1 `search` object.
+It contains a sorted public document table, an inverted keyword index,
+shard-local document frequencies and IDF weights, and normalized TF-IDF
+postings. The validator recomputes IDF and normalized vectors from keyword term
+counts; a malformed posting, an extra field, or posting/IDF drift rejects the
+object before cache promotion. Index v1 (`node_id`, title, and text documents)
+remains readable as a keyword-only rolling-upgrade fallback, but new publishers
+always emit v2.
+
+The hub never builds a whole-corpus index. It first selects mounts and the exact
+edition/channel alias, then applies lifecycle policy from the verified manifest.
+Current, legacy, and deprecated shards are eligible by default; preview is
+opt-in and end-of-life shards are skipped unless `include_eol` is explicit. The
+artifact-v1 search object is public-only, and results are intersected with the
+already-authorized active catalog generation before merge. A mount with no
+authorized candidate nodes does not fan out. Thus private, protected, draft,
+archived, wrong-edition, and EOL identities cannot become fetch or merge
+candidates merely because their text matches.
+
+Each selected shard computes normalized keyword and cosine TF-IDF scores in the
+range 0–1. The hub combines them with fixed 60/40 weights and rank-merges by
+score, keyword evidence, mount, edition, case-folded title, and node id. The
+complete tie key makes browser, catalog/CLI, and MCP/agent search ordering
+deterministic. Per-shard IDF intentionally favors terms that are discriminating
+within their publishing shard; a term common in one shard and rare in another
+can therefore have different weight. Operators that need corpus-wide
+calibration may periodically aggregate the signed document-frequency summaries
+into a replaceable global-IDF view. That optimization must retain shard
+provenance and must not rewrite or become authority over the published indexes.
+
+Fan-out is capped at 256 selected shards and uses at most 16 workers. Larger
+queries fail with a recovery instruction to scope by mount. Under
+`PYTHON_GIL=0`, each worker owns its fetch, decompression, validation, parsed
+index, and query stack. The mount-generation snapshot is immutable; only the
+decoded-index LRU is shared, protected by its own lock, and bounded to 256
+entries and 64 MiB of measured resident Python objects. A deep resident-size
+walk runs once after validation and parse, outside query hot paths; wire-small
+indexes whose object graphs exceed the byte budget are served but not admitted.
+Concurrent cold requests for the same
+fingerprint coalesce through a temporary future; different shards remain
+independent, and the flight record is removed on success or failure. Readers
+collect worker-local results before
+one deterministic merge; a selected shard failure is reported rather than
+silently returning an incomplete result. ANN search and
+`ExternalEmbeddingProvider` integration remain out of scope; the existing
+provider seam is the future path for those indexes.
 
 ## Compatibility and DCP migration plan
 

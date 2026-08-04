@@ -9,7 +9,9 @@ import json
 import re
 import threading
 import urllib.request
-from collections.abc import Callable, Mapping
+from collections import OrderedDict
+from collections.abc import Callable, Iterable, Mapping
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,7 +20,15 @@ from typing import Any, Protocol
 from urllib.parse import unquote, urlsplit
 
 from furatena.catalog.atomic_directory import AtomicDirectoryTransaction
+from furatena.catalog.edition_lifecycle import lifecycle_statuses
 from furatena.catalog.exceptions import CatalogError
+from furatena.catalog.federated_search import (
+    FederatedSearchHit,
+    FederatedSearchResult,
+    FederatedShardSearchHit,
+    FederatedShardSearchIndex,
+    rank_merge_federated_hits,
+)
 from furatena.catalog.federation_artifacts import (
     MAX_PUBLISHED_OBJECT_BYTES,
     published_manifest_digest,
@@ -33,6 +43,10 @@ from furatena.catalog.operation_lease import (
 )
 
 MAX_HUB_MANIFEST_BYTES = 4 * 1024 * 1024
+MAX_SEARCH_CACHE_BYTES = 64 * 1024 * 1024
+MAX_SEARCH_CACHE_ENTRIES = 256
+MAX_SEARCH_FANOUT = 256
+MAX_SEARCH_WORKERS = 16
 
 
 class RemoteShardError(CatalogError, RuntimeError):
@@ -227,6 +241,7 @@ class RemoteShardGeneration:
     public_node_ids: frozenset[str]
     fragments: Mapping[str, RemoteObjectRef]
     presentations: Mapping[str, RemoteObjectRef]
+    search: RemoteObjectRef
     semantic: RemoteObjectRef
 
 
@@ -277,6 +292,10 @@ class RemoteShardMountRegistry:
         fetcher: StrictHTTPSFetcher,
         verifier: RemoteCryptographicVerifier,
         max_hub_bytes: int = MAX_HUB_MANIFEST_BYTES,
+        max_search_cache_bytes: int = MAX_SEARCH_CACHE_BYTES,
+        max_search_cache_entries: int = MAX_SEARCH_CACHE_ENTRIES,
+        max_search_fanout: int = MAX_SEARCH_FANOUT,
+        max_search_workers: int = MAX_SEARCH_WORKERS,
     ) -> None:
         self.hub_url = fetcher.validate_url(hub_url)
         self.state_root = state_root.expanduser().resolve()
@@ -287,11 +306,31 @@ class RemoteShardMountRegistry:
                 f"Remote hub bound must be between 1 and {MAX_HUB_MANIFEST_BYTES} bytes."
             )
         self.max_hub_bytes = max_hub_bytes
+        if not 0 <= max_search_cache_bytes <= MAX_SEARCH_CACHE_BYTES:
+            raise ValueError(
+                f"Remote search cache byte bound must be between 0 and {MAX_SEARCH_CACHE_BYTES}."
+            )
+        if not 0 <= max_search_cache_entries <= MAX_SEARCH_CACHE_ENTRIES:
+            raise ValueError(
+                f"Remote search cache entry bound must be between 0 and {MAX_SEARCH_CACHE_ENTRIES}."
+            )
+        if not 1 <= max_search_fanout <= MAX_SEARCH_FANOUT:
+            raise ValueError(f"Remote search fan-out must be between 1 and {MAX_SEARCH_FANOUT}.")
+        if not 1 <= max_search_workers <= MAX_SEARCH_WORKERS:
+            raise ValueError(f"Remote search workers must be between 1 and {MAX_SEARCH_WORKERS}.")
+        self.max_search_cache_bytes = max_search_cache_bytes
+        self.max_search_cache_entries = max_search_cache_entries
+        self.max_search_fanout = max_search_fanout
+        self.max_search_workers = max_search_workers
         self._state_lock = threading.RLock()
         self._lock_table_lock = threading.Lock()
         self._mount_locks: dict[str, threading.Lock] = {}
         self._mounts: Mapping[str, RemoteMountGeneration] = MappingProxyType({})
         self._startup_errors: list[str] = []
+        self._search_cache_lock = threading.RLock()
+        self._search_cache: OrderedDict[str, tuple[FederatedShardSearchIndex, int]] = OrderedDict()
+        self._search_cache_bytes = 0
+        self._search_flights: dict[str, Future[FederatedShardSearchIndex]] = {}
         self._load_last_known_good()
 
     def mounts(self) -> tuple[str, ...]:
@@ -416,6 +455,187 @@ class RemoteShardMountRegistry:
                 operation="remote_shard_object_validate",
             )
         return _freeze_json(value)
+
+    def search(
+        self,
+        query: str,
+        *,
+        mounts: Iterable[str] | None = None,
+        edition: str = "latest",
+        limit: int = 12,
+        status: str | None = None,
+        include_preview: bool = False,
+        include_eol: bool = False,
+    ) -> FederatedSearchResult:
+        """Fan a query out only after mount, edition, and lifecycle selection."""
+        if limit <= 0 or not query.strip():
+            return FederatedSearchResult((), (), ())
+        selected_mounts = frozenset(mounts) if mounts is not None else None
+        selected_statuses = lifecycle_statuses(
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        )
+        with self._state_lock:
+            generations = tuple(
+                generation
+                for mount, generation in sorted(self._mounts.items())
+                if selected_mounts is None or mount in selected_mounts
+            )
+        candidates: list[RemoteShardGeneration] = []
+        skipped: list[str] = []
+        for generation in generations:
+            try:
+                shard = self._resolve_shard(generation, edition)
+            except RemoteShardUnavailableError:
+                continue
+            lifecycle = str(shard.manifest["lifecycle"]["status"])
+            if lifecycle not in selected_statuses:
+                skipped.append(shard.identity)
+                continue
+            candidates.append(shard)
+        if len(candidates) > self.max_search_fanout:
+            raise RemoteShardUnavailableError(
+                f"Remote search selected {len(candidates)} shards above the "
+                f"{self.max_search_fanout} shard fan-out bound; scope the query by mount.",
+                operation="remote_shard_search_scope",
+            )
+        per_shard_limit = min(max(limit * 2, 16), 100)
+        shard_hits: list[tuple[RemoteShardGeneration, tuple[FederatedShardSearchHit, ...]]] = []
+        failures: list[tuple[str, Exception]] = []
+        if len(candidates) == 1:
+            shard = candidates[0]
+            try:
+                shard_hits.append((shard, self._search_shard(shard, query, per_shard_limit)))
+            except Exception as exc:
+                failures.append((shard.identity, exc))
+        elif candidates:
+            worker_count = min(self.max_search_workers, len(candidates))
+            # Under PYTHON_GIL=0 each worker owns its fetch/decode/query stack;
+            # the only shared mutation is the explicitly locked bounded cache.
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures = {
+                    executor.submit(self._search_shard, shard, query, per_shard_limit): shard
+                    for shard in candidates
+                }
+                for future in as_completed(futures):
+                    shard = futures[future]
+                    try:
+                        shard_hits.append((shard, future.result()))
+                    except Exception as exc:
+                        failures.append((shard.identity, exc))
+        if failures:
+            identities = ", ".join(identity for identity, _ in sorted(failures))
+            raise RemoteShardUnavailableError(
+                f"Remote search could not verify/query shard indexes: {identities}.",
+                operation="remote_shard_search",
+            ) from failures[0][1]
+        merged = [
+            FederatedSearchHit(
+                node_id=hit.node_id,
+                title=hit.title,
+                snippet=hit.snippet,
+                mount=shard.mount,
+                edition=shard.edition,
+                shard_fingerprint=shard.fingerprint,
+                score=hit.score,
+                keyword_score=hit.keyword_score,
+                tfidf_score=hit.tfidf_score,
+            )
+            for shard, hits in shard_hits
+            for hit in hits
+        ]
+        return FederatedSearchResult(
+            hits=rank_merge_federated_hits(merged, limit=limit),
+            searched_shards=tuple(sorted(shard.identity for shard in candidates)),
+            skipped_shards=tuple(sorted(skipped)),
+        )
+
+    def search_cache_stats(self) -> Mapping[str, int]:
+        """Return lock-consistent decoded-index cache accounting."""
+        with self._search_cache_lock:
+            return MappingProxyType(
+                {"entries": len(self._search_cache), "bytes": self._search_cache_bytes}
+            )
+
+    def _search_shard(
+        self, shard: RemoteShardGeneration, query: str, limit: int
+    ) -> tuple[FederatedShardSearchHit, ...]:
+        index = self._cached_search_index(shard)
+        return index.search(query, limit=limit)
+
+    def _cached_search_index(self, shard: RemoteShardGeneration) -> FederatedShardSearchIndex:
+        with self._search_cache_lock:
+            cached = self._search_cache.get(shard.fingerprint)
+            if cached is not None:
+                self._search_cache.move_to_end(shard.fingerprint)
+                return cached[0]
+            flight = self._search_flights.get(shard.fingerprint)
+            owner = flight is None
+            if flight is None:
+                flight = Future()
+                self._search_flights[shard.fingerprint] = flight
+        if not owner:
+            return flight.result()
+        try:
+            index = self._load_search_index(shard)
+        except Exception as exc:
+            flight.set_exception(exc)
+            raise
+        else:
+            flight.set_result(index)
+            return index
+        finally:
+            with self._search_cache_lock:
+                if self._search_flights.get(shard.fingerprint) is flight:
+                    self._search_flights.pop(shard.fingerprint, None)
+
+    def _load_search_index(self, shard: RemoteShardGeneration) -> FederatedShardSearchIndex:
+        decoded = self._fetch_object(shard, shard.search)
+        value = _json_object(decoded, label=f"search index {shard.identity}")
+        try:
+            index = FederatedShardSearchIndex(value)
+        except ValueError as exc:
+            raise RemoteShardVerificationError(
+                f"Remote search index contract is invalid for {shard.identity}: {exc}.",
+                mount=shard.mount,
+                operation="remote_shard_object_validate",
+            ) from exc
+        if (
+            index.mount != shard.mount
+            or index.edition != shard.edition
+            or {document.node_id for document in index.documents} != shard.public_node_ids
+        ):
+            raise RemoteShardVerificationError(
+                f"Remote search index identity/node set differs from public catalog for "
+                f"{shard.identity}.",
+                mount=shard.mount,
+                operation="remote_shard_object_validate",
+            )
+        self._store_search_index(shard.fingerprint, index, index.resident_bytes)
+        return index
+
+    def _store_search_index(
+        self, fingerprint: str, index: FederatedShardSearchIndex, size: int
+    ) -> None:
+        if (
+            not self.max_search_cache_entries
+            or not self.max_search_cache_bytes
+            or size > self.max_search_cache_bytes
+        ):
+            return
+        with self._search_cache_lock:
+            previous = self._search_cache.pop(fingerprint, None)
+            if previous is not None:
+                self._search_cache_bytes -= previous[1]
+            self._search_cache[fingerprint] = (index, size)
+            self._search_cache_bytes += size
+            while (
+                len(self._search_cache) > self.max_search_cache_entries
+                or self._search_cache_bytes > self.max_search_cache_bytes
+            ):
+                _, (_, evicted_size) = self._search_cache.popitem(last=False)
+                self._search_cache_bytes -= evicted_size
 
     def rollback(self, mount: str, fingerprint: str) -> RemoteMountGeneration:
         lock = self._lock_for(mount)
@@ -940,6 +1160,7 @@ def _shard_generation(manifest: dict[str, Any], catalog: dict[str, Any]) -> Remo
             mount=str(manifest["identity"]["mount"]),
             operation="remote_shard_catalog_validate",
         )
+    search = next(item for item in refs if item.role == "search")
     semantic = next(item for item in refs if item.role == "semantic")
     return RemoteShardGeneration(
         identity=identity,
@@ -952,6 +1173,7 @@ def _shard_generation(manifest: dict[str, Any], catalog: dict[str, Any]) -> Remo
         public_node_ids=public_node_ids,
         fragments=MappingProxyType(fragments),
         presentations=MappingProxyType(presentations),
+        search=search,
         semantic=semantic,
     )
 

@@ -461,8 +461,11 @@ class DocsApp:
             frozen or config.root / "frozen", config.identity.to_meta()
         )
         semantic_path = semantic_root / "semantic.json"
-        self.embedding_index = EmbeddingIndex.load(semantic_path) or build_embedding_index(
-            list(self.catalog.nodes),
+        remote_mounts = self.catalog._remote_mount_ids()
+        local_nodes = [node for node in self.catalog.nodes if node.mount not in remote_mounts]
+        persisted_index = None if remote_mounts else EmbeddingIndex.load(semantic_path)
+        self.embedding_index = persisted_index or build_embedding_index(
+            local_nodes,
             documents=self.catalog.ast_documents(),
         )
         self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
@@ -784,8 +787,9 @@ class DocsApp:
             if cached is not None:
                 return cached
             with self.catalog.use_edition(edition):
+                remote_mounts = self.catalog._remote_mount_ids()
                 index = build_embedding_index(
-                    list(self.catalog.nodes),
+                    [node for node in self.catalog.nodes if node.mount not in remote_mounts],
                     documents=self.catalog.ast_documents(),
                 )
             self._edition_embedding_indexes[edition] = index

@@ -22,6 +22,7 @@ from furatena.catalog.remote_shards import (
     RemoteHTTPResponse,
     RemoteShardFetchError,
     RemoteShardMountRegistry,
+    RemoteShardUnavailableError,
     RemoteShardVerificationError,
     StrictHTTPSFetcher,
 )
@@ -81,14 +82,14 @@ def _canonical(value: Any) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
 
 
-def _source(tmp_path: Path, mount: str, marker: str) -> Path:
-    source = tmp_path / "frozen" / marker / "mounts" / mount / "latest"
+def _source(tmp_path: Path, mount: str, marker: str, *, edition: str = "latest") -> Path:
+    source = tmp_path / "frozen" / marker / "mounts" / mount / edition
     source.mkdir(parents=True)
-    node_id = f"{mount}:latest:guide"
+    node_id = f"{mount}:{edition}:guide"
     catalog = {
         "schema_version": 3,
-        "channel": "latest",
-        "edition": "latest",
+        "channel": edition,
+        "edition": edition,
         "mount": mount,
         "page_count": 1,
         "pages": [
@@ -99,14 +100,16 @@ def _source(tmp_path: Path, mount: str, marker: str) -> Path:
                     "headings": [{"anchor": "guide", "level": 1, "line": 1, "text": "Guide"}],
                     "links": [],
                 },
-                "edition": "latest",
+                "edition": edition,
                 "mount": mount,
                 "node_id": node_id,
                 "backlinks": [{"title": f"Backlink {marker}", "href": f"/{mount}/source/"}],
                 "sections": [{"depth": 1, "heading": "Guide", "id": "guide", "text": marker}],
                 "slug": "guide",
                 "title": f"Guide {marker}",
-                "url": f"/{mount}/guide/",
+                "url": (
+                    f"/{mount}/guide/" if edition == "latest" else f"/{mount}/{edition}/guide/"
+                ),
             }
         ],
         "edges": [],
@@ -123,7 +126,7 @@ def _source(tmp_path: Path, mount: str, marker: str) -> Path:
         json.dumps(
             {
                 "mount": mount,
-                "edition": "latest",
+                "edition": edition,
                 "fingerprint": source_fingerprint,
                 "contracts": {
                     "dcp": 3,
@@ -145,10 +148,17 @@ def _source(tmp_path: Path, mount: str, marker: str) -> Path:
     return source
 
 
-def _artifact(tmp_path: Path, mount: str, marker: str) -> tuple[dict[str, Any], dict[str, bytes]]:
+def _artifact(
+    tmp_path: Path,
+    mount: str,
+    marker: str,
+    *,
+    lifecycle_status: str = "current",
+    edition: str = "latest",
+) -> tuple[dict[str, Any], dict[str, bytes]]:
     artifact, manifest = build_published_shard(
         PublishShardOptions(
-            source_shard=_source(tmp_path, mount, marker),
+            source_shard=_source(tmp_path, mount, marker, edition=edition),
             staging_dir=tmp_path / "published" / marker / mount,
             public_base_url=f"{ORIGIN}/shards",
             verification={
@@ -169,7 +179,7 @@ def _artifact(tmp_path: Path, mount: str, marker: str) -> tuple[dict[str, Any], 
                     }
                 ],
             },
-            lifecycle_status="current",
+            lifecycle_status=lifecycle_status,
             retention_days=30,
             pinned_by=(),
         )
@@ -198,7 +208,19 @@ def _hub(manifests: list[dict[str, Any]]) -> dict[str, Any]:
         manifest_size = len(_canonical(manifest))
         shards[identity] = hub_entry(manifest, manifest_size=manifest_size)
         mount = str(manifest["identity"]["mount"])
-        channels[mount] = {"latest": identity, "stable": identity, "editions": [identity]}
+        channel = channels.setdefault(
+            mount,
+            {"latest": None, "stable": None, "editions": []},
+        )
+        channel["editions"].append(identity)
+        lifecycle = str(manifest["lifecycle"]["status"])
+        if lifecycle == "current":
+            channel["latest"] = identity
+            channel["stable"] = identity
+        elif channel["stable"] is None and lifecycle not in {"preview", "eol"}:
+            channel["stable"] = identity
+    for channel in channels.values():
+        channel["editions"].sort()
     hub = {
         "schema_version": 1,
         "manifest_type": "furatena-federation-hub",
@@ -369,6 +391,11 @@ def test_zero_local_registry_activates_catalog_then_fetches_node_and_semantic_la
         for item in manifest["inventory"]
         if item["role"] == "semantic"
     )
+    search_url = next(
+        str(manifest["artifact_base_url"]) + str(item["object_url"])
+        for item in manifest["inventory"]
+        if item["role"] == "search"
+    )
 
     assert report.mounts[0].status == "activated"
     assert registry.mounts() == ("alpha",)
@@ -376,18 +403,22 @@ def test_zero_local_registry_activates_catalog_then_fetches_node_and_semantic_la
     assert fragment_url not in transport.calls
     assert presentation_url not in transport.calls
     assert semantic_url not in transport.calls
+    assert search_url not in transport.calls
     assert verifier.hubs == 1
     assert verifier.shards == ["alpha:latest"]
 
     node = registry.fetch_node("alpha", "latest", "alpha:latest:guide")
     semantic = registry.fetch_semantic_index("alpha", "stable")
+    search = registry.search("v1")
 
     assert node.fragment["sections"][0]["text"] == "v1"
     assert b"<p>v1</p>" in node.presentation
     assert semantic["records"][0]["node_id"] == node.node_id
+    assert search.hits[0].node_id == node.node_id
     assert fragment_url in transport.calls
     assert presentation_url in transport.calls
     assert semantic_url in transport.calls
+    assert search_url in transport.calls
     receipt = (
         tmp_path
         / "remote-state"
@@ -410,6 +441,156 @@ def test_zero_local_registry_activates_catalog_then_fetches_node_and_semantic_la
 
     restarted = _registry(tmp_path, MemoryTransport(objects), RecordingVerifier())
     assert restarted.generation("alpha").generation_id == generation.generation_id
+
+
+def test_search_scopes_before_fanout_skips_eol_and_rank_merges_deterministically(
+    tmp_path: Path,
+) -> None:
+    alpha, alpha_objects = _artifact(tmp_path, "alpha", "needle-alpha")
+    beta, beta_objects = _artifact(tmp_path, "beta", "needle-beta")
+    retired, retired_objects = _artifact(
+        tmp_path,
+        "alpha",
+        "needle-retired",
+        lifecycle_status="eol",
+        edition="old",
+    )
+    transport = MemoryTransport(alpha_objects | beta_objects | retired_objects)
+    _install_hub(transport, _hub([alpha, beta, retired]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+
+    search_urls = {
+        str(manifest["identity"]["key"]): next(
+            str(manifest["artifact_base_url"]) + str(item["object_url"])
+            for item in manifest["inventory"]
+            if item["role"] == "search"
+        )
+        for manifest in (alpha, beta, retired)
+    }
+    scoped = registry.search("needle", mounts=("alpha",), limit=5)
+
+    assert scoped.searched_shards == ("alpha:latest",)
+    assert [hit.mount for hit in scoped.hits] == ["alpha"]
+    assert search_urls["alpha:latest"] in transport.calls
+    assert search_urls["beta:latest"] not in transport.calls
+    assert search_urls["alpha:old"] not in transport.calls
+
+    merged = registry.search("needle", limit=5)
+
+    assert merged.searched_shards == ("alpha:latest", "beta:latest")
+    assert merged.skipped_shards == ()
+    assert [hit.mount for hit in merged.hits] == ["alpha", "beta"]
+    assert search_urls["beta:latest"] in transport.calls
+    assert search_urls["alpha:old"] not in transport.calls
+    wire_bytes = sum(
+        int(
+            next(
+                item["uncompressed_size"]
+                for item in manifest["inventory"]
+                if item["role"] == "search"
+            )
+        )
+        for manifest in (alpha, beta)
+    )
+    cache_stats = registry.search_cache_stats()
+    assert cache_stats["entries"] == 2
+    assert cache_stats["bytes"] > wire_bytes
+
+    excluded = registry.search("needle", mounts=("alpha",), edition="old", limit=5)
+
+    assert excluded.hits == ()
+    assert excluded.searched_shards == ()
+    assert excluded.skipped_shards == ("alpha:old",)
+    assert search_urls["alpha:old"] not in transport.calls
+
+    included = registry.search(
+        "needle",
+        mounts=("alpha",),
+        edition="old",
+        include_eol=True,
+        limit=5,
+    )
+
+    assert [(hit.mount, hit.edition) for hit in included.hits] == [("alpha", "old")]
+    assert search_urls["alpha:old"] in transport.calls
+
+
+def test_search_enforces_bounded_fanout_before_fetch(tmp_path: Path) -> None:
+    alpha, alpha_objects = _artifact(tmp_path, "alpha", "needle-alpha")
+    beta, beta_objects = _artifact(tmp_path, "beta", "needle-beta")
+    transport = MemoryTransport(alpha_objects | beta_objects)
+    _install_hub(transport, _hub([alpha, beta]))
+    registry = RemoteShardMountRegistry(
+        hub_url=HUB_URL,
+        state_root=tmp_path / "remote-state",
+        fetcher=StrictHTTPSFetcher(HUB_URL, transport=transport),
+        verifier=RecordingVerifier(),
+        max_search_fanout=1,
+    )
+    registry.refresh()
+    search_urls = [
+        str(manifest["artifact_base_url"]) + str(item["object_url"])
+        for manifest in (alpha, beta)
+        for item in manifest["inventory"]
+        if item["role"] == "search"
+    ]
+
+    with pytest.raises(RemoteShardUnavailableError, match="scope the query by mount"):
+        registry.search("needle")
+
+    assert not set(search_urls) & set(transport.calls)
+
+
+def test_concurrent_cold_search_coalesces_one_verified_index_load(tmp_path: Path) -> None:
+    manifest, objects = _artifact(tmp_path, "alpha", "needle-alpha")
+    transport = MemoryTransport(objects)
+    _install_hub(transport, _hub([manifest]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    search_url = next(
+        str(manifest["artifact_base_url"]) + str(item["object_url"])
+        for item in manifest["inventory"]
+        if item["role"] == "search"
+    )
+    started = threading.Event()
+    release = threading.Event()
+    transport.blockers[search_url] = (started, release)
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(registry.search, "needle")
+        assert started.wait(timeout=10)
+        second = executor.submit(registry.search, "needle")
+        release.set()
+        assert first.result(timeout=10).hits[0].node_id == "alpha:latest:guide"
+        assert second.result(timeout=10).hits[0].node_id == "alpha:latest:guide"
+
+    assert transport.calls.count(search_url) == 1
+    assert registry.search_cache_stats()["entries"] == 1
+
+
+def test_wire_small_decoded_large_search_index_is_not_admitted(tmp_path: Path) -> None:
+    manifest, objects = _artifact(tmp_path, "alpha", "needle-alpha")
+    transport = MemoryTransport(objects)
+    _install_hub(transport, _hub([manifest]))
+    wire_bytes = int(
+        next(
+            item["uncompressed_size"] for item in manifest["inventory"] if item["role"] == "search"
+        )
+    )
+    registry = RemoteShardMountRegistry(
+        hub_url=HUB_URL,
+        state_root=tmp_path / "remote-state",
+        fetcher=StrictHTTPSFetcher(HUB_URL, transport=transport),
+        verifier=RecordingVerifier(),
+        max_search_cache_bytes=wire_bytes,
+    )
+    registry.refresh()
+
+    result = registry.search("needle")
+
+    assert result.hits[0].node_id == "alpha:latest:guide"
+    assert registry.search_cache_stats() == {"entries": 0, "bytes": 0}
 
 
 def test_broken_publish_is_mount_local_and_previous_generation_can_be_pinned(
@@ -668,6 +849,11 @@ mounts: mounts.yaml
         remote_shards=registry,
     )
     assert not missing_source.exists()
+    assert docs.embedding_index.chunks == ()
+    search_hits = docs._search_hits("remote-v1", limit=4)
+    assert [hit.node.node_id for hit in search_hits] == ["alpha:latest:guide"]
+    assert search_hits[0].keyword_score > 0
+    assert search_hits[0].semantic_score > 0
     presentation_url = next(
         str(manifest_v1["artifact_base_url"]) + str(item["object_url"])
         for item in manifest_v1["inventory"]
