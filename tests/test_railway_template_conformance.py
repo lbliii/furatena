@@ -97,6 +97,17 @@ def test_public_content_starter_has_realistic_owned_content_and_operations_guida
         "image digest",
     ):
         assert required in readme
+    publish_heading = "## publish content"
+    assert readme.count(publish_heading) == 1
+    publish_section = " ".join(readme.split(publish_heading, 1)[1].split("\n## ", 1)[0].split())
+    for required in (
+        "authenticated refresh",
+        "versioned request",
+        "exact pushed commit",
+        "idempotency key",
+    ):
+        assert required in publish_section
+    assert "the current empty-body request" not in readme
 
 
 def test_public_content_starter_uses_packaged_presentation_and_owned_branding() -> None:
