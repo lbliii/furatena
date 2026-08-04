@@ -152,6 +152,13 @@ The refresh controller:
 9. atomically promotes the generation and advances last-known-good;
 10. records the receipt, audit event, and operational status.
 
+Authorization is site-wide in v1. One independently rotated bearer controls
+the single configured service/site, repository, ref policy, and subdirectory.
+The request cannot select a tenant, site, repository, ref, subdirectory, or
+mount subset; all configured mounts and their browser, frozen/static, search,
+catalog, and agent projections are rebuilt together. Multi-tenant or partial-
+mount refresh requires a separately approved identity and policy contract.
+
 The same idempotency key with a different semantic digest is a conflict. A
 second request while one operation is pending is also a conflict under the
 explicit single-replica v1 contract. Duplicate HTTP or CLI deliveries with the
@@ -315,12 +322,18 @@ receipts while preserving a one-service product shape.
 
 ## Consequences
 
-The template becomes useful only after the content refresh path is implemented;
-the private-image pipeline alone is insufficient. The volume is part of the
-product contract and must be included in clean-account conformance, backup,
-restore, and cost evidence. Public repositories make v1 materially safer but do
-not satisfy private-docs use cases. Image and content release operations must be
+The provider-neutral content refresh path is implemented across the HTTP, CLI,
+startup, generation, rollback, readiness, and status contracts. The private-
+image pipeline alone remains insufficient: the volume is part of the product
+contract and must be included in clean-account conformance, backup, restore,
+and cost evidence. Public repositories make v1 materially safer but do not
+satisfy private-docs use cases. Image and content release operations must be
 tested independently on every candidate.
+
+This ADR accepts the product capability and its single-service v1 boundary. It
+does not claim the external Railway acceptance gate: the same-deployment proof,
+provider receipts, and live failure-injection evidence remain operational work
+and are not inferred from repository tests.
 
 ## GitHub work reconciliation
 

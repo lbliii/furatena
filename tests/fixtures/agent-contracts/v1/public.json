@@ -47,6 +47,63 @@
         {"name": "diff_content_ir", "read_only": true},
         {"name": "retrieve_node", "read_only": true}
       ]
+    },
+    "mcp_apps": {
+      "contract_version": 1,
+      "spec_version": "2026-01-26",
+      "extension": {
+        "id": "io.modelcontextprotocol/ui",
+        "mime_types": ["text/html;profile=mcp-app"]
+      },
+      "access": {
+        "audience": "public",
+        "redaction": "public-only",
+        "trusted_resource_default": "deny"
+      },
+      "gateway": {
+        "rewrite": "ui://{gateway}/{namespace}/{upstream-authority}/{app}/v1",
+        "collision": "reject"
+      },
+      "resources": [
+        {
+          "uri": "ui://furatena/catalog-search/v1",
+          "name": "Furatena catalog search",
+          "description": "Search the public documentation catalog and inspect result provenance and graph context.",
+          "mimeType": "text/html;profile=mcp-app",
+          "_meta": {
+            "ui": {
+              "csp": {
+                "connectDomains": [],
+                "resourceDomains": [],
+                "frameDomains": [],
+                "baseUriDomains": []
+              },
+              "permissions": {},
+              "prefersBorder": true
+            },
+            "io.furatena/mcp-app": {
+              "contractVersion": 1,
+              "specVersion": "2026-01-26",
+              "canonicalUri": "ui://furatena/catalog-search/v1",
+              "audience": "public",
+              "redaction": "public-only",
+              "fallback": "structured-content",
+              "assetSha256": "6bb600b8e9cc140b90a6b057d4502f6479b629ee8c9bc3c2d8b8d346d93618db"
+            }
+          }
+        }
+      ],
+      "tools": [
+        {
+          "name": "semantic_search",
+          "_meta": {
+            "ui": {
+              "resourceUri": "ui://furatena/catalog-search/v1",
+              "visibility": ["model", "app"]
+            }
+          }
+        }
+      ]
     }
   }
 }

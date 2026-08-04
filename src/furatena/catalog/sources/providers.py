@@ -81,8 +81,59 @@ class GitSourceProvider(FilesystemSourceProvider):
         )
 
 
+class RemoteShardSourceProvider(FilesystemSourceProvider):
+    """Marker provider for verified compose-by-reference remote mounts.
+
+    Remote shards are already indexed by their publisher.  Letting this provider
+    fall through to ``FilesystemScanner`` would silently turn a hub into a local
+    source index, so every local-source operation fails closed.
+    """
+
+    id = "remote-shard"
+
+    def __init__(self, config: MountSourceConfig) -> None:
+        self._config = config
+
+    @property
+    def scanner(self) -> FilesystemScanner:
+        raise CatalogConfigError(
+            "source.provider 'remote-shard' must be loaded through an injected "
+            "RemoteShardMountRegistry; local source scanning is forbidden."
+        )
+
+    def enumerate(
+        self,
+        content_root: Path,
+        *,
+        url_prefix: str = "",
+        include_private: bool = False,
+    ) -> list[PageSource]:
+        _ = content_root, url_prefix, include_private
+        raise CatalogConfigError(
+            "Remote shard mounts cannot enumerate or index local source files."
+        )
+
+    def read(self, source: PageSource) -> str:
+        _ = source
+        raise CatalogConfigError("Remote shard mounts cannot read any local source files.")
+
+    def fingerprint(self, source: PageSource) -> SourceFingerprint:
+        _ = source
+        raise CatalogConfigError(
+            "Remote shard mounts use verified artifact fingerprints from publishers."
+        )
+
+    def provenance(self, source: PageSource, *, mount: str) -> SourceProvenance:
+        _ = source, mount
+        raise CatalogConfigError(
+            "Remote shard provenance is supplied by its verified signed manifest."
+        )
+
+
 def source_provider_for_config(config: MountSourceConfig) -> FilesystemSourceProvider:
     """Return the source provider for a mount configuration."""
+    if config.provider == "remote-shard":
+        return RemoteShardSourceProvider(config)
     if config.provider == "git" or config.git is not None:
         return GitSourceProvider(config)
     return FilesystemSourceProvider(config)

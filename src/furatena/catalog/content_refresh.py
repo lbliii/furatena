@@ -115,7 +115,10 @@ class ContentRefreshRequest:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> ContentRefreshRequest:
-        if value.get("schema_version") != CONTENT_REFRESH_SCHEMA_VERSION:
+        if (
+            type(value.get("schema_version")) is not int
+            or value.get("schema_version") != CONTENT_REFRESH_SCHEMA_VERSION
+        ):
             raise ValueError("The content refresh request uses an unsupported schema version.")
         if value.get("record_type") != "furatena.content-refresh.request":
             raise ValueError("The content refresh request uses an unsupported record type.")
@@ -248,7 +251,10 @@ class ContentRefreshReceipt:
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> ContentRefreshReceipt:
-        if value.get("schema_version") != CONTENT_REFRESH_SCHEMA_VERSION:
+        if (
+            type(value.get("schema_version")) is not int
+            or value.get("schema_version") != CONTENT_REFRESH_SCHEMA_VERSION
+        ):
             raise ValueError("The content refresh receipt uses an unsupported schema version.")
         if value.get("record_type") != "furatena.content-refresh.receipt":
             raise ValueError("The content refresh receipt uses an unsupported record type.")

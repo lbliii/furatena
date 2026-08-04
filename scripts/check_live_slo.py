@@ -18,6 +18,15 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 META_PARSE_ERRORS = (OSError, UnicodeDecodeError, json.JSONDecodeError)
+ARTIFACT_VERIFIER_ERRORS = (OSError, RuntimeError, UnicodeDecodeError)
+ARTIFACT_RESULT_FIELDS = (
+    "page_count",
+    "query_page_count",
+    "search_page_count",
+    "semantic_chunk_count",
+    "llms_index_bytes",
+    "llms_full_bytes",
+)
 
 
 def _request(origin: str, path: str, *, timeout: float) -> tuple[int, bytes, float]:
@@ -43,6 +52,18 @@ def _percentile(values: list[float], quantile: float) -> float:
     ordered = sorted(values)
     rank = max(0, math.ceil(quantile * len(ordered)) - 1)
     return ordered[rank]
+
+
+def _normalize_artifact_result(value: Any) -> dict[str, int] | None:
+    if not isinstance(value, dict):
+        return None
+    result: dict[str, int] = {}
+    for field in ARTIFACT_RESULT_FIELDS:
+        field_value = value.get(field)
+        if type(field_value) is not int or field_value < 0:
+            return None
+        result[field] = field_value
+    return result
 
 
 def evaluate_live_slo(
@@ -176,30 +197,68 @@ def evaluate_live_slo(
             )
 
     if artifact_verifier is None:
-        completed = subprocess.run(
-            (
-                sys.executable,
-                str(ROOT / "scripts" / "verify-live-artifacts.py"),
-                origin,
-                "--timeout",
-                str(timeout),
-            ),
-            cwd=ROOT,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=max(timeout * 6, 60),
-        )
-        artifact_ok = completed.returncode == 0
-        artifact = (
-            json.loads(completed.stdout) if artifact_ok else {"error": completed.stderr.strip()}
-        )
+        verifier_timeout = max(timeout * 6, 60)
+        try:
+            completed = subprocess.run(
+                (
+                    sys.executable,
+                    str(ROOT / "scripts" / "verify-live-artifacts.py"),
+                    origin,
+                    "--timeout",
+                    str(timeout),
+                ),
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=verifier_timeout,
+            )
+        except subprocess.TimeoutExpired:
+            artifact = {
+                "error": f"bulk-artifact verifier exceeded its {verifier_timeout:g}s timeout"
+            }
+            artifact_ok = False
+        except OSError:
+            artifact = {"error": "bulk-artifact verifier could not be started"}
+            artifact_ok = False
+        except UnicodeDecodeError:
+            artifact = {"error": "bulk-artifact verifier returned unreadable output"}
+            artifact_ok = False
+        else:
+            if completed.returncode != 0:
+                artifact = {
+                    "error": f"bulk-artifact verifier exited with status {completed.returncode}"
+                }
+                artifact_ok = False
+            elif not isinstance(completed.stdout, str):
+                artifact = {"error": "bulk-artifact verifier returned unreadable output"}
+                artifact_ok = False
+            else:
+                try:
+                    result = json.loads(completed.stdout)
+                except json.JSONDecodeError:
+                    artifact = {"error": "bulk-artifact verifier returned malformed JSON"}
+                    artifact_ok = False
+                else:
+                    normalized_result = _normalize_artifact_result(result)
+                    artifact_ok = normalized_result is not None
+                    artifact = (
+                        normalized_result
+                        if artifact_ok
+                        else {"error": "bulk-artifact verifier returned an invalid result shape"}
+                    )
     else:
         try:
-            artifact = artifact_verifier(origin, timeout=timeout)
-            artifact_ok = True
-        except (OSError, RuntimeError) as exc:
-            artifact = {"error": str(exc)}
+            result = artifact_verifier(origin, timeout=timeout)
+            normalized_result = _normalize_artifact_result(result)
+            artifact_ok = normalized_result is not None
+            artifact = (
+                normalized_result
+                if artifact_ok
+                else {"error": "bulk-artifact verifier returned an invalid result shape"}
+            )
+        except ARTIFACT_VERIFIER_ERRORS:
+            artifact = {"error": "bulk-artifact verifier failed"}
             artifact_ok = False
     artifact_integrity = 100.0 if artifact_ok else 0.0
     if artifact_integrity < float(objectives["artifact_integrity_percent"]):
