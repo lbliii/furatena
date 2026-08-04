@@ -443,8 +443,6 @@ class DocsApp:
         )
         self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
         self._edition_embedding_lock = RLock()
-        if self.serve.warn_stale_freeze:
-            print("Note: content is newer than frozen/ — run `fura freeze` for a fresh export.")
         self.app = self._build_app()
 
     def _validation_template_env(self):
