@@ -193,6 +193,7 @@ class MCPResourceContentRecord(TypedDict):
     uri: str
     mimeType: str
     text: str
+    _meta: NotRequired[dict[str, Any]]
 
 
 class MCPToolResultRecord(TypedDict):

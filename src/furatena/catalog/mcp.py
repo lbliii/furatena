@@ -37,7 +37,17 @@ from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
-from furatena.catalog.mcp_apps import negotiated_server_extensions
+from furatena.catalog.mcp_apps import (
+    CATALOG_SEARCH_APP_DESCRIPTION,
+    CATALOG_SEARCH_APP_NAME,
+    CATALOG_SEARCH_APP_URI,
+    catalog_search_app_html,
+    catalog_search_app_metadata,
+    catalog_search_resource_descriptor,
+    client_supports_mcp_apps,
+    link_catalog_search_app,
+    negotiated_server_extensions,
+)
 from furatena.catalog.query import (
     DEFAULT_GRAPH_QUERY_LIMIT,
     MAX_GRAPH_QUERY_LIMIT,
@@ -186,6 +196,8 @@ class FuraMCPServer:
         self.embedding_index = docs_app.embedding_index
         self._edition_embedding_indexes: dict[str, Any] = {}
         self._edition_embedding_lock = RLock()
+        self._mcp_apps_lock = RLock()
+        self._mcp_apps_enabled = False
         self.base_url = base_url.rstrip("/")
         self.policy = policy or MCPAccessPolicy(allow_private=include_private)
         self.include_private = include_private and self.policy.allow_private
@@ -293,9 +305,20 @@ class FuraMCPServer:
             )
             for node in self._doc_nodes()
         )
+        if self._show_public_mcp_apps():
+            resources.append(catalog_search_resource_descriptor())
         return resources
 
     def read_resource(self, uri: str) -> MCPResourceContentRecord:
+        if uri == CATALOG_SEARCH_APP_URI:
+            if not self._show_public_mcp_apps():
+                raise MCPError(-32602, f"unknown resource: {uri}")
+            return {
+                "uri": uri,
+                "mimeType": "text/html;profile=mcp-app",
+                "text": catalog_search_app_html(),
+                "_meta": catalog_search_app_metadata(),
+            }
         payload = self._resource_payload(uri)
         return {
             "uri": uri,
@@ -304,7 +327,7 @@ class FuraMCPServer:
         }
 
     def list_tools(self) -> list[dict[str, Any]]:
-        return [
+        tools = [
             {
                 "name": "semantic_search",
                 "description": "Hybrid keyword + semantic search over catalog pages and chunks.",
@@ -654,6 +677,25 @@ class FuraMCPServer:
                 ),
             },
         ]
+        if self._show_public_mcp_apps():
+            tools[0] = link_catalog_search_app(tools[0])
+        return tools
+
+    def mcp_app_contract(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """Return the public App descriptors independently of connection state."""
+        if self.include_private:
+            return [], []
+        search = next(tool for tool in self.list_tools() if tool.get("name") == "semantic_search")
+        return [catalog_search_resource_descriptor()], [link_catalog_search_app(search)]
+
+    def _show_public_mcp_apps(self) -> bool:
+        if self.include_private:
+            return False
+        lock = getattr(self, "_mcp_apps_lock", None)
+        if lock is None:  # supports narrow initialize contract tests without construction
+            return bool(getattr(self, "_mcp_apps_enabled", False))
+        with lock:
+            return self._mcp_apps_enabled
 
     def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResultRecord:
         arguments = dict(arguments)
@@ -1197,6 +1239,15 @@ class FuraMCPServer:
 
     def _initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         client_version = params.get("protocolVersion")
+        enabled = client_supports_mcp_apps(params) and not bool(
+            getattr(self, "include_private", False)
+        )
+        lock = getattr(self, "_mcp_apps_lock", None)
+        if lock is None:
+            self._mcp_apps_enabled = enabled
+        else:
+            with lock:
+                self._mcp_apps_enabled = enabled
         capabilities: dict[str, Any] = {
             "resources": {},
             "tools": {},
@@ -1600,6 +1651,12 @@ class FuraMCPServer:
 def build_milo_cli(server: FuraMCPServer) -> CLI:
     """Build a Milo CLI exposing this catalog as MCP tools/resources."""
     from milo.commands import CLI
+    from milo.mcp_apps import (
+        MCPAppCSP,
+        MCPAppPermissions,
+        MCPAppResourceMeta,
+        MCPAppToolMeta,
+    )
 
     cli = CLI(
         name=SERVER_NAME,
@@ -1608,12 +1665,31 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
     )
 
     for resource in server.list_resources():
+        if resource.get("uri") == CATALOG_SEARCH_APP_URI:
+            continue
         _register_milo_resource(cli, server, resource)
+
+    search_app = not server.include_private
+    if search_app:
+
+        @cli.ui_resource(
+            CATALOG_SEARCH_APP_URI,
+            name=CATALOG_SEARCH_APP_NAME,
+            description=CATALOG_SEARCH_APP_DESCRIPTION,
+            meta=MCPAppResourceMeta(
+                csp=MCPAppCSP(),
+                permissions=MCPAppPermissions(),
+                prefers_border=True,
+            ),
+        )
+        def catalog_search_app_resource() -> str:
+            return catalog_search_app_html()
 
     @cli.command(
         "semantic_search",
         description="Hybrid keyword + semantic search over catalog pages and chunks.",
         annotations={"readOnlyHint": True},
+        ui=MCPAppToolMeta(CATALOG_SEARCH_APP_URI) if search_app else None,
     )
     def semantic_search(
         query: str,

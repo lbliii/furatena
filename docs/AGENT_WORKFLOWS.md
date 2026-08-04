@@ -97,7 +97,10 @@ Versioned public and trusted-author contract fixtures live under `tests/fixtures
 The [MCP Apps contract](MCP_APPS_CONTRACT.md) defines opt-in capability negotiation,
 versioned `ui://` identity, tool links, deny-by-default browser metadata, access and
 redaction policy, deterministic gateway rewriting, and structured non-App fallback.
-The contract does not enable WebMCP or bypass existing MCP authorization and audit paths.
+Negotiating hosts can render the bundled public catalog-search App; other hosts keep
+the same semantic-search text and `structuredContent` results. The App composes public
+search, node retrieval, and graph query tools without enabling WebMCP or bypassing
+existing MCP authorization and audit paths.
 
 Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, validation-error repair, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the validation repair and publish round-trip cases perform confirmed writes against a private fixture and restore the original source before finishing.
 
