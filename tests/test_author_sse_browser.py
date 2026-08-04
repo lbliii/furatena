@@ -475,6 +475,7 @@ async def test_htmx4_preview_full_boost_oob_history_and_error_contract(
             await page.locator("#htmx4-error-probe").click()
         response = await response_info.value
         assert response.status == 404
+        assert response.request.headers["x-csrf-token"]
         await page.wait_for_function("window.__furaHtmx4ErrorStatus === 404")
         await page.locator("#page-root").get_by_text("404").first.wait_for()
     finally:

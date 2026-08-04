@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "experiment_id": "railway-template-90d-v1",
+  "tracking_issue": 460,
+  "status": "prelaunch_blocked_on_458",
+  "review_days": [
+    0,
+    30,
+    60,
+    90
+  ],
+  "github_traffic_capture_interval_days": 7,
+  "support_expectations": {
+    "queue_owner_role": "stable_image_promoter",
+    "escalation_owner_role": "repository_owner",
+    "acknowledgement_business_days": 1,
+    "useful_response_business_days": 2,
+    "continuous_coverage_claimed": false
+  },
+  "hypotheses": {
+    "repeatable_adoption": {
+      "minimum_deployments_day_90": 2,
+      "minimum_active_use_signals_day_90": 1,
+      "positive_realized_earnings_required": true
+    },
+    "supportable_operation": {
+      "all_observed_questions_answered": true,
+      "maximum_consecutive_review_windows_missing_acknowledgement": 1
+    },
+    "reliable_delivery": {
+      "conformance_required": true,
+      "security_or_privacy_boundary_violations_allowed": 0
+    }
+  },
+  "snapshot_field_allowlist": [
+    "captured_at_utc",
+    "review_day",
+    "source_observed_at_utc",
+    "source_availability",
+    "railway_deployments_total",
+    "railway_active_recent_projects_total",
+    "railway_terminal_success_total",
+    "railway_terminal_failure_total",
+    "railway_earnings_total",
+    "railway_earnings_currency",
+    "railway_support_health_percent",
+    "support_questions_total",
+    "support_questions_answered_total",
+    "support_acknowledgement_hours_p50",
+    "support_acknowledgement_hours_p95",
+    "support_useful_response_hours_p50",
+    "support_useful_response_hours_p95",
+    "support_hours_total",
+    "failure_theme_counts",
+    "github_views_total",
+    "github_unique_visitors_total",
+    "github_clones_total",
+    "github_unique_cloners_total",
+    "github_issues_total",
+    "github_forks_total",
+    "active_use_signals_total",
+    "downstream_adoption_signals_total",
+    "product_fit_theme_counts",
+    "conformance_passed",
+    "slo_passed",
+    "supported_update_passed",
+    "supported_rollback_passed",
+    "interventions",
+    "categorical_economics_result"
+  ],
+  "controlled_themes": [
+    "configuration",
+    "content_source",
+    "deployment",
+    "readiness",
+    "update",
+    "rollback",
+    "registry",
+    "domain_tls",
+    "public_docs_product_fit",
+    "content_ownership",
+    "agent_surfaces",
+    "variant_demand",
+    "other"
+  ],
+  "forbidden_fields": [
+    "user_id",
+    "user_name",
+    "email",
+    "private_project_name",
+    "project_id",
+    "deployment_id",
+    "private_repository",
+    "repository_url",
+    "endpoint",
+    "ip_address",
+    "support_question_text",
+    "quote",
+    "authored_query",
+    "response_body",
+    "payout_amount",
+    "payout_account",
+    "stripe_account",
+    "bank_account",
+    "railway_token",
+    "registry_credential",
+    "refresh_token",
+    "customer_content"
+  ],
+  "decision_policy": {
+    "precedence": [
+      "stop",
+      "approve_one_variant",
+      "continue",
+      "change"
+    ],
+    "stop": [
+      "confirmed_security_or_privacy_boundary_violation",
+      "deployments_total_is_zero_at_day_90",
+      "active_use_signals_zero_and_realized_earnings_zero_at_day_90",
+      "support_acknowledgement_missed_in_two_consecutive_review_windows"
+    ],
+    "approve_one_variant": {
+      "continue_floor_required": true,
+      "minimum_same_theme_occurrences": 3,
+      "minimum_review_snapshots": 2,
+      "maximum_variants": 1
+    },
+    "continue": [
+      "repeatable_adoption_hypothesis_passes",
+      "supportable_operation_hypothesis_passes",
+      "reliable_delivery_hypothesis_passes"
+    ],
+    "change": [
+      "at_least_one_deployment",
+      "no_stop_condition",
+      "continue_conditions_do_not_all_pass"
+    ]
+  },
+  "public_summary": {
+    "allowed_earnings_results": [
+      "positive",
+      "zero",
+      "not_observable"
+    ],
+    "amounts_allowed": false,
+    "payout_data_allowed": false,
+    "private_cost_or_scale_allowed": false
+  }
+}
