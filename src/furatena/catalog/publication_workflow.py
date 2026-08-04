@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -49,11 +50,53 @@ class PublicationCapabilityAuthorizer(Protocol):
 class PublicationExecutor(Protocol):
     """Internal boundary implemented by local authoring or publication providers."""
 
-    def execute(self, plan: PublicationPlan, /) -> tuple[PublicationOutputReference, ...]: ...
+    def execute(
+        self, plan: PublicationPlan, /
+    ) -> PublicationExecutionResult | tuple[PublicationOutputReference, ...]: ...
 
     def reconcile(
         self, plan: PublicationPlan, /
-    ) -> tuple[PublicationOutputReference, ...] | None: ...
+    ) -> PublicationExecutionResult | tuple[PublicationOutputReference, ...] | None: ...
+
+
+class PublicationExecutionDisposition(StrEnum):
+    """Truthful workflow destination for a completed executor call."""
+
+    APPLIED = "applied"
+    REVIEWABLE = "reviewable"
+
+
+@dataclass(frozen=True, slots=True)
+class PublicationExecutionResult:
+    """Additive executor result; legacy output tuples continue to mean applied."""
+
+    disposition: PublicationExecutionDisposition
+    outputs: tuple[PublicationOutputReference, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "disposition", PublicationExecutionDisposition(self.disposition))
+        object.__setattr__(self, "outputs", tuple(self.outputs))
+
+
+class ContextualPublicationExecutor(Protocol):
+    """Optional context-aware extension used by repository provider adapters."""
+
+    def execute_with_context(
+        self,
+        plan: PublicationPlan,
+        /,
+        *,
+        actor: PublicationActor,
+        idempotency_key: str,
+    ) -> PublicationExecutionResult: ...
+
+    def reconcile_with_context(
+        self,
+        plan: PublicationPlan,
+        /,
+        *,
+        actor: PublicationActor,
+    ) -> PublicationExecutionResult | None: ...
 
 
 class PublicationLeaseFactory(Protocol):
@@ -63,8 +106,14 @@ class PublicationLeaseFactory(Protocol):
 class PublicationExecutionError(RuntimeError):
     """Known executor failure safe to persist and return."""
 
-    def __init__(self, failure: PublicationFailure) -> None:
+    def __init__(
+        self,
+        failure: PublicationFailure,
+        *,
+        outputs: tuple[PublicationOutputReference, ...] = (),
+    ) -> None:
         self.failure = failure
+        self.outputs = tuple(outputs)
         super().__init__(failure.safe_message)
 
 
@@ -267,12 +316,27 @@ class PublicationWorkflowService:
                 guards=PublicationTransitionGuards(bindings_current=True, approvals_satisfied=True),
             )
             try:
-                outputs = self.executor.execute(plan)
+                result = self._execute_executor(
+                    plan,
+                    actor=actor,
+                    idempotency_key=idempotency_key,
+                )
             except PublicationExecutionError as exc:
                 failed = self._transition(
-                    plan, executing, PublicationState.FAILED, actor, failure=exc.failure
+                    plan,
+                    executing,
+                    PublicationState.FAILED,
+                    actor,
+                    failure=exc.failure,
+                    outputs=exc.outputs,
                 )
-                return self._finish(plan, failed, receipt, PublicationOperationStatus.FAILED, actor)
+                operation_status = (
+                    PublicationOperationStatus.RECONCILIATION_REQUIRED
+                    if exc.failure.disposition
+                    == PublicationFailureDisposition.RECONCILIATION_REQUIRED
+                    else PublicationOperationStatus.FAILED
+                )
+                return self._finish(plan, failed, receipt, operation_status, actor)
             except Exception:
                 failure = _reconciliation_failure()
                 failed = self._transition(
@@ -286,14 +350,17 @@ class PublicationWorkflowService:
                     actor,
                 )
 
-            applied = self._transition(
+            target = _state_for_execution_result(result)
+            completed = self._transition(
                 plan,
                 executing,
-                PublicationState.APPLIED,
+                target,
                 actor,
-                outputs=outputs,
+                outputs=result.outputs,
             )
-            return self._finish(plan, applied, receipt, PublicationOperationStatus.SUCCEEDED, actor)
+            return self._finish(
+                plan, completed, receipt, PublicationOperationStatus.SUCCEEDED, actor
+            )
 
     def cancel(
         self,
@@ -355,32 +422,125 @@ class PublicationWorkflowService:
         with self.lease_factory(plan_id):
             plan = self.store.get_plan(plan_id)
             snapshot = self.store.get_snapshot(plan_id)
-            if (
-                snapshot.state != PublicationState.FAILED
-                or snapshot.failure is None
-                or snapshot.failure.disposition
-                != PublicationFailureDisposition.RECONCILIATION_REQUIRED
-            ):
+            failed_reconciliation = (
+                snapshot.state == PublicationState.FAILED
+                and snapshot.failure is not None
+                and snapshot.failure.disposition
+                == PublicationFailureDisposition.RECONCILIATION_REQUIRED
+            )
+            provider_reviewable = snapshot.state == PublicationState.REVIEWABLE and any(
+                output.kind == "publication_provider_review" for output in snapshot.outputs
+            )
+            if not provider_reviewable and not failed_reconciliation:
                 return PublicationWorkflowResponse(plan, snapshot, replayed=True)
-            outputs = self.executor.reconcile(plan)
-            if outputs is None:
+            try:
+                result = self._reconcile_executor(plan, actor=actor)
+            except PublicationExecutionError as exc:
+                if snapshot.state == PublicationState.FAILED:
+                    executing = self._transition(
+                        plan,
+                        snapshot,
+                        PublicationState.EXECUTING,
+                        actor,
+                        guards=PublicationTransitionGuards(
+                            bindings_current=self.binding_checker(plan),
+                            approvals_satisfied=self.approval_evaluator(plan),
+                            reconciliation_recorded=True,
+                        ),
+                        outputs=exc.outputs,
+                        event_type="execution.reconciliation_observed",
+                    )
+                    failed = self._transition(
+                        plan,
+                        executing,
+                        PublicationState.FAILED,
+                        actor,
+                        failure=exc.failure,
+                        outputs=exc.outputs,
+                        event_type="execution.reconciliation_failed",
+                    )
+                    return PublicationWorkflowResponse(plan, failed)
+                failed = self._transition(
+                    plan,
+                    snapshot,
+                    PublicationState.FAILED,
+                    actor,
+                    failure=exc.failure,
+                    outputs=exc.outputs,
+                    event_type="execution.reconciliation_failed",
+                )
+                return PublicationWorkflowResponse(plan, failed)
+            except Exception:
+                if snapshot.state == PublicationState.FAILED:
+                    return PublicationWorkflowResponse(plan, snapshot, replayed=True)
+                failed = self._transition(
+                    plan,
+                    snapshot,
+                    PublicationState.FAILED,
+                    actor,
+                    failure=_reconciliation_failure(),
+                    event_type="execution.reconciliation_unknown",
+                )
+                return PublicationWorkflowResponse(plan, failed)
+            if result is None:
                 return PublicationWorkflowResponse(plan, snapshot, replayed=True)
+            guards = PublicationTransitionGuards(
+                bindings_current=self.binding_checker(plan),
+                approvals_satisfied=self.approval_evaluator(plan),
+                reconciliation_recorded=True,
+            )
+            if snapshot.state == PublicationState.REVIEWABLE:
+                snapshot = self._transition(
+                    plan,
+                    snapshot,
+                    PublicationState.APPROVED,
+                    actor,
+                    guards=guards,
+                    event_type="review.provider_observed",
+                )
             executing = self._transition(
                 plan,
                 snapshot,
                 PublicationState.EXECUTING,
                 actor,
-                guards=PublicationTransitionGuards(
-                    bindings_current=self.binding_checker(plan),
-                    approvals_satisfied=self.approval_evaluator(plan),
-                    reconciliation_recorded=True,
-                ),
+                guards=guards,
                 event_type="execution.reconciled",
             )
-            applied = self._transition(
-                plan, executing, PublicationState.APPLIED, actor, outputs=outputs
+            completed = self._transition(
+                plan,
+                executing,
+                _state_for_execution_result(result),
+                actor,
+                outputs=result.outputs,
             )
-            return PublicationWorkflowResponse(plan, applied)
+            return PublicationWorkflowResponse(plan, completed)
+
+    def _execute_executor(
+        self,
+        plan: PublicationPlan,
+        *,
+        actor: PublicationActor,
+        idempotency_key: str,
+    ) -> PublicationExecutionResult:
+        contextual = getattr(self.executor, "execute_with_context", None)
+        raw = (
+            contextual(plan, actor=actor, idempotency_key=idempotency_key)
+            if callable(contextual)
+            else self.executor.execute(plan)
+        )
+        return _normalize_execution_result(raw)
+
+    def _reconcile_executor(
+        self,
+        plan: PublicationPlan,
+        *,
+        actor: PublicationActor,
+    ) -> PublicationExecutionResult | None:
+        contextual = getattr(self.executor, "reconcile_with_context", None)
+        raw = (
+            contextual(plan, actor=actor) if callable(contextual) else self.executor.reconcile(plan)
+        )
+        return None if raw is None else _normalize_execution_result(raw)
 
     def retry(
         self,
@@ -659,6 +819,23 @@ def _command_payload(
     }
     canonical_json_bytes(payload)
     return payload
+
+
+def _normalize_execution_result(
+    value: PublicationExecutionResult | tuple[PublicationOutputReference, ...],
+) -> PublicationExecutionResult:
+    if isinstance(value, PublicationExecutionResult):
+        return value
+    return PublicationExecutionResult(
+        PublicationExecutionDisposition.APPLIED,
+        tuple(value),
+    )
+
+
+def _state_for_execution_result(result: PublicationExecutionResult) -> PublicationState:
+    if result.disposition == PublicationExecutionDisposition.REVIEWABLE:
+        return PublicationState.REVIEWABLE
+    return PublicationState.APPLIED
 
 
 def _stale_failure() -> PublicationFailure:
