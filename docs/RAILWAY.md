@@ -8,7 +8,9 @@ interactive source-modification path.
 
 See [RAILWAY_TEMPLATE_ARCHITECTURE.md](RAILWAY_TEMPLATE_ARCHITECTURE.md) for
 the accepted architecture, [RELEASING.md](RELEASING.md) for image promotion and
-revocation, and [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents.
+revocation, [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents,
+and [RAILWAY_TEMPLATE_EXPERIMENT.md](RAILWAY_TEMPLATE_EXPERIMENT.md) for the
+privacy-safe 90-day marketplace experiment policy.
 
 ## Service shape
 

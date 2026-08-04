@@ -4,8 +4,8 @@
   "audience": "public",
   "identity": {"key": "chirp:0.10.3", "mount": "chirp", "edition": "0.10.3"},
   "source_shard_fingerprint": "b84016cc7512e8aea0435ebb5991e662c6778ae55ca3afc1662036cd809fdac3",
-  "fingerprint": "6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70",
-  "artifact_base_url": "https://artifacts.example.com/shards/sha256/6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70/",
+  "fingerprint": "1a67b57f15621b81cf7aad96a0bdd805c58759f956639a66118598bd654df3fc",
+  "artifact_base_url": "https://artifacts.example.com/shards/sha256/1a67b57f15621b81cf7aad96a0bdd805c58759f956639a66118598bd654df3fc/",
   "contracts": {
     "artifact": 1,
     "dcp": 3,
@@ -26,9 +26,11 @@
     "manifest_path": "manifest.json",
     "object_prefix": "objects/sha256/",
     "fragment_prefix": "fragments/",
+    "presentation_prefix": "presentations/",
     "lookup": "node-id-map",
     "max_object_bytes": 67108864,
     "max_fragment_bytes": 4194304,
+    "max_presentation_bytes": 16777216,
     "max_inventory_entries": 100000
   },
   "compression": {
@@ -50,8 +52,9 @@
       "required": true
     },
     {
-      "logical_path": "fragments/nodes/guide.json",
+      "logical_path": "fragments/nodes/7d3fce3e4060b2dae55556cf7133700b42d46160cc54d46621132d83452dc3d4.json",
       "role": "fragment",
+      "node_id": "chirp:0.10.3:guide",
       "object_url": "objects/sha256/016626874c82a5e3dab1e6b8ff5ff68b7404fd4f7ef7c377729e3f2a37952ea9.json",
       "media_type": "application/json",
       "content_encoding": "identity",
@@ -84,12 +87,25 @@
       "sha256": "3b9d8442d69504d4ef1e3f1250596b81762bd14ffe8dece123956cfcb83ced85",
       "encoded_sha256": "3b9d8442d69504d4ef1e3f1250596b81762bd14ffe8dece123956cfcb83ced85",
       "required": true
+    },
+    {
+      "logical_path": "presentations/nodes/7d3fce3e4060b2dae55556cf7133700b42d46160cc54d46621132d83452dc3d4.html",
+      "role": "presentation",
+      "node_id": "chirp:0.10.3:guide",
+      "object_url": "objects/sha256/9b906c6f5d7cc0faf389d1079ea06231d5550e2f3e8e8e3a770ddb4c8fae2da0.html",
+      "media_type": "text/html; charset=utf-8",
+      "content_encoding": "identity",
+      "uncompressed_size": 60,
+      "encoded_size": 60,
+      "sha256": "9b906c6f5d7cc0faf389d1079ea06231d5550e2f3e8e8e3a770ddb4c8fae2da0",
+      "encoded_sha256": "9b906c6f5d7cc0faf389d1079ea06231d5550e2f3e8e8e3a770ddb4c8fae2da0",
+      "required": true
     }
   ],
-  "totals": {"object_count": 4, "fragment_count": 1, "uncompressed_bytes": 1126, "encoded_bytes": 1126},
+  "totals": {"object_count": 5, "fragment_count": 1, "presentation_count": 1, "uncompressed_bytes": 1186, "encoded_bytes": 1186},
   "integrity": {
     "algorithm": "sha256",
-    "inventory_sha256": "e520b9a7c4f86c9fc286f6a7f7c3ae0aa8f5cbe92275b2dcfc31f7c6a50ee0a4",
+    "inventory_sha256": "83bfd7e1f4fa6910502d010a63294982bc8bd58dc2f1e5287279bc42c164c356",
     "verification": "eager-manifest-lazy-objects"
   },
   "signatures": [
@@ -97,7 +113,7 @@
       "kind": "sigstore-bundle",
       "url": "https://artifacts.example.com/signatures/chirp-0.10.3.sigstore.json",
       "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      "subject_sha256": "6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70",
+      "subject_sha256": "1a67b57f15621b81cf7aad96a0bdd805c58759f956639a66118598bd654df3fc",
       "issuer": "https://token.actions.githubusercontent.com",
       "identity": "https://github.com/example/chirp/.github/workflows/publish.yml@refs/tags/v0.10.3"
     }
@@ -107,7 +123,7 @@
       "predicate_type": "https://slsa.dev/provenance/v1",
       "url": "https://artifacts.example.com/attestations/chirp-0.10.3.slsa.json",
       "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-      "subject_sha256": "6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70"
+      "subject_sha256": "1a67b57f15621b81cf7aad96a0bdd805c58759f956639a66118598bd654df3fc"
     }
   ],
   "retention": {
