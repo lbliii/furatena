@@ -201,6 +201,12 @@ and GIL-disabled runtime before catalog work. It then:
 5. loads exactly one verified generation;
 6. becomes ready only when the active generation and build identity agree.
 
+Reconciliation owns the same renewable `content-refresh` lease as checkout,
+validation, promotion, rollback, and exact-commit resolution. Status and
+readiness probes make a bounded attempt to reconcile; while that lease is busy,
+they report `staging` from a read-only selector snapshot instead of waiting for
+the build or removing its workspace.
+
 If no generation exists and the first refresh fails, readiness fails. If a
 previous generation exists, a later refresh failure preserves service and marks
 content freshness degraded. Corrupt active and last-known-good manifests fail

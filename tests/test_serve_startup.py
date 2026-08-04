@@ -5,6 +5,7 @@ from __future__ import annotations
 import errno
 import io
 import json
+import zlib
 from argparse import Namespace
 from pathlib import Path
 from types import SimpleNamespace
@@ -126,6 +127,43 @@ def test_preflight_skip_does_not_run_chirp_contracts(monkeypatch: pytest.MonkeyP
 
     assert app.freeze_calls == 1
     assert result.checks_skipped is True
+
+
+def test_docs_app_constructor_does_not_present_stale_freeze(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from furatena.catalog.docs_app import DocsApp
+
+    repo = Path(__file__).resolve().parents[1]
+    empty_sphinx_inventory = (
+        b"# Sphinx inventory version 2\n"
+        b"# Project: test\n"
+        b"# Version: 1.0\n"
+        b"# The remainder of this file is compressed with zlib.\n\n" + zlib.compress(b"")
+    )
+    monkeypatch.setenv("CHIRP_SKIP_CONTRACT_CHECKS", "1")
+    monkeypatch.setattr(
+        "furatena.catalog.inventories.store._fetch_inventory_url",
+        lambda _url, _cache: empty_sphinx_inventory,
+    )
+
+    DocsApp.from_paths(
+        repo / "app" / "docs.yaml",
+        repo_root=repo,
+        autodoc=False,
+        serve=ServeConfig(
+            mode=ServeMode.AUTHOR,
+            frozen_dir=None,
+            lazy_html=True,
+            auto_reload=True,
+            warn_stale_freeze=True,
+        ),
+    )
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == ""
 
 
 def test_warning_preflight_is_compact_and_never_claims_readiness() -> None:

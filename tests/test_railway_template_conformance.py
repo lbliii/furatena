@@ -145,6 +145,17 @@ def test_public_content_starter_has_realistic_owned_content_and_operations_guida
         "image digest",
     ):
         assert required in readme
+    publish_heading = "## publish content"
+    assert readme.count(publish_heading) == 1
+    publish_section = " ".join(readme.split(publish_heading, 1)[1].split("\n## ", 1)[0].split())
+    for required in (
+        "authenticated refresh",
+        "versioned request",
+        "exact pushed commit",
+        "idempotency key",
+    ):
+        assert required in publish_section
+    assert "the current empty-body request" not in readme
 
 
 def test_public_content_starter_uses_packaged_presentation_and_owned_branding() -> None:
@@ -329,6 +340,9 @@ def test_clean_account_workflow_proves_lifecycle_and_always_deletes_project() ->
         "@railway/cli@${RAILWAY_CLI_VERSION}",
         "deploy --template",
         "check_live_slo.py",
+        "Reject unauthenticated content refresh without changing generations",
+        "content-auth-denied.json",
+        "content-after-auth-denial.json",
         "refs/heads/furatena-conformance-missing",
         "content-after-bad-ref.json",
         "redeploy",
@@ -346,6 +360,21 @@ def test_clean_account_workflow_proves_lifecycle_and_always_deletes_project() ->
     assert "RAILWAY_CLI_VERSION: 5.25.0" in source
     assert "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" in source
     assert "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f" in source
+
+
+def test_clean_account_workflow_proves_refresh_auth_denial_without_mutation() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+    denial = source.split(
+        "      - name: Reject unauthenticated content refresh without changing generations\n",
+        1,
+    )[1].split("\n      - name:", 1)[0]
+
+    assert "--request POST" in denial
+    assert 'test "$status" = 401' in denial
+    assert "content operation authorization failed" in denial
+    assert "Authorization:" not in denial
+    assert "content-after-auth-denial.json" in denial
+    assert "active_generation" in denial
 
 
 def test_clean_account_evidence_excludes_raw_control_plane_identifiers() -> None:
