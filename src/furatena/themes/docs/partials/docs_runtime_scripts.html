@@ -219,7 +219,22 @@
         var option = select.options[select.selectedIndex];
         if (!option) return;
         var href = option.value;
-        if (href) window.location.href = href;
+        var channel = option.getAttribute("data-channel");
+        var target = null;
+        document.querySelectorAll("[data-docs-version-target]").forEach(function (link) {
+          if (!target && link.getAttribute("data-docs-version-target") === channel) {
+            target = link;
+          }
+        });
+        if (target && window.htmx) {
+          target.click();
+          return;
+        }
+        if (target) {
+          window.location.assign(target.href);
+          return;
+        }
+        if (href) window.location.assign(href);
       });
     });
   }
@@ -269,6 +284,69 @@
       sseOwnershipTimer: null,
     };
     window.__furaDocsAuthorReloadState = state;
+
+    function updateAuthorConnection(connectionState, label) {
+      var chrome = document.getElementById("fura-author-chrome");
+      if (!chrome) return;
+      chrome.setAttribute("data-author-connection", connectionState);
+      var status = chrome.querySelector("[data-author-connection-status] > span:last-child");
+      if (status) status.textContent = label;
+    }
+
+    function focusAuthorFeedback() {
+      var feedback = document.getElementById("fura-author-feedback");
+      if (feedback && typeof feedback.focus === "function") {
+        feedback.focus({ preventScroll: true });
+      }
+    }
+
+    function bindAuthorTruthSurface() {
+      if (document.body.dataset.furaAuthorTruthBound) return;
+      document.body.dataset.furaAuthorTruthBound = "1";
+      document.body.addEventListener("htmx:beforeRequest", function (event) {
+        var trigger = event.detail && event.detail.elt;
+        var step = trigger && trigger.closest && trigger.closest("[data-author-action]");
+        var chrome = step && step.closest("#fura-author-chrome");
+        if (!step || !chrome) return;
+        step.setAttribute("data-author-job-state", "loading");
+        chrome.setAttribute("aria-busy", "true");
+        var job = step.querySelector(".fura-author-truth__job");
+        if (job) job.textContent = "loading";
+      });
+      document.body.addEventListener("htmx:afterSwap", function (event) {
+        var target = event.detail && event.detail.target;
+        if (target && target.id === "fura-author-chrome") {
+          window.requestAnimationFrame(focusAuthorFeedback);
+        }
+      });
+      function handleAuthorResponseError(event) {
+        var detail = event.detail || {};
+        var ctx = detail.ctx || null;
+        var xhr = detail.xhr;
+        var rawResponse = ctx && ctx.response && ctx.response.raw;
+        var target = detail.target || (ctx && ctx.target);
+        var status = xhr ? xhr.status : rawResponse && rawResponse.status;
+        var responseText = xhr ? xhr.responseText : ctx && ctx.text;
+        if (!target || target.id !== "fura-author-chrome") return;
+        if (status !== 409 && status !== 422) return;
+        var template = document.createElement("template");
+        template.innerHTML = responseText || "";
+        var replacement = template.content.querySelector("#fura-author-chrome");
+        if (!replacement) return;
+        target.replaceWith(replacement);
+        if (ctx) ctx.swap = "none";
+        setupAuthorReload();
+        window.requestAnimationFrame(focusAuthorFeedback);
+      }
+      document.body.addEventListener("htmx:responseError", handleAuthorResponseError);
+      document.body.addEventListener(
+        ["htmx", "response", "error"].join(":"),
+        handleAuthorResponseError,
+      );
+    }
+
+    bindAuthorTruthSurface();
+    updateAuthorConnection("connecting", "Connecting live author updates");
 
     function authorMarker() {
       return document.getElementById("fura-author-sse");
@@ -437,6 +515,7 @@
     function startPollingFallback() {
       if (state.pollTimer) return;
       window.__furaAuthorReloadMode = "poll";
+      updateAuthorConnection("reconnecting", "Live stream unavailable; polling for changes");
       state.pollTimer = window.setInterval(pollAuthorStale, 2000);
     }
 
@@ -490,6 +569,7 @@
       if (state.sseOwnershipTimer) return;
       bindHtmxSse(marker);
       window.__furaAuthorReloadMode = "sse-pending";
+      updateAuthorConnection("connecting", "Connecting live author updates");
       state.sseOwnershipTimer = window.setTimeout(function () {
         state.sseOwnershipTimer = null;
         if (!document.body.contains(marker)) return;
@@ -508,8 +588,10 @@
         closeCustomEventSource();
         stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
+        updateAuthorConnection("connected", "Live author updates connected");
       };
       var handleError = function () {
+        updateAuthorConnection("reconnecting", "Live updates reconnecting");
         window.setTimeout(function () {
           if (document.body.contains(marker)) startPollingFallback();
         }, 500);
@@ -533,6 +615,7 @@
         bindHtmxSse(marker);
         stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
+        updateAuthorConnection("connected", "Live author updates connected");
         return true;
       }
       if (!allowCompatibilityFallback && markerDeclaresHtmxSse(marker)) {
@@ -550,6 +633,7 @@
       ) {
         stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
+        updateAuthorConnection("connected", "Live author updates connected");
         return true;
       }
       closeCustomEventSource();
@@ -559,10 +643,15 @@
         state.eventSourceSlug = slug;
         stopPollingFallback();
         window.__furaAuthorReloadMode = "sse";
+        updateAuthorConnection("connecting", "Connecting live author updates");
+        source.onopen = function () {
+          updateAuthorConnection("connected", "Live author updates connected");
+        };
         source.addEventListener("author-invalidate", function (event) {
           applyAuthorInvalidation(payloadFromSseEvent(event));
         });
         source.onerror = function () {
+          updateAuthorConnection("reconnecting", "Live updates reconnecting");
           source.close();
           if (state.eventSource === source) {
             state.eventSource = null;
