@@ -81,16 +81,17 @@ Configure these GitHub Actions secrets:
 - `FURATENA_REFRESH_URL`: the deployment's `/_fura/content/refresh` URL;
 - `FURATENA_REFRESH_TOKEN`: the independently generated content refresh bearer.
 
-The included workflow sends an authenticated refresh request after a push to
-`main`, or when a maintainer starts it manually. Furatena resolves the configured
-`FURA_CONTENT_REF`, validates and freezes a complete generation, and switches
-generations atomically. It does not rebuild or change the application image.
+The included workflow sends the reviewed `github.sha`, the currently active
+commit, and a run-scoped idempotency key after a push to `main`, or when a
+maintainer starts it manually. Furatena proves that exact commit is reachable
+under the configured `FURA_CONTENT_REF`, validates and freezes a complete
+generation, and switches generations atomically. The accepting process restarts
+to load the new generation; the application image and deployment identity do not
+change.
 
-The current empty-body request is the v1 migration-compatible workflow. It does
-not provide a caller-selected exact commit or caller-controlled idempotency, so
-confirm the resolved commit before treating a run as published. A later runtime
-contract can add those controls without moving application code into this
-repository.
+An empty-body request exists only as v1 migration compatibility and is not used
+by this starter because it lacks caller-selected exact-commit and idempotency
+controls.
 
 Confirm the new resolved content commit in `/meta.json` and verify the page in
 reader, search, catalog, and agent outputs.
