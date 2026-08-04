@@ -179,6 +179,23 @@ use the cached set; at or after that time it fails closed with `stale_key_set`.
 It never extends freshness because a network request failed. Key-compromise
 revocation bypasses cache convenience and invalidates affected grants.
 
+## Furatena runtime integration
+
+`furatena.catalog.preview_grant_runtime` implements the preview-side v1
+boundary. `PreviewGrantRuntime` owns bounded pending-login, replay, revocation,
+session, and immutable JWKS state behind explicit reentrant locks for
+free-threaded CPython. Unknown-key refresh is single-flight, cached snapshots
+are immutable, and all broker operations are isolated from normal local session
+reads. `PreviewGrantSecurityMiddleware` moves the potentially blocking browser
+exchange and key-refresh paths off the application event loop.
+
+The integration validates issuer, audience, repository ID, pull request, head
+SHA, canonical origin, registration window, grant times, scope, JTI, subject,
+key ID, nonce, and revocation before granting access. Browser callback state,
+authorization code, nonce, and session-establishment JTI are consumed once.
+Only `/healthz` and `/readyz` bypass the middleware; every content and machine
+surface remains behind the same authorization boundary.
+
 ## Versioning and compatibility
 
 The v1 registration fixture advertises `supported_versions: [1]` and
