@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import ipaddress
+import json
 import os
+import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from furatena.cli.commands._shared import (
     CommandModule,
@@ -17,7 +19,10 @@ from furatena.cli.commands._shared import (
     _json_output,
     _repo_for_app,
 )
-from furatena.cli.contracts import CommandResult, command_name
+from furatena.cli.contracts import CommandResult, Diagnostic, ExitCode, command_name
+
+if TYPE_CHECKING:
+    from furatena.catalog.dev_banner import ServeStartupResult
 
 
 def _is_loopback_host(host: str) -> bool:
@@ -72,6 +77,29 @@ def _run_serve(args: argparse.Namespace) -> None:
     frozen_dir = (
         Path(configured_frozen).expanduser().resolve() if configured_frozen else app_root / "frozen"
     )
+    if os.environ.get("FURA_CONTENT_REPOSITORY", "").strip():
+        from furatena.catalog.application_roots import ApplicationRoots
+        from furatena.catalog.content_deployment import (
+            ContentDeploymentConfig,
+            ContentDeploymentError,
+            ContentDeploymentStore,
+        )
+        from furatena.catalog.exceptions import CatalogConfigError
+
+        roots = ApplicationRoots.from_environment(app_root)
+        roots.ensure_writable_roots()
+        deployment = ContentDeploymentConfig.from_environment()
+        if deployment is None:  # pragma: no cover - guarded by the environment check
+            raise ContentDeploymentError(
+                "The managed content repository is not configured for generation selection."
+            )
+        try:
+            ContentDeploymentStore(deployment).active_selection().require_runtime(
+                site_root=app_root,
+                frozen_root=frozen_dir,
+            )
+        except ContentDeploymentError as exc:
+            raise CatalogConfigError(str(exc), operation="select managed generation") from exc
     serve = resolve_serve_config(
         docs_root=app_root,
         content_roots=tuple(mount.content_root for mount in mounts),
@@ -84,46 +112,102 @@ def _run_serve(args: argparse.Namespace) -> None:
         raise SystemExit(
             "author mode may bind only to a loopback host until a trusted identity integration is configured"
         )
-    docs = DocsApp.from_paths(
-        docs_yaml,
-        repo_root=repo_root,
-        autodoc_config=_autodoc_config(args, repo_root),
-        serve=serve,
-        workers=args.workers,
-    )
+    contract_setting = os.environ.get("CHIRP_SKIP_CONTRACT_CHECKS")
+    from furatena.catalog.dev_banner import contract_checks_requested
+
+    run_contract_checks = contract_checks_requested(contract_setting)
+    # The composed preflight owns the single check pass. AppConfig snapshots
+    # environment during construction, so defer Chirp's constructor-time
+    # renderer and restore the caller's process environment immediately after.
+    os.environ["CHIRP_SKIP_CONTRACT_CHECKS"] = "1"
+    try:
+        docs = DocsApp.from_paths(
+            docs_yaml,
+            repo_root=repo_root,
+            autodoc_config=_autodoc_config(args, repo_root),
+            serve=serve,
+            workers=args.workers,
+        )
+    finally:
+        if contract_setting is None:
+            os.environ.pop("CHIRP_SKIP_CONTRACT_CHECKS", None)
+        else:
+            os.environ["CHIRP_SKIP_CONTRACT_CHECKS"] = contract_setting
 
     port = args.port or int(os.environ.get("FURA_PORT", "8001"))
     url = f"http://{host}:{port}/"
-    from furatena.catalog.dev_banner import format_serve_startup
+    from furatena.catalog.dev_banner import compose_serve_preflight
 
-    for line in format_serve_startup(
+    startup = compose_serve_preflight(
+        docs.app,
         docs.serve,
         page_count=len(docs.catalog.nodes),
         mount_count=len(docs.catalog.mounts),
-        url=url,
-    ):
-        if not _json_output(args):
-            print(line)
+        configured_url=url,
+        run_contract_checks=(run_contract_checks and docs.serve.mode != ServeMode.PREVIEW),
+    )
+    result = _startup_command_result(args, startup, host=host, port=port)
     if _json_output(args):
-        mode_name = (
-            docs.serve.mode.value if hasattr(docs.serve.mode, "value") else str(docs.serve.mode)
-        )
-        CommandResult(
-            command=command_name(args),
-            ok=True,
-            summary="serve startup completed",
-            data={
-                "url": url,
-                "host": host,
-                "port": port,
-                "mode": mode_name,
-                "page_count": len(docs.catalog.nodes),
-                "mount_count": len(docs.catalog.mounts),
-                "frozen_dir": docs.serve.frozen_dir,
-                "workers": args.workers,
-            },
-        ).write_json()
+        result.write_json()
+    else:
+        _write_human_preflight(startup, structured=docs.app.config.log_format == "json")
+    if not startup.ok:
+        raise SystemExit(int(ExitCode.VALIDATION_ERROR))
     docs.run_serve(port=port, host=host)
+
+
+def _startup_command_result(
+    args: argparse.Namespace,
+    startup: ServeStartupResult,
+    *,
+    host: str,
+    port: int,
+) -> CommandResult:
+    diagnostics = tuple(
+        Diagnostic(
+            severity=item.severity,
+            message=item.message,
+            source_path=item.source_path,
+            rule_id=item.rule_id,
+            next_action=item.next_action,
+        )
+        for item in startup.diagnostics
+    )
+    data = startup.to_dict()
+    data.update({"host": host, "port": port, "workers": args.workers})
+    return CommandResult(
+        command=command_name(args),
+        ok=startup.ok,
+        exit_code=ExitCode.SUCCESS if startup.ok else ExitCode.VALIDATION_ERROR,
+        summary="serve preflight passed" if startup.ok else "serve preflight failed",
+        diagnostics=diagnostics,
+        data=data,
+    )
+
+
+def _write_human_preflight(startup: ServeStartupResult, *, structured: bool) -> None:
+    if structured:
+        payload = {
+            "level": "info" if startup.ok else "error",
+            "event": "furatena.serve.preflight",
+            **startup.to_dict(),
+            "diagnostics": [
+                {
+                    "severity": item.severity,
+                    "message": item.message,
+                    "source_path": item.source_path,
+                    "rule_id": item.rule_id,
+                    "next_action": item.next_action,
+                }
+                for item in startup.diagnostics
+            ],
+        }
+        sys.stderr.write(json.dumps(payload, separators=(",", ":"), sort_keys=True) + "\n")
+        return
+    from furatena.catalog.dev_banner import format_serve_preflight
+
+    for line in format_serve_preflight(startup):
+        print(line, file=sys.stderr)
 
 
 def configure(sub: Any) -> None:
@@ -140,7 +224,7 @@ def configure(sub: Any) -> None:
     serve.add_argument("--base-url", default=None, help="Public origin (FURA_BASE_URL)")
     serve.add_argument("--workers", type=int, default=None, help="Parallel index workers")
     serve.add_argument(
-        "--json", action="store_true", help="Emit startup as standard command result JSON"
+        "--json", action="store_true", help="Emit preflight as standard command result JSON"
     )
     serve.set_defaults(handler=_run_serve)
 

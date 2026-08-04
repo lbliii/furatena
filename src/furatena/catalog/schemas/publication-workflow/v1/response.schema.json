@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://furatena.dev/schemas/publication-workflow/v1/response.schema.json",
   "title": "Furatena publication workflow response v1",
+  "$comment": "An open provider review remains reviewable and is distinguished by typed provider output references; it is not applied.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "record_type", "plan", "snapshot", "replayed", "receipt"],

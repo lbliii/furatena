@@ -321,13 +321,13 @@ entry shape.
 
 ## Content IR diff contract (#355)
 
-Diff selects two public edition contexts in one mount, resolves a slug in each, and
+Diff selects two accessible edition contexts in one mount, resolves a slug in each, and
 compares normalized Content IR rather than HTML. Page results identify sections,
 headings, directives, and links that were added, removed, moved, or changed. Mount
 rollups classify pages as added, removed, changed, or unchanged by logical slug.
 
 The HTTP and MCP surfaces share one stable result schema and the same lifecycle/access
-checks. Shared nodes with the same content digest are an immediate unchanged result.
+checks. Pages with the same normalized structural hash are an immediate unchanged result.
 Diff never materializes presentation output and never mutates either shard.
 
 ## Bengal prior art and adoption decisions

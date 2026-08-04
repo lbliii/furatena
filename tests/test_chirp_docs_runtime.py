@@ -7,6 +7,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,6 +18,7 @@ FROZEN_DIR = APP_ROOT / "frozen"
 sys.path.insert(0, str(REPO / "src"))
 
 from furatena import __version__
+from furatena.catalog.application_roots import ApplicationRoots
 from furatena.catalog.assets import bundle_css
 from furatena.catalog.dev_banner import (
     configure_pounce_display_defaults,
@@ -450,6 +452,68 @@ class TestDevServerLifecycle:
         assert record == DevServerRecord(pid=1234, host="127.0.0.1", port=8001)
         clear_dev_server_record(path)
         assert read_dev_server_record(path) is None
+
+    def test_managed_serve_record_uses_writable_runtime_state(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from furatena.catalog import docs_app as docs_app_module
+        from furatena.catalog.docs_app import DocsApp
+
+        site = tmp_path / "read-only-site"
+        site.mkdir()
+        site.chmod(0o555)
+        state = tmp_path / "runtime-state"
+        state.mkdir()
+        expected = dev_server_pid_path(site, state_root=state)
+
+        class FakeApp:
+            config = SimpleNamespace(host="127.0.0.1", port=8001)
+
+            @staticmethod
+            def run(*, host: str | None, port: int | None) -> None:
+                assert host is None
+                assert port is None
+                assert read_dev_server_record(expected) == DevServerRecord(
+                    pid=os.getpid(),
+                    host="127.0.0.1",
+                    port=8001,
+                )
+
+        def fake_stop(
+            repo_root: Path,
+            *,
+            host: str | None,
+            port: int | None,
+            state_root: Path | None,
+        ) -> bool:
+            assert repo_root == site
+            assert host == "127.0.0.1"
+            assert port == 8001
+            assert state_root == state
+            return False
+
+        monkeypatch.setattr(docs_app_module, "stop_dev_server", fake_stop)
+        docs = object.__new__(DocsApp)
+        docs.repo_root = site
+        docs.roots = ApplicationRoots(
+            site=site,
+            platform=tmp_path / "platform",
+            state=state,
+            output=tmp_path / "output",
+            managed=True,
+        )
+        docs.app = FakeApp()
+        docs.serve = ServeConfig(ServeMode.PREVIEW, None, True, False)
+
+        try:
+            docs.run_serve()
+        finally:
+            site.chmod(0o755)
+
+        assert not expected.exists()
+        assert not (site / ".context").exists()
 
     def test_stop_dev_server_reports_idle_port(self, tmp_path: Path) -> None:
         assert stop_dev_server(tmp_path, host="127.0.0.1", port=59999) is False

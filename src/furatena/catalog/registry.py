@@ -269,6 +269,7 @@ class CatalogRegistry:
         site_mark: str = "𐂛",
         catalog_identity: dict[str, str] | None = None,
         source_sync_state: SourceSyncStateStore | None = None,
+        state_root: Path | None = None,
     ) -> None:
         self.repo_root = repo_root
         self.app_root = app_root or repo_root
@@ -285,10 +286,10 @@ class CatalogRegistry:
         self.catalog_nav = catalog_nav
         self.site_mark = site_mark
         self.catalog_identity = normalize_identity(catalog_identity)
-        state_root = self.app_root / ".docs-cache" / "source-sync-state"
+        source_state_root = state_root or self.app_root / ".docs-cache" / "source-sync-state"
         namespace = self.identity_cache_namespace()
         self.source_sync_state = source_sync_state or SourceSyncStateStore(
-            state_root / namespace if namespace else state_root
+            source_state_root / namespace if namespace else source_state_root
         )
         self.frozen_dir = frozen_dir
         self.scoped_frozen_dir = (

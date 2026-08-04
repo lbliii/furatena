@@ -1,0 +1,22 @@
+{% extends "layouts/docs_catalog.html" %}
+{% from "chirpui/breadcrumbs.html" import breadcrumbs %}
+
+{% block catalog_hero_eyebrow %}
+{{ breadcrumbs(breadcrumb_items ?? [{"label": "Home", "href": "/"}]) }}
+{% end %}
+
+{% block catalog_article %}
+{% include "partials/doc_article.html" %}
+{% end %}
+
+{% block catalog_doc_nav %}
+{% include "partials/doc_nav.html" %}
+{% end %}
+
+{% block catalog_toc_aside %}
+{% if node.toc | length > 0 %}
+<aside id="toc-panel" class="chirp-theme-docs-layout__toc" role="complementary" aria-label="Table of contents">
+  {% include "partials/doc_toc.html" %}
+</aside>
+{% end %}
+{% end %}

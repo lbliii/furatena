@@ -57,7 +57,7 @@ The transition table is intentionally explicit:
 | `reviewable` | `validating`, `awaiting_approval`, `approved`, `cancelled`, `superseded`, `expired` |
 | `awaiting_approval` | `reviewable`, `approved`, `cancelled`, `superseded`, `expired` |
 | `approved` | `executing`, `awaiting_approval`, `failed`, `cancelled`, `superseded`, `expired` |
-| `executing` | `applied`, `failed` |
+| `executing` | `reviewable`, `applied`, `failed` |
 | `failed` | guarded retry to `validating`, `approved`, or `executing`; otherwise `cancelled`, `superseded`, or `expired` |
 | `applied`, `expired`, `cancelled`, `superseded` | none |
 
@@ -65,6 +65,10 @@ Every transition requires the current `state_version`. A mismatched version, pla
 binding, source/configuration/policy/validation binding, expired plan, missing
 approval, illegal edge, or terminal snapshot is rejected before a new snapshot or
 event is returned. Execution rechecks both current bindings and approvals.
+After execution, `reviewable` may record a provider review that is draft or open;
+typed provider outputs distinguish it from the pre-approval review phase.
+Reconciliation returns through `approved` and `executing` to observe provider state;
+only an observed merge reaches `applied`.
 
 Failures use one of `retryable`, `terminal`, `conflict`, `authorization`, or
 `reconciliation_required`. A failed workflow can retry only its declared

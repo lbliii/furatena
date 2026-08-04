@@ -261,6 +261,7 @@ mounts:
 | `GET /search.json` | Search index with `sections` |
 | `GET /catalog/api-operations.json` | Agent/SDK-friendly API operation inventory grouped by API tag |
 | `GET /catalog/retrieve?id=` | Node + chunks + backlinks |
+| `GET /catalog/diff?from=&to=&slug=` | Paginated structural Content IR diff across two mount-scoped editions; omit `slug` for a mount rollup |
 | `GET /catalog/source-health.json` | Mount/source sync and index health for CI and admin UI |
 | `GET /catalog/operational-status.json` | Combined process health, serving readiness, freshness, and artifact-age contract |
 | `GET /healthz` / `GET /readyz` | Distinct liveness (always 200 when responsive) and safe-to-serve readiness (200/503) probes |

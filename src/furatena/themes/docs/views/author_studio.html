@@ -1,0 +1,114 @@
+{% extends "layouts/docs_app.html" %}
+
+{% block app_content %}
+{% block author_studio_workspace %}
+<main
+  id="author-studio-workspace"
+  class="chirp-theme-author-studio__workspace"
+  data-author-studio-mode="{{ author_studio.mode }}"
+  data-author-studio-slug="{{ author_studio.slug }}"
+  data-author-studio-ok="{{ 'true' if author_studio.ok else 'false' }}"
+  data-author-studio-provenance="{{ author_studio.source_provenance }}"
+  hx-disinherit="hx-select hx-target hx-swap"
+>
+  <header class="chirp-theme-author-studio__header">
+    <div>
+      <p class="chirp-theme-author-studio__eyebrow">{{ author_studio.visibility }}</p>
+      <h1>{{ author_studio.title }}</h1>
+      {% if author_studio.source_path %}
+      <code>{{ author_studio.source_path }}</code>
+      {% end %}
+    </div>
+    <div class="chirp-theme-author-studio__actions">
+      {% if author_studio.page_url %}
+      <a class="chirpui-btn chirpui-btn--secondary" href="{{ author_studio.page_url }}">Page</a>
+      {% end %}
+      <button class="chirpui-btn chirpui-btn--primary" form="author-studio-form" type="submit">
+        {% if author_studio.mode == "create" %}Create draft{% else %}Save source{% end %}
+      </button>
+    </div>
+  </header>
+
+  {% if author_studio.saved %}
+  <div class="chirp-theme-author-studio__notice" data-author-studio-saved="true">
+    Saved
+  </div>
+  {% end %}
+
+  {% if author_studio.diagnostics %}
+  <section class="chirp-theme-author-studio__diagnostics" aria-label="Save diagnostics">
+    {% for diagnostic in author_studio.diagnostics %}
+    <article
+      class="chirp-theme-author-studio__diagnostic"
+      data-severity="{{ diagnostic.severity }}"
+      data-rule-id="{{ diagnostic.rule_id }}"
+    >
+      <strong>{{ diagnostic.severity }}</strong>
+      <span>{{ diagnostic.message }}</span>
+      {% if diagnostic.next_action %}
+      <small>{{ diagnostic.next_action }}</small>
+      {% end %}
+    </article>
+    {% end %}
+  </section>
+  {% end %}
+
+  <div class="chirp-theme-author-studio__split">
+    <form
+      id="author-studio-form"
+      class="chirp-theme-author-studio__editor"
+      method="post"
+      action="{{ author_studio.save_url }}"
+      hx-post="{{ author_studio.save_url }}"
+      hx-target="#author-studio-workspace"
+      hx-swap="outerHTML"
+    >
+      {{ csrf_field() }}
+      <input type="hidden" name="slug" value="{{ author_studio.slug }}">
+      <input type="hidden" name="mode" value="{{ author_studio.mode }}">
+      <input type="hidden" name="title" value="{{ author_studio.title }}">
+      <input type="hidden" name="source_revision" value="{{ author_studio.source_revision | default('') }}">
+      <label for="author-studio-source">Source</label>
+      <textarea
+        id="author-studio-source"
+        name="source"
+        spellcheck="false"
+        data-source-path="{{ author_studio.source_path }}"
+        data-has-patitas-ast="{{ 'true' if author_studio.has_ast else 'false' }}"
+      >{{ author_studio.source_text }}</textarea>
+    </form>
+
+    <section class="chirp-theme-author-studio__preview" aria-label="Rendered preview">
+      {% if author_studio.preview_html %}
+      <article class="prose chirp-theme-docs-layout__article">
+        <div class="docs-content chirp-theme-docs-layout__content">
+          {{ author_studio.preview_html }}
+        </div>
+      </article>
+      {% else %}
+      <article class="prose chirp-theme-docs-layout__article">
+        <div class="docs-content chirp-theme-docs-layout__content">
+          <h1>{{ author_studio.title }}</h1>
+        </div>
+      </article>
+      {% end %}
+    </section>
+  </div>
+
+  {% if author_studio.source_regions %}
+  <ol class="chirp-theme-author-studio__regions" aria-label="Source regions">
+    {% for region in author_studio.source_regions %}
+    <li
+      data-source-line="{{ region.line }}"
+      data-heading-depth="{{ region.depth }}"
+      data-preview-anchor="{{ region.anchor }}"
+    >
+      <span>{{ region.heading }}</span>
+      <code>L{{ region.line }}</code>
+    </li>
+    {% end %}
+  </ol>
+  {% end %}
+</main>
+{% end %}
+{% end %}

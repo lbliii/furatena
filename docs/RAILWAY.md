@@ -26,6 +26,34 @@ One replica is intentional in v1 because the filesystem lease and volume are
 the generation authority. Multi-replica rollout requires a shared coordination
 design and is outside this template version.
 
+### Application-root composition
+
+Managed startup does not replace the image's application tree with an adopter
+checkout. It selects four independent roots:
+
+- `FURA_APP_ROOT` is the receipt-bound site root containing adopter
+  `docs.yaml`, mounts, content, locales, branding, and sparse overrides;
+- `FURA_PLATFORM_ROOT=/app/app` is the immutable image-owned platform root,
+  including supported semantic layouts;
+- `FURA_RUNTIME_STATE_ROOT=/data/furatena/runtime-state` is the explicit
+  writable cache, lease, and runtime-state root; and
+- `FURA_OUTPUT_ROOT=/data/furatena/runtime-output` is the explicit writable
+  output root.
+
+The active receipt binds one generation's checkout, site, frozen artifacts,
+and receipt. Startup fails if `FURA_APP_ROOT` or `FURA_FROZEN_DIR` names a
+different generation. Promoted generation files are read-only. Template
+precedence is project overrides, repository-local presentation paths,
+image-owned platform layouts, packaged framework templates, then component
+macros. Local applications retain the compatible single-root defaults unless
+they explicitly configure these roots.
+
+Managed configuration and mount paths must remain beneath the selected site
+root. Absolute paths, traversal, symlink escapes, and generated/state
+namespaces such as `.docs-cache`, `frozen`, `public`, and `dist` fail closed.
+Local applications may continue to use explicit external mounts; an external
+`--config` may not disagree with `--app-root`.
+
 ## Required variables
 
 | Variable | Purpose |
@@ -40,6 +68,9 @@ design and is outside this template version.
 | `FURA_IMAGE_DIGEST` | Exact deployed `sha256:...` digest for runtime identity |
 | `FURA_SERVER_WORKERS` | Pounce serving-process count; defaults to `1` for the private image |
 | `FURA_SESSION_SECRET` | Stable production session secret |
+| `FURA_PLATFORM_ROOT` | Immutable image-owned platform application root; startup supplies `/app/app` |
+| `FURA_RUNTIME_STATE_ROOT` | Writable runtime state/cache root; startup supplies a volume path |
+| `FURA_OUTPUT_ROOT` | Writable generated-output root; startup supplies a volume path |
 | `RAILWAY_RUN_UID` | Required value `0` for the bounded volume bootstrap; the application immediately drops to UID/GID 65532 |
 
 `FURA_SERVER_WORKERS` is separate from `FURA_WORKERS`: the former controls
@@ -121,16 +152,46 @@ adds latency, availability, identity, and evidence checks.
 
 ## Routine changes
 
-- Content-only change: call the authenticated content refresh endpoint. The
-  image digest remains unchanged, a new generation receipt is written, and the
-  process restarts against the new selector.
+- Content-only change: POST a v1 refresh request containing the current active
+  commit, exact requested commit, and idempotency key. HTTP 202 identifies the
+  durable status operation; promotion remains distinct from restart and
+  readiness. The image digest remains unchanged.
+  Poll `GET /_fura/content/operations/{operation_id}` with the same bearer for
+  the versioned operation state and sanitized verification result.
 - Content rollback: call the rollback endpoint; it selects last-known-good and
-  restarts without fetching or rebuilding.
+  revalidates that recorded generation's manifest, artifact hashes, and
+  image/build compatibility, then restarts without fetching or rebuilding.
 - Application change: build one candidate image, scan/attest/smoke the digest,
   promote that digest, canary it, then update production.
 - Image rollback: select the prior stable digest from its durable release
   record. Do not rebuild the old commit.
 
+Railway Docker-image templates do not receive repository-based update
+notifications. Discover stable, deprecated, and revoked image records through
+the public `https://github.com/lbliii/furatena/releases.atom` feed, download the
+attached `image-record.json`, and validate its v1 schema before changing a
+service. Apply only the exact `image@sha256:...` subject; never use a mutable
+channel or version tag as deployment or rollback identity. The stable record
+names compatibility, migration, support, and the prior known-good digest.
+
+For an upgrade, keep the existing volume and all adopter configuration attached
+while changing only the application image subject. Canary the new digest and
+require readiness, public-projection checks, build identity, and active content
+continuity. A failed gate leaves production unchanged and restores the canary
+to the recorded rollback digest.
+
 All normal diagnosis and recovery uses HTTP contracts, GitHub evidence, and
 Railway deployment/log/metrics controls. Container SSH is break-glass only and
 is not part of the verification or rollback procedure.
+
+The request body cannot override the one configured repository, ref, or
+subdirectory, and cannot supply actor identity. Empty-body refresh is a v1-only
+migration compatibility mode that follows the configured ref without exact
+commit or caller idempotency guarantees. Webhooks are not a v1 transport.
+
+New generations include `manifest.json` and `verification.json` beside their
+receipt. These records bind source, configuration, presentation/runtime
+fingerprints, build identity, refresh operation, and every source/frozen file
+size and SHA-256 digest. Startup performs the full artifact check before
+serving. Pre-contract generations are reported as `legacy_v1` during the v1
+migration window and are not described as cryptographically verified.
