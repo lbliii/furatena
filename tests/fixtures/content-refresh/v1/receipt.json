@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "record_type": "furatena.content-refresh.receipt",
+  "operation_id": "refresh-000000000000000000000000",
+  "semantic_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "idempotency_key_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "actor": {
+    "actor": "configured-content-operator",
+    "identity_source": "content-refresh-bearer",
+    "transport": "http"
+  },
+  "expected_active_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "requested_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "configured_repository_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "configured_ref": "main",
+  "configured_subdirectory": "app",
+  "state": "queued",
+  "active_commit_before": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "resolved_commit": null,
+  "generation": null,
+  "restart_required": false,
+  "restart_scheduled": false,
+  "readiness": null,
+  "failure": null,
+  "compatibility_mode": false,
+  "replayed": false,
+  "terminal": false,
+  "created_at": "2026-08-04T12:00:00Z",
+  "updated_at": "2026-08-04T12:00:00Z",
+  "history": [
+    {
+      "state": "queued",
+      "recorded_at": "2026-08-04T12:00:00Z"
+    }
+  ]
+}
