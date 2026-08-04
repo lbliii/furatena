@@ -97,11 +97,7 @@ def test_pages_workflow_classifies_pull_requests_from_exact_diffs() -> None:
     workflow = yaml.safe_load(
         (REPO / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
     )
-    scope = next(
-        step
-        for step in workflow["jobs"]["fast"]["steps"]
-        if step.get("id") == "scope"
-    )
+    scope = next(step for step in workflow["jobs"]["fast"]["steps"] if step.get("id") == "scope")
 
     assert "git diff --name-only --diff-filter=ACMRDT" in scope["run"]
     assert "ready_for_review" not in scope["run"]
