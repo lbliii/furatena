@@ -122,6 +122,11 @@ from furatena.catalog.search_experience import (
 from furatena.catalog.seo import (
     docs_base_url,
 )
+from furatena.catalog.shard_discovery import (
+    discovery_mount_id,
+    llms_hub_txt,
+    sitemap_index_xml,
+)
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_items
 from furatena.catalog.validation import ValidationSnapshotService
@@ -818,15 +823,14 @@ class DocsApp:
             return self._render_catalog_page(request)
 
     def _edition_sitemap(self, request: Request, segment: str) -> Response:
-        from furatena.catalog.sitemap import sitemap_xml
-
         _mount, route = self._edition_route_for_request(request, segment)
         if route.alias:
             return self._edition_redirect(route)
         with self.catalog.use_edition(route.edition):
-            body = sitemap_xml(
+            body = sitemap_index_xml(
                 self.catalog,
                 base_url=self._site_base(request),
+                path_prefix=f"/{segment}",
                 subject=self._output_access_subject(request),
             )
         return Response(body, content_type="application/xml; charset=utf-8")
@@ -843,12 +847,60 @@ class DocsApp:
                     subject=self._output_access_subject(request),
                 )
             else:
-                body = llms_index_txt(
+                body = llms_hub_txt(
                     self.catalog,
                     site_name=self.config.site.name,
                     site_description=self.config.site.description,
+                    path_prefix=f"/{segment}",
                     subject=self._output_access_subject(request),
                 )
+        return Response(body, content_type="text/plain; charset=utf-8")
+
+    def _edition_mount_sitemap(self, request: Request, segment: str, mount_file: str) -> Response:
+        from furatena.catalog.sitemap import sitemap_xml
+
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        if not mount_file.endswith(".xml"):
+            raise NotFound(f"Mount sitemap not found: {mount_file}")
+        token = mount_file[: -len(".xml")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(f"Mount sitemap not found: {mount_file}")
+        with self.catalog.use_edition(route.edition):
+            body = sitemap_xml(
+                self.catalog,
+                base_url=self._site_base(request),
+                subject=subject,
+                mount=mount_id,
+            )
+        return Response(body, content_type="application/xml; charset=utf-8")
+
+    def _edition_mount_llms(self, request: Request, segment: str, mount_file: str) -> Response:
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        if not mount_file.endswith(".txt"):
+            raise NotFound(f"Mount LLM index not found: {mount_file}")
+        token = mount_file[: -len(".txt")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(f"Mount LLM index not found: {mount_file}")
+        with self.catalog.use_edition(route.edition):
+            body = llms_index_txt(
+                self.catalog,
+                site_name=self.config.site.name,
+                site_description=self.config.site.description,
+                subject=subject,
+                mount=mount_id,
+            )
         return Response(body, content_type="text/plain; charset=utf-8")
 
     def _edition_catalog_query(self, request: Request, segment: str) -> Response:
@@ -936,6 +988,14 @@ class DocsApp:
             @app.route(f"{base}/llms-full.txt", referenced=True)
             def edition_llms_full_txt(request: Request, _segment=route_segment):
                 return self._edition_llms(request, _segment, full=True)
+
+            @app.route(f"{base}/sitemaps/{{mount_file}}", referenced=True)
+            def edition_mount_sitemap(request: Request, mount_file: str, _segment=route_segment):
+                return self._edition_mount_sitemap(request, _segment, mount_file)
+
+            @app.route(f"{base}/llms/{{mount_file}}", referenced=True)
+            def edition_mount_llms(request: Request, mount_file: str, _segment=route_segment):
+                return self._edition_mount_llms(request, _segment, mount_file)
 
             @app.route(f"{base}/catalog/query.json", referenced=True)
             def edition_catalog_query(request: Request, _segment=route_segment):

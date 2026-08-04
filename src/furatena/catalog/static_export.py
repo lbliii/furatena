@@ -581,6 +581,26 @@ def _edition_sidecar_routes(docs_app: DocsApp) -> tuple[str, ...]:
     return tuple(routes)
 
 
+def _sharded_discovery_routes(docs_app: DocsApp) -> tuple[str, ...]:
+    from furatena.catalog.edition_routing import edition_path
+    from furatena.catalog.shard_discovery import discovery_mount_token, discovery_mounts
+
+    routes: list[str] = []
+    for mount in discovery_mounts(docs_app.catalog):
+        token = discovery_mount_token(mount.id)
+        routes.extend((f"/sitemaps/{token}.xml", f"/llms/{token}.txt"))
+        for edition in _export_editions(docs_app):
+            if edition == "latest":
+                continue
+            routes.extend(
+                (
+                    edition_path(f"/sitemaps/{token}.xml", edition),
+                    edition_path(f"/llms/{token}.txt", edition),
+                )
+            )
+    return tuple(routes)
+
+
 def _robots_txt(*, site_url: str | None, base_path: str) -> str:
     _ = base_path
     origin = (site_url or "http://127.0.0.1:8080").rstrip("/")
@@ -728,6 +748,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     sidecar_routes = (
         *_sidecar_routes(),
         *_edition_sidecar_routes(docs_app),
+        *_sharded_discovery_routes(docs_app),
         *_catalog_shard_routes(docs_app),
         *_versions_mount_routes(docs_app),
     )

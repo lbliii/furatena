@@ -294,6 +294,43 @@ refresh; refresh prunes stale identity residency. Metric names are aggregate
 and bounded-cardinality, while the per-identity list is an on-demand status
 snapshot.
 
+## Incremental links and sharded discovery
+
+Cross-shard link state is a replaceable hub index, not a reason to compose the
+whole catalog. The hub persists normalized Content-IR nodes and outbound links
+per `mount:edition` fingerprint. Replacing one shard removes and adds only that
+shard's outbound records, then re-evaluates targets in its old/new URL set and
+the existing inbound edges to those URLs. `/catalog/source-health.json` reports
+the measured changed-shard, scanned-node, affected-target, and edge-neighborhood
+counts, plus at most 100 deterministic broken cross-shard link records per
+mount. The complete count and a truncation flag remain available when the
+bounded record list is exceeded.
+
+The index is written as per-shard atomic, fsync-backed JSON under the
+identity-scoped catalog state directory, so persistence cost follows the
+changed shard rather than the full graph. An unreadable record is reported as a repairable
+load error and rebuilt from subsequent verified shard reconciliations. State
+updates and readers are synchronized explicitly for GIL-disabled Python.
+Unchanged remote fingerprints reuse persisted link state without loading DCP
+catalog objects; a missing first-boot index remains pending until that shard is
+requested or changed, preserving cold residency.
+
+Discovery is independently sharded:
+
+- `/sitemap.xml` is a deterministic sitemap index whose children are
+  `/sitemaps/{mount_file}` (canonical files end in `.xml`).
+- `/llms.txt` is a link-only hub index whose children are
+  `/llms/{mount_file}` (canonical files end in `.txt`); `/llms-full.txt`
+  retains the compatibility whole-corpus representation.
+- live, frozen, edition, and static exports use the same visibility filter and
+  child-file contract. Generating a child materializes at most its selected
+  mount.
+
+Existing path-safe mount IDs remain unchanged in those URLs. Legacy IDs that
+cannot form one safe path segment use a canonical `~`-prefixed base64url token;
+non-canonical aliases are rejected and never change the underlying mount
+identity.
+
 ## Compatibility and DCP migration plan
 
 Existing executable policy proves DCP readers for versions 2 and 3. Artifact

@@ -369,7 +369,11 @@ Live and frozen builds persist the same source boundary. `GET
 /catalog/source-health.json` reports each configured mount as `healthy`,
 `degraded`, or `unavailable`, including provider, source repo/ref/url, source
 root existence, tracked extensions, file count, page count, loaded shard
-origin, channel coverage, and structured sync/index errors. Frozen builds also
+origin, channel coverage, structured sync/index errors, and bounded broken
+cross-shard link evidence. Its `link_reconciliation` member reports the
+identity-scoped persistent index size, pending cold remote shards, load errors,
+and measured last-update neighborhood rather than asserting that an update was
+incremental. Frozen builds also
 record `source_status`/`mount_status` entries in `registry.json` and
 `freeze.manifest.json` (both the compatibility field and shared `sync` field)
 with provider, content fingerprint, previous

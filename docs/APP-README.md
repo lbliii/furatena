@@ -87,7 +87,8 @@ repo venv from `make install` does.
 - **Boosted nav** — htmx swaps `#main` (~7KB fragments, ~10ms server time)
 - **Shell OOB updates** — sidebar active state, breadcrumbs, and title update per navigation
 - **Runtime search** — query the catalog, no prebuilt Lunr index
-- **`/llms.txt`** — machine-readable index generated on request, with API operation hints when available
+- **`/llms.txt`** — link-only hub over per-mount **`/llms/{mount_file}`** indexes (`.txt`)
+- **`/sitemap.xml`** — sitemap index over per-mount **`/sitemaps/{mount_file}`** maps (`.xml`)
 
 ## Limitations (spike)
 

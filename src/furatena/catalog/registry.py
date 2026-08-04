@@ -32,7 +32,7 @@ from furatena.catalog.access import (
 )
 from furatena.catalog.catalog_nav import CatalogNavConfig
 from furatena.catalog.edition_lifecycle import EditionLifecycle
-from furatena.catalog.graph import build_federated_backlinks, normalize_internal_url
+from furatena.catalog.graph import normalize_internal_url
 from furatena.catalog.graph_schema import build_graph_edges
 from furatena.catalog.i18n import DocsI18nConfig, build_translation_index
 from furatena.catalog.identity import (
@@ -42,6 +42,12 @@ from furatena.catalog.identity import (
     scope_url,
     scoped_frozen_dir,
     strip_identity_route,
+)
+from furatena.catalog.link_reconciliation import (
+    IncrementalLinkIndex,
+    ShardLinkSnapshot,
+    local_shard_link_snapshot,
+    remote_shard_link_snapshot,
 )
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
@@ -441,11 +447,18 @@ class CatalogRegistry:
         self.catalog_nav = catalog_nav
         self.site_mark = site_mark
         self.catalog_identity = normalize_identity(catalog_identity)
-        source_state_root = state_root or self.app_root / ".docs-cache" / "source-sync-state"
+        catalog_state_root = state_root or self.app_root / ".docs-cache"
+        source_state_root = (
+            catalog_state_root / "source-sync-state" if state_root is None else catalog_state_root
+        )
         namespace = self.identity_cache_namespace()
         self.source_sync_state = source_sync_state or SourceSyncStateStore(
             source_state_root / namespace if namespace else source_state_root
         )
+        link_state_root = catalog_state_root / "link-reconciliation"
+        if namespace:
+            link_state_root /= namespace
+        self._link_index = IncrementalLinkIndex(link_state_root / "v1")
         self.remote_shards = remote_shards
         self._remote_residency = _RemoteCatalogResidency(
             max_entries=remote_resident_shard_entries,
@@ -492,6 +505,7 @@ class CatalogRegistry:
         self._read_generation: _CatalogReadGeneration | None = None
         self._remote_mount_generations: dict[str, str] = {}
         self._federated_backlinks: dict[str, list[dict[str, str]]] = {}
+        self._pending_remote_link_shards: dict[str, str] = {}
         self._translation_index: dict[str, dict[str, str]] | None = None
         self._inventory_store = None
         self._watcher: SourceWatcher | None = None
@@ -500,6 +514,7 @@ class CatalogRegistry:
         set_rewrite_table(load_rewrite_table(rewrites_path))
         self._federated_slug_urls = self._prescan_federated_slugs()
         self._load_shards()
+        self._reconcile_link_shards(retain_all=True, load_remote=False)
         self._finalize_federated()
         if auto_reload:
             self._start_watcher()
@@ -714,6 +729,18 @@ class CatalogRegistry:
             mount=mount.id,
             loader=compose,
         )
+        backlinks = self._reconcile_remote_link_snapshot(remote)
+        pinned = self._read_generation_context.get()
+        if pinned is not None and pinned.edition == edition:
+            shards = dict(pinned.shards)
+            shards[mount.id] = shard
+            self._read_generation_context.set(
+                replace(
+                    pinned,
+                    shards=MappingProxyType(shards),
+                    backlinks=_freeze_backlinks(backlinks),
+                )
+            )
         shard._renderer.attach_reference_context(
             catalog=self,
             inventory_store=self._inventory_store,
@@ -901,6 +928,85 @@ class CatalogRegistry:
                     urls.setdefault(page.slug, page.url)
         return urls
 
+    def _target_mount_for_link(self, url: str) -> str:
+        """Resolve a configured mount by URL without materializing its shard."""
+        return self._resolve_mount(url).id
+
+    def _reconcile_link_shards(
+        self,
+        *,
+        mount_ids: frozenset[str] | None = None,
+        retain_all: bool = False,
+        local_shards: Mapping[str, DocCatalog] | None = None,
+        load_remote: bool = True,
+    ) -> dict[str, Any]:
+        """Reconcile only selected shard versions against persistent link state."""
+        replacements: dict[str, ShardLinkSnapshot | None] = {}
+        current_keys: set[str] = set()
+        selected_local = local_shards if local_shards is not None else self._shards
+        for mount_id, shard in selected_local.items():
+            if mount_ids is not None and mount_id not in mount_ids:
+                continue
+            snapshot = local_shard_link_snapshot(
+                shard,
+                target_mount_for_url=self._target_mount_for_link,
+            )
+            current_keys.add(snapshot.key)
+            if self._link_index.fingerprint_for(snapshot.key) != snapshot.fingerprint:
+                replacements[snapshot.key] = snapshot
+
+        if self.remote_shards is not None:
+            from furatena.catalog.remote_shards import RemoteShardUnavailableError
+
+            for mount in self.mounts:
+                if mount.source.provider != "remote-shard":
+                    continue
+                if mount_ids is not None and mount.id not in mount_ids:
+                    continue
+                try:
+                    generation = self.remote_shards.generation(mount.id)
+                except RemoteShardUnavailableError:
+                    continue
+                for remote in generation.shards.values():
+                    current_keys.add(remote.identity)
+                    if self._link_index.fingerprint_for(remote.identity) == remote.fingerprint:
+                        self._pending_remote_link_shards.pop(remote.identity, None)
+                        continue
+                    if load_remote:
+                        replacements[remote.identity] = remote_shard_link_snapshot(
+                            remote.catalog,
+                            mount=remote.mount,
+                            edition=remote.edition,
+                            fingerprint=remote.fingerprint,
+                            target_mount_for_url=self._target_mount_for_link,
+                        )
+                        self._pending_remote_link_shards.pop(remote.identity, None)
+                    else:
+                        if self._link_index.fingerprint_for(remote.identity) is not None:
+                            replacements[remote.identity] = None
+                        self._pending_remote_link_shards[remote.identity] = remote.mount
+
+        if mount_ids is not None:
+            for mount_id in mount_ids:
+                for key in self._link_index.shard_keys_for_mount(mount_id):
+                    if key in current_keys:
+                        continue
+                    replacements[key] = None
+        retain_keys = frozenset(current_keys) if retain_all else None
+        return self._link_index.reconcile(replacements, retain_keys=retain_keys)
+
+    def _reconcile_remote_link_snapshot(self, remote: Any) -> dict[str, list[dict[str, str]]]:
+        snapshot = remote_shard_link_snapshot(
+            remote.catalog,
+            mount=remote.mount,
+            edition=remote.edition,
+            fingerprint=remote.fingerprint,
+            target_mount_for_url=self._target_mount_for_link,
+        )
+        backlinks = self._link_index.reconcile_with_backlinks(snapshot, edition=remote.edition)
+        self._pending_remote_link_shards.pop(remote.identity, None)
+        return backlinks
+
     def source_health(self, *, mount: str | None = None) -> dict[str, Any]:
         """Per-mount source/index health for admin UI, CI, and MCP callers."""
         mount_filter = mount.strip() if mount else None
@@ -945,6 +1051,15 @@ class CatalogRegistry:
             )
             available = shard is not None or remotely_available
             has_error = "error" in sync or "error" in index
+            link_health = self._link_index.mount_health(item.id)
+            pending_links = sorted(
+                key for key, mount in self._pending_remote_link_shards.items() if mount == item.id
+            )
+            if pending_links:
+                link_health["status"] = "pending"
+                link_health["pending_shards"] = pending_links
+            if link_health["broken_cross_shard_count"]:
+                has_error = True
             if not available:
                 status = "unavailable"
             elif has_error or sync.get("status") != "ok" or index.get("status") == "failed":
@@ -999,8 +1114,11 @@ class CatalogRegistry:
                         "loaded_from": index.get("loaded_from"),
                         **({"error": index["error"]} if "error" in index else {}),
                     },
+                    "link_integrity": link_health,
                 }
             )
+        link_status = self._link_index.status()
+        link_status["pending_remote_shards"] = sorted(self._pending_remote_link_shards)
         return {
             "schema_version": 1,
             "ok": all(item["status"] == "healthy" for item in mounts),
@@ -1009,6 +1127,7 @@ class CatalogRegistry:
             "serve_mode": self.serve_mode.value,
             "mounts": mounts,
             "remote_residency": residency,
+            "link_reconciliation": link_status,
         }
 
     def remote_residency_status(self) -> dict[str, Any]:
@@ -1131,9 +1250,7 @@ class CatalogRegistry:
                     id=generation.id,
                     edition=self.active_channel,
                     shards=MappingProxyType(dict(shards)),
-                    backlinks=_freeze_backlinks(
-                        build_federated_backlinks(list(nodes), catalog=self)
-                    ),
+                    backlinks=_freeze_backlinks(self._link_index.backlinks(self.active_channel)),
                     translation_index=_freeze_translation_index(build_translation_index(nodes)),
                     inventory_store=self._inventory_store,
                     edges=None,
@@ -1344,6 +1461,8 @@ class CatalogRegistry:
                 inventory_store=self._inventory_store,
             )
             shards[mount.id] = shard
+        if shards:
+            self._reconcile_link_shards(local_shards=shards)
         return shards
 
     def refresh_remote_shards(self) -> RemoteRefreshReport:
@@ -1415,6 +1534,10 @@ class CatalogRegistry:
             self._namespaces = None
             with self._query_graph_lock:
                 self._query_graph_cache.clear()
+            changed_mounts = frozenset(
+                item.mount for item in report.mounts if item.status in {"activated", "removed"}
+            )
+            self._reconcile_link_shards(mount_ids=changed_mounts)
             self._finalize_federated()
         return report
 
@@ -1562,7 +1685,7 @@ class CatalogRegistry:
             # the separate incremental-link work rather than defeating lazy
             # residency here.
             nodes = [node for shard in self._shards.values() for node in shard.nodes]
-            self._federated_backlinks = build_federated_backlinks(nodes, catalog=self)
+            self._federated_backlinks = self._link_index.backlinks(self._default_channel)
             self._translation_index = build_translation_index(tuple(nodes))
             specs, role_domains = load_inventories_config(self.inventories_path)
             self._inventory_store = build_inventory_store(
@@ -1629,17 +1752,18 @@ class CatalogRegistry:
             shard.attach_watcher(self._watcher)
 
     def refresh_if_stale(self) -> bool:
-        changed = False
-        for shard in self._shards.values():
+        changed_mounts: set[str] = set()
+        for mount_id, shard in self._shards.items():
             if shard.refresh_if_stale():
-                changed = True
-        if changed:
+                changed_mounts.add(mount_id)
+        if changed_mounts:
             self._edges = None
             self._namespaces = None
             with self._query_graph_lock:
                 self._query_graph_cache.clear()
+            self._reconcile_link_shards(mount_ids=frozenset(changed_mounts))
             self._finalize_federated()
-        return changed
+        return bool(changed_mounts)
 
     def invalidation_hints(self, slug: str) -> tuple[str, ...]:
         """htmx swap targets for the shard that owns ``slug``."""
@@ -1841,21 +1965,18 @@ class CatalogRegistry:
         return html
 
     def backlinks_for(self, node: DocNode) -> list[dict[str, str]]:
+        key = normalize_internal_url(node.url) or node.url
         pinned = self._read_generation_context.get()
         if pinned is not None:
-            key = normalize_internal_url(node.url) or node.url
-            refs = pinned.backlinks.get(key)
-            if refs is not None:
-                return [dict(ref) for ref in refs]
-            return self._shard_for_node(node).backlinks_for(node)
-        if self.active_channel != "latest":
-            backlinks = build_federated_backlinks(list(self.nodes), catalog=self)
-            key = normalize_internal_url(node.url) or node.url
-            return backlinks.get(key, [])
-        if self._federated_backlinks:
-            key = normalize_internal_url(node.url) or node.url
-            return self._federated_backlinks.get(key, [])
-        return self._shard_for_node(node).backlinks_for(node)
+            indexed = [dict(ref) for ref in pinned.backlinks.get(key, ())]
+            shard = pinned.shards.get(node.mount)
+        else:
+            indexed = self._link_index.backlinks_for(node.edition, key)
+            shard = self._active_shard(node.mount)
+        native = shard.backlinks_for(node) if shard is not None else []
+        merged = {item["href"]: dict(item) for item in native}
+        merged.update((item["href"], item) for item in indexed)
+        return sorted(merged.values(), key=lambda item: (item["title"].lower(), item["href"]))
 
     def trail(self, node: DocNode) -> list[dict[str, str]]:
         crumbs = self._shard_for_node(node).trail(node)

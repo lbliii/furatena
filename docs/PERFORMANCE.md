@@ -79,6 +79,25 @@ only when a graph is admitted, never on a hot lookup. These host timings are
 evidence rather than portable pass/fail thresholds; correctness and configured
 entry/byte bounds are executable test contracts.
 
+## Incremental shard-link profile
+
+Measure one changed shard against 400 shards with 300 pages and one cross-shard
+edge per page (120,000 nodes and edges):
+
+```bash
+make link-reconciliation-benchmark
+make link-reconciliation-benchmark BENCHMARK_ARGS="--output benchmarks/profiles/issue-364-incremental-links.json"
+```
+
+The free-threaded CPython 3.14.2 profile records a 22.51 ms update that scans
+the changed shard's 300 old and 300 new source nodes, touches 900 old/new/inbound
+neighborhood edges (0.75% of the graph), preserves 399 shard records, and writes
+one 93,963-byte authenticated atomic shard-state record. Peak allocations during the delta
+were 567,351 bytes. Initial construction took 1,285.55 ms and produced 35.84
+MiB of persistent state. Wall time and allocation bytes are host evidence, not
+portable thresholds; the executable contract asserts changed/untouched shards,
+bounded neighborhood work, and per-shard persistence.
+
 ## Author-runtime profile
 
 Measure the author-mode paths separately from catalog indexing:
