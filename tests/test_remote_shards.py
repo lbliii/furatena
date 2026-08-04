@@ -259,6 +259,58 @@ def _presentation_cache_stats(catalog: Any) -> dict[str, int]:
     return cache.stats()
 
 
+def _remote_docs_app(
+    tmp_path: Path,
+    registry: RemoteShardMountRegistry,
+    *mount_ids: str,
+    app_name: str,
+) -> Any:
+    from furatena.catalog.docs_app import DocsApp
+    from furatena.catalog.runtime import ServeConfig, ServeMode
+
+    app_root = tmp_path / app_name
+    app_root.mkdir()
+    (app_root / "docs.yaml").write_text(
+        """shell: shell.html
+views:
+  doc: views/doc.html
+  doc_list: views/doc_list.html
+  api_reference: views/api_reference.html
+  home: views/home.html
+  default: views/doc.html
+theme:
+  use: lagoon
+  id: furatena
+  templates: theme/templates
+mounts: mounts.yaml
+""",
+        encoding="utf-8",
+    )
+    mounts = []
+    for index, mount in enumerate(mount_ids):
+        mounts.append(
+            f"""  - id: {mount}
+    label: {mount.title()}
+    content_root: corpus-{mount}-does-not-exist
+    url_prefix: /{mount}
+    default: {str(index == 0).lower()}
+    source:
+      provider: remote-shard
+"""
+        )
+    (app_root / "mounts.yaml").write_text(
+        "mounts:\n" + "".join(mounts),
+        encoding="utf-8",
+    )
+    return DocsApp.from_paths(
+        app_root / "docs.yaml",
+        repo_root=tmp_path,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+        remote_shards=registry,
+    )
+
+
 def test_strict_fetcher_rejects_cross_origin_privileged_and_unbounded_urls() -> None:
     transport = MemoryTransport({f"{ORIGIN}/ok": b"ok"})
     fetcher = StrictHTTPSFetcher(HUB_URL, transport=transport)
@@ -414,6 +466,64 @@ def test_broken_publish_is_mount_local_and_previous_generation_can_be_pinned(
     assert registry.mounts() == ("alpha",)
     restarted = _registry(tmp_path, MemoryTransport(transport.objects), RecordingVerifier())
     assert restarted.mounts() == ("alpha",)
+
+
+def test_unrelated_mount_update_preserves_generation_and_warm_presentation_cache(
+    tmp_path: Path,
+) -> None:
+    import asyncio
+
+    from chirp.testing import TestClient
+
+    alpha_v1, alpha_objects = _artifact(tmp_path, "alpha", "v1")
+    beta_v1, beta_objects = _artifact(tmp_path, "beta", "v1")
+    transport = MemoryTransport(alpha_objects | beta_objects)
+    _install_hub(transport, _hub([alpha_v1, beta_v1]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    first_report = registry.refresh()
+    docs = _remote_docs_app(tmp_path, registry, "alpha", "beta", app_name="locality-app")
+    alpha_generation = registry.generation("alpha")
+    alpha_catalog = docs.catalog._shards["alpha"]
+    composed_generation = docs.catalog.generation
+    alpha_presentation_url = next(
+        str(alpha_v1["artifact_base_url"]) + str(item["object_url"])
+        for item in alpha_v1["inventory"]
+        if item["role"] == "presentation"
+    )
+
+    async def get(path: str) -> str:
+        client = TestClient(docs.create_app())
+        async with client:
+            response = await client.get(path)
+        assert response.status == 200
+        return response.text
+
+    assert "v1" in asyncio.run(get("/alpha/guide/"))
+    assert transport.calls.count(alpha_presentation_url) == 1
+
+    reused = docs.refresh_remote_shards()
+    assert {item.mount: item.status for item in reused.mounts} == {
+        "alpha": "reused",
+        "beta": "reused",
+    }
+    assert docs.catalog.generation == composed_generation
+    assert docs.catalog._shards["alpha"] is alpha_catalog
+
+    beta_v2, beta_v2_objects = _artifact(tmp_path, "beta", "v2")
+    transport.objects.update(beta_v2_objects)
+    _install_hub(transport, _hub([alpha_v1, beta_v2]))
+    updated = docs.refresh_remote_shards()
+    outcomes = {item.mount: item.status for item in updated.mounts}
+
+    assert outcomes == {"alpha": "reused", "beta": "activated"}
+    assert registry.generation("alpha").generation_id == alpha_generation.generation_id
+    assert registry.generation("alpha").hub_payload_sha256 == first_report.hub_payload_sha256
+    assert updated.hub_payload_sha256 != first_report.hub_payload_sha256
+    assert docs.catalog._shards["alpha"] is alpha_catalog
+    assert _presentation_cache_stats(alpha_catalog)["entries"] == 1
+    assert "v1" in asyncio.run(get("/alpha/guide/"))
+    assert transport.calls.count(alpha_presentation_url) == 1
+    assert "v2" in asyncio.run(get("/beta/guide/"))
 
 
 def test_same_mount_refreshes_are_serialized_and_publish_one_complete_generation(
@@ -641,6 +751,156 @@ mounts: mounts.yaml
         graph = reading.result(timeout=10)
     assert graph["pages"][0]["title"] == "Guide remote-v3"
     assert graph["namespaces"][0]["page_count"] == 1
+
+
+def test_read_only_http_request_pins_search_to_one_composed_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+
+    from chirp.testing import TestClient
+
+    manifest_v1, objects_v1 = _artifact(tmp_path, "alpha", "v1")
+    transport = MemoryTransport(objects_v1)
+    _install_hub(transport, _hub([manifest_v1]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    docs = _remote_docs_app(tmp_path, registry, "alpha", app_name="request-snapshot-app")
+    app = docs.create_app()
+    catalog = docs.catalog
+    nodes_read = threading.Event()
+    continue_read = threading.Event()
+    generations: list[tuple[str, int]] = []
+    original_all_doc_nodes = catalog.all_doc_nodes
+    original_ast_documents = catalog.ast_documents
+
+    def paused_all_doc_nodes() -> list[Any]:
+        generations.append(("nodes", catalog.generation))
+        nodes = original_all_doc_nodes()
+        nodes_read.set()
+        assert continue_read.wait(timeout=10)
+        return nodes
+
+    def observed_ast_documents() -> dict[str, Any]:
+        generations.append(("ast", catalog.generation))
+        return original_ast_documents()
+
+    monkeypatch.setattr(catalog, "all_doc_nodes", paused_all_doc_nodes)
+    monkeypatch.setattr(catalog, "ast_documents", observed_ast_documents)
+
+    def fetch_search() -> dict[str, Any]:
+        async def request() -> dict[str, Any]:
+            client = TestClient(app)
+            async with client:
+                response = await client.get("/search.json")
+            assert response.status == 200
+            return json.loads(response.text)
+
+        return asyncio.run(request())
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        reading = pool.submit(fetch_search)
+        assert nodes_read.wait(timeout=10)
+        manifest_v2, objects_v2 = _artifact(tmp_path, "alpha", "v2")
+        transport.objects.update(objects_v2)
+        _install_hub(transport, _hub([manifest_v2]))
+        docs.refresh_remote_shards()
+        continue_read.set()
+        payload = reading.result(timeout=10)
+
+    assert {kind for kind, _generation in generations} == {"nodes", "ast"}
+    assert {generation for _kind, generation in generations} == {1}
+    assert catalog.generation == 2
+    assert payload["entries"][0]["title"] == "Guide v1"
+
+
+def test_pinned_remote_catalog_fetches_presentation_from_its_own_generation(
+    tmp_path: Path,
+) -> None:
+    manifest_v1, objects_v1 = _artifact(tmp_path, "alpha", "v1")
+    transport = MemoryTransport(objects_v1)
+    _install_hub(transport, _hub([manifest_v1]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    docs = _remote_docs_app(tmp_path, registry, "alpha", app_name="bound-loader-app")
+
+    with docs.catalog.read_snapshot():
+        node = docs.catalog.get("/alpha/guide/")
+        assert node is not None
+        manifest_v2, objects_v2 = _artifact(tmp_path, "alpha", "v2")
+        transport.objects.update(objects_v2)
+        _install_hub(transport, _hub([manifest_v2]))
+        docs.refresh_remote_shards()
+        assert "v1" in docs.catalog.body_html(node)
+
+    current = docs.catalog.get("/alpha/guide/")
+    assert current is not None
+    assert "v2" in docs.catalog.body_html(current)
+
+
+def test_mcp_resource_and_read_tool_pin_one_composed_generation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from furatena.catalog.mcp import FuraMCPServer
+
+    manifest_v1, objects_v1 = _artifact(tmp_path, "alpha", "v1")
+    transport = MemoryTransport(objects_v1)
+    _install_hub(transport, _hub([manifest_v1]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    docs = _remote_docs_app(tmp_path, registry, "alpha", app_name="mcp-snapshot-app")
+    server = FuraMCPServer(docs)
+    resource_started = threading.Event()
+    continue_resource = threading.Event()
+    resource_generations: list[int] = []
+    original_resource_payload = server._resource_payload
+
+    def paused_resource_payload(uri: str) -> dict[str, Any]:
+        resource_generations.append(docs.catalog.generation)
+        resource_started.set()
+        assert continue_resource.wait(timeout=10)
+        resource_generations.append(docs.catalog.generation)
+        return original_resource_payload(uri)
+
+    monkeypatch.setattr(server, "_resource_payload", paused_resource_payload)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        reading = pool.submit(server.read_resource, "fura://catalog/graph")
+        assert resource_started.wait(timeout=10)
+        manifest_v2, objects_v2 = _artifact(tmp_path, "alpha", "v2")
+        transport.objects.update(objects_v2)
+        _install_hub(transport, _hub([manifest_v2]))
+        docs.refresh_remote_shards()
+        continue_resource.set()
+        resource = reading.result(timeout=10)
+    assert resource["uri"] == "fura://catalog/graph"
+    assert resource_generations == [1, 1]
+
+    monkeypatch.setattr(server, "_resource_payload", original_resource_payload)
+    tool_started = threading.Event()
+    continue_tool = threading.Event()
+    tool_generations: list[int] = []
+
+    def paused_semantic_search(arguments: dict[str, Any]) -> dict[str, Any]:
+        _ = arguments
+        tool_generations.append(docs.catalog.generation)
+        tool_started.set()
+        assert continue_tool.wait(timeout=10)
+        tool_generations.append(docs.catalog.generation)
+        return {"schema_version": 1, "query": "guide", "count": 0, "results": []}
+
+    monkeypatch.setattr(server, "_semantic_search", paused_semantic_search)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        reading = pool.submit(server.call_tool, "semantic_search", {"query": "guide"})
+        assert tool_started.wait(timeout=10)
+        manifest_v3, objects_v3 = _artifact(tmp_path, "alpha", "v3")
+        transport.objects.update(objects_v3)
+        _install_hub(transport, _hub([manifest_v3]))
+        docs.refresh_remote_shards()
+        continue_tool.set()
+        result = reading.result(timeout=10)
+    assert result["isError"] is False
+    assert tool_generations == [2, 2]
+    assert docs.catalog.generation == 3
 
 
 def test_remote_presentation_cache_coalesces_same_node_but_not_unrelated_nodes(

@@ -1140,7 +1140,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         if not is_safe_mount_id(mount_id):
             raise NotFound(f"Catalog shard not found: {mount_id}")
         subject = self._output_access_subject(request)
-        shard = getattr(self.catalog, "_shards", {}).get(mount_id)
+        shard = self.catalog._active_shards().get(mount_id)
         if shard is None or not self.catalog.can_access_mount(
             mount_id,
             subject,

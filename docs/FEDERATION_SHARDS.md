@@ -255,6 +255,10 @@ publishes the composed catalog plus derived graph caches as one lock-owned
 generation. A failed mount retains only its own previous verified generation;
 it does not block unrelated mounts. `rollback(mount, fingerprint)` pins a
 retained generation until `unpin(mount)` explicitly resumes hub updates.
+Mount generation identity includes only that mount's channel projection and
+verified shard manifests. The enclosing hub digest remains receipt evidence,
+so an unrelated mount update neither rotates the generation nor discards its
+warm presentation cache.
 
 Catalog metadata is eager so routes, DCP, and navigation remain O(1) by node
 identity. Presentation HTML and semantic indexes remain lazy. Concurrent first
@@ -262,7 +266,9 @@ reads of the same presentation coalesce behind a temporary per-node flight,
 while reads for different nodes and mounts remain independent. Each in-flight
 request owns the immutable generation from which it resolved the node, so an
 upstream refresh cannot mix an old catalog record with new presentation bytes.
-Each generation's presentation LRU is bounded to 256 entries and 64 MiB of
+Read-only browser, search, DCP, export, and MCP requests pin one composed
+catalog generation for their complete read. Each generation's presentation LRU
+is bounded to 256 entries and 64 MiB of
 decoded sanitized HTML. The two caps bound both metadata-heavy small pages and
 large bodies while holding at most four maximum-size v1 presentations.
 Least-recently-used entries are evicted until both limits hold. A body larger

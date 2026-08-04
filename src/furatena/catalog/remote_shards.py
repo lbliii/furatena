@@ -9,7 +9,7 @@ import json
 import re
 import threading
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -375,11 +375,26 @@ class RemoteShardMountRegistry:
         """Fetch and verify one inert presentation without fetching semantic content."""
         generation = self.generation(mount)
         shard = self._resolve_shard(generation, edition)
+        return self._fetch_presentation_from_shard(shard, node_id)
+
+    def _bind_presentation_loader(
+        self, mount: str, edition: str
+    ) -> tuple[str, RemoteShardGeneration, Callable[[str], bytes]]:
+        """Bind lazy presentation reads to one immutable mount generation."""
+        generation = self.generation(mount)
+        shard = self._resolve_shard(generation, edition)
+        return (
+            generation.generation_id,
+            shard,
+            lambda node_id: self._fetch_presentation_from_shard(shard, node_id),
+        )
+
+    def _fetch_presentation_from_shard(self, shard: RemoteShardGeneration, node_id: str) -> bytes:
         presentation_ref = shard.presentations.get(node_id)
         if presentation_ref is None:
             raise RemoteShardUnavailableError(
                 f"Remote node {node_id!r} is not public in {shard.identity}.",
-                mount=mount,
+                mount=shard.mount,
                 operation="remote_shard_read",
             )
         return self._fetch_object(shard, presentation_ref)
@@ -557,13 +572,14 @@ class RemoteShardMountRegistry:
                 )
             catalogs[identity] = _json_object(catalog_bytes, label=f"catalog {identity}")
             manifests[identity] = manifest
-        generation_id = _digest_json(
-            {
-                "hub_payload_sha256": hub["integrity"]["payload_sha256"],
-                "mount": mount,
-                "shards": {identity: manifests[identity]["fingerprint"] for identity in identities},
+        generation_shards = {
+            identity: {
+                "fingerprint": str(manifests[identity]["fingerprint"]),
+                "manifest_sha256": published_manifest_digest(manifests[identity]),
             }
-        )
+            for identity in identities
+        }
+        generation_id = _mount_generation_id(mount, channel, generation_shards)
         generation_path = self._mount_root(mount) / "generations" / generation_id
         if not generation_path.is_dir():
             receipt = {
@@ -574,13 +590,7 @@ class RemoteShardMountRegistry:
                 "activated_at": _now(),
                 "hub_verification": hub_verification,
                 "shard_verifications": shard_verifications,
-                "shards": {
-                    identity: {
-                        "fingerprint": manifests[identity]["fingerprint"],
-                        "manifest_sha256": published_manifest_digest(manifests[identity]),
-                    }
-                    for identity in identities
-                },
+                "shards": generation_shards,
             }
             transaction = AtomicDirectoryTransaction(
                 generation_path, operation="remote-shard-generation"
@@ -677,14 +687,16 @@ class RemoteShardMountRegistry:
                     operation="remote_shard_generation_load",
                 )
             shards[identity] = _shard_generation(manifest, catalog)
-        computed_id = _digest_json(
+        computed_id = _mount_generation_id(
+            mount,
+            channel,
             {
-                "hub_payload_sha256": hub["integrity"]["payload_sha256"],
-                "mount": mount,
-                "shards": {
-                    identity: shards[identity].fingerprint for identity in channel["editions"]
-                },
-            }
+                identity: {
+                    "fingerprint": str(receipt["shards"][identity]["fingerprint"]),
+                    "manifest_sha256": str(receipt["shards"][identity]["manifest_sha256"]),
+                }
+                for identity in channel["editions"]
+            },
         )
         if computed_id != generation_id:
             raise RemoteShardVerificationError(
@@ -1097,6 +1109,32 @@ def _freeze_json(value: Any) -> Any:
 
 def _identity_digest(identity: str) -> str:
     return hashlib.sha256(identity.encode()).hexdigest()
+
+
+def _mount_generation_id(
+    mount: str,
+    channel: Mapping[str, Any],
+    shards: Mapping[str, Mapping[str, str]],
+) -> str:
+    """Hash only state that changes the selected mount's readable projection."""
+    identities = tuple(str(value) for value in channel["editions"])
+    return _digest_json(
+        {
+            "mount": mount,
+            "channel": {
+                "latest": str(channel["latest"]),
+                "stable": str(channel["stable"]),
+                "editions": identities,
+            },
+            "shards": {
+                identity: {
+                    "fingerprint": shards[identity]["fingerprint"],
+                    "manifest_sha256": shards[identity]["manifest_sha256"],
+                }
+                for identity in identities
+            },
+        }
+    )
 
 
 def _canonical_json(value: Any) -> bytes:

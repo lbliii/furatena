@@ -568,17 +568,18 @@ class CatalogRegistry:
                 f"remote shard mount {mount.id!r} requires an injected RemoteShardMountRegistry"
             )
         remote_registry = self.remote_shards
-        remote = remote_registry.shard(mount.id, edition)
+        generation_id, remote, presentation_loader = remote_registry._bind_presentation_loader(
+            mount.id, edition
+        )
         shard = DocCatalog.from_remote(
             remote.catalog,
             mount=mount.id,
             edition=edition,
-            presentation_loader=lambda node_id, mount_id=mount.id, selected=edition: (
-                remote_registry.fetch_presentation(mount_id, selected, node_id)
-            ),
+            presentation_loader=presentation_loader,
             content_root=mount.content_root,
             catalog_nav=self.catalog_nav if mount.default else None,
         )
+        shard._remote_generation_id = generation_id
         shard._federated_slug_urls = self._federated_slug_urls
         return shard
 
@@ -746,11 +747,12 @@ class CatalogRegistry:
         """Per-mount source/index health for admin UI, CI, and MCP callers."""
         mount_filter = mount.strip() if mount else None
         mounts: list[dict[str, Any]] = []
+        active_shards = self._active_shards()
         for item in self.mounts:
             if mount_filter and item.id != mount_filter:
                 continue
             extensions = tuple(sorted(item.source.tracked_extensions()))
-            shard = self._shards.get(item.id)
+            shard = active_shards.get(item.id)
             sync = self._source_sync_status.get(
                 item.id,
                 {
@@ -893,11 +895,15 @@ class CatalogRegistry:
         """Scope catalog reads to one edition without cross-request shared mutation."""
         token = self._edition_context.set(edition)
         try:
-            yield
+            with self.read_snapshot():
+                yield
         finally:
             self._edition_context.reset(token)
 
     def _pin_read_generation(self) -> Any:
+        pinned = self._read_generation_context.get()
+        if pinned is not None and pinned.edition == self.active_channel:
+            return self._read_generation_context.set(pinned)
         with self._publication_lock:
             generation = self._read_generation
             if generation is None:
@@ -1055,7 +1061,13 @@ class CatalogRegistry:
             if mount.source.provider != "remote-shard":
                 continue
             try:
-                replacements[mount.id] = self._build_remote_shard(mount)
+                generation_id = self.remote_shards.generation(mount.id).generation_id
+                current = self._shards.get(mount.id)
+                if getattr(current, "_remote_generation_id", None) == generation_id:
+                    assert current is not None
+                    replacements[mount.id] = current
+                else:
+                    replacements[mount.id] = self._build_remote_shard(mount)
             except Exception as exc:
                 self._record_shard_status(mount, "failed", stage="remote_compose", error=exc)
             else:
@@ -1074,6 +1086,10 @@ class CatalogRegistry:
                 )
             }
             next_shards.update(replacements)
+            if next_shards.keys() == self._shards.keys() and all(
+                next_shards[mount_id] is shard for mount_id, shard in self._shards.items()
+            ):
+                return report
             self._shards = next_shards
             self._edition_shards = {}
             with self._html_cache_lock:

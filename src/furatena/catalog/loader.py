@@ -296,6 +296,7 @@ class DocCatalog:
         self._frozen_shard_dir: Path | None = None
         self._frozen_edges: list[EdgeRecord] | None = None
         self._remote_presentation_cache: _RemotePresentationCache | None = None
+        self._remote_generation_id: str | None = None
         self._html_cache: dict[str, str] = {}
         self._nodes: list[DocNode] = []
         self._nodes_by_url: dict[str, DocNode] = {}
@@ -1319,6 +1320,7 @@ class DocCatalog:
             list[EdgeRecord], [edge for edge in raw.get("edges", []) if isinstance(edge, dict)]
         )
         catalog._remote_presentation_cache = None
+        catalog._remote_generation_id = None
         catalog._html_cache = {}
         catalog._nodes = []
         catalog._nodes_by_url = {}
@@ -1515,6 +1517,7 @@ class DocCatalog:
             max_entries=presentation_cache_entries,
             max_bytes=presentation_cache_bytes,
         )
+        catalog._remote_generation_id = None
         catalog._html_cache = {}
         catalog._nodes = []
         catalog._nodes_by_url = {}

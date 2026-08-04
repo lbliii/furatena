@@ -133,6 +133,23 @@ from furatena.cli.authoring import (
     author_read_source,
 )
 
+
+class _CatalogReadSnapshotMiddleware:
+    """Pin one composed catalog generation across every read-only HTTP request."""
+
+    __slots__ = ("_catalog",)
+
+    def __init__(self, catalog: CatalogRegistry) -> None:
+        self._catalog = catalog
+
+    async def __call__(self, request: Any, next: Any) -> Any:
+        if request.method not in {"GET", "HEAD", "QUERY"}:
+            return await next(request)
+        self._catalog.refresh_if_stale()
+        with self._catalog.read_snapshot():
+            return await next(request)
+
+
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 
 
@@ -564,6 +581,7 @@ class DocsApp:
             )
         app.add_middleware(GoogleFontsCSPMiddleware())
         app.add_middleware(ConditionalResponseMiddleware(self._response_last_modified))
+        app.add_middleware(_CatalogReadSnapshotMiddleware(self.catalog))
         self._register_contract_refs(app)
         self._register_routes(app)
         return app
