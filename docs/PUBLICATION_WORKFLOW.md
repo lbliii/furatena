@@ -126,3 +126,12 @@ approval service evaluates eligible decisions; provider adapters create reposito
 or deployment effects; the validation service supplies the bound validation
 snapshot. None of those components may weaken these guards or mutate an existing
 plan, decision, or event in place.
+
+Deployment promotion is a separate provider-neutral state machine. It consumes the
+fully verified artifact identity and promotes the same digest in order through
+preview, staging, and production without rebuilding. Durable current, history, and
+status records bind actor, plan, approvals, capability policy, expected generation,
+and idempotency identity. Failed serving verification restores last known good;
+rollback is an authorized, reasoned deployment of a previously successful
+destination artifact, never an unrecorded provider shortcut. Browser, CLI, and MCP
+are read-only; trusted deployment automation alone owns promotion authority.

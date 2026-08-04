@@ -338,6 +338,16 @@ class ThemeConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class PresentationConfig:
+    """Site-global presentation-pack selection and explicit trust grants."""
+
+    layout: str | None = None
+    skin: str | None = None
+    overrides: tuple[str, ...] = ()
+    trusted_capabilities: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True, slots=True)
 class DeliveryThemeConfig:
     """Theme identity selected by a delivery head."""
 
@@ -377,6 +387,7 @@ class DocsConfig:
     overrides: dict[str, str] = field(default_factory=dict)
     compose: dict[str, ComposeConfig] = field(default_factory=dict)
     theme: ThemeConfig = field(default_factory=ThemeConfig)
+    presentation: PresentationConfig = field(default_factory=PresentationConfig)
     site: SiteConfig = field(default_factory=SiteConfig)
     catalog: CatalogNavConfig = field(default_factory=CatalogNavConfig)
     identity: CatalogIdentityConfig = field(default_factory=CatalogIdentityConfig)
@@ -1160,6 +1171,26 @@ def load_docs_config(path: Path) -> DocsConfig:
         ),
     )
 
+    presentation_raw = raw.get("presentation") or {}
+    if not isinstance(presentation_raw, dict):
+        presentation_raw = {}
+    presentation_overrides_raw = presentation_raw.get("overrides") or ()
+    if not isinstance(presentation_overrides_raw, list | tuple):
+        presentation_overrides_raw = ()
+    presentation_trust_raw = presentation_raw.get("trusted_capabilities") or ()
+    if not isinstance(presentation_trust_raw, list | tuple | set | frozenset):
+        presentation_trust_raw = ()
+    presentation = PresentationConfig(
+        layout=_optional_str(presentation_raw.get("layout")),
+        skin=_optional_str(presentation_raw.get("skin")),
+        overrides=tuple(
+            value for item in presentation_overrides_raw if (value := str(item).strip())
+        ),
+        trusted_capabilities=frozenset(
+            value for item in presentation_trust_raw if (value := str(item).strip())
+        ),
+    )
+
     mounts_raw = raw.get("mounts")
     mounts_path = _resolve_path(root, str(mounts_raw)) if mounts_raw else root / "mounts.yaml"
 
@@ -1199,6 +1230,7 @@ def load_docs_config(path: Path) -> DocsConfig:
         overrides=overrides,
         compose=compose,
         theme=theme,
+        presentation=presentation,
         site=site,
         catalog=catalog,
         identity=identity,

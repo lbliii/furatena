@@ -90,10 +90,28 @@ where = ["src"]
   "js/*.js",
   "assets/fonts/*.woff2",
 ]
+"furatena.themes.docs" = [
+  "presentation-pack.json",
+  "README.md",
+  "*.html",
+  "layouts/*.html",
+  "partials/*.html",
+  "templates/**/*.html",
+  "views/*.html",
+]
 "furatena.themes.furatena" = [
   "assets/css/**/*.css",
   "assets/icons/**/*.svg",
   "assets/icons/**/*.md",
+]
+"furatena.themes.vanilla" = [
+  "presentation-pack.json",
+  "README.md",
+  "*.html",
+  "*.css",
+  "layouts/*.html",
+  "partials/*.html",
+  "views/*.html",
 ]
 
 [tool.ruff]

@@ -141,7 +141,7 @@ invoke = "uv run pytest tests/test_cli_command_modules.py -q"
 location = "tests/test_cli_command_modules.py"
 
 [check.theme-suite]
-invoke = "uv run pytest tests/test_chirp_docs_theming.py tests/test_chirp_docs_template_stack.py tests/test_theme_lint.py tests/test_theme_pack.py tests/test_theme_preset.py -q"
+invoke = "uv run pytest tests/test_builtin_layouts.py tests/test_chirp_docs_theming.py tests/test_chirp_docs_template_stack.py tests/test_theme_lint.py tests/test_theme_pack.py tests/test_theme_preset.py -q"
 location = "tests/test_chirp_docs_theming.py"
 
 [check.runtime-suite]
@@ -402,7 +402,25 @@ guardrails = [
 owns.code = ["src/furatena/themes/"]
 owns.tests = ["tests/test_theme_pack.py", "tests/test_theme_preset.py", "tests/test_theme_lint.py"]
 owns.docs = ["docs/THEMING.md"]
-edges = [{ to = "furatena_theme", type = "contains", what = "primary product theme" }, { to = "lagoon", type = "contains", what = "packaged Lagoon theme" }]
+edges = [
+  { to = "docs_layout", type = "contains", what = "complete documentation layout" },
+  { to = "furatena_theme", type = "contains", what = "primary product theme" },
+  { to = "lagoon", type = "contains", what = "packaged Lagoon theme" },
+  { to = "vanilla_layout", type = "contains", what = "complete neutral layout" },
+]
+
+[[steward]]
+id = "docs_layout"
+path = "src/furatena/themes/docs/AGENTS.md"
+point_of_view = "Keep the packaged docs layout complete, immutable, and synchronized with the proven application templates."
+guardrails = [
+  "Every supported view kind resolves without site-owned templates while preserving full and fragment response hooks.",
+  "Application template changes move with the packaged extraction and its byte-for-byte drift proof.",
+]
+owns.code = ["src/furatena/themes/docs/"]
+owns.tests = ["tests/test_builtin_layouts.py"]
+owns.docs = ["docs/PRESENTATION_PACKS.md", "src/furatena/themes/docs/README.md"]
+edges = [{ to = "themes", type = "packaged-by", what = "presentation discovery and package data" }, { to = "app", type = "extracted-from", what = "proven documentation templates" }]
 
 [[steward]]
 id = "furatena_theme"
@@ -429,6 +447,19 @@ owns.code = ["src/furatena/themes/lagoon/"]
 owns.tests = ["tests/test_chirp_docs_theming.py", "tests/test_catalog_packaging.py"]
 owns.docs = ["docs/THEMING.md"]
 edges = [{ to = "themes", type = "registered-by", what = "theme pack entry point" }, { to = "templates", type = "styles", what = "catalog views" }]
+
+[[steward]]
+id = "vanilla_layout"
+path = "src/furatena/themes/vanilla/AGENTS.md"
+point_of_view = "Keep the packaged vanilla layout complete, low-asset, accessible, and usable without client-side enhancement."
+guardrails = [
+  "Native navigation and GET search remain functional without JavaScript across full, fragment, static, and PDF rendering.",
+  "The neutral stylesheet preserves focus visibility, responsive reflow, reduced motion, contrast, and print behavior.",
+]
+owns.code = ["src/furatena/themes/vanilla/"]
+owns.tests = ["tests/test_builtin_layouts.py"]
+owns.docs = ["docs/PRESENTATION_PACKS.md", "src/furatena/themes/vanilla/README.md"]
+edges = [{ to = "themes", type = "packaged-by", what = "presentation discovery and package data" }, { to = "templates", type = "consumes", what = "typed render contexts" }]
 
 [[steward]]
 id = "app"
@@ -742,6 +773,14 @@ verification = "machine"
 enforced_by = "theme-suite"
 
 [[invariant]]
+id = "docs-layout-contract"
+steward = "docs_layout"
+statement = "The packaged docs layout owns every supported view and remains synchronized with the proven application templates."
+severity = "P0"
+verification = "machine"
+enforced_by = "theme-suite"
+
+[[invariant]]
 id = "furatena-theme-contract"
 steward = "furatena_theme"
 statement = "The primary theme remains compatible with semantic catalog templates and full/fragment rendering."
@@ -754,6 +793,14 @@ id = "lagoon-package-contract"
 steward = "lagoon"
 statement = "Lagoon remains a packaged, discoverable theme with tested catalog compatibility."
 severity = "P1"
+verification = "machine"
+enforced_by = "theme-suite"
+
+[[invariant]]
+id = "vanilla-layout-contract"
+steward = "vanilla_layout"
+statement = "The packaged vanilla layout remains complete, progressive, accessible, and presentation-only across output surfaces."
+severity = "P0"
 verification = "machine"
 enforced_by = "theme-suite"
 

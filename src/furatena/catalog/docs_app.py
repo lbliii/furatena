@@ -41,6 +41,7 @@ from furatena.catalog.access import (
     author_permission_for,
     evaluate_author_access,
 )
+from furatena.catalog.application_roots import ApplicationRoots
 from furatena.catalog.author_store import AuthorMutationStore, FilesystemAuthorMutationStore
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.conditional_response import ConditionalResponseMiddleware
@@ -335,6 +336,17 @@ class DocsApp:
         observability: OperationalEventEmitter | None = None,
     ) -> None:
         self.config = config
+        self.roots = ApplicationRoots.from_environment(config.root)
+        if self.roots.managed:
+            self.roots.ensure_writable_roots()
+            for label, path in (
+                ("mount configuration", config.mounts_path),
+                ("rewrite configuration", config.rewrites_path),
+                ("inventory configuration", config.inventories_path),
+                ("locale directory", config.locales_dir),
+            ):
+                if path is not None:
+                    self.roots.require_site_path(path, label=label)
         self.htmx_preview_version = resolve_htmx_preview()
         self.locale_service = LocaleResolutionService(config.i18n)
         self.repo_root = repo_root
@@ -356,9 +368,15 @@ class DocsApp:
         self.observability = observability or OperationalEventEmitter.from_environment()
         frozen = self.serve.frozen_dir or frozen_dir
         self.theme = DocsTheme.from_docs_config(
-            config, frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None
+            config,
+            frozen_dir=frozen if self.serve.mode != ServeMode.AUTHOR else None,
+            platform_root=self.roots.platform,
+            state_root=self.roots.state / "theme",
         )
-        self.views = ViewRegistry(config)
+        self.views = ViewRegistry(
+            config,
+            presentation_views=dict(self.theme.view_templates),
+        )
         self.catalog = CatalogRegistry.from_config(
             config.mounts_path or config.root / "mounts.yaml",
             repo_root=repo_root,
@@ -377,7 +395,14 @@ class DocsApp:
             catalog_nav=config.catalog,
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
+            state_root=self.roots.state / "source-sync-state",
         )
+        if self.roots.managed:
+            for mount in self.catalog.mounts:
+                self.roots.require_site_path(
+                    mount.content_root,
+                    label=f"content root for mount {mount.id!r}",
+                )
         self.frozen_artifacts = FrozenArtifactStore(
             self.catalog.frozen_root if self.serve.mode != ServeMode.AUTHOR else None
         )
@@ -475,6 +500,7 @@ class DocsApp:
         app.template_global("fura_author")(lambda: self.serve.auto_reload)
         app.template_global("fura_author_mode")(lambda: self._is_author_mode())
         app.template_global("docs_stylesheets")(lambda: self.theme.stylesheet_hrefs)
+        app.template_global("fura_presentation")(self.theme.presentation.to_dict)
         app.template_global("fura_htmx4_preview")(lambda: self.htmx_preview_version is not None)
         app.template_global("fura_htmx_version")(lambda: self.htmx_preview_version or "2.0.4")
         app.template_global("fura_htmx_assets")(
@@ -1781,8 +1807,14 @@ class DocsApp:
         configure_pounce_display_defaults()
         resolved_host = host or self.app.config.host
         resolved_port = port or self.app.config.port
-        pid_path = dev_server_pid_path(self.repo_root)
-        stop_dev_server(self.repo_root, host=resolved_host, port=resolved_port)
+        runtime_state = self.roots.state if self.roots.managed else None
+        pid_path = dev_server_pid_path(self.repo_root, state_root=runtime_state)
+        stop_dev_server(
+            self.repo_root,
+            host=resolved_host,
+            port=resolved_port,
+            state_root=runtime_state,
+        )
         write_dev_server_record(
             pid_path,
             pid=os.getpid(),

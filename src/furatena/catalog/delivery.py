@@ -96,6 +96,7 @@ def check_delivery_config(
     if docs.delivery.head not in known_heads:
         errors.append(f"delivery.head unknown rendering head: {docs.delivery.head!r}")
     errors.extend(_check_theme("delivery.theme", docs.delivery.theme))
+    site_theme = _resolve_delivery_theme(docs, None)
 
     for mount_id, override in sorted(docs.delivery.mounts.items()):
         if catalog_mounts and mount_id not in catalog_mounts:
@@ -105,6 +106,14 @@ def check_delivery_config(
                 f"delivery.mounts.{mount_id}.head unknown rendering head: {override.head!r}"
             )
         errors.extend(_check_theme(f"delivery.mounts.{mount_id}.theme", override.theme))
+        mount_theme = _resolve_delivery_theme(docs, override.theme)
+        if (mount_theme.id, mount_theme.use) != (site_theme.id, site_theme.use):
+            errors.append(
+                f"delivery.mounts.{mount_id}.theme selects per-mount presentation; "
+                "Furatena v1 requires one site-global presentation. Move the layout/skin "
+                "selection to presentation.layout and presentation.skin, or publish this "
+                "mount as a separate site."
+            )
 
     return sorted(errors), sorted(warnings)
 

@@ -376,8 +376,9 @@ types and filenames while preserving these observable contracts.
 
 ## Federation boundary
 
-The federation RFC under #347/#359 owns decisions that are not required for local
-edition implementation:
+The accepted executable contract in [FEDERATION_SHARDS.md](FEDERATION_SHARDS.md)
+resolves the #347/#359 decisions that were intentionally deferred from local edition
+implementation:
 
 - the published shard archive layout, compression, signatures, and transport integrity;
 - the hub manifest schema and artifact URL/authentication model;

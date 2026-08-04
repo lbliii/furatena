@@ -1,0 +1,36 @@
+{% extends "layouts/docs_app.html" %}
+{% from "chirpui/layout.html" import container, stack %}
+
+{% block app_content %}
+<div class="chirp-theme-page">
+{% call container(max_width="72rem") %}
+{% call stack(gap="xl") %}
+  <article class="chirp-theme-page__article">
+    <header class="chirpui-hero chirpui-hero--page chirp-theme-page__header">
+      <div class="chirpui-hero__inner">
+        <p class="chirpui-hero__eyebrow">{{ site_name }} · Content control plane</p>
+        <h1 class="chirpui-hero__title">{{ node.title }}</h1>
+        {% if node.description %}
+        <p class="chirpui-hero__subtitle">{{ node.description }}</p>
+        {% end %}
+      </div>
+    </header>
+
+    <div class="prose chirp-theme-docs-layout__content">
+      {{ node | doc_body | boost_doc_links }}
+    </div>
+  </article>
+
+  <nav class="chirp-theme-home__explore" aria-label="Explore Furatena">
+    <p class="chirp-theme-home__explore-title">Explore the control plane</p>
+    <div class="chirp-theme-home__explore-links">
+      <a class="chirp-theme-home__explore-link" href="/platform/"{{ route_link_attrs('/platform/') | html_attrs }}>Platform</a>
+      <a class="chirp-theme-home__explore-link" href="/agents/"{{ route_link_attrs('/agents/') | html_attrs }}>Agent delivery</a>
+      <a class="chirp-theme-home__explore-link" href="/migration/"{{ route_link_attrs('/migration/') | html_attrs }}>Migration</a>
+      <a class="chirp-theme-home__explore-link" href="/proof/"{{ route_link_attrs('/proof/') | html_attrs }}>Proof</a>
+    </div>
+  </nav>
+{% end %}
+{% end %}
+</div>
+{% end %}

@@ -3,6 +3,7 @@ name: Prove Railway private-image template conformance
 on:
   pull_request:
     paths:
+      - examples/railway-content-starter/**
       - config/railway-template-spec.json
       - scripts/verify_template_spec.py
       - tests/test_railway_template_conformance.py

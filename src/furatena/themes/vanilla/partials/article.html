@@ -1,0 +1,20 @@
+<article class="vanilla-article">
+  <header>
+    <h1>{{ node.title }}</h1>
+    {% if node.description %}<p class="vanilla-lede">{{ node.description }}</p>{% end %}
+  </header>
+  <div class="vanilla-prose">{{ node | doc_body | boost_doc_links }}</div>
+  {% if backlinks %}
+  <footer>
+    <h2>Linked from</h2>
+    <ul>{% for ref in backlinks %}<li><a href="{{ ref.href }}">{{ ref.title }}</a></li>{% endfor %}</ul>
+  </footer>
+  {% end %}
+</article>
+
+{% if prev_page or next_page %}
+<nav class="vanilla-prev-next" aria-label="Previous and next pages">
+  {% if prev_page %}<a rel="prev" href="{{ prev_page.url }}">← {{ prev_page.title }}</a>{% end %}
+  {% if next_page %}<a rel="next" href="{{ next_page.url }}">{{ next_page.title }} →</a>{% end %}
+</nav>
+{% end %}

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-promotion/v1/common.schema.json",
+  "title": "Furatena publication promotion common records v1",
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "environment": {"enum": ["artifact", "preview", "staging", "production"]},
+    "deployed_environment": {"enum": ["preview", "staging", "production"]},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id", "artifact_digest", "manifest_digest", "plan_id", "plan_digest",
+        "policy_version", "policy_digest", "configuration_digest", "presentation_digest",
+        "runtime_identity", "fingerprints", "public_projection_digest"
+      ],
+      "properties": {
+        "artifact_id": {"type": "string", "pattern": "^publication-artifact-[0-9a-f]{64}$"},
+        "artifact_digest": {"$ref": "#/$defs/digest"},
+        "manifest_digest": {"$ref": "#/$defs/digest"},
+        "plan_id": {"type": "string", "pattern": "^plan-[0-9a-f]{24}$"},
+        "plan_digest": {"$ref": "#/$defs/digest"},
+        "policy_version": {"type": "string", "minLength": 1},
+        "policy_digest": {"$ref": "#/$defs/digest"},
+        "configuration_digest": {"$ref": "#/$defs/digest"},
+        "presentation_digest": {"$ref": "#/$defs/digest"},
+        "runtime_identity": {
+          "type": "object", "minProperties": 1,
+          "additionalProperties": {"type": "string", "minLength": 1}
+        },
+        "fingerprints": {
+          "type": "object", "minProperties": 1,
+          "additionalProperties": {"type": "string", "minLength": 1}
+        },
+        "public_projection_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment", "artifact_id", "artifact_digest", "manifest_digest",
+        "generation", "serving", "deployed_at"
+      ],
+      "properties": {
+        "environment": {"$ref": "#/$defs/deployed_environment"},
+        "artifact_id": {"type": "string", "pattern": "^publication-artifact-[0-9a-f]{64}$"},
+        "artifact_digest": {"$ref": "#/$defs/digest"},
+        "manifest_digest": {"$ref": "#/$defs/digest"},
+        "generation": {"type": "integer", "minimum": 1},
+        "serving": {"const": true},
+        "deployed_at": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "strategy", "compatible", "environment_policy", "current_state_matches", "checked_at"
+      ],
+      "properties": {
+        "strategy": {"enum": ["atomic", "safe_canary"]},
+        "compatible": {"type": "boolean"},
+        "environment_policy": {"type": "boolean"},
+        "current_state_matches": {"type": "boolean"},
+        "checked_at": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_digest", "manifest_digest", "checks", "smoke", "evidence_digest", "verified_at"
+      ],
+      "properties": {
+        "artifact_digest": {"$ref": "#/$defs/digest"},
+        "manifest_digest": {"$ref": "#/$defs/digest"},
+        "checks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["readiness", "build_identity", "public_projection", "privacy"],
+          "properties": {
+            "readiness": {"type": "boolean"},
+            "build_identity": {"type": "boolean"},
+            "public_projection": {"type": "boolean"},
+            "privacy": {"type": "boolean"}
+          }
+        },
+        "smoke": {"type": "object", "additionalProperties": {"type": "boolean"}},
+        "evidence_digest": {"$ref": "#/$defs/digest"},
+        "verified_at": {"$ref": "#/$defs/timestamp"}
+      }
+    },
+    "restoration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "deployment"],
+      "properties": {
+        "status": {"enum": ["not_required", "restored", "unknown"]},
+        "deployment": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/deployment"}
+          ]
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "remediation"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "message": {"type": "string", "minLength": 1},
+        "remediation": {"type": "string", "minLength": 1}
+      }
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor", "identity_source", "roles", "teams"],
+      "properties": {
+        "actor": {"type": "string", "minLength": 1},
+        "identity_source": {"type": "string", "minLength": 1},
+        "roles": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "teams": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    }
+  }
+}

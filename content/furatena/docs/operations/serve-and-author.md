@@ -51,6 +51,29 @@ the final readiness signal. Set `POUNCE_APP_NAME`, `POUNCE_APP_TAGLINE`,
 `POUNCE_APP_VERSION`, or `POUNCE_SIGNAGE` before `fura serve` to override those
 defaults. Furatena preserves values supplied by the caller.
 
+## Startup lifecycle
+
+Normal author and hybrid startup freezes the Chirp application and runs its contract
+suite exactly once. A successful preflight writes a compact catalog, check-count, elapsed
+time, and effective reload summary to stderr. Warning details remain available through
+`uv run fura check`; contract errors include their template or route origin and a recovery
+action, then stop startup with a validation exit before the listener opens. Preview mode
+and an explicit `CHIRP_SKIP_CONTRACT_CHECKS=1` report that checks were skipped.
+
+Furatena does not print an `Open` or `Ready` line. Pounce shows the configured URL as
+server information and owns readiness. Released Pounce 0.9.2 currently emits two
+readiness log events in reload-enabled author mode—one after binding and another after
+lifespan startup—so Furatena's one-ready lifecycle remains blocked on an upstream Pounce
+fix and release. Furatena does not hide either event with a logging filter. Redirected
+preflight output is plain, stable text without cursor controls or spinner artifacts. With
+Chirp JSON logging configured, the Furatena preflight on stderr is one
+`furatena.serve.preflight` JSON event so it composes with Pounce deployment logs.
+
+`uv run fura serve --json` reserves stdout for one standard command result describing
+the completed `preflight` phase. Its `data.ready` field is `false` and its
+`data.configured_url` is configuration, not an early readiness claim; Pounce server and
+readiness logs remain on stderr.
+
 ## What reloads automatically
 
 | Change | Behavior |

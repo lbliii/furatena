@@ -8,6 +8,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from furatena.catalog.content_deployment import (
+    ContentDeploymentConfig,
+    ContentDeploymentError,
+    ContentDeploymentStore,
+)
 from furatena.catalog.deployment_manifest import read_deployment_manifest
 from furatena.catalog.runtime import ServeMode
 
@@ -125,6 +130,9 @@ def _readiness(
                 "Run `fura freeze` and restart with the refreshed frozen directory.",
             )
         )
+    managed_content_check = _managed_content_readiness()
+    if managed_content_check is not None:
+        checks.append(managed_content_check)
     ok = bool(checks) and all(check["ok"] for check in checks)
     return {
         "schema_version": 1,
@@ -136,6 +144,70 @@ def _readiness(
         "checks": checks,
         "remediation": [check["remediation"] for check in checks if not check["ok"]],
     }
+
+
+def _managed_content_readiness() -> dict[str, Any] | None:
+    if not os.environ.get("FURA_CONTENT_REPOSITORY", "").strip():
+        return None
+    remediation = (
+        "Restart the single-replica service on the selected content generation and verify its "
+        "image/build receipt identity."
+    )
+    try:
+        config = ContentDeploymentConfig.from_environment()
+        if config is None:
+            return _check("content:generation_identity", False, "", remediation)
+        store = ContentDeploymentStore(config)
+        status = store.status(full_verification=True)
+        active_generation = str(status.get("active_generation") or "")
+        receipt = status.get("receipt")
+        verification = status.get("generation_verification")
+        if not isinstance(receipt, dict):
+            return _check("content:generation_identity", False, "", remediation)
+        running_generation = os.environ.get("FURA_ACTIVE_CONTENT_GENERATION", "").strip()
+        image_digest = os.environ.get("FURA_IMAGE_DIGEST", "").strip()
+        build_commit = (
+            os.environ.get("FURA_BUILD_GIT_SHA") or os.environ.get("RAILWAY_GIT_COMMIT_SHA") or ""
+        ).strip()
+        matches = bool(
+            running_generation
+            and running_generation == active_generation
+            and image_digest
+            and image_digest != "unknown"
+            and receipt.get("image_digest") == image_digest
+            and build_commit
+            and build_commit != "unknown"
+            and receipt.get("build_commit") == build_commit
+            and isinstance(verification, dict)
+            and verification.get("compatible") is True
+            and verification.get("status") in {"verified", "legacy_v1"}
+        )
+        from furatena.catalog.content_refresh import ContentRefreshService
+
+        latest = ContentRefreshService(store).latest()
+        if status.get("rollback_hold"):
+            lifecycle_state = "rollback"
+        elif latest is not None and latest.state.value in {"queued", "staging"}:
+            lifecycle_state = "staging"
+        elif latest is not None and latest.state.value == "failed":
+            lifecycle_state = "degraded" if active_generation else "failed"
+        elif isinstance(verification, dict) and verification.get("status") == "degraded":
+            lifecycle_state = "degraded"
+        elif running_generation != active_generation:
+            lifecycle_state = "stale"
+        else:
+            lifecycle_state = "active"
+    except ContentDeploymentError, OSError, ValueError:
+        matches = False
+        lifecycle_state = "failed"
+    check = _check(
+        "content:generation_identity",
+        matches,
+        "The running generation matches the active selector and image/build receipt.",
+        remediation,
+    )
+    check["lifecycle_state"] = lifecycle_state
+    return check
 
 
 def _freshness(
