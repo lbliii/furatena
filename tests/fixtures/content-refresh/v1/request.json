@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "record_type": "furatena.content-refresh.request",
+  "expected_active_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "requested_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "idempotency_key": "release-20260804-01"
+}

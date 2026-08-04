@@ -141,16 +141,27 @@ refresh(configured_repository, configured_ref, configured_subdirectory,
 The refresh controller:
 
 1. authenticates the request and validates repository policy;
-2. acquires the content-generation lease;
-3. rejects a stale active commit and proves the exact requested commit is
-   reachable from the configured ref;
-4. returns the prior receipt for an identical idempotency key and digest;
+2. acquires the durable submission lease, returning the prior receipt for an
+   identical idempotency key and digest while rejecting conflicting, stale, or
+   concurrently pending work;
+3. proves the exact requested commit is reachable from the configured ref under
+   the shared `content-refresh` lease;
+4. reacquires that lease before publishing the queued receipt and transfers its
+   ownership to the refresh worker;
 5. fetches the exact commit into a new staging directory;
 6. validates configuration, content, public-projection canaries, and limits;
 7. freezes a complete generation and verifies its artifact inventory;
 8. runs representative reader, search, catalog, and agent-surface checks;
 9. atomically promotes the generation and advances last-known-good;
-10. records the receipt, audit event, and operational status.
+10. records the receipt, audit event, and operational status before releasing
+    refresh ownership.
+
+Authorization is site-wide in v1. One independently rotated bearer controls
+the single configured service/site, repository, ref policy, and subdirectory.
+The request cannot select a tenant, site, repository, ref, subdirectory, or
+mount subset; all configured mounts and their browser, frozen/static, search,
+catalog, and agent projections are rebuilt together. Multi-tenant or partial-
+mount refresh requires a separately approved identity and policy contract.
 
 The same idempotency key with a different semantic digest is a conflict. A
 second request while one operation is pending is also a conflict under the
@@ -315,12 +326,18 @@ receipts while preserving a one-service product shape.
 
 ## Consequences
 
-The template becomes useful only after the content refresh path is implemented;
-the private-image pipeline alone is insufficient. The volume is part of the
-product contract and must be included in clean-account conformance, backup,
-restore, and cost evidence. Public repositories make v1 materially safer but do
-not satisfy private-docs use cases. Image and content release operations must be
+The provider-neutral content refresh path is implemented across the HTTP, CLI,
+startup, generation, rollback, readiness, and status contracts. The private-
+image pipeline alone remains insufficient: the volume is part of the product
+contract and must be included in clean-account conformance, backup, restore,
+and cost evidence. Public repositories make v1 materially safer but do not
+satisfy private-docs use cases. Image and content release operations must be
 tested independently on every candidate.
+
+This ADR accepts the product capability and its single-service v1 boundary. It
+does not claim the external Railway acceptance gate: the same-deployment proof,
+provider receipts, and live failure-injection evidence remain operational work
+and are not inferred from repository tests.
 
 ## GitHub work reconciliation
 

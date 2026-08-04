@@ -189,6 +189,8 @@ def test_request_is_versioned_exact_and_cannot_override_configured_scope() -> No
             ContentRefreshRequest.from_dict({**request.to_dict(), field: "override"})
     with pytest.raises(ValueError, match="40-character"):
         ContentRefreshRequest(None, "main", "refresh-key-0001")
+    with pytest.raises(ValueError, match="unsupported schema version"):
+        ContentRefreshRequest.from_dict({**request.to_dict(), "schema_version": True})
 
 
 def test_submit_persists_transitions_replays_and_detects_key_collision(tmp_path: Path) -> None:
@@ -306,6 +308,48 @@ def test_conflicts_are_deterministic_before_promotion(tmp_path: Path) -> None:
         )
     assert unreachable.value.code == "unreachable_commit"
     assert store.refresh_calls == 0
+
+
+def test_concurrent_workers_replay_one_delivery_and_reject_distinct_pending_work(
+    tmp_path: Path,
+) -> None:
+    assert_free_threading()
+    entered = threading.Event()
+    release = threading.Event()
+
+    class BlockingStore(_Store):
+        def refresh(self, **values: Any) -> dict[str, Any]:
+            entered.set()
+            assert release.wait(timeout=5)
+            return super().refresh(**values)
+
+    store = BlockingStore(tmp_path)
+    first_service = _service(store)
+    second_service = _service(store)
+    request = _request()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        first = pool.submit(first_service.submit, request, actor=_actor(), asynchronous=False)
+        assert entered.wait(timeout=5)
+
+        replay = second_service.submit(request, actor=_actor(), asynchronous=False)
+        assert replay.replayed
+        assert replay.operation_id.startswith("refresh-")
+        assert store.refresh_calls == 0
+
+        with pytest.raises(ContentRefreshConflict) as pending:
+            second_service.submit(
+                _request(key="refresh-key-0008"),
+                actor=_actor(),
+                asynchronous=False,
+            )
+        assert pending.value.code == "refresh_in_progress"
+
+        release.set()
+        completed = first.result(timeout=5)
+
+    assert completed.state == ContentRefreshState.ACTIVATION_PENDING_RESTART
+    assert store.refresh_calls == 1
 
 
 def test_startup_reconciliation_is_local_and_binds_generation_image_and_build(
@@ -638,8 +682,23 @@ def test_json_schemas_validate_request_and_durable_receipt(tmp_path: Path) -> No
     request_validator.validate(request.to_dict())
     receipt_validator.validate(receipt.to_dict())
 
+    with pytest.raises(ValueError, match="unsupported schema version"):
+        type(receipt).from_dict({**receipt.to_dict(), "schema_version": True})
+    with pytest.raises(ValidationError):
+        request_validator.validate({**request.to_dict(), "schema_version": True})
+    with pytest.raises(ValidationError):
+        receipt_validator.validate({**receipt.to_dict(), "schema_version": True})
+
     with pytest.raises(ValidationError):
         request_validator.validate({**request.to_dict(), "actor": "body-actor"})
+
+    fixture_root = Path("tests/fixtures/content-refresh/v1")
+    request_validator.validate(
+        json.loads((fixture_root / "request.json").read_text(encoding="utf-8"))
+    )
+    receipt_validator.validate(
+        json.loads((fixture_root / "receipt.json").read_text(encoding="utf-8"))
+    )
 
 
 def test_http_refresh_returns_202_and_deterministic_409_without_scope_override(
@@ -747,3 +806,78 @@ def test_build_identity_reports_running_generation_until_restart(
     assert identity["resolved_ref"] == COMMIT_A
     assert identity["selected_generation"] == selected.name
     assert identity["activation_pending_restart"] is True
+
+
+def test_promoted_generation_restarts_into_browser_search_catalog_and_agent_parity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository_root = Path(__file__).resolve().parents[1]
+    state_root = tmp_path / "state"
+    config = ContentDeploymentConfig(
+        repository="https://github.com/example/docs.git",
+        ref="main",
+        subdirectory="app",
+        allowed_hosts=frozenset({"github.com"}),
+        state_root=state_root,
+    )
+    store = ContentDeploymentStore(config)
+    canary = "RUNTIME_REFRESH_CANARY_436"
+
+    def checkout(target: Path, *, requested_commit: str | None = None) -> str:
+        assert requested_commit == COMMIT_B
+        app_root = target / "app"
+        content_root = app_root / "content"
+        content_root.mkdir(parents=True)
+        copy_app_theme(app_root, repository_root / "app")
+        write_minimal_docs_yaml(app_root / "docs.yaml")
+        write_mounts_yaml(app_root / "mounts.yaml", content_root)
+        (content_root / "_index.md").write_text(
+            f"---\ntitle: Refreshed home\n---\n\n# Refreshed home\n\n{canary}\n",
+            encoding="utf-8",
+        )
+        return COMMIT_B
+
+    monkeypatch.setattr(store, "_checkout", checkout)
+    monkeypatch.setenv("FURA_CONTENT_REPOSITORY", config.repository)
+    monkeypatch.setenv("FURA_CONTENT_REF", config.ref)
+    monkeypatch.setenv("FURA_CONTENT_SUBDIRECTORY", config.subdirectory)
+    monkeypatch.setenv("FURA_CONTENT_STATE_ROOT", str(state_root))
+    monkeypatch.setenv("FURA_PLATFORM_ROOT", str(repository_root / "app"))
+    monkeypatch.setenv("FURA_RUNTIME_STATE_ROOT", str(tmp_path / "runtime-state"))
+    monkeypatch.setenv("FURA_OUTPUT_ROOT", str(tmp_path / "runtime-output"))
+    monkeypatch.setenv("FURA_IMAGE_DIGEST", "sha256:" + "c" * 64)
+    monkeypatch.setenv("FURA_BUILD_GIT_SHA", "d" * 40)
+    service = ContentRefreshService(store)
+
+    promoted = service.submit(_request(), actor=_actor(), asynchronous=False)
+    assert promoted.state == ContentRefreshState.ACTIVATION_PENDING_RESTART
+
+    selection = store.active_selection()
+    monkeypatch.setenv("FURA_ACTIVE_CONTENT_GENERATION", selection.generation)
+    reconciled = service.reconcile_startup()
+    assert reconciled[-1].state == ContentRefreshState.READY
+
+    docs = DocsApp.from_paths(
+        selection.site_root / "docs.yaml",
+        repo_root=selection.checkout_root,
+        autodoc=False,
+        serve=ServeConfig(ServeMode.PREVIEW, selection.frozen_root, True, False),
+    )
+    client = TestClient(docs.create_app())
+
+    async def assert_surfaces() -> None:
+        async with client:
+            browser, search, catalog, llms = await asyncio.gather(
+                client.get("/"),
+                client.get("/search.json"),
+                client.get("/catalog.json"),
+                client.get("/llms-full.txt"),
+            )
+        for response in (browser, search, catalog, llms):
+            assert response.status == 200
+        assert "Refreshed home" in browser.text
+        for response in (search, catalog, llms):
+            assert canary in response.text
+
+    asyncio.run(assert_surfaces())

@@ -880,7 +880,7 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1931`, `furatena/cli/commands/serve.py:47` |
 | `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1493`, `furatena/catalog/route_registrars.py:1512`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:51` |
-| `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:65`, `furatena/catalog/content_deployment.py:313`, `furatena/catalog/content_deployment.py:566`, `furatena/catalog/content_deployment.py:678`, `furatena/catalog/content_refresh.py:494`, `furatena/catalog/operational_status.py:170`, `furatena/catalog/preview_security.py:103` |
+| `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:65`, `furatena/catalog/content_deployment.py:313`, `furatena/catalog/content_deployment.py:566`, `furatena/catalog/content_deployment.py:678`, `furatena/catalog/content_refresh.py:500`, `furatena/catalog/operational_status.py:170`, `furatena/catalog/preview_security.py:103` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:36`, `furatena/cli/commands/serve.py:49` |
 | `FURA_CONTENT_REPOSITORY` | read | '' | `furatena/catalog/operational_status.py:150`, `furatena/cli/commands/serve.py:80` |
 | `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:133` |
@@ -891,14 +891,14 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `FURA_FROZEN_DIR` | read | '' | `furatena/cli/commands/export.py:47`, `furatena/cli/commands/serve.py:76` |
 | `FURA_HTMX_PREVIEW` | read | '' | `furatena/catalog/vendor_paths.py:33` |
 | `FURA_IMAGE_CHANNEL` | read | 'development' | `furatena/catalog/build_identity.py:74` |
-| `FURA_IMAGE_DIGEST` | read | '', 'unknown' | `furatena/catalog/build_identity.py:75`, `furatena/catalog/content_deployment.py:311`, `furatena/catalog/content_deployment.py:564`, `furatena/catalog/content_deployment.py:676`, `furatena/catalog/content_refresh.py:492`, `furatena/catalog/operational_status.py:168` |
+| `FURA_IMAGE_DIGEST` | read | '', 'unknown' | `furatena/catalog/build_identity.py:75`, `furatena/catalog/content_deployment.py:311`, `furatena/catalog/content_deployment.py:564`, `furatena/catalog/content_deployment.py:676`, `furatena/catalog/content_refresh.py:498`, `furatena/catalog/operational_status.py:168` |
 | `FURA_IMAGE_VERSION` | read | 'development' | `furatena/catalog/build_identity.py:76` |
 | `FURA_KEEP_ALIVE_TIMEOUT` | read | '5' | `furatena/catalog/docs_app.py:271` |
 | `FURA_LANG` | read | '' | `furatena/catalog/i18n.py:112` |
 | `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:41`, `furatena/cli/commands/serve.py:43`, `furatena/cli/commands/serve.py:45` |
 | `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:221` |
 | `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:216` |
-| `FURA_PLATFORM_ROOT` | read | '', '/app/app' | `furatena/catalog/content_deployment.py:867`, `furatena/catalog/renderer_fingerprint.py:68` |
+| `FURA_PLATFORM_ROOT` | read | '', '/app/app' | `furatena/catalog/content_deployment.py:869`, `furatena/catalog/renderer_fingerprint.py:68` |
 | `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:152`, `furatena/cli/commands/serve.py:137`, `furatena/cli/commands/serve.py:53`, `furatena/cli/commands/stop.py:17` |
 | `FURA_PREVIEW_AUTH_TOKEN` | read | '' | `furatena/catalog/preview_security.py:159` |
 | `FURA_PREVIEW_ORIGIN` | read | '' | `furatena/catalog/preview_security.py:105` |

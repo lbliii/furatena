@@ -760,6 +760,8 @@ class ContentDeploymentStore:
             ("git", "-C", str(target), "remote", "add", "origin", self.config.repository),
             (
                 "git",
+                "-c",
+                "http.followRedirects=false",
                 "-C",
                 str(target),
                 "fetch",
