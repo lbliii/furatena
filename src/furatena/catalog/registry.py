@@ -506,6 +506,7 @@ class CatalogRegistry:
         self._remote_mount_generations: dict[str, str] = {}
         self._federated_backlinks: dict[str, list[dict[str, str]]] = {}
         self._pending_remote_link_shards: dict[str, str] = {}
+        self._pending_remote_link_shards_lock = RLock()
         self._translation_index: dict[str, dict[str, str]] | None = None
         self._inventory_store = None
         self._watcher: SourceWatcher | None = None
@@ -970,7 +971,7 @@ class CatalogRegistry:
                 for remote in generation.shards.values():
                     current_keys.add(remote.identity)
                     if self._link_index.fingerprint_for(remote.identity) == remote.fingerprint:
-                        self._pending_remote_link_shards.pop(remote.identity, None)
+                        self._set_pending_remote_link_shard(remote.identity, None)
                         continue
                     if load_remote:
                         replacements[remote.identity] = remote_shard_link_snapshot(
@@ -980,11 +981,11 @@ class CatalogRegistry:
                             fingerprint=remote.fingerprint,
                             target_mount_for_url=self._target_mount_for_link,
                         )
-                        self._pending_remote_link_shards.pop(remote.identity, None)
+                        self._set_pending_remote_link_shard(remote.identity, None)
                     else:
                         if self._link_index.fingerprint_for(remote.identity) is not None:
                             replacements[remote.identity] = None
-                        self._pending_remote_link_shards[remote.identity] = remote.mount
+                        self._set_pending_remote_link_shard(remote.identity, remote.mount)
 
         if mount_ids is not None:
             for mount_id in mount_ids:
@@ -996,22 +997,57 @@ class CatalogRegistry:
         return self._link_index.reconcile(replacements, retain_keys=retain_keys)
 
     def _reconcile_remote_link_snapshot(self, remote: Any) -> dict[str, list[dict[str, str]]]:
-        snapshot = remote_shard_link_snapshot(
-            remote.catalog,
-            mount=remote.mount,
-            edition=remote.edition,
-            fingerprint=remote.fingerprint,
-            target_mount_for_url=self._target_mount_for_link,
-        )
-        backlinks = self._link_index.reconcile_with_backlinks(snapshot, edition=remote.edition)
-        self._pending_remote_link_shards.pop(remote.identity, None)
-        return backlinks
+        with self._publication_lock:
+            if self.remote_shards is not None:
+                from furatena.catalog.remote_shards import RemoteShardUnavailableError
+
+                try:
+                    current = self.remote_shards.shard(remote.mount, remote.edition)
+                except RemoteShardUnavailableError:
+                    return self._link_index.backlinks(remote.edition)
+                if current.identity != remote.identity or current.fingerprint != remote.fingerprint:
+                    return self._link_index.backlinks(remote.edition)
+            snapshot = remote_shard_link_snapshot(
+                remote.catalog,
+                mount=remote.mount,
+                edition=remote.edition,
+                fingerprint=remote.fingerprint,
+                target_mount_for_url=self._target_mount_for_link,
+            )
+            backlinks = self._link_index.reconcile_with_backlinks(snapshot, edition=remote.edition)
+            self._set_pending_remote_link_shard(remote.identity, None)
+            if (
+                self._read_generation is not None
+                and self._read_generation.edition == remote.edition
+            ):
+                self._federated_backlinks = {
+                    url: [dict(ref) for ref in refs] for url, refs in backlinks.items()
+                }
+                self._read_generation = replace(
+                    self._read_generation,
+                    backlinks=_freeze_backlinks(backlinks),
+                )
+            return backlinks
+
+    def _set_pending_remote_link_shard(self, identity: str, mount: str | None) -> None:
+        """Mutate pending remote-link ownership under its dedicated lock."""
+        with self._pending_remote_link_shards_lock:
+            if mount is None:
+                self._pending_remote_link_shards.pop(identity, None)
+            else:
+                self._pending_remote_link_shards[identity] = mount
+
+    def _pending_remote_link_snapshot(self) -> dict[str, str]:
+        """Return one stable copy for free-threaded status readers."""
+        with self._pending_remote_link_shards_lock:
+            return dict(self._pending_remote_link_shards)
 
     def source_health(self, *, mount: str | None = None) -> dict[str, Any]:
         """Per-mount source/index health for admin UI, CI, and MCP callers."""
         mount_filter = mount.strip() if mount else None
         mounts: list[dict[str, Any]] = []
         residency = self.remote_residency_status()
+        pending_remote_links = self._pending_remote_link_snapshot()
         if mount_filter:
             residency = dict(residency)
             residency["objects"] = dict(residency["objects"])
@@ -1053,7 +1089,7 @@ class CatalogRegistry:
             has_error = "error" in sync or "error" in index
             link_health = self._link_index.mount_health(item.id)
             pending_links = sorted(
-                key for key, mount in self._pending_remote_link_shards.items() if mount == item.id
+                key for key, mount in pending_remote_links.items() if mount == item.id
             )
             if pending_links:
                 link_health["status"] = "pending"
@@ -1118,7 +1154,7 @@ class CatalogRegistry:
                 }
             )
         link_status = self._link_index.status()
-        link_status["pending_remote_shards"] = sorted(self._pending_remote_link_shards)
+        link_status["pending_remote_shards"] = sorted(self._pending_remote_link_snapshot())
         return {
             "schema_version": 1,
             "ok": all(item["status"] == "healthy" for item in mounts),

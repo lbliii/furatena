@@ -6,8 +6,11 @@ import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 
+import pytest
+
+from furatena.catalog.freeze import FreezeCatalogOptions, freeze_catalog
 from furatena.catalog.link_reconciliation import (
     IncrementalLinkIndex,
     LinkNode,
@@ -17,6 +20,7 @@ from furatena.catalog.link_reconciliation import (
 )
 from furatena.catalog.registry import CatalogRegistry, MountConfig
 from furatena.catalog.shard_discovery import discovery_mount_id, discovery_mount_token
+from tests.support import copy_app_theme, write_minimal_docs_yaml
 
 
 def _snapshot(
@@ -280,3 +284,138 @@ def test_remote_snapshot_reads_immutable_dcp_sequences() -> None:
 
     assert snapshot.outbound[0].target_url == "/beta/api/"
     assert snapshot.outbound[0].line == 7
+
+
+def test_on_demand_remote_backlinks_publish_to_future_read_generations(tmp_path: Path) -> None:
+    alpha = tmp_path / "alpha"
+    beta = tmp_path / "beta"
+    alpha.mkdir()
+    beta.mkdir()
+    (alpha / "_index.md").write_text("---\ntitle: Alpha\n---\n# Alpha\n", encoding="utf-8")
+    (beta / "_index.md").write_text("---\ntitle: Beta\n---\n# Beta\n", encoding="utf-8")
+    registry = CatalogRegistry(
+        (
+            MountConfig("alpha", "Alpha", alpha, url_prefix="/alpha/", default=True),
+            MountConfig("beta", "Beta", beta, url_prefix="/beta/"),
+        ),
+        repo_root=tmp_path,
+        app_root=tmp_path,
+        autodoc=False,
+    )
+    target = registry.get("/beta/")
+    assert target is not None
+    remote = SimpleNamespace(
+        identity="remote:latest",
+        mount="remote",
+        edition="latest",
+        fingerprint="remote-v1",
+        catalog={
+            "pages": [
+                {
+                    "node_id": "remote:latest:index",
+                    "title": "Remote",
+                    "url": "/remote/",
+                    "content": {"links": [{"href": "/beta/", "text": "Beta", "line": 4}]},
+                }
+            ]
+        },
+    )
+
+    registry._reconcile_remote_link_snapshot(remote)
+
+    with registry.read_snapshot():
+        assert registry.backlinks_for(target) == [{"title": "Remote", "href": "/remote/"}]
+
+
+def test_pending_remote_link_status_has_synchronized_ownership(tmp_path: Path) -> None:
+    content = tmp_path / "content"
+    content.mkdir()
+    (content / "_index.md").write_text("---\ntitle: Home\n---\n# Home\n", encoding="utf-8")
+    registry = CatalogRegistry(
+        (MountConfig("docs", "Docs", content, default=True),),
+        repo_root=tmp_path,
+        app_root=tmp_path,
+        autodoc=False,
+    )
+
+    def mutate(offset: int) -> None:
+        for index in range(500):
+            identity = f"remote:{offset + index}"
+            registry._set_pending_remote_link_shard(identity, "docs")
+            registry._set_pending_remote_link_shard(identity, None)
+
+    def read() -> None:
+        for _ in range(100):
+            registry.source_health()
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = [pool.submit(mutate, worker * 1_000) for worker in range(3)]
+        futures.extend(pool.submit(read) for _ in range(3))
+        for future in futures:
+            future.result()
+
+    assert registry.source_health()["link_reconciliation"]["pending_remote_shards"] == []
+
+
+@pytest.mark.parametrize("full_rebuild", [False, True])
+def test_freeze_prunes_discovery_artifacts_when_mount_becomes_protected(
+    tmp_path: Path, *, full_rebuild: bool
+) -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    app_root = tmp_path / "app"
+    app_root.mkdir()
+    copy_app_theme(app_root, repo_root / "app")
+    write_minimal_docs_yaml(app_root / "docs.yaml")
+    for mount in ("alpha", "beta"):
+        content = tmp_path / mount
+        content.mkdir()
+        (content / "_index.md").write_text(
+            f"---\ntitle: {mount.title()} Secret\n---\n# {mount}\n",
+            encoding="utf-8",
+        )
+
+    def write_mounts(*, protect_beta: bool) -> None:
+        access = "\n    access:\n      teams: [secret]" if protect_beta else ""
+        (app_root / "mounts.yaml").write_text(
+            "mounts:\n"
+            "  - id: alpha\n"
+            "    label: Alpha\n"
+            "    content_root: ../alpha\n"
+            "    url_prefix: /alpha/\n"
+            "    default: true\n"
+            "  - id: beta\n"
+            "    label: Beta\n"
+            "    content_root: ../beta\n"
+            f"    url_prefix: /beta/{access}\n",
+            encoding="utf-8",
+        )
+
+    output = tmp_path / "frozen"
+    options = FreezeCatalogOptions(
+        docs_config=app_root / "docs.yaml",
+        app_root=app_root,
+        repo_root=tmp_path,
+        output_dir=output,
+        autodoc=False,
+    )
+    write_mounts(protect_beta=False)
+    freeze_catalog(options)
+    assert (output / "llms" / "beta.txt").is_file()
+    assert (output / "sitemaps" / "beta.xml").is_file()
+
+    write_mounts(protect_beta=True)
+    freeze_catalog(
+        FreezeCatalogOptions(
+            docs_config=options.docs_config,
+            app_root=options.app_root,
+            repo_root=options.repo_root,
+            output_dir=options.output_dir,
+            full_rebuild=full_rebuild,
+            autodoc=False,
+        )
+    )
+
+    assert "/llms/beta.txt" not in (output / "llms.txt").read_text(encoding="utf-8")
+    assert "/sitemaps/beta.xml" not in (output / "sitemap.xml").read_text(encoding="utf-8")
+    assert not (output / "llms" / "beta.txt").exists()
+    assert not (output / "sitemaps" / "beta.xml").exists()

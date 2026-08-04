@@ -184,6 +184,9 @@ ci-fast: format-check hygiene
 		src/furatena/catalog/loader.py \
 		src/furatena/catalog/remote_shards.py \
 		src/furatena/catalog/registry.py \
+		src/furatena/catalog/link_reconciliation.py \
+		src/furatena/catalog/link_reconciliation_benchmarks.py \
+		src/furatena/catalog/shard_discovery.py \
 		src/furatena/catalog/shard_residency_benchmarks.py \
 		src/furatena/catalog/sources/git.py \
 		src/furatena/catalog/sources/types.py \
@@ -237,6 +240,7 @@ ci-fast: format-check hygiene
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \
+		tests/test_shard_link_reconciliation.py \
 		tests/test_shard_residency_benchmark.py \
 		tests/test_remote_shards.py \
 		tests/test_author_benchmark_harness.py \
