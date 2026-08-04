@@ -43,6 +43,9 @@ class ContentRefreshState(StrEnum):
 
 
 _TERMINAL_STATES = frozenset({ContentRefreshState.READY, ContentRefreshState.FAILED})
+_SUBMISSION_FAILURE_MESSAGE = (
+    "The content refresh could not start; retry with a new idempotency key."
+)
 
 
 class ContentRefreshConflict(ContentDeploymentError):
@@ -360,6 +363,8 @@ class ContentRefreshService:
         digest = self._semantic_digest(request, actor)
         operation_id = _operation_id(request.idempotency_key)
         refresh_lease: OperationLease | None = None
+        receipt: ContentRefreshReceipt | None = None
+        queued_persisted = False
         try:
             with self._submission_lease():
                 existing = self._read(operation_id)
@@ -406,16 +411,20 @@ class ContentRefreshService:
                 refresh_lease = self.store._content_refresh_lease()
                 refresh_lease.acquire()
                 self._write(receipt)
+                queued_persisted = True
         except BaseException as exc:
             if refresh_lease is not None:
-                self._release_transferred_lease(refresh_lease, exc)
+                if queued_persisted and receipt is not None:
+                    self._fail_unstarted_submission(receipt, refresh_lease, exc)
+                else:
+                    self._release_transferred_lease(refresh_lease, exc)
             raise
-        assert refresh_lease is not None
+        assert refresh_lease is not None and receipt is not None
         if asynchronous:
             try:
                 self._start(lambda: self._run_with_lease(receipt, request, refresh_lease))
             except BaseException as exc:
-                self._release_transferred_lease(refresh_lease, exc)
+                self._fail_unstarted_submission(receipt, refresh_lease, exc)
                 raise
             return receipt
         return self._run_with_lease(receipt, request, refresh_lease)
@@ -437,6 +446,8 @@ class ContentRefreshService:
             }
         )
         refresh_lease: OperationLease | None = None
+        receipt: ContentRefreshReceipt | None = None
+        queued_persisted = False
         try:
             with self._submission_lease():
                 if self._pending_receipts():
@@ -456,16 +467,20 @@ class ContentRefreshService:
                 refresh_lease = self.store._content_refresh_lease()
                 refresh_lease.acquire()
                 self._write(receipt)
+                queued_persisted = True
         except BaseException as exc:
             if refresh_lease is not None:
-                self._release_transferred_lease(refresh_lease, exc)
+                if queued_persisted and receipt is not None:
+                    self._fail_unstarted_submission(receipt, refresh_lease, exc)
+                else:
+                    self._release_transferred_lease(refresh_lease, exc)
             raise
-        assert refresh_lease is not None
+        assert refresh_lease is not None and receipt is not None
         if asynchronous:
             try:
                 self._start(lambda: self._run_compatibility_with_lease(receipt, refresh_lease))
             except BaseException as exc:
-                self._release_transferred_lease(refresh_lease, exc)
+                self._fail_unstarted_submission(receipt, refresh_lease, exc)
                 raise
             return receipt
         return self._run_compatibility_with_lease(receipt, refresh_lease)
@@ -606,6 +621,28 @@ class ContentRefreshService:
                 "The provisional content-refresh lease also failed to release cleanly "
                 f"({cleanup_error.__class__.__name__})."
             )
+
+    def _fail_unstarted_submission(
+        self,
+        receipt: ContentRefreshReceipt,
+        lease: OperationLease,
+        original: BaseException,
+    ) -> None:
+        """Terminalize a queued handoff failure before releasing content ownership.
+
+        The content-refresh lease is still held here. Do not reacquire the
+        submission lease in this path: doing so would invert the normal
+        submission-then-content ordering. A fixed public-safe failure keeps the
+        primary exception private while ensuring replays cannot remain queued.
+        """
+        try:
+            self._failed(receipt, "submission_failed", _SUBMISSION_FAILURE_MESSAGE)
+        except BaseException as bookkeeping_error:
+            original.add_note(
+                "The queued content-refresh receipt also failed to terminalize cleanly "
+                f"({bookkeeping_error.__class__.__name__})."
+            )
+        self._release_transferred_lease(lease, original)
 
     def _run_compatibility_with_lease(
         self,
@@ -852,7 +889,12 @@ class ContentRefreshService:
         thread = threading.Thread(target=run, name="furatena-content-refresh", daemon=True)
         with self._thread_lock:
             self._threads.add(thread)
-        thread.start()
+        try:
+            thread.start()
+        except BaseException:
+            with self._thread_lock:
+                self._threads.discard(thread)
+            raise
 
 
 def authenticate_content_actor(

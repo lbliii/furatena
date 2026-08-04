@@ -114,7 +114,7 @@ class _Store:
         expected = values.get("expected_active_commit")
         if expected != self.active_commit:
             raise ContentDeploymentConflict("stale_active_commit", "stale active commit")
-        requested = cast(str, values["requested_commit"])
+        requested = cast(str, values.get("requested_commit") or COMMIT_B)
         self.active_commit = requested
         self.active_generation = "generation-b"
         result = {
@@ -288,6 +288,111 @@ def test_submission_exit_failure_releases_transferred_refresh_lease_without_star
     assert not lease._heartbeat.is_alive()
     assert lease.owner() == {}
     assert not lease.path.exists()
+
+    failed = service.latest()
+    assert failed is not None
+    assert failed.state == ContentRefreshState.FAILED
+    assert failed.failure == {
+        "code": "submission_failed",
+        "message": "The content refresh could not start; retry with a new idempotency key.",
+    }
+    assert [event.state for event in failed.history] == [
+        ContentRefreshState.QUEUED,
+        ContentRefreshState.FAILED,
+    ]
+    assert "injected submission release failure" not in json.dumps(failed.to_dict())
+    assert not service._pending_receipts()
+
+    monkeypatch.setattr(service, "_submission_lease", original_submission_lease)
+    monkeypatch.setattr(store, "_content_refresh_lease", original_refresh_lease)
+    if submission_kind == "exact":
+        replay = service.submit(_request(), actor=_actor(), asynchronous=False)
+        assert replay.operation_id == failed.operation_id
+        assert replay.state == ContentRefreshState.FAILED
+        assert replay.replayed
+        recovered = service.submit(
+            _request(key="refresh-key-after-exit-failure"),
+            actor=_actor(),
+            asynchronous=False,
+        )
+    else:
+        recovered = service.submit_compatibility(actor=_actor(), asynchronous=False)
+    assert recovered.state == ContentRefreshState.ACTIVATION_PENDING_RESTART
+    assert store.refresh_calls == 1
+
+
+@pytest.mark.parametrize("submission_kind", ["exact", "compatibility"])
+def test_worker_start_failure_terminalizes_queue_and_allows_recovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    submission_kind: str,
+) -> None:
+    assert_free_threading()
+    store = _Store(tmp_path)
+    service = _service(store)
+    original_refresh_lease = store._content_refresh_lease
+    transferred: list[OperationLease] = []
+
+    def capture_refresh_lease() -> OperationLease:
+        lease = original_refresh_lease()
+        transferred.append(lease)
+        return lease
+
+    monkeypatch.setattr(store, "_content_refresh_lease", capture_refresh_lease)
+    original_thread_start = threading.Thread.start
+
+    def fail_refresh_worker_start(thread: threading.Thread) -> None:
+        if thread.name == "furatena-content-refresh":
+            raise RuntimeError("injected worker start secret")
+        original_thread_start(thread)
+
+    monkeypatch.setattr(threading.Thread, "start", fail_refresh_worker_start)
+
+    with pytest.raises(RuntimeError, match="injected worker start secret") as failure:
+        if submission_kind == "exact":
+            service.submit(_request(), actor=_actor(), asynchronous=True)
+        else:
+            service.submit_compatibility(actor=_actor(), asynchronous=True)
+
+    assert str(failure.value) == "injected worker start secret"
+    assert not getattr(failure.value, "__notes__", ())
+    assert len(transferred) == 1
+    lease = transferred[0]
+    assert not lease._acquired
+    assert lease._stop.is_set()
+    assert lease._heartbeat is not None
+    assert not lease._heartbeat.is_alive()
+    assert lease.owner() == {}
+    assert not lease.path.exists()
+    assert service._threads == set()
+    assert store.refresh_calls == 0
+
+    failed = service.latest()
+    assert failed is not None
+    assert failed.state == ContentRefreshState.FAILED
+    assert failed.failure == {
+        "code": "submission_failed",
+        "message": "The content refresh could not start; retry with a new idempotency key.",
+    }
+    assert "injected worker start secret" not in json.dumps(failed.to_dict())
+    assert not service._pending_receipts()
+
+    monkeypatch.setattr(threading.Thread, "start", original_thread_start)
+    monkeypatch.setattr(store, "_content_refresh_lease", original_refresh_lease)
+    if submission_kind == "exact":
+        replay = service.submit(_request(), actor=_actor(), asynchronous=False)
+        assert replay.operation_id == failed.operation_id
+        assert replay.state == ContentRefreshState.FAILED
+        assert replay.replayed
+        recovered = service.submit(
+            _request(key="refresh-key-after-start-failure"),
+            actor=_actor(),
+            asynchronous=False,
+        )
+    else:
+        recovered = service.submit_compatibility(actor=_actor(), asynchronous=False)
+    assert recovered.state == ContentRefreshState.ACTIVATION_PENDING_RESTART
+    assert store.refresh_calls == 1
 
 
 def test_conflicts_are_deterministic_before_promotion(tmp_path: Path) -> None:

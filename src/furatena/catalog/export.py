@@ -781,24 +781,37 @@ def search_json_for_query(
     include_eol: bool = False,
 ) -> dict[str, Any]:
     """Ranked search results in the same schema as ``search_json`` entries."""
-    hits = search_nodes(
-        accessible_nodes(
-            catalog,
-            catalog.doc_nodes(),
+    federated_search = getattr(catalog, "federated_search_hits", None)
+    registry_search = getattr(catalog, "search_hits", None)
+    if callable(federated_search) and callable(registry_search):
+        hits = registry_search(
+            query,
+            limit=limit,
             subject=subject,
-            permission=AccessPermission.SEARCH,
             include_private=include_private,
-        ),
-        query,
-        limit=limit,
-        documents=catalog.ast_documents()
-        if hasattr(catalog, "ast_documents")
-        else getattr(catalog, "_ast_documents", None),
-        status_for=lambda node: _edition_status(catalog, node),
-        status=status,
-        include_preview=include_preview,
-        include_eol=include_eol,
-    )
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        )
+    else:
+        hits = search_nodes(
+            accessible_nodes(
+                catalog,
+                catalog.doc_nodes(),
+                subject=subject,
+                permission=AccessPermission.SEARCH,
+                include_private=include_private,
+            ),
+            query,
+            limit=limit,
+            documents=catalog.ast_documents()
+            if hasattr(catalog, "ast_documents")
+            else getattr(catalog, "_ast_documents", None),
+            status_for=lambda node: _edition_status(catalog, node),
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        )
     return {
         "version": 1,
         "query": query,

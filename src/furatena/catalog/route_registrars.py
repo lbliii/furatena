@@ -951,7 +951,17 @@ def register_search_routes(docs: Any, app: App) -> None:
         self._ensure_catalog()
         query = (request.query.get("q") or "").strip()
         section = (request.query.get("section") or "").strip() or None
-        hits = self._search_hits(query, limit=6, section=section) if query else []
+        hits = (
+            self._search_hits(
+                query,
+                limit=6,
+                section=section,
+                subject=self._output_access_subject(request),
+                include_private=self._include_private_output(request),
+            )
+            if query
+            else []
+        )
         return Fragment(
             "partials/search_suggest.html",
             "search_suggest",

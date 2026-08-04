@@ -670,11 +670,6 @@ class RemoteShardMountRegistry:
         if limit <= 0 or not query.strip():
             return FederatedSearchResult((), (), ())
         selected_mounts = frozenset(mounts) if mounts is not None else None
-        selected_statuses = lifecycle_statuses(
-            status=status,
-            include_preview=include_preview,
-            include_eol=include_eol,
-        )
         with self._state_lock:
             generations = tuple(
                 generation
@@ -682,12 +677,42 @@ class RemoteShardMountRegistry:
                 if selected_mounts is None or mount in selected_mounts
             )
         candidates: list[RemoteShardGeneration] = []
-        skipped: list[str] = []
         for generation in generations:
             try:
                 shard = self._resolve_shard(generation, edition)
             except RemoteShardUnavailableError:
                 continue
+            candidates.append(shard)
+        return self._search_generations(
+            query,
+            shards=candidates,
+            limit=limit,
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        )
+
+    def _search_generations(
+        self,
+        query: str,
+        *,
+        shards: Iterable[RemoteShardGeneration],
+        limit: int,
+        status: str | None = None,
+        include_preview: bool = False,
+        include_eol: bool = False,
+    ) -> FederatedSearchResult:
+        """Query an exact immutable descriptor set without refresh-time mixing."""
+        if limit <= 0 or not query.strip():
+            return FederatedSearchResult((), (), ())
+        selected_statuses = lifecycle_statuses(
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        )
+        candidates: list[RemoteShardGeneration] = []
+        skipped: list[str] = []
+        for shard in shards:
             lifecycle = str(shard.manifest["lifecycle"]["status"])
             if lifecycle not in selected_statuses:
                 skipped.append(shard.identity)

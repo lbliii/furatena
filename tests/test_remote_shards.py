@@ -286,6 +286,7 @@ def _remote_docs_app(
     registry: RemoteShardMountRegistry,
     *mount_ids: str,
     app_name: str,
+    private_mounts: frozenset[str] = frozenset(),
 ) -> Any:
     from furatena.catalog.docs_app import DocsApp
     from furatena.catalog.runtime import ServeConfig, ServeMode
@@ -310,6 +311,7 @@ mounts: mounts.yaml
     )
     mounts = []
     for index, mount in enumerate(mount_ids):
+        access = "    access:\n      visibility: private\n" if mount in private_mounts else ""
         mounts.append(
             f"""  - id: {mount}
     label: {mount.title()}
@@ -318,6 +320,7 @@ mounts: mounts.yaml
     default: {str(index == 0).lower()}
     source:
       provider: remote-shard
+{access}
 """
         )
     (app_root / "mounts.yaml").write_text(
@@ -1255,6 +1258,298 @@ mounts: mounts.yaml
         graph = reading.result(timeout=10)
     assert graph["pages"][0]["title"] == "Guide remote-v3"
     assert graph["namespaces"][0]["page_count"] == 1
+
+
+def test_federated_query_surfaces_prescope_indexes_and_materialize_only_result_shards(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    from chirp.testing import TestClient
+
+    from furatena.catalog.access import AccessRole, AccessSubject
+    from furatena.catalog.mcp import FuraMCPServer
+    from furatena.catalog.search_experience import (
+        build_search_catalog_snapshot,
+        search_lint_context,
+    )
+    from furatena.cli.commands.serve import _compose_serve_preflight
+
+    alpha, alpha_objects = _artifact(tmp_path, "alpha", "needle-alpha")
+    alpha_old, alpha_old_objects = _artifact(
+        tmp_path,
+        "alpha",
+        "needle-retired",
+        lifecycle_status="eol",
+        edition="old",
+    )
+    beta, beta_objects = _artifact(tmp_path, "beta", "unrelated-beta")
+    secret, secret_objects = _artifact(tmp_path, "secret", "needle-secret")
+    manifests = (alpha, alpha_old, beta, secret)
+    transport = MemoryTransport(alpha_objects | alpha_old_objects | beta_objects | secret_objects)
+    _install_hub(transport, _hub(list(manifests)))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    search_urls = {
+        str(manifest["identity"]["key"]): _object_url(manifest, "search") for manifest in manifests
+    }
+    catalog_urls = {
+        str(manifest["identity"]["key"]): _object_url(manifest, "catalog") for manifest in manifests
+    }
+    transport.calls.clear()
+
+    docs = _remote_docs_app(
+        tmp_path,
+        registry,
+        "alpha",
+        "beta",
+        "secret",
+        app_name="federated-query-app",
+        private_mounts=frozenset({"secret"}),
+    )
+
+    anonymous_snapshot = build_search_catalog_snapshot(docs.catalog)
+    admin = AccessSubject.from_values(actor="catalog-admin", roles=[AccessRole.ADMIN])
+    authorized_snapshot = build_search_catalog_snapshot(docs.catalog, subject=admin)
+
+    assert anonymous_snapshot.remote_mount_counts == {"alpha": 1, "beta": 1}
+    assert authorized_snapshot.remote_mount_counts == {"alpha": 1, "beta": 1, "secret": 1}
+
+    # Startup, lint, and MCP construction use only the local registry projection.
+    assert docs.embedding_index.chunks == ()
+    assert search_lint_context(docs.catalog)["search_oob"] is False
+    server = FuraMCPServer(docs)
+    assert not set(search_urls.values()) & set(transport.calls)
+    assert not set(catalog_urls.values()) & set(transport.calls)
+
+    app = docs.create_app()
+    materialized: list[str] = []
+    original_compose = docs.catalog._build_remote_generation_shard
+
+    def record_compose(
+        mount: Any,
+        remote: Any,
+        *,
+        route_edition: str,
+        admission_edition: str | None = None,
+    ) -> Any:
+        materialized.append(str(mount.id))
+        return original_compose(
+            mount,
+            remote,
+            route_edition=route_edition,
+            admission_edition=admission_edition,
+        )
+
+    monkeypatch.setattr(docs.catalog, "_build_remote_generation_shard", record_compose)
+    from chirp.contracts import check_hypermedia_surface as real_contract_check
+
+    contract_checks: list[bool] = []
+
+    def observed_contract_check(target: Any) -> Any:
+        contract_checks.append(bool(getattr(target, "_frozen", False)))
+        return real_contract_check(target)
+
+    monkeypatch.setattr("chirp.contracts.check_hypermedia_surface", observed_contract_check)
+    startup = _compose_serve_preflight(
+        docs,
+        configured_url="http://127.0.0.1:8001/",
+        run_contract_checks=True,
+    )
+    assert startup.ok is True
+    assert startup.page_count == 3
+    assert contract_checks == [True, True]
+    assert materialized == []
+    assert not set(catalog_urls.values()) & set(transport.calls)
+
+    async def browse_search() -> str:
+        client = TestClient(app)
+        async with client:
+            response = await client.get("/search")
+            assert response.status == 200
+            return response.text
+
+    search_page = asyncio.run(browse_search())
+    assert "All mounts" in search_page
+    assert "Alpha" in search_page
+    assert "Beta" in search_page
+    assert 'href="/search?mount=alpha"' in search_page
+    assert 'href="/search?mount=beta"' in search_page
+    all_scope = search_page.split('title="All mounts"', 1)[1].split("</a>", 1)[0]
+    alpha_scope = search_page.split('title="Alpha"', 1)[1].split("</a>", 1)[0]
+    beta_scope = search_page.split('title="Beta"', 1)[1].split("</a>", 1)[0]
+    assert ">2</small>" in all_scope
+    assert ">1</small>" in alpha_scope
+    assert ">1</small>" in beta_scope
+    assert "Secret" not in search_page
+    assert not set(search_urls.values()) & set(transport.calls)
+    assert not set(catalog_urls.values()) & set(transport.calls)
+
+    async def query_surfaces() -> tuple[dict[str, Any], tuple[str, ...], tuple[str, ...]]:
+        client = TestClient(app)
+        async with client:
+            response = await client.get("/search.json?q=needle")
+            assert response.status == 200
+            payload = json.loads(response.text)
+            after_json = tuple(transport.calls)
+            suggest = await client.get("/search/suggest?q=needle")
+            assert suggest.status == 200
+            after_suggest = tuple(transport.calls)
+        return payload, after_json, after_suggest
+
+    payload, after_json, after_suggest = asyncio.run(query_surfaces())
+
+    assert payload["version"] == 1
+    assert payload["query"] == "needle"
+    assert payload["count"] == 1
+    assert payload["results"][0]["node_id"] == "alpha:latest:guide"
+    assert search_urls["alpha:latest"] in transport.calls
+    assert search_urls["beta:latest"] in transport.calls
+    assert search_urls["secret:latest"] not in transport.calls
+    assert search_urls["alpha:old"] not in transport.calls
+    assert catalog_urls["alpha:latest"] in transport.calls
+    assert set(materialized) == {"alpha"}
+    assert docs.catalog.remote_residency_status()["composed"]["resident_entries"] == 1
+    assert catalog_urls["beta:latest"] not in after_json
+    assert catalog_urls["beta:latest"] not in after_suggest
+    assert catalog_urls["secret:latest"] not in transport.calls
+    assert catalog_urls["alpha:old"] not in transport.calls
+    # Admission happens only after digest, schema, identity, and public-node-set validation.
+    assert registry.search_cache_stats()["entries"] == 2
+
+    transport.calls.clear()
+    repeated, _after_json, _after_suggest = asyncio.run(query_surfaces())
+    mcp = server.call_tool("semantic_search", {"query": "needle"})
+
+    assert repeated == payload
+    assert mcp["isError"] is False
+    assert mcp["structuredContent"]["results"][0]["node_id"] == "alpha:latest:guide"
+    assert transport.calls == []
+
+    excluded = docs.catalog.federated_search_hits(
+        "needle-retired",
+        edition="old",
+        limit=4,
+    )
+    assert excluded == ()
+    assert search_urls["alpha:old"] not in transport.calls
+    assert catalog_urls["alpha:old"] not in transport.calls
+
+    included = docs.catalog.federated_search_hits(
+        "needle-retired",
+        edition="old",
+        include_eol=True,
+        limit=4,
+    )
+    assert [hit.node.node_id for hit in included] == ["alpha:old:guide"]
+    assert search_urls["alpha:old"] in transport.calls
+    assert catalog_urls["alpha:old"] in transport.calls
+
+    authorized = docs.catalog.federated_search_hits(
+        "needle-secret",
+        mount="secret",
+        subject=admin,
+        limit=4,
+    )
+    assert [hit.node.node_id for hit in authorized] == ["secret:latest:guide"]
+
+
+def test_federated_search_resolves_hit_from_exact_generation_across_refresh(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old_manifest, old_objects = _artifact(tmp_path, "alpha", "needle-old")
+    transport = MemoryTransport(old_objects)
+    _install_hub(transport, _hub([old_manifest]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    docs = _remote_docs_app(tmp_path, registry, "alpha", app_name="search-refresh-race-app")
+
+    new_manifest, new_objects = _artifact(tmp_path, "alpha", "needle-new")
+    original_search = registry._search_generations
+    refreshed = False
+
+    def search_then_refresh(*args: Any, **kwargs: Any) -> Any:
+        nonlocal refreshed
+        result = original_search(*args, **kwargs)
+        if not refreshed:
+            refreshed = True
+            transport.objects.update(new_objects)
+            _install_hub(transport, _hub([new_manifest]))
+            docs.refresh_remote_shards()
+        return result
+
+    monkeypatch.setattr(registry, "_search_generations", search_then_refresh)
+
+    hits = docs.catalog.federated_search_hits("needle-old", limit=4)
+
+    assert [hit.node.title for hit in hits] == ["Guide needle-old"]
+    assert registry.shard("alpha").fingerprint == new_manifest["fingerprint"]
+    assert docs.catalog.remote_residency_status()["composed"]["resident_entries"] == 0
+
+    current = docs.catalog.federated_search_hits("needle-new", limit=4)
+
+    assert [hit.node.title for hit in current] == ["Guide needle-new"]
+    assert docs.catalog.remote_residency_status()["composed"]["resident_entries"] == 1
+
+
+def test_federated_search_does_not_admit_rotated_stable_alias_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old_manifest, old_objects = _artifact(
+        tmp_path,
+        "alpha",
+        "needle-old-stable",
+        edition="v1",
+    )
+    transport = MemoryTransport(old_objects)
+    _install_hub(transport, _hub([old_manifest]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    docs = _remote_docs_app(tmp_path, registry, "alpha", app_name="stable-alias-race-app")
+
+    new_manifest, new_objects = _artifact(
+        tmp_path,
+        "alpha",
+        "needle-new-stable",
+        edition="v2",
+    )
+    original_search = registry._search_generations
+    refreshed = False
+
+    def search_then_rotate_stable(*args: Any, **kwargs: Any) -> Any:
+        nonlocal refreshed
+        result = original_search(*args, **kwargs)
+        if not refreshed:
+            refreshed = True
+            transport.objects.update(new_objects)
+            _install_hub(transport, _hub([old_manifest, new_manifest]))
+            docs.refresh_remote_shards()
+        return result
+
+    monkeypatch.setattr(registry, "_search_generations", search_then_rotate_stable)
+
+    old = docs.catalog.federated_search_hits(
+        "needle-old-stable",
+        edition="stable",
+        limit=4,
+    )
+
+    assert [hit.node.title for hit in old] == ["Guide needle-old-stable"]
+    assert registry.shard("alpha", "stable").fingerprint == new_manifest["fingerprint"]
+    assert registry.shard("alpha", "v1").fingerprint == old_manifest["fingerprint"]
+    assert docs.catalog.remote_residency_status()["composed"]["resident_entries"] == 0
+
+    current = docs.catalog.federated_search_hits(
+        "needle-new-stable",
+        edition="stable",
+        limit=4,
+    )
+
+    assert [hit.node.title for hit in current] == ["Guide needle-new-stable"]
+    assert docs.catalog.remote_residency_status()["composed"]["resident_entries"] == 1
 
 
 def test_read_only_http_request_pins_search_to_one_composed_generation(
