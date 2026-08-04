@@ -712,6 +712,7 @@ def test_catalog_registry_materializes_only_the_routed_remote_mount(tmp_path: Pa
 
     assert node is not None
     assert node.node_id == "alpha:latest:guide"
+    assert "v1" in catalog.body_html(node)
     assert alpha_catalog in transport.calls
     assert beta_catalog not in transport.calls
     status = catalog.remote_residency_status()
@@ -725,7 +726,7 @@ def test_catalog_registry_materializes_only_the_routed_remote_mount(tmp_path: Pa
     refreshed = catalog.remote_residency_status()
     assert refreshed["counter_scope"] == "process_lifetime"
     assert refreshed["composed"]["loads"] == 1
-    assert refreshed["composed"]["resident_entries"] == 0
+    assert refreshed["composed"]["resident_entries"] == 1
 
 
 def test_broken_publish_is_mount_local_and_previous_generation_can_be_pinned(
@@ -799,7 +800,6 @@ def test_unrelated_mount_update_preserves_generation_and_warm_presentation_cache
     first_report = registry.refresh()
     docs = _remote_docs_app(tmp_path, registry, "alpha", "beta", app_name="locality-app")
     alpha_generation = registry.generation("alpha")
-    alpha_catalog = docs.catalog._shards["alpha"]
     composed_generation = docs.catalog.generation
     alpha_presentation_url = next(
         str(alpha_v1["artifact_base_url"]) + str(item["object_url"])
@@ -816,6 +816,8 @@ def test_unrelated_mount_update_preserves_generation_and_warm_presentation_cache
 
     assert "v1" in asyncio.run(get("/alpha/guide/"))
     assert transport.calls.count(alpha_presentation_url) == 1
+    alpha_catalog = docs.catalog._active_shard("alpha")
+    assert alpha_catalog is not None
 
     reused = docs.refresh_remote_shards()
     assert {item.mount: item.status for item in reused.mounts} == {
@@ -823,7 +825,7 @@ def test_unrelated_mount_update_preserves_generation_and_warm_presentation_cache
         "beta": "reused",
     }
     assert docs.catalog.generation == composed_generation
-    assert docs.catalog._shards["alpha"] is alpha_catalog
+    assert docs.catalog._active_shard("alpha") is alpha_catalog
 
     beta_v2, beta_v2_objects = _artifact(tmp_path, "beta", "v2")
     transport.objects.update(beta_v2_objects)
@@ -835,7 +837,7 @@ def test_unrelated_mount_update_preserves_generation_and_warm_presentation_cache
     assert registry.generation("alpha").generation_id == alpha_generation.generation_id
     assert registry.generation("alpha").hub_payload_sha256 == first_report.hub_payload_sha256
     assert updated.hub_payload_sha256 != first_report.hub_payload_sha256
-    assert docs.catalog._shards["alpha"] is alpha_catalog
+    assert docs.catalog._active_shard("alpha") is alpha_catalog
     assert _presentation_cache_stats(alpha_catalog)["entries"] == 1
     assert "v1" in asyncio.run(get("/alpha/guide/"))
     assert transport.calls.count(alpha_presentation_url) == 1

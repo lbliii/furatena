@@ -490,6 +490,7 @@ class CatalogRegistry:
         self._generation = 0
         self._generation_lock = Lock()
         self._read_generation: _CatalogReadGeneration | None = None
+        self._remote_mount_generations: dict[str, str] = {}
         self._federated_backlinks: dict[str, list[dict[str, str]]] = {}
         self._translation_index: dict[str, dict[str, str]] | None = None
         self._inventory_store = None
@@ -746,6 +747,9 @@ class CatalogRegistry:
         for mount in self.mounts:
             if mount.source.provider == "remote-shard":
                 if self.remote_shards is not None and mount.id in self.remote_shards.mounts():
+                    self._remote_mount_generations[mount.id] = self.remote_shards.generation(
+                        mount.id
+                    ).generation_id
                     self._record_shard_status(
                         mount,
                         "ok",
@@ -901,7 +905,6 @@ class CatalogRegistry:
         """Per-mount source/index health for admin UI, CI, and MCP callers."""
         mount_filter = mount.strip() if mount else None
         mounts: list[dict[str, Any]] = []
-        active_shards = self._active_shards()
         residency = self.remote_residency_status()
         if mount_filter:
             residency = dict(residency)
@@ -913,7 +916,7 @@ class CatalogRegistry:
             if mount_filter and item.id != mount_filter:
                 continue
             extensions = tuple(sorted(item.source.tracked_extensions()))
-            shard = active_shards.get(item.id)
+            shard = self._shards.get(item.id)
             sync = self._source_sync_status.get(
                 item.id,
                 {
@@ -1245,6 +1248,7 @@ class CatalogRegistry:
                 loaded_from="remote-shard",
                 loaded=True,
             )
+            self._pin_remote_shard_for_request(mount_id, shard)
             return shard
         if edition == self._default_channel or edition == "latest":
             return self._shards.get(mount_id)
@@ -1254,6 +1258,26 @@ class CatalogRegistry:
                 cached = self._load_edition_shards(edition, include_remote=False)
                 self._edition_shards[edition] = cached
             return cached.get(mount_id)
+
+    def _pin_remote_shard_for_request(self, mount_id: str, shard: DocCatalog) -> None:
+        """Add one lazy remote shard to the current immutable request generation."""
+        pinned = self._read_generation_context.get()
+        if (
+            pinned is None
+            or pinned.edition != self.active_channel
+            or pinned.shards.get(mount_id) is shard
+        ):
+            return
+        shards = dict(pinned.shards)
+        shards[mount_id] = shard
+        self._read_generation_context.set(
+            replace(
+                pinned,
+                shards=MappingProxyType(shards),
+                edges=None,
+                namespaces=None,
+            )
+        )
 
     def _load_edition_shards(
         self, edition: str, *, include_remote: bool = True
@@ -1331,43 +1355,62 @@ class CatalogRegistry:
                 "Remote shard refresh requires a configured RemoteShardMountRegistry instance."
             )
         report = self.remote_shards.refresh()
-        for mount in self.mounts:
-            if mount.source.provider != "remote-shard":
-                continue
-            self._remote_residency.discard_mount(mount.id)
-            if mount.id in self.remote_shards.mounts():
-                self._record_shard_status(
-                    mount,
-                    "ok",
-                    stage="remote_deferred",
-                    loaded_from="remote-shard",
-                    loaded=False,
-                )
-            else:
-                self._record_shard_status(
-                    mount,
-                    "failed",
-                    stage="remote_deferred",
-                    loaded=False,
-                    error=RuntimeError(
-                        f"remote shard mount {mount.id!r} has no verified generation"
-                    ),
-                )
+        remote_mounts = tuple(
+            mount for mount in self.mounts if mount.source.provider == "remote-shard"
+        )
         with self._publication_lock, self._edition_shards_lock:
+            available_mounts = set(self.remote_shards.mounts())
+            next_generations = {
+                mount.id: self.remote_shards.generation(mount.id).generation_id
+                for mount in remote_mounts
+                if mount.id in available_mounts
+            }
+            changed_mounts = {
+                mount.id
+                for mount in remote_mounts
+                if self._remote_mount_generations.get(mount.id) != next_generations.get(mount.id)
+            }
+            for mount in remote_mounts:
+                if mount.id in changed_mounts:
+                    self._remote_residency.discard_mount(mount.id)
+                if mount.id in available_mounts:
+                    if mount.id in changed_mounts:
+                        self._record_shard_status(
+                            mount,
+                            "ok",
+                            stage="remote_deferred",
+                            loaded_from="remote-shard",
+                            loaded=False,
+                        )
+                else:
+                    self._record_shard_status(
+                        mount,
+                        "failed",
+                        stage="remote_deferred",
+                        loaded=False,
+                        error=RuntimeError(
+                            f"remote shard mount {mount.id!r} has no verified generation"
+                        ),
+                    )
+            if not changed_mounts:
+                return report
             # Publish the shard map and every derived graph/cache reference as
             # one lock-owned generation. Existing maps remain immutable.
             next_shards = {
                 mount_id: shard
                 for mount_id, shard in self._shards.items()
-                if not any(
-                    item.id == mount_id and item.source.provider == "remote-shard"
-                    for item in self.mounts
-                )
+                if mount_id not in changed_mounts
             }
             self._shards = next_shards
-            self._edition_shards = {}
-            with self._html_cache_lock:
-                self._html_cache = {}
+            self._edition_shards = {
+                edition: {
+                    mount_id: shard
+                    for mount_id, shard in shards.items()
+                    if mount_id not in changed_mounts
+                }
+                for edition, shards in self._edition_shards.items()
+            }
+            self._remote_mount_generations = next_generations
             self._edges = None
             self._namespaces = None
             with self._query_graph_lock:
