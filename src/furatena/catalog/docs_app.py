@@ -347,6 +347,9 @@ class DocsApp:
         observability: OperationalEventEmitter | None = None,
     ) -> None:
         self.config = config
+        from furatena.catalog.public_projection import PublicProjectionInspectionCache
+
+        self._public_projection_inspection_cache = PublicProjectionInspectionCache()
         self.roots = ApplicationRoots.from_environment(config.root)
         if self.roots.managed:
             self.roots.ensure_writable_roots()

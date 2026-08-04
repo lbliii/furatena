@@ -803,7 +803,7 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     )
     assert payload["data"]["known_answer_dataset"] == {
         "id": "furatena-known-answers",
-        "version": "1.1.13",
+        "version": "1.1.14",
         "case_count": 8,
         "corpora": ["furatena-dogfood", "access-boundary-fixture"],
         "query_classes": [
@@ -2070,6 +2070,29 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert validate_payload["ok"] is True
     assert validate_payload["command"] == "author validate"
     assert validate_data["changed_files"] == []
+
+    source_before_inspection = target.read_bytes()
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "inspect-public",
+            "docs/release-notes",
+            "--no-autodoc",
+            "--json",
+        ]
+    )
+    inspect_payload = json.loads(capsys.readouterr().out)
+    assert inspect_payload["ok"] is True
+    assert inspect_payload["command"] == "author inspect-public"
+    inspect_data = inspect_payload["data"]
+    assert inspect_data["read_only"] is True
+    assert inspect_data["complete"] is True
+    assert inspect_data["plan"]["source_revision"] == status_data["source_revision"]
+    assert {surface["change"] for surface in inspect_data["surfaces"]} == {"added"}
+    assert inspect_data["privacy"]["status"] == "pass"
+    assert target.read_bytes() == source_before_inspection
 
     try:
         main(["--app-root", str(app_root), "author", "publish", "docs/release-notes", "--json"])
@@ -3436,6 +3459,13 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert validation["structuredContent"]["audit"]["command"] == "author_validate"
     assert "status" in impact["structuredContent"]
     assert "stale_impact" in impact["structuredContent"]
+    projection = impact["structuredContent"]["public_projection"]
+    assert projection["ok"] is True
+    assert projection["read_only"] is True
+    assert projection["complete"] is True
+    assert projection["privacy"]["status"] == "pass"
+    assert {surface["change"] for surface in projection["surfaces"]} == {"added"}
+    assert "visibility: public" not in target.read_text(encoding="utf-8")
 
     publish = call(
         private_server,
