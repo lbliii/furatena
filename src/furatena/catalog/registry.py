@@ -92,6 +92,17 @@ class _CatalogReadGeneration:
     namespaces: tuple[NamespaceRecord, ...] | None
 
 
+@dataclass(frozen=True, slots=True)
+class FederatedCatalogSearchHit:
+    """A remote shard result resolved to the active catalog generation."""
+
+    node: DocNode
+    score: float
+    snippet: str
+    keyword_score: float
+    tfidf_score: float
+
+
 class _CatalogReadSnapshotContext:
     """Context manager that resets a read pin without rewriting exceptions."""
 
@@ -2024,7 +2035,86 @@ class CatalogRegistry:
             permission=AccessPermission.SEARCH,
             include_private=self.include_private,
         )
-        return search_nodes(nodes, query, limit=limit, documents=self.ast_documents())
+        remote_mounts = self._remote_mount_ids()
+        local_nodes = [node for node in nodes if node.mount not in remote_mounts]
+        hits = search_nodes(
+            local_nodes,
+            query,
+            limit=limit * 2,
+            documents=self.ast_documents(),
+        )
+        hits.extend(
+            SearchHit(
+                node=hit.node,
+                score=round(hit.score * 100, 4),
+                snippet=hit.snippet,
+            )
+            for hit in self.federated_search_hits(query, nodes=nodes, limit=limit * 2)
+        )
+        hits.sort(
+            key=lambda hit: (
+                -hit.score,
+                hit.node.weight,
+                hit.node.title.casefold(),
+                hit.node.node_id,
+            )
+        )
+        return hits[:limit]
+
+    def federated_search_hits(
+        self,
+        query: str,
+        *,
+        nodes: list[DocNode],
+        limit: int,
+        mount: str | None = None,
+        edition: str | None = None,
+        status: str | None = None,
+        include_preview: bool = False,
+        include_eol: bool = False,
+    ) -> tuple[FederatedCatalogSearchHit, ...]:
+        """Query per-shard indexes and intersect them with already-authorized nodes."""
+        if self.remote_shards is None:
+            return ()
+        remote_mounts = self._remote_mount_ids()
+        if mount is not None:
+            remote_mounts &= {mount}
+        if not remote_mounts:
+            return ()
+        target_edition = edition or self.active_channel
+        uses_active_edition = target_edition == self.active_channel
+        allowed = {
+            node.node_id: node
+            for node in nodes
+            if node.mount in remote_mounts
+            and (uses_active_edition or node.edition == target_edition)
+        }
+        if not allowed:
+            return ()
+        result = self.remote_shards.search(
+            query,
+            mounts=remote_mounts,
+            edition=target_edition,
+            limit=max(limit * 2, 16),
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        )
+        hits = tuple(
+            FederatedCatalogSearchHit(
+                node=allowed[hit.node_id],
+                score=hit.score,
+                snippet=hit.snippet,
+                keyword_score=hit.keyword_score,
+                tfidf_score=hit.tfidf_score,
+            )
+            for hit in result.hits
+            if hit.node_id in allowed
+        )
+        return hits[:limit]
+
+    def _remote_mount_ids(self) -> set[str]:
+        return {mount.id for mount in self.mounts if mount.source.provider == "remote-shard"}
 
     def graph_edges(self) -> list[EdgeRecord]:
         pinned = self._read_generation_context.get()
