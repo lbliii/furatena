@@ -15,6 +15,13 @@ returns the unified diff bound to each request. Pull-request profiles additional
 provide a `GitReviewGateway`; that boundary translates provider-specific review
 APIs while Git isolation and branch safety remain provider-neutral.
 
+`furatena.catalog.publication_provider_executor.PublicationProviderExecutor` wires
+these providers into `PublicationWorkflowService`. Trusted composition selects the
+profile, repository base revision, attribution, provider registry, and durable
+provider-record store. The adapter supports `local_only`, `commit`, and
+`pull_request`; the Git provider supplies the latter two, while a local source
+provider may implement the same protocol for `local_only`.
+
 ## Profiles
 
 Every workflow selects one `PublicationProfileConfig`. The selection and its
@@ -83,6 +90,11 @@ verification result.
 
 The #386 workflow snapshot remains the operational workflow source of truth.
 Provider records are immutable inputs/history attached to its events and outputs.
+An open or draft review places that snapshot in `reviewable`; only an observed
+merge places the repository-review workflow in `applied`. Output references retain
+the selected profile digest, each immutable provider result ID/digest, and the latest
+review, protection, and reconciliation state. Full trusted results remain in the
+provider execution store for restart-safe reconciliation.
 
 ## Path and revision invariants
 
