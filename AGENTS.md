@@ -53,6 +53,7 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 | content | `content/AGENTS.md` | 1 | 100% |
 | directives | `src/furatena/catalog/directives/AGENTS.md` | 1 | 100% |
 | docs | `docs/AGENTS.md` | 1 | 100% |
+| docs_layout | `src/furatena/themes/docs/AGENTS.md` | 1 | 100% |
 | evals | `src/furatena/catalog/eval_datasets/AGENTS.md` | 1 | 100% |
 | examples | `examples/AGENTS.md` | 1 | 100% |
 | fixtures | `src/furatena/catalog/fixtures/AGENTS.md` | 1 | 100% |
@@ -71,6 +72,7 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 | templates | `src/furatena/catalog/_templates/AGENTS.md` | 1 | 100% |
 | tests | `tests/AGENTS.md` | 1 | 100% |
 | themes | `src/furatena/themes/AGENTS.md` | 1 | 100% |
+| vanilla_layout | `src/furatena/themes/vanilla/AGENTS.md` | 1 | 100% |
 
 ## Protects (constitution)
 

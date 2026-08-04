@@ -1,0 +1,12 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+<section aria-labelledby="vanilla-portal-title">
+  <h1 id="vanilla-portal-title">Documentation portal</h1>
+  <p>{{ page_count }} pages across {{ mounts | length }} mounts.</p>
+  {% if mounts %}
+  <ul class="vanilla-cards">
+    {% for mount in mounts %}<li><a href="{{ mount.href }}"><strong>{{ mount.label }}</strong><br>{{ mount.page_count }} pages</a></li>{% endfor %}
+  </ul>
+  {% else %}<p role="status">No documentation mounts are available.</p>{% end %}
+</section>
+{% end %}

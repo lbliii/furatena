@@ -1,0 +1,116 @@
+{% extends "layouts/docs_app.html" %}
+
+{% block app_content %}
+<main
+  id="author-dashboard"
+  class="chirp-theme-author-dashboard__workspace"
+  data-author-dashboard
+  data-author-dashboard-errors="{{ author_dashboard.summary.error_count }}"
+  data-author-dashboard-warnings="{{ author_dashboard.summary.warning_count }}"
+>
+  <header class="chirp-theme-author-dashboard__header">
+    <div>
+      <p class="chirp-theme-author-dashboard__eyebrow">Local authoring</p>
+      <h1>Author dashboard</h1>
+      <p>Import, freshness, and lint status for this local docs workspace.</p>
+    </div>
+    <a class="chirpui-btn chirpui-btn--secondary" href="/docs/_author/dashboard?json=1">JSON</a>
+  </header>
+
+  <section class="chirp-theme-author-dashboard__summary" aria-label="Author workspace summary">
+    <article data-dashboard-metric="mounts">
+      <span>Mounts</span>
+      <strong>{{ author_dashboard.summary.mount_count }}</strong>
+    </article>
+    <article data-dashboard-metric="pages">
+      <span>Pages</span>
+      <strong>{{ author_dashboard.summary.page_count }}</strong>
+    </article>
+    <article data-dashboard-metric="freshness">
+      <span>Dirty or stale</span>
+      <strong>{{ author_dashboard.summary.freshness_count }}</strong>
+    </article>
+    <article data-dashboard-metric="lint">
+      <span>Blocking errors</span>
+      <strong>{{ author_dashboard.summary.error_count }}</strong>
+    </article>
+  </section>
+
+  {% if author_dashboard.blocking %}
+  <section class="chirp-theme-author-dashboard__blockers" aria-label="Top blocking errors">
+    <header>
+      <p class="chirp-theme-author-dashboard__eyebrow">Needs attention</p>
+      <h2>Top blocking errors</h2>
+    </header>
+    <div class="chirp-theme-author-dashboard__diagnostics">
+      {% for item in author_dashboard.blocking %}
+      <article class="chirp-theme-author-dashboard__diagnostic" data-severity="{{ item.severity }}">
+        <div>
+          <strong>{{ item.source_path }}{% if item.line %}:{{ item.line }}{% end %}</strong>
+          <span>{{ item.message }}</span>
+        </div>
+        {% if item.studio_url %}
+        <a href="{{ item.studio_url }}">Open</a>
+        {% end %}
+      </article>
+      {% end %}
+    </div>
+  </section>
+  {% end %}
+
+  <section class="chirp-theme-author-dashboard__mounts" aria-label="Mounted sources">
+    {% for mount in author_dashboard.mounts %}
+    <article class="chirp-theme-author-dashboard__mount" data-mount-id="{{ mount.id }}" data-mount-status="{{ mount.status }}">
+      <header>
+        <div>
+          <p class="chirp-theme-author-dashboard__eyebrow">{{ mount.provider }}</p>
+          <h2>{{ mount.label }}</h2>
+          <code>{{ mount.source_root }}</code>
+        </div>
+        <span class="chirp-theme-author-dashboard__state" data-state="{{ mount.status }}">{{ mount.status }}</span>
+      </header>
+
+      <dl class="chirp-theme-author-dashboard__facts">
+        <div>
+          <dt>Pages</dt>
+          <dd>{{ mount.page_count }}</dd>
+        </div>
+        <div>
+          <dt>Lint</dt>
+          <dd>{{ mount.error_count }} error{% if mount.error_count != 1 %}s{% end %} / {{ mount.warning_count }} warning{% if mount.warning_count != 1 %}s{% end %}</dd>
+        </div>
+        <div>
+          <dt>Freshness</dt>
+          <dd>{{ mount.dirty_count }} dirty / {{ mount.stale_count }} stale</dd>
+        </div>
+      </dl>
+
+      <div class="chirp-theme-author-dashboard__formats" aria-label="Source formats">
+        {% for item in mount.formats %}
+        <span data-source-format="{{ item.format }}">{{ item.format }} <strong>{{ item.count }}</strong></span>
+        {% end %}
+      </div>
+
+      {% if mount.diagnostics %}
+      <details class="chirp-theme-author-dashboard__details">
+        <summary>Diagnostics</summary>
+        <div class="chirp-theme-author-dashboard__diagnostics">
+          {% for item in mount.diagnostics %}
+          <article class="chirp-theme-author-dashboard__diagnostic" data-severity="{{ item.severity }}">
+            <div>
+              <strong>{{ item.source_path }}{% if item.line %}:{{ item.line }}{% end %}</strong>
+              <span>{{ item.message }}</span>
+            </div>
+            {% if item.studio_url %}
+            <a href="{{ item.studio_url }}">Open</a>
+            {% end %}
+          </article>
+          {% end %}
+        </div>
+      </details>
+      {% end %}
+    </article>
+    {% end %}
+  </section>
+</main>
+{% end %}

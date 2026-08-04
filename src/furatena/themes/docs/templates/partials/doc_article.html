@@ -1,0 +1,19 @@
+{# Shared doc article body — backlinks footer for catalog doc views. #}
+{% from "partials/doc_link.html" import doc_link %}
+
+<article class="prose chirp-theme-docs-layout__article">
+  <div class="docs-content chirp-theme-docs-layout__content">
+    {{ node | doc_body | boost_doc_links }}
+  </div>
+
+  {% if backlinks %}
+  <footer class="docs-footer chirp-theme-docs-layout__footer">
+    <span class="docs-footer-label">Linked from</span>
+    <ul class="chirpui-list">
+      {% for ref in backlinks %}
+      <li>{{ doc_link(ref.href, ref.title) }}</li>
+      {% end %}
+    </ul>
+  </footer>
+  {% end %}
+</article>

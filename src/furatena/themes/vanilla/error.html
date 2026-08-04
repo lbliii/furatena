@@ -1,0 +1,9 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+<section aria-labelledby="vanilla-error-title">
+  <p>{{ error_status | default(404) }}</p>
+  <h1 id="vanilla-error-title">{{ error_headline | default("Page not found") }}</h1>
+  <p>{{ error_message | default(error_lead) }}</p>
+  <p><a href="/">Return home</a> or <a href="/search">search the documentation</a>.</p>
+</section>
+{% end %}

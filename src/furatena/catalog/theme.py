@@ -60,7 +60,12 @@ class DocsTheme:
         )
         presentation = resolve_presentation(docs, roots=roots)
         skin = resolve_theme_paths(docs, presentation=presentation)
-        packaged = packaged_theme_assets_from_root(theme_cfg.id, skin.app_assets_root)
+        minimal_vanilla = presentation.layout.id == "vanilla" and presentation.skin is None
+        packaged = (
+            None
+            if minimal_vanilla
+            else packaged_theme_assets_from_root(theme_cfg.id, skin.app_assets_root)
+        )
 
         stylesheet_hrefs: list[str] = []
         static_mounts: list[ThemeAssets] = []
@@ -112,7 +117,9 @@ class DocsTheme:
                     ThemeAssets(url_prefix="/docs-theme/branding", directory=branding_dir)
                 )
 
-        if not any(mount.url_prefix == "/docs-theme/branding" for mount in static_mounts):
+        if not minimal_vanilla and not any(
+            mount.url_prefix == "/docs-theme/branding" for mount in static_mounts
+        ):
             fallback = packaged_theme_assets_from_root(theme_cfg.id, skin.app_assets_root)
             if fallback is not None:
                 _css, _fonts, branding_dir = fallback
@@ -128,12 +135,13 @@ class DocsTheme:
             browser_reload_dirs=browser_reload_dirs,
         )
 
-        preset_path = write_theme_preset(theme_cfg, cache_dir=cache_dir)
-        if preset_path.is_file():
-            static_mounts.append(
-                ThemeAssets(url_prefix="/docs-theme/generated", directory=cache_dir)
-            )
-            stylesheet_hrefs.append("/docs-theme/generated/theme-preset.css")
+        if not minimal_vanilla:
+            preset_path = write_theme_preset(theme_cfg, cache_dir=cache_dir)
+            if preset_path.is_file():
+                static_mounts.append(
+                    ThemeAssets(url_prefix="/docs-theme/generated", directory=cache_dir)
+                )
+                stylesheet_hrefs.append("/docs-theme/generated/theme-preset.css")
 
         if skin.tokens is not None:
             static_mounts.append(
@@ -184,7 +192,8 @@ class DocsTheme:
 
         vendor_root = Path(vendor_dir())
         if (
-            vendor_root.is_dir()
+            not minimal_vanilla
+            and vendor_root.is_dir()
             and all((vendor_root / name).is_file() for name in VENDOR_FILES)
             and not any(mount.url_prefix == "/docs-vendor" for mount in static_mounts)
         ):

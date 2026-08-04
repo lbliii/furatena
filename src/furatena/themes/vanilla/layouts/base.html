@@ -1,0 +1,29 @@
+{% extends "shell.html" %}
+
+{% block page_root %}
+<div id="page-root" class="vanilla-page" data-fura-surface="{{ chirp_docs_surface | default('app') }}">
+  {% block page_root_inner %}
+  <aside class="vanilla-sidebar" aria-label="Documentation navigation">
+    <nav>
+      <ul>
+        {% include "partials/nav.html" %}
+      </ul>
+    </nav>
+  </aside>
+  <div id="vanilla-content" class="vanilla-content">
+    {% block page_content %}
+    {% if breadcrumb_items | default([]) %}
+    <nav aria-label="Breadcrumb">
+      <ol class="vanilla-breadcrumbs">
+        {% for item in breadcrumb_items %}
+        <li>{% if item.href %}<a href="{{ item.href }}">{{ item.label }}</a>{% else %}{{ item.label }}{% end %}</li>
+        {% endfor %}
+      </ol>
+    </nav>
+    {% end %}
+    {% block content %}{% end %}
+    {% end %}
+  </div>
+  {% end %}
+</div>
+{% end %}

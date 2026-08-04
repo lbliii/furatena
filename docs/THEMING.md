@@ -59,11 +59,15 @@ Registered packs: `fura theme list` — **docs-core** via `theme.id` (built-in: 
 ### Scaffold a custom skin
 
 ```bash
-fura theme init              # writes app/theme-skin/ by default
-fura theme init my-brand/    # custom directory
+fura theme init                         # writes APP_ROOT/theme-skin/
+fura --app-root site theme init         # writes site/theme-skin/
+fura theme init my-brand/               # relative to the selected app root
+fura theme init /absolute/path/to/brand # absolute targets remain absolute
 ```
 
-The scaffold includes `tokens.css`, `styles.css`, `skin/*`, and a branding README. Wire overrides in `docs.yaml` (see generated README) or register a `furatena.themes` entry point for a reusable pack.
+The scaffold includes `tokens.css`, `styles.css`, `skin/*`, and a branding README. Existing files
+are preserved unless `--force` is supplied. Wire overrides in `docs.yaml` (see generated README)
+or register a `furatena.themes` entry point for a reusable pack.
 
 ### Develop export previews
 
