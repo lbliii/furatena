@@ -3,6 +3,55 @@
 Use this guide when a repository needs one protected review environment for its
 website, negotiated Markdown, retrieval surfaces, and agent artifacts.
 
+## Hosted access availability
+
+> **Status: planned, not available in the current release.**
+
+Hosted GitHub sign-in is not the released Railway default. The current package
+and maintained template do not ship `FURA_PREVIEW_AUTH_MODE`, an installable
+official Furatena GitHub App, a public broker issuer or JWKS endpoint, or trusted
+controller registration with that broker. Protocol, runtime, and broker design
+work does not make those services available to adopters.
+
+The supported PR-preview gate remains the shared-token boundary described in
+[Pull-request preview security](PR_PREVIEW_SECURITY.md). Keep
+`FURA_PREVIEW_AUTH_TOKEN` configured for every active PR environment and keep
+reviewer distribution out of PR comments and logs. Railway documents that
+[sealed variables are not copied into PR environments](https://docs.railway.com/variables#sealed-variables),
+so Furatena's current controller creates and injects a fresh sealed token for
+each eligible PR head. Sealing a token only in the base environment is not a
+replacement for that controller step.
+
+Do not install an unofficial GitHub App, select a caller-provided broker, invent
+hosted-mode variables, or remove the shared token based on draft contracts.
+Doing so would advertise an authorization path that the released template
+cannot complete or support.
+
+### Planned migration gate for shared-token adopters
+
+This is a release-readiness gate, not an actionable migration procedure. An
+existing deployment should move to hosted access only after one release ships
+and documents all of these together:
+
+1. explicit `hosted`, `password`, and deliberately public mode selection,
+   including restart, session invalidation, recovery, and downgrade behavior;
+2. the official GitHub App installation target, public broker identifiers,
+   privacy and retention disclosure, support route, and broker status process;
+3. template and controller integration that registers the exact repository,
+   pull request, head SHA, and Railway origin without placing App, broker,
+   signing, reviewer, or controller credentials in the preview;
+4. clean-account evidence for install, upgrade, current-SHA authorization,
+   access removal, PR close, broker outage, and rollback to password mode; and
+5. release notes that identify the compatible image, template revision,
+   migration order, retained adopter overrides, and rollback target.
+
+Until that release exists, no hosted migration is required. Continue rotating
+the per-head shared token and use Basic username `preview` for browsers or the
+same value as a Bearer credential for machines. A future hosted default must
+retain an explicit password rollback path before adopters remove their existing
+token workflow; an image, config, or documentation draft alone is not that
+rollback path.
+
 ## Prerequisites
 
 - A Furatena repository that freezes successfully on CPython 3.14t with the GIL disabled.
