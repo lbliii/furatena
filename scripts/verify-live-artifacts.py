@@ -85,6 +85,10 @@ def verify_live_artifacts(origin: str, *, timeout: float = 120.0) -> dict[str, i
     if not isinstance(chunks, list) or semantic.get("chunk_count") != len(chunks):
         raise RuntimeError("/semantic.json: chunk_count does not match chunks")
 
+    llms_index = _fetch(origin, "/llms.txt", timeout=timeout)
+    if not llms_index.strip():
+        raise RuntimeError("/llms.txt: response is empty")
+
     llms_full = _fetch(origin, "/llms-full.txt", timeout=timeout)
     if not llms_full.strip():
         raise RuntimeError("/llms-full.txt: response is empty")
@@ -94,6 +98,7 @@ def verify_live_artifacts(origin: str, *, timeout: float = 120.0) -> dict[str, i
         "query_page_count": collection_counts["/catalog/query.json"],
         "search_page_count": collection_counts["/search.json"],
         "semantic_chunk_count": len(chunks),
+        "llms_index_bytes": len(llms_index),
         "llms_full_bytes": len(llms_full),
     }
 
