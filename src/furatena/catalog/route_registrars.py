@@ -62,6 +62,7 @@ from furatena.catalog.export import (
 )
 from furatena.catalog.graph_schema import EdgeKind
 from furatena.catalog.operational_status import operational_status, process_health
+from furatena.catalog.public_projection import inspect_public_transition
 from furatena.catalog.query import (
     DEFAULT_GRAPH_QUERY_LIMIT,
     MAX_GRAPH_QUERY_LIMIT,
@@ -70,6 +71,11 @@ from furatena.catalog.query import (
 from furatena.catalog.railway_preview import runtime_railway_preview_manifest
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.semantic import retrieve_node, semantic_index_json, semantic_search_json
+from furatena.catalog.shard_discovery import (
+    discovery_mount_id,
+    llms_hub_txt,
+    sitemap_index_xml,
+)
 from furatena.catalog.sitemap import sitemap_xml
 from furatena.catalog.structure_index import build_structure_index
 from furatena.catalog.version_artifacts import versions_for_mount, versions_manifest
@@ -675,8 +681,29 @@ def register_author_routes(docs: Any, app: App) -> None:
             if denied is not None:
                 return denied
             source = self._author_source_info(node)
+            operation = (request.query.get("operation") or "publish").strip().lower()
+            if operation not in {"publish", "unpublish", "archive"}:
+                return _json_response(
+                    {
+                        "ok": False,
+                        "diagnostics": [
+                            {
+                                "severity": "error",
+                                "message": (
+                                    "Public inspection operation must be publish, unpublish, "
+                                    "or archive."
+                                ),
+                                "rule_id": "fura.public_projection.operation",
+                                "next_action": (
+                                    "Retry with operation=publish, unpublish, or archive."
+                                ),
+                            }
+                        ],
+                    },
+                    status=422,
+                )
             inspection = author_transition(
-                "publish",
+                operation,
                 node.slug,
                 mounts=tuple(self.catalog.mounts),
                 subject=self._browser_author_subject(),
@@ -688,7 +715,26 @@ def register_author_routes(docs: Any, app: App) -> None:
             )
             if _author_authorization_denied(inspection):
                 return _json_response({"ok": False, "data": inspection.to_dict()}, status=403)
-            feedback = inspection.to_dict()
+            if not inspection.ok:
+                return _json_response({"ok": False, "data": inspection.to_dict()}, status=422)
+            publication = (
+                self.author_truth_provider.snapshot(
+                    node,
+                    source_revision=source["revision"],
+                )
+                if self.author_truth_provider is not None
+                else None
+            )
+            feedback = inspect_public_transition(
+                self.catalog,
+                node,
+                inspection,
+                current_source_revision=source["revision"],
+                config=self.config,
+                docs_app=self,
+                publication=publication,
+                transport="browser",
+            )
         if request.is_htmx:
             return self._author_page_chrome_fragment(
                 node,
@@ -705,7 +751,8 @@ def register_author_routes(docs: Any, app: App) -> None:
                 {
                     **chrome,
                     "public_inspection": feedback,
-                }
+                },
+                status=200 if feedback.get("ok") else 422,
             )
         return _json_response(chrome)
 
@@ -1023,10 +1070,46 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/sitemap.xml", referenced=True)
     def sitemap(request: Request):
         self._ensure_catalog()
-        body = sitemap_xml(
+        frozen = self._frozen_artifact_response(
+            "sitemap.xml",
+            content_type="application/xml; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
+        body = sitemap_index_xml(
             self.catalog,
             base_url=self._site_base(request),
             subject=self._output_access_subject(request),
+        )
+        return Response(body, content_type="application/xml; charset=utf-8")
+
+    @app.route("/sitemaps/{mount_file}", referenced=True)
+    def mount_sitemap(request: Request, mount_file: str):
+        self._ensure_catalog()
+        if not mount_file.endswith(".xml"):
+            raise NotFound(
+                f"Mount sitemap artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        token = mount_file[: -len(".xml")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(
+                f"Mount sitemap artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        frozen = self._frozen_artifact_response(
+            f"sitemaps/{token}.xml",
+            content_type="application/xml; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
+        body = sitemap_xml(
+            self.catalog,
+            base_url=self._site_base(request),
+            subject=subject,
+            mount=mount_id,
         )
         return Response(body, content_type="application/xml; charset=utf-8")
 
@@ -1140,7 +1223,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         if not is_safe_mount_id(mount_id):
             raise NotFound(f"Catalog shard not found: {mount_id}")
         subject = self._output_access_subject(request)
-        shard = getattr(self.catalog, "_shards", {}).get(mount_id)
+        shard = self.catalog._active_shards().get(mount_id)
         if shard is None or not self.catalog.can_access_mount(
             mount_id,
             subject,
@@ -1428,11 +1511,42 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         )
         if frozen is not None:
             return frozen
-        body = llms_index_txt(
+        body = llms_hub_txt(
             self.catalog,
             site_name=self.config.site.name,
             site_description=self.config.site.description,
             subject=self._output_access_subject(request),
+        )
+        return Response(body, content_type="text/plain; charset=utf-8")
+
+    @app.route("/llms/{mount_file}", referenced=True)
+    def mount_llms_txt(request: Request, mount_file: str):
+        self._ensure_catalog()
+        if not mount_file.endswith(".txt"):
+            raise NotFound(
+                f"Mount LLM index artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        token = mount_file[: -len(".txt")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(
+                f"Mount LLM index artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        frozen = self._frozen_artifact_response(
+            f"llms/{token}.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
+        body = llms_index_txt(
+            self.catalog,
+            site_name=self.config.site.name,
+            site_description=self.config.site.description,
+            subject=subject,
+            mount=mount_id,
         )
         return Response(body, content_type="text/plain; charset=utf-8")
 

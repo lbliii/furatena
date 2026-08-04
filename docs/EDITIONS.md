@@ -10,8 +10,10 @@ The central invariant is:
 > Index once per release, compose forever.
 
 A release tag identifies immutable source. Furatena therefore indexes that source once
-into an immutable, renderer-independent IR shard. Templates, themes, rendering heads,
-and static-export policy may change without rebuilding the shard.
+into an immutable semantic shard and freezes one bounded, inert HTML presentation
+sidecar for every public node. Templates, themes, rendering heads, and static-export
+policy may change without rebuilding the shard; changing the presentation contract is
+an explicit shard-version transition.
 
 ## Scope and terminology
 
@@ -40,8 +42,9 @@ operation are deliberately assigned to the federation RFC; see
 3. A release edition shard is never overwritten in place. A moved tag or a different
    fingerprint for an existing `(mount, edition)` is an integrity failure, not an
    incremental update.
-4. Edition shards contain semantic records, not rendered HTML. Presentation output is
-   a replaceable cache derived from `(shard fingerprint, renderer fingerprint)`.
+4. Edition shards keep Content IR as semantic truth and pair every public node with one
+   inert HTML presentation sidecar. The sidecar is bounded presentation IR, not an
+   executable page or a substitute for Content IR.
 5. Alias routes such as `/latest/` and `/stable/` are routing metadata. They never
    create additional edition ids or shards; the reserved moving id `latest` remains
    the identity of head nodes.
@@ -125,27 +128,31 @@ frozen/
         catalog.json
         content/
         ast/
+        pages/
         fingerprint.json
 ```
 
 The names of internal sidecars may evolve, but the directory boundary and logical
 contract are fixed. A release directory contains normalized DCP records, Content IR,
-optional native AST, and the source provenance required to verify the result. Rendered
-HTML, theme assets, templates, and renderer caches live outside this immutable shard.
+optional native AST, one inert `pages/<slug-or-index>.html` presentation per public
+node, and the source provenance required to verify the result. Complete rendered pages,
+theme assets, templates, and renderer caches live outside this immutable shard.
 
 The shard fingerprint covers:
 
 - mount id, public edition id, source provider/repository/ref, and peeled commit SHA;
 - normalized page and graph records, excluding volatile timestamps;
+- the verified presentation sidecar bytes for every public node;
 - source and mount configuration that changes semantic indexing;
-- content-adapter/parser contract versions; and
+- content-adapter/parser and presentation contract versions; and
 - the DCP/IR schema version.
 
-It excludes theme configuration, templates, rendering heads, HTML, static-export
-layout, aliases, lifecycle status, observation timestamps, and deployment metadata.
-Consequently a theme or renderer change leaves every release fingerprint unchanged.
-An IR schema bump is deliberate invalidation: the old shard remains readable within
-the supported compatibility window while a new fingerprinted representation is built.
+It excludes theme configuration, templates, complete-page rendering heads,
+static-export layout, aliases, lifecycle status, observation timestamps, and deployment
+metadata. Consequently a theme, CSS, or page-shell renderer change leaves every release
+fingerprint unchanged. An IR schema or presentation-contract bump is deliberate
+invalidation: the old shard remains readable within the supported compatibility window
+while a new fingerprinted representation is built.
 
 Freeze behavior is:
 
@@ -155,8 +162,9 @@ Freeze behavior is:
   renamed into place.
 - A release directory whose recorded ref or fingerprint disagrees with discovery fails
   closed and remains available as last-known-good evidence.
-- Rendered responses may be regenerated lazily and cached by shard plus renderer
-  fingerprint without mutating the shard.
+- Complete rendered responses may be regenerated lazily from the semantic and
+  presentation IR and cached by shard plus renderer fingerprint without mutating the
+  shard.
 
 These rules make steady-state freeze cost proportional to changed moving heads, not to
 the total number of retained editions.
@@ -186,18 +194,20 @@ This uses existing DCP edge kinds. No edition-specific edge taxonomy is added.
 
 ### Shared-content deduplication
 
-Identical normalized Content IR and routing metadata must not be copied into every
-edition shard. Freeze computes a semantic content digest per `(mount, slug)` and
-canonicalizes identical records to one internal shared node. Its internal edition id is
-`shared-<digest>` and therefore still obeys `mount:edition:slug`; it is never exposed as
-a public edition or URL prefix. `available_in` edges connect that node to every public
-release that uses it.
+Freeze computes a semantic content digest per `(mount, slug)` and canonicalizes
+identical records to one internal shared-content identity. Its id is
+`mount:shared-<digest>:slug`; it is never exposed as a public edition or URL prefix.
+The immutable source records retain their distinct `mount:edition:slug` ids, refs,
+resolved commits, and source paths. Deduplication is therefore a composition contract,
+not a destructive rewrite of source or public graph identity.
 
-The composition index maps `(mount, requested edition, slug)` to the canonical shared
-node, while the request retains its public edition context for URLs, banners, policy,
-and response metadata. If the page differs between releases, each distinct digest is a
-separate node. This permits more than one historical variant of the same slug without
-making shared content mutable.
+The versioned `edition-projection.json` v1 sidecar records source pages, shared-content
+identities and members, edition order, cross-edition edges, and resolver metrics.
+`available_in` edges connect each public page identity to every
+`release:<mount>:<edition>` in which its logical page is present. If page content
+differs between releases, each distinct digest is a separate shared-content identity.
+This permits more than one historical variant of the same slug without making shared
+content mutable or losing provenance.
 
 ## URL and request-context contract (#351)
 
@@ -270,14 +280,31 @@ The switcher resolves within the current mount and never guesses across mounts:
 3. Walk the slug's ancestors in the target edition, nearest first.
 4. Fall back to the target edition's mount landing page.
 
-Only step 1 is a direct hit. Steps 2–4 show a notice explaining the fallback, and the
-runtime records direct-hit and fallback-reason metrics for the pilot. If lifecycle
-policy disallows the target, the switcher omits it rather than producing a dead link.
+Step 1 is a direct hit. Step 2 is a declared logical-page replacement and keeps its
+canonical target without presenting it as a missing-page fallback. Steps 3 and 4 add
+`version_fallback`, `version_from`, `version_source`, and `version_target` query
+context; the target fragment re-resolves that source identity and renders a status
+notice only when its resolution and destination match the active page.
+If lifecycle policy disallows the target, the switcher omits it rather than producing
+a dead link.
 
 An htmx edition switch requests the target fragment in the new context, updates all
 edition-dependent out-of-band regions, and pushes the canonical URL. It does not
 require a full page reload. Navigation and related-content lookups use the target
 context from the first response onward.
+
+The projection computes deterministic direct, supersedes, ancestor, landing, and
+missing counts for every selectable cross-edition attempt, both globally and per
+mount. `direct_hit_rate` is direct hits divided by attempts; `fallback_rate` includes
+supersedes, ancestor, and landing resolutions but excludes missing targets. The
+registry builds or loads the immutable projection once under a lock, and subsequent
+switcher and graph-query calls use constant-time indices.
+
+The repository's edition-projection fixture creates actual git commits and two release
+tags across two mounts. It is executable local evidence for direct-hit, fallback,
+deduplication, provenance, graph, frozen, static, and htmx behavior. It is not external
+production-pilot evidence; rollout and representative-repository gates remain tracked
+by #356 and #357.
 
 ## `versions.json` and channel discovery (#354)
 
@@ -352,7 +379,7 @@ versioning vocabulary across the product family.
 | `bengal/core/version.py` — folder mode and mutable `Version` build model | **Diverge** | Furatena versions git-backed mounts and composes immutable IR shards; it does not copy `_versions/` trees or bake presentation per version. |
 | `bengal/content/versioning/git_adapter.py` — tag matching, prefix stripping, semver ordering, prerelease filtering | **Adopt verbatim** | Maintain behavioral parity, including stable-before-prerelease ordering and actionable rejection of non-semver tags under `semver-desc`. |
 | `bengal/content/versioning/git_adapter.py` — ref/commit tracking | **Adapt** | Resolve through Furatena's `SourceProvider`, persist provenance in source-sync state, and reuse leases plus atomic swaps. |
-| `bengal/content/versioning/git_adapter.py` — cached worktrees and parallel HTML builds | **Diverge** | A temporary checkout may be an indexing mechanism, but worktrees are not artifacts and renderer changes never rebuild release shards. |
+| `bengal/content/versioning/git_adapter.py` — cached worktrees and parallel HTML builds | **Diverge** | A temporary checkout may be an indexing mechanism, but worktrees are not artifacts and Furatena does not build independent versioned sites. Each shard instead freezes deterministic, bounded body presentation sidecars; theme and page-shell renderer changes do not rebuild it. |
 | `bengal/content/versioning/artifacts.py` — `versions.json` entry shape | **Adopt verbatim** | Per-mount arrays keep `version`, `title`, `aliases`, and `url_prefix` exactly; this is the Mike-compatible surface. |
 | `bengal/content/versioning/artifacts.py` — one-site artifact | **Adapt** | Add a hub keyed by mount while retaining exact per-mount arrays for existing tooling. |
 | `bengal/content/versioning/resolver.py` — latest unprefixed, older versions prefixed, alias and logical-slug resolution | **Adopt verbatim** | Preserve public URL and switcher expectations. |
@@ -391,4 +418,4 @@ implementation:
 
 Those choices may wrap or transport the local logical shard defined here, but they must
 not weaken release immutability, change `mount:edition:slug`, or make renderer changes
-invalidate edition fingerprints.
+invalidate edition fingerprints unless the explicit presentation contract changes.

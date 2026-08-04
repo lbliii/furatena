@@ -117,6 +117,8 @@ def test_live_routes_scope_pages_metadata_nav_and_agent_surfaces(tmp_path: Path)
             latest_alias = await client.get("/latest/guide/")
             sitemap = await client.get("/v1.0.0/sitemap.xml")
             llms = await client.get("/v1.0.0/llms.txt")
+            mount_sitemap = await client.get("/v1.0.0/sitemaps/docs.xml")
+            mount_llms = await client.get("/v1.0.0/llms/docs.txt")
             query = await client.get("/catalog/query.json?edition=1.0.0")
             semantic = await client.get("/search/semantic?q=old&edition=1.0.0")
             mismatch = await client.get("/v1.0.0/catalog/query.json?edition=latest")
@@ -143,8 +145,10 @@ def test_live_routes_scope_pages_metadata_nav_and_agent_surfaces(tmp_path: Path)
         assert dict(alias.headers)["location"] == "/v1.0.0/guide/"
         assert latest_alias.status == 301
         assert dict(latest_alias.headers)["location"] == "/guide/"
-        assert "/v1.0.0/guide/</loc>" in sitemap.text
-        assert "[Old guide](/v1.0.0/guide.md)" in llms.text
+        assert "/v1.0.0/sitemaps/docs.xml</loc>" in sitemap.text
+        assert "[Docs](/v1.0.0/llms/docs.txt)" in llms.text
+        assert "/v1.0.0/guide/</loc>" in mount_sitemap.text
+        assert "[Old guide](/v1.0.0/guide.md)" in mount_llms.text
         query_payload = json.loads(query.text)
         assert query_payload["edition"] == "1.0.0"
         assert {page["edition"] for page in query_payload["pages"]} == {"1.0.0"}
@@ -202,10 +206,14 @@ def test_switcher_resolves_same_slug_fallbacks_and_htmx_targets(tmp_path: Path) 
             ancestor = await client.get("/topic/new/")
 
         assert 'value="/v1.0.0/guide/"' in direct.text
+        assert 'class="version-selector__select"' in direct.text
+        assert 'class="version-selector__label visually-hidden"' in direct.text
+        assert ">Documentation version</label>" in direct.text
         assert 'data-resolution="direct"' in direct.text
         assert 'data-docs-version-target="1.0.0"' in direct.text
         assert 'hx-boost="true"' in direct.text
-        assert 'value="/v1.0.0/topic/"' in ancestor.text
+        assert 'value="/v1.0.0/topic/?version_fallback=ancestor' in ancestor.text
+        assert "version_from=topic%2Fnew" in ancestor.text
         assert 'data-resolution="ancestor"' in ancestor.text
         assert "target.click()" in direct.text
         assert "window.location.href = href" not in direct.text
@@ -383,6 +391,7 @@ def test_switcher_falls_back_to_target_mount_landing() -> None:
     target = resolve_channel_target(Catalog(), source, "1.0.0")
 
     assert target is not None
-    assert target.href == "/v1.0.0/docs/"
+    assert target.href.startswith("/v1.0.0/docs/?version_fallback=landing")
+    assert "version_from=topic%2Fnew" in target.href
     assert target.resolution == "landing"
     assert target.resolved_slug == ""

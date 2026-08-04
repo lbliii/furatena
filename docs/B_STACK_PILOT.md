@@ -46,3 +46,38 @@ has zero template-wiring errors. #357 should repair
 or deliberately route those source-owned findings without weakening checks,
 then refresh the bounded refs and repeat the recorded freeze and preview
 measurements.
+
+## Deployed pilot smoke receipt
+
+After the source diagnostics are resolved and an operator has deployed this
+isolated configuration, verify it from outside the service with the exact
+expected identities from the deployment and content-generation records:
+
+```console
+python scripts/verify-edition-pilot.py "$ORIGIN" \
+  --manifest docs/b-stack-pilot-v1.json \
+  --expected-build-sha "$EXPECTED_BUILD_SHA" \
+  --expected-content-generation "$EXPECTED_CONTENT_GENERATION" \
+  --expected-content-ref "$EXPECTED_CONTENT_REF" \
+  --expected-image-digest "$EXPECTED_IMAGE_DIGEST" \
+  --output "$RECEIPT_PATH"
+```
+
+The origin must be a credential-free HTTPS origin without a path. The verifier
+does not discover or modify deployment resources. It fails unless
+`/versions.json` matches all eight pinned mounts and editions, `/readyz` has
+passing source and index checks for every mount, and `/meta.json` exactly
+matches the supplied build SHA, active content generation and ref, and image
+digest. It also exercises each mount's latest and historical routes, `latest`
+and `stable` redirects, version-selector round trips, edition-scoped catalog
+and semantic queries, and historical lifecycle banner. The Pounce proof uses
+0.9.0 as the pre-fix edition and 0.9.2 as the fixed edition and requires a
+non-empty mount-level Content IR diff.
+
+The v1 receipt is timestamp-free and stable for identical inputs. It records
+the manifest SHA-256, exact runtime and content identities, readiness check
+counts, relative routes and result counts for every mount, and the Pounce diff
+summary. Retain the receipt with the deployment record and the separate
+`afdocs` result. A successful local or loopback run is useful during staging,
+but it does not replace the required external-client receipt against the public
+pilot origin.

@@ -164,6 +164,23 @@ Supported graph node kinds are `api_operation`, `api_tag`, `api_schema`,
 `api_request_body`, `api_response`, `api_example`, `api_auth`, `api_environment`,
 `release`, and `source_file`.
 
+### Edition projection extension
+
+Versioned mounts add `available_in` and `supersedes` edges without changing the DCP v3
+page or edge identity contract. Page availability targets
+`release:<mount>:<edition>`. Page-level replacement edges target another public
+`mount:edition:slug`; release chronology uses release nodes at both endpoints.
+`GET /catalog/query.json`, HTTP `QUERY /catalog/query.json`, and MCP `query_graph`
+accept the existing `edge_kind`, `source`, and `target` filters for these edges.
+
+Freeze and static export also ship `edition-projection.json`, validated by
+`schemas/edition-projection/v1/projection.schema.json`. The independently versioned
+sidecar owns shared semantic-content identities, exact source-member provenance,
+edition ordering, resolver indices, and direct/fallback metrics. It does not replace
+DCP page records and cannot change public `mount:edition:slug` identity. This is an
+additive DCP v3 extension; a DCP v4 bump is unnecessary because the two edge kinds,
+release nodes, and cross-edition page targets were already part of v3.
+
 ### Tier 2 — Content IR (recommended)
 
 Normalized semantics any adapter must populate:
@@ -369,7 +386,11 @@ Live and frozen builds persist the same source boundary. `GET
 /catalog/source-health.json` reports each configured mount as `healthy`,
 `degraded`, or `unavailable`, including provider, source repo/ref/url, source
 root existence, tracked extensions, file count, page count, loaded shard
-origin, channel coverage, and structured sync/index errors. Frozen builds also
+origin, channel coverage, structured sync/index errors, and bounded broken
+cross-shard link evidence. Its `link_reconciliation` member reports the
+identity-scoped persistent index size, pending cold remote shards, load errors,
+and measured last-update neighborhood rather than asserting that an update was
+incremental. Frozen builds also
 record `source_status`/`mount_status` entries in `registry.json` and
 `freeze.manifest.json` (both the compatibility field and shared `sync` field)
 with provider, content fingerprint, previous
