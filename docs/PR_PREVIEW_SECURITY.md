@@ -18,6 +18,12 @@ build, or started outside frozen preview mode. An inherited production
 
 ## Authentication boundary
 
+The shared deployment token below is the existing preview gate. The versioned
+[preview authorization protocol](PREVIEW_AUTH_V1.md) defines the successor
+browser PKCE and machine device/bearer contract without implementing its broker
+or runtime in this change. Consumers must not treat structural parsing of its
+compact JWS as signature verification.
+
 `FURA_PREVIEW_AUTH_TOKEN` is a deployment-only secret of at least 32
 characters. It must be injected at runtime as a sealed provider variable; it
 must not be a Docker build argument, committed value, frozen artifact, URL
@@ -73,3 +79,10 @@ to repair provider configuration.
 On close or merge, the provider adapter must delete the environment and its
 domain. A teardown is complete only after provider state confirms removal, as
 defined by the [preview lifecycle contract](PR_PREVIEW_CONTRACT.md).
+
+The separately operated successor identity boundary is specified by the
+[hosted preview broker architecture](PREVIEW_BROKER_ARCHITECTURE.md) and its
+[threat model](PREVIEW_BROKER_THREAT_MODEL.md). Those records are design gates,
+not evidence that hosted authorization is currently deployed; the shared-token
+boundary on this page remains the implemented behavior until the dependent
+runtime, broker, controller, operations, and conformance work lands.

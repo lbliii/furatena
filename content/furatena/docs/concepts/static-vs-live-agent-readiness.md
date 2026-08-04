@@ -58,17 +58,24 @@ live-only runtime capability because a static host cannot execute tools or serve
 resources, but it still requires a deployed `fura mcp` process and an appropriate
 security boundary.
 
-## Live does not yet mean no-redeploy publishing
+## Managed live content has an explicit activation boundary
 
-Production Railway runs in preview mode from a catalog frozen into its Docker
-image. It can execute queries over that snapshot, but it does not fetch changed
-git content while the process is running.
+The managed Railway profile keeps the proprietary image immutable while an
+authenticated, exact-commit refresh stages adopter-owned public Git content on
+the service volume. Furatena validates and freezes browser, search, catalog, and
+agent artifacts as one generation, verifies the artifact manifest, atomically
+selects it, and retains last-known-good.
 
-Author and hybrid modes can watch files already present under a content root.
-Git-backed mounts can fetch and atomically promote a snapshot when the catalog is
-constructed. There is not yet a runtime trigger that performs another fetch and
-swaps the loaded registry. For now, a content commit needs a new image deployment
-to reach Railway.
+The request does not hot-swap the accepting process. Its durable state reports
+that activation is pending, the single-replica service restarts, and readiness
+returns only after the running generation matches the selected receipt. A
+content edit therefore needs no image rebuild or new deployment identity, but it
+does require this controlled process restart.
+
+The bearer is scoped to the configured service/site. A request cannot override
+repository, ref, subdirectory, mount subset, or actor, and a refresh rebuilds all
+reached surfaces. Private repositories, webhook/scheduler transports, and
+multi-replica activation remain outside the v1 contract.
 
 ## Channel recommendation
 
@@ -80,7 +87,8 @@ Two constraints qualify that recommendation:
 
 - deploy the response-streaming fix tracked by issue #329 before routing large
   identity-encoded catalog downloads to Railway by default; and
-- complete issue #318 before promising content re-sync without a deploy.
+- preserve a same-deployment Railway receipt before claiming live-environment
+  conformance for the managed refresh contract.
 
 Until an MCP transport is deployed and secured, describe Railway as the live
 HTTP query channel and `fura mcp` as a separate runtime rather than presenting

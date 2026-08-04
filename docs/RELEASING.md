@@ -50,6 +50,8 @@ tags, and treat an unknown schema version as requiring manual review.
    `main`, and prevent self-review.
 3. Store no long-lived registry credential in GitHub Actions. Candidate builds
    use the job-scoped `GITHUB_TOKEN`.
+   Pull-request image conformance runs separately with only `contents: read`;
+   pull-request code receives no package-write, OIDC, or attestation authority.
 4. Create a least-privilege, read-only registry credential for Railway. Store
    it only in Railway's image registry credential fields, never as an
    application environment variable or template-visible value.

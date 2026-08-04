@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://furatena.dev/schemas/preview-auth/v1/error.schema.json",
+  "title": "Furatena preview authorization structured error v1", "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "record_type", "error", "safe_message", "remediation", "retryable", "request_id", "redirect_allowed", "state", "retry_after_seconds", "supported_versions", "deprecated_versions"],
+  "properties": {
+    "schema_version": {"const": 1}, "record_type": {"const": "furatena.preview-auth.error"},
+    "error": {"enum": ["invalid_request", "invalid_origin", "invalid_binding", "access_denied", "expired_code", "replayed_code", "invalid_grant", "unknown_key", "stale_key_set", "revoked_grant", "authorization_pending", "slow_down", "unsupported_version", "server_error"]},
+    "safe_message": {"type": "string", "minLength": 1, "maxLength": 512}, "remediation": {"type": "string", "minLength": 1, "maxLength": 512}, "retryable": {"type": "boolean"},
+    "request_id": {"oneOf": [{"$ref": "common.schema.json#/$defs/opaque"}, {"type": "null"}]}, "redirect_allowed": {"type": "boolean"},
+    "state": {"oneOf": [{"$ref": "common.schema.json#/$defs/oneTime"}, {"type": "null"}]},
+    "retry_after_seconds": {"oneOf": [{"type": "integer", "minimum": 1, "maximum": 60}, {"type": "null"}]},
+    "supported_versions": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "contains": {"const": 1}, "items": {"type": "integer", "minimum": 1, "maximum": 65535}}, "deprecated_versions": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"type": "integer", "minimum": 1, "maximum": 65535}}
+  },
+  "oneOf": [
+    {"properties": {"error": {"const": "invalid_request"}, "safe_message": {"const": "The authorization request is invalid."}, "remediation": {"const": "Restart authorization with a valid v1 request."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "invalid_origin"}, "safe_message": {"const": "The authorization origin is invalid."}, "remediation": {"const": "Restart authorization from the registered preview origin."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "invalid_binding"}, "safe_message": {"const": "The authorization request does not match this preview."}, "remediation": {"const": "Restart authorization from the preview URL."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "access_denied"}, "safe_message": {"const": "Access to this preview was denied."}, "remediation": {"const": "Request access from a repository administrator."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "expired_code"}, "safe_message": {"const": "The one-time authorization code expired."}, "remediation": {"const": "Restart authorization to obtain a new code."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "replayed_code"}, "safe_message": {"const": "The one-time authorization code was already used."}, "remediation": {"const": "Restart authorization; do not retry the consumed code."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "invalid_grant"}, "safe_message": {"const": "The preview grant is invalid."}, "remediation": {"const": "Restart authorization to obtain a new grant."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "unknown_key"}, "safe_message": {"const": "The preview grant signing key is unknown."}, "remediation": {"const": "Refresh the current key set once, then restart authorization."}, "retryable": {"const": true}}},
+    {"properties": {"error": {"const": "stale_key_set"}, "safe_message": {"const": "The preview authorization key set is stale."}, "remediation": {"const": "Restore fresh key discovery before accepting grants."}, "retryable": {"const": true}}},
+    {"properties": {"error": {"const": "revoked_grant"}, "safe_message": {"const": "The preview grant was revoked."}, "remediation": {"const": "Restart authorization if preview access is still allowed."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "authorization_pending"}, "safe_message": {"const": "Preview authorization is still pending."}, "remediation": {"const": "Continue polling after retry_after_seconds."}, "retryable": {"const": true}}},
+    {"properties": {"error": {"const": "slow_down"}, "safe_message": {"const": "Preview authorization polling is too frequent."}, "remediation": {"const": "Wait for retry_after_seconds before polling again."}, "retryable": {"const": true}}},
+    {"properties": {"error": {"const": "unsupported_version"}, "safe_message": {"const": "The preview authorization protocol version is unsupported."}, "remediation": {"const": "Retry using one of supported_versions; do not reinterpret this message as v1."}, "retryable": {"const": false}}},
+    {"properties": {"error": {"const": "server_error"}, "safe_message": {"const": "Preview authorization is temporarily unavailable."}, "remediation": {"const": "Retry the authorization request later."}, "retryable": {"const": true}}}
+  ],
+  "allOf": [
+    {
+      "if": {"properties": {"error": {"enum": ["invalid_origin", "invalid_binding", "unsupported_version", "server_error", "authorization_pending", "slow_down"]}}},
+      "then": {"properties": {"redirect_allowed": {"const": false}}}
+    },
+    {
+      "if": {"properties": {"redirect_allowed": {"const": true}}},
+      "then": {"properties": {"error": {"enum": ["invalid_request", "access_denied"]}, "request_id": {"$ref": "common.schema.json#/$defs/opaque"}, "state": {"$ref": "common.schema.json#/$defs/oneTime"}}},
+      "else": {"properties": {"state": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"error": {"enum": ["authorization_pending", "slow_down"]}}},
+      "then": {"properties": {"request_id": {"$ref": "common.schema.json#/$defs/opaque"}, "retry_after_seconds": {"type": "integer", "minimum": 1, "maximum": 60}}},
+      "else": {"properties": {"retry_after_seconds": {"type": "null"}}}
+    }
+  ]
+}
