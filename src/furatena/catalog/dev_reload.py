@@ -189,8 +189,8 @@ def run_docs_dev_server(
     """Start the docs dev server with split browser vs process reload layers.
 
     Chirp browser reload watches ``AppConfig.reload_dirs`` (theme/assets).
-    Pounce process reload watches only ``process_reload_dirs`` (``src/furatena``
-    when ``FURA_RELOAD_SRC=1``) plus the narrowed docs app cwd — not theme CSS.
+    Pounce process reload is enabled only for validated ``process_reload_dirs``;
+    normal author mode never restarts for generated state beneath the docs cwd.
     """
     from chirp.server.dev import run_dev_server
 
@@ -199,17 +199,17 @@ def run_docs_dev_server(
     resolved_port = port or app.config.port
     docs_root = docs_app.config.root.resolve()
     previous_cwd = Path.cwd()
-
     app._ensure_frozen()
+    reload_dirs = process_reload_dirs(docs_app.repo_root)
     os.chdir(docs_root)
     try:
         run_dev_server(
             app,
             resolved_host,
             resolved_port,
-            reload=app.config.debug,
+            reload=bool(reload_dirs),
             reload_include=(),
-            reload_dirs=process_reload_dirs(docs_app.repo_root),
+            reload_dirs=reload_dirs,
         )
     except KeyboardInterrupt:
         pass

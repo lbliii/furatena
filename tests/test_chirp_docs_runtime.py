@@ -21,8 +21,11 @@ from furatena import __version__
 from furatena.catalog.application_roots import ApplicationRoots
 from furatena.catalog.assets import bundle_css
 from furatena.catalog.dev_banner import (
+    ServeStartupPhase,
+    ServeStartupResult,
     configure_pounce_display_defaults,
-    format_serve_startup,
+    format_serve_preflight,
+    serve_reload_behavior,
 )
 from furatena.catalog.dev_reload import (
     DevServerRecord,
@@ -171,26 +174,47 @@ class TestDevReloadWiring:
         dirs = {Path(d) for d in browser_reload_dirs(theme)}
         assert cache_dir not in dirs
 
-    def test_format_serve_startup_author(self) -> None:
-        lines = format_serve_startup(
-            ServeConfig(ServeMode.AUTHOR, None, False, True),
-            page_count=10,
-            mount_count=2,
-            url="http://127.0.0.1:8001/",
+    def test_format_serve_preflight_author(self) -> None:
+        serve = ServeConfig(ServeMode.AUTHOR, None, False, True)
+        lines = format_serve_preflight(
+            ServeStartupResult(
+                phase=ServeStartupPhase.PREFLIGHT,
+                mode=serve.mode,
+                configured_url="http://127.0.0.1:8001/",
+                page_count=10,
+                mount_count=2,
+                frozen_dir=None,
+                stale_freeze=serve.warn_stale_freeze,
+                reload=serve_reload_behavior(serve),
+                checks_skipped=True,
+                check_elapsed_ms=0.0,
+                diagnostics=(),
+            )
         )
-        assert "Mode: author" in lines[0]
-        assert "reload: content (htmx)" in lines[0]
-        assert lines[1] == "Open http://127.0.0.1:8001/"
+        assert lines[0] == "Catalog   10 pages · 2 mounts · author"
+        assert "Reload    content: htmx · theme: browser" in lines[-1]
+        assert all("http://" not in line for line in lines)
 
-    def test_format_serve_startup_preview(self) -> None:
-        lines = format_serve_startup(
-            ServeConfig(ServeMode.PREVIEW, FROZEN_DIR, True, False),
-            page_count=10,
-            mount_count=2,
-            url="http://127.0.0.1:8001/",
+    def test_format_serve_preflight_preview(self) -> None:
+        serve = ServeConfig(ServeMode.PREVIEW, FROZEN_DIR, True, False)
+        lines = format_serve_preflight(
+            ServeStartupResult(
+                phase=ServeStartupPhase.PREFLIGHT,
+                mode=serve.mode,
+                configured_url="http://127.0.0.1:8001/",
+                page_count=10,
+                mount_count=2,
+                frozen_dir=str(FROZEN_DIR),
+                stale_freeze=serve.warn_stale_freeze,
+                reload=serve_reload_behavior(serve),
+                checks_skipped=True,
+                check_elapsed_ms=0.0,
+                diagnostics=(),
+            )
         )
-        assert "no live reload" in lines[0]
-        assert "reload:" not in lines[0]
+        assert lines[0] == "Catalog   10 pages · 2 mounts · preview"
+        assert lines[-1] == "Reload    frozen catalog · live reload off"
+        assert all("http://" not in line for line in lines)
 
     def test_pounce_display_uses_furatena_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
         names = (
