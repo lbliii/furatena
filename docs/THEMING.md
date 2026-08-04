@@ -56,18 +56,33 @@ theme:
 
 Registered packs: `fura theme list` — **docs-core** via `theme.id` (built-in: `chirp`), **skin** via `theme.use` (built-in: `lagoon`).
 
-### Scaffold a custom skin
+### Scaffold and verify presentation packs
 
 ```bash
 fura theme init                         # writes APP_ROOT/theme-skin/
 fura --app-root site theme init         # writes site/theme-skin/
 fura theme init my-brand/               # relative to the selected app root
 fura theme init /absolute/path/to/brand # absolute targets remain absolute
+fura theme init presentation/layout --type layout --id product-layout
+fura theme init presentation/patches --type override --id product-overrides
 ```
 
-The scaffold includes `tokens.css`, `styles.css`, `skin/*`, and a branding README. Existing files
-are preserved unless `--force` is supplied. Wire overrides in `docs.yaml` (see generated README)
-or register a `furatena.themes` entry point for a reusable pack.
+The default remains a skin and retains `tokens.css`, `styles.css`, `skin/*`, and the branding
+README. Every scaffold now includes a valid `presentation-pack.json`; existing files are preserved
+unless `--force` is supplied. Select the repository-local pack through `presentation.layout`,
+`presentation.skin`, or `presentation.overrides` as shown in its generated README.
+
+Validate and render the synthetic reference matrix before serving adopter content:
+
+```bash
+fura theme check presentation/layout
+fura theme preview presentation/layout
+fura theme conformance presentation/layout
+```
+
+Add `--check` to preview or conformance in CI to detect generated drift without writing. See
+[PRESENTATION_PACKS.md](PRESENTATION_PACKS.md#developer-workflow) for the fixture coverage,
+diagnostic contract, repository-local distribution, optional entry points, and upgrade workflow.
 
 ### Develop export previews
 

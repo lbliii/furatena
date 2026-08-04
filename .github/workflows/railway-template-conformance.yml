@@ -71,12 +71,16 @@ jobs:
           refresh_token=$(openssl rand -hex 32)
           session_secret=$(openssl rand -hex 32)
           echo "::add-mask::$refresh_token"
+          echo "::add-mask::$session_secret"
           echo "refresh_token=$refresh_token" >> "$GITHUB_OUTPUT"
+          project_name="furatena-conformance-${GITHUB_RUN_ID}"
+          printf '%s\n' "$project_name" > "${RUNNER_TEMP}/furatena-project-name"
           pushd conformance-workspace >/dev/null
           npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" init \
-            --name "furatena-conformance-${GITHUB_RUN_ID}" --json > ../conformance-evidence/project.json
-          project_id=$(jq -r '.id // .project.id' ../conformance-evidence/project.json)
+            --name "$project_name" --json > "${RUNNER_TEMP}/furatena-project.json"
+          project_id=$(jq -r '.id // .project.id' "${RUNNER_TEMP}/furatena-project.json")
           test -n "$project_id" && test "$project_id" != null
+          printf '%s\n' "$project_id" > "${RUNNER_TEMP}/furatena-project-id"
           echo "project_id=$project_id" >> "$GITHUB_OUTPUT"
           npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" deploy --template "$TEMPLATE_CODE" \
             --variable "FURA_CONTENT_REPOSITORY=$CONTENT_REPOSITORY" \
@@ -116,8 +120,13 @@ jobs:
         env:
           ORIGIN: ${{ steps.live.outputs.origin }}
         run: |
+          raw_slo="${RUNNER_TEMP}/furatena-initial-slo.json"
+          trap 'rm -f "$raw_slo"' EXIT
           python scripts/check_live_slo.py --origin "$ORIGIN" \
-            --output conformance-evidence/initial-slo.json
+            --output "$raw_slo"
+          jq 'del(.origin)' "$raw_slo" > conformance-evidence/initial-slo.json
+          rm -f "$raw_slo"
+          trap - EXIT
           curl --fail --silent "$ORIGIN/_fura/content/status" \
             > conformance-evidence/content-initial.json
 
@@ -213,24 +222,80 @@ jobs:
       - name: Capture Railway control-plane state
         if: always()
         run: |
+          set -euo pipefail
+          mkdir -p conformance-evidence
           pushd conformance-workspace >/dev/null
-          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" status --json \
-            > ../conformance-evidence/final-status.json || true
           npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" deployment list \
-            --service "$SERVICE" --json > ../conformance-evidence/final-deployments.json || true
+            --service "$SERVICE" --json > "${RUNNER_TEMP}/furatena-final-deployments.json" || true
           popd >/dev/null
+          if jq -e 'type == "array"' "${RUNNER_TEMP}/furatena-final-deployments.json" \
+            >/dev/null 2>&1; then
+            jq '{
+              schema_version: 1,
+              latest_deployment_status: (.[0].status // "MISSING"),
+              deployment_statuses: [.[] | (.status // "MISSING")]
+            }' "${RUNNER_TEMP}/furatena-final-deployments.json" \
+              > conformance-evidence/railway-terminal.json
+          else
+            jq -n '{
+              schema_version: 1,
+              latest_deployment_status: "UNAVAILABLE",
+              deployment_statuses: []
+            }' > conformance-evidence/railway-terminal.json
+          fi
+          rm -f "${RUNNER_TEMP}/furatena-final-deployments.json"
+
+      - name: Delete the disposable project with bounded retries
+        if: always()
+        env:
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p conformance-evidence
+          attempts=0
+          cleanup_status=not-created
+          project_target="$PROJECT_ID"
+          if [ -z "$project_target" ] && [ -s "${RUNNER_TEMP}/furatena-project-id" ]; then
+            IFS= read -r project_target < "${RUNNER_TEMP}/furatena-project-id"
+          fi
+          if [ -z "$project_target" ] && [ -s "${RUNNER_TEMP}/furatena-project-name" ]; then
+            IFS= read -r project_target < "${RUNNER_TEMP}/furatena-project-name"
+          fi
+          if [ -n "$project_target" ]; then
+            cleanup_status=failed
+            for attempt in 1 2 3; do
+              attempts=$attempt
+              if timeout 120s npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" delete \
+                --project "$project_target" --yes --json >/dev/null 2>&1; then
+                cleanup_status=deleted
+                break
+              fi
+              sleep 5
+            done
+          fi
+          rm -f \
+            "${RUNNER_TEMP}/furatena-project-id" \
+            "${RUNNER_TEMP}/furatena-project-name" \
+            "${RUNNER_TEMP}/furatena-project.json"
+          jq -n \
+            --arg status "$cleanup_status" \
+            --argjson attempts "$attempts" \
+            '{schema_version: 1, cleanup: {status: $status, attempts: $attempts}}' \
+            > conformance-evidence/cleanup.json
+          test "$cleanup_status" != failed
 
       - name: Upload conformance evidence
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: railway-template-conformance-${{ github.run_id }}
-          path: conformance-evidence/
+          path: |
+            conformance-evidence/cleanup.json
+            conformance-evidence/content-*.json
+            conformance-evidence/final-artifacts.json
+            conformance-evidence/initial-slo.json
+            conformance-evidence/meta-*.json
+            conformance-evidence/railway-terminal.json
+            conformance-evidence/rollback.json
           if-no-files-found: error
           retention-days: 90
-
-      - name: Delete the disposable project
-        if: always() && steps.project.outputs.project_id != ''
-        run: >-
-          npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" delete
-          --project "${{ steps.project.outputs.project_id }}" --yes --json
