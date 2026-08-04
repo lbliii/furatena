@@ -18,6 +18,12 @@ build, or started outside frozen preview mode. An inherited production
 
 ## Authentication boundary
 
+The shared deployment token below is the existing preview gate. The versioned
+[preview authorization protocol](PREVIEW_AUTH_V1.md) defines the successor
+browser PKCE and machine device/bearer contract without implementing its broker
+or runtime in this change. Consumers must not treat structural parsing of its
+compact JWS as signature verification.
+
 `FURA_PREVIEW_AUTH_TOKEN` is a deployment-only secret of at least 32
 characters. It must be injected at runtime as a sealed provider variable; it
 must not be a Docker build argument, committed value, frozen artifact, URL
