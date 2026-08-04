@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+from dataclasses import replace
 from typing import cast
 
 import pytest
@@ -234,17 +235,19 @@ def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
     class RemoteSearch:
         def __init__(self) -> None:
             self.calls = 0
+            self.result_node_id = "alpha:latest:allowed"
 
         def search(self, *args: object, **kwargs: object) -> FederatedSearchResult:
             self.calls += 1
+            result_edition = self.result_node_id.split(":", 2)[1]
             return FederatedSearchResult(
                 hits=(
                     FederatedSearchHit(
-                        node_id="alpha:latest:allowed",
+                        node_id=self.result_node_id,
                         title="Allowed",
                         snippet="allowed",
                         mount="alpha",
-                        edition="latest",
+                        edition=result_edition,
                         shard_fingerprint="a" * 64,
                         score=1.0,
                         keyword_score=1.0,
@@ -302,6 +305,17 @@ def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
         source_path="allowed.md",
         mount="alpha",
     )
+    assert (
+        CatalogRegistry.federated_search_hits(
+            cast(CatalogRegistry, catalog),
+            "allowed",
+            nodes=[allowed],
+            edition="old",
+            limit=4,
+        )
+        == ()
+    )
+    assert remote.calls == 0
 
     hits = CatalogRegistry.federated_search_hits(
         cast(CatalogRegistry, catalog),
@@ -312,3 +326,15 @@ def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
 
     assert [hit.node.node_id for hit in hits] == ["alpha:latest:allowed"]
     assert remote.calls == 1
+
+    concrete = replace(allowed, edition="2026.1")
+    remote.result_node_id = concrete.node_id
+    concrete_hits = CatalogRegistry.federated_search_hits(
+        cast(CatalogRegistry, catalog),
+        "allowed",
+        nodes=[concrete],
+        limit=4,
+    )
+
+    assert [hit.node.node_id for hit in concrete_hits] == ["alpha:2026.1:allowed"]
+    assert remote.calls == 2

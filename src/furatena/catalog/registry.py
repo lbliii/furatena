@@ -1749,13 +1749,20 @@ class CatalogRegistry:
             remote_mounts &= {mount}
         if not remote_mounts:
             return ()
-        allowed = {node.node_id: node for node in nodes if node.mount in remote_mounts}
+        target_edition = edition or self.active_channel
+        uses_active_edition = target_edition == self.active_channel
+        allowed = {
+            node.node_id: node
+            for node in nodes
+            if node.mount in remote_mounts
+            and (uses_active_edition or node.edition == target_edition)
+        }
         if not allowed:
             return ()
         result = self.remote_shards.search(
             query,
             mounts=remote_mounts,
-            edition=edition or self.active_channel,
+            edition=target_edition,
             limit=max(limit * 2, 16),
             status=status,
             include_preview=include_preview,
