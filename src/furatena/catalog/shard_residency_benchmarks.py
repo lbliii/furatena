@@ -111,7 +111,7 @@ class _SyntheticRemoteRegistry:
                 identity: shard
                 for identity, shard in self._shards.items()
                 if identity.startswith(f"{mount}:")
-            }
+            },
         )
 
     def fetch_presentation_from(self, shard: Any, node_id: str) -> bytes:
