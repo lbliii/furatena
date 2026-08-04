@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "page_count": 2,
+  "shared_node_count": 1,
+  "deduplicated_page_count": 1,
+  "edition_order": {
+    "docs": ["latest", "1.0.0"]
+  },
+  "pages": [
+    {
+      "node_id": "docs:latest:guide",
+      "shared_node_id": "docs:shared-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:guide",
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "mount": "docs",
+      "edition": "latest",
+      "slug": "guide",
+      "url": "/guide/",
+      "title": "Guide",
+      "source_path": "guide.md",
+      "source_ref": "main",
+      "resolved_ref": "1111111111111111111111111111111111111111",
+      "supersedes": []
+    },
+    {
+      "node_id": "docs:1.0.0:guide",
+      "shared_node_id": "docs:shared-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:guide",
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "mount": "docs",
+      "edition": "1.0.0",
+      "slug": "guide",
+      "url": "/v1.0.0/guide/",
+      "title": "Guide",
+      "source_path": "guide.md",
+      "source_ref": "v1.0.0",
+      "resolved_ref": "0000000000000000000000000000000000000000",
+      "supersedes": []
+    }
+  ],
+  "shared_nodes": [
+    {
+      "node_id": "docs:shared-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:guide",
+      "mount": "docs",
+      "slug": "guide",
+      "content_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "members": [
+        {
+          "node_id": "docs:1.0.0:guide",
+          "edition": "1.0.0",
+          "source_path": "guide.md",
+          "source_ref": "v1.0.0",
+          "resolved_ref": "0000000000000000000000000000000000000000"
+        },
+        {
+          "node_id": "docs:latest:guide",
+          "edition": "latest",
+          "source_path": "guide.md",
+          "source_ref": "main",
+          "resolved_ref": "1111111111111111111111111111111111111111"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "kind": "available_in",
+      "source": "docs:latest:guide",
+      "target": "release:docs:1.0.0",
+      "mount": "docs",
+      "edition": "latest"
+    },
+    {
+      "kind": "supersedes",
+      "source": "docs:latest:guide",
+      "target": "docs:1.0.0:guide",
+      "mount": "docs",
+      "edition": "latest"
+    }
+  ],
+  "metrics": {
+    "attempts": 2,
+    "direct_hits": 2,
+    "fallbacks": 0,
+    "missing": 0,
+    "direct_hit_rate": 1.0,
+    "fallback_rate": 0.0,
+    "resolutions": {
+      "direct": 2,
+      "supersedes": 0,
+      "ancestor": 0,
+      "landing": 0,
+      "missing": 0
+    },
+    "mounts": {
+      "docs": {
+        "attempts": 2,
+        "direct_hits": 2,
+        "fallbacks": 0,
+        "missing": 0,
+        "direct_hit_rate": 1.0,
+        "fallback_rate": 0.0,
+        "resolutions": {
+          "direct": 2,
+          "supersedes": 0,
+          "ancestor": 0,
+          "landing": 0,
+          "missing": 0
+        }
+      }
+    }
+  }
+}

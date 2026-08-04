@@ -268,6 +268,7 @@ ci-contract:
 	$(PYTEST) \
 		tests/test_author_authorization.py \
 		tests/test_author_truth.py \
+		tests/test_edition_projection.py \
 		tests/test_public_projection.py \
 		tests/test_docs_quality.py \
 		tests/test_integrator_operations_reference.py \

@@ -208,7 +208,8 @@ def test_switcher_resolves_same_slug_fallbacks_and_htmx_targets(tmp_path: Path) 
         assert 'data-resolution="direct"' in direct.text
         assert 'data-docs-version-target="1.0.0"' in direct.text
         assert 'hx-boost="true"' in direct.text
-        assert 'value="/v1.0.0/topic/"' in ancestor.text
+        assert 'value="/v1.0.0/topic/?version_fallback=ancestor' in ancestor.text
+        assert "version_from=topic%2Fnew" in ancestor.text
         assert 'data-resolution="ancestor"' in ancestor.text
         assert "target.click()" in direct.text
         assert "window.location.href = href" not in direct.text
@@ -386,6 +387,7 @@ def test_switcher_falls_back_to_target_mount_landing() -> None:
     target = resolve_channel_target(Catalog(), source, "1.0.0")
 
     assert target is not None
-    assert target.href == "/v1.0.0/docs/"
+    assert target.href.startswith("/v1.0.0/docs/?version_fallback=landing")
+    assert "version_from=topic%2Fnew" in target.href
     assert target.resolution == "landing"
     assert target.resolved_slug == ""

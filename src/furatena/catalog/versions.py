@@ -7,8 +7,11 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import yaml
+
+from furatena.catalog.graph_schema import parse_node_id
 
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+")
 
@@ -155,6 +158,25 @@ def resolve_channel_target(
             resolved_slug=str(node.slug),
         )
 
+    projection_resolver = getattr(catalog, "resolve_edition_page", None)
+    if callable(projection_resolver):
+        resolved = projection_resolver(node, channel_id)
+        if resolved is None:
+            return None
+        from furatena.catalog.edition_projection import projection_page_url
+
+        target = DocChannelTarget(
+            href=catalog.scoped_url(projection_page_url(resolved.page)),
+            resolution=resolved.resolution,
+            resolved_slug=resolved.page.slug,
+        )
+        return _fallback_target(
+            target,
+            source_node_id=_source_node_id(catalog, node),
+            source_slug=str(node.slug),
+            channel_id=channel_id,
+        )
+
     with catalog.use_edition(channel_id):
         candidate = catalog.get_by_slug(node.slug, mount=mount_id)
         if candidate is not None and _public_candidate(catalog, candidate):
@@ -169,10 +191,15 @@ def resolve_channel_target(
             ancestor_slug = "/".join(parts[:end])
             candidate = catalog.get_by_slug(ancestor_slug, mount=mount_id)
             if candidate is not None and _public_candidate(catalog, candidate):
-                return DocChannelTarget(
-                    href=_scoped_node_url(catalog, candidate),
-                    resolution="ancestor",
-                    resolved_slug=str(candidate.slug),
+                return _fallback_target(
+                    DocChannelTarget(
+                        href=_scoped_node_url(catalog, candidate),
+                        resolution="ancestor",
+                        resolved_slug=str(candidate.slug),
+                    ),
+                    source_node_id=_source_node_id(catalog, node),
+                    source_slug=str(node.slug),
+                    channel_id=channel_id,
                 )
 
         landing_path = _mount_landing_path(catalog, mount_id, channel_id)
@@ -181,11 +208,109 @@ def resolve_channel_target(
         candidate = catalog.get_path(landing_path)
         if candidate is None or not _public_candidate(catalog, candidate):
             return None
-        return DocChannelTarget(
-            href=_scoped_node_url(catalog, candidate),
-            resolution="landing",
-            resolved_slug=str(candidate.slug),
+        return _fallback_target(
+            DocChannelTarget(
+                href=_scoped_node_url(catalog, candidate),
+                resolution="landing",
+                resolved_slug=str(candidate.slug),
+            ),
+            source_node_id=_source_node_id(catalog, node),
+            source_slug=str(node.slug),
+            channel_id=channel_id,
         )
+
+
+def _fallback_target(
+    target: DocChannelTarget,
+    *,
+    source_node_id: str,
+    source_slug: str,
+    channel_id: str,
+) -> DocChannelTarget:
+    if target.resolution not in {"ancestor", "landing"}:
+        return target
+    separator = "&" if "?" in target.href else "?"
+    query = urlencode(
+        {
+            "version_fallback": target.resolution,
+            "version_from": source_slug,
+            "version_source": source_node_id,
+            "version_target": channel_id,
+        }
+    )
+    return DocChannelTarget(
+        href=f"{target.href}{separator}{query}",
+        resolution=target.resolution,
+        resolved_slug=target.resolved_slug,
+    )
+
+
+def _source_node_id(catalog: Any, node: Any) -> str:
+    existing = str(getattr(node, "node_id", "") or "").strip()
+    if existing:
+        return existing
+    mount = str(node.mount)
+    edition = str(getattr(node, "edition", "") or catalog.active_channel)
+    slug = str(node.slug).strip("/") or "index"
+    return f"{mount}:{edition}:{slug}"
+
+
+def version_fallback_context(
+    catalog: Any,
+    node: Any,
+    request: Any | None,
+) -> dict[str, Any]:
+    """Render a truthful notice only for a validated ancestor/landing fallback."""
+    query = getattr(request, "query", None)
+    if query is None:
+        return {"version_fallback_notice": None}
+    resolution = str(query.get("version_fallback") or "").strip()
+    source_slug = str(query.get("version_from") or "").strip().strip("/")
+    source_node_id = str(query.get("version_source") or "").strip()
+    target_edition = str(query.get("version_target") or "").strip()
+    if (
+        resolution not in {"ancestor", "landing"}
+        or not source_slug
+        or target_edition != str(node.edition)
+        or target_edition != str(catalog.active_channel)
+    ):
+        return {"version_fallback_notice": None}
+    try:
+        source_mount, _source_edition, source_id_slug = parse_node_id(source_node_id)
+    except ValueError:
+        return {"version_fallback_notice": None}
+    normalized_id_slug = "" if source_id_slug == "index" else source_id_slug
+    if source_mount != str(node.mount) or normalized_id_slug != source_slug:
+        return {"version_fallback_notice": None}
+    projection_method = getattr(catalog, "edition_projection", None)
+    if not callable(projection_method):
+        return {"version_fallback_notice": None}
+    resolved = projection_method().resolve(
+        mount=str(node.mount),
+        source_node_id=source_node_id,
+        target_edition=target_edition,
+    )
+    if (
+        resolved is None
+        or resolved.resolution != resolution
+        or resolved.page.node_id != str(node.node_id)
+    ):
+        return {"version_fallback_notice": None}
+    destination = (
+        "the nearest available ancestor" if resolution == "ancestor" else "the edition landing page"
+    )
+    label = "Latest" if target_edition == "latest" else f"v{target_edition}"
+    return {
+        "version_fallback_notice": {
+            "resolution": resolution,
+            "source_slug": source_slug,
+            "target_edition": target_edition,
+            "message": (
+                f"The requested page {source_slug!r} is not available in {label}. "
+                f"Showing {destination}."
+            ),
+        }
+    }
 
 
 def channel_context(
