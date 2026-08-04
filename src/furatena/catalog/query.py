@@ -7,7 +7,7 @@ from typing import Any
 from furatena.catalog.content_ir import content_ir_record
 from furatena.catalog.edition_lifecycle import lifecycle_statuses
 from furatena.catalog.export import catalog_graph
-from furatena.catalog.graph_schema import graph_node_records
+from furatena.catalog.graph_schema import graph_node_records, parse_node_id
 from furatena.catalog.record_types import EdgeRecord, GraphQueryRecord, PageRecord
 
 DEFAULT_GRAPH_QUERY_LIMIT = 100
@@ -96,7 +96,14 @@ def _selector_matches_target(
     if target == selector or target.rstrip("/") == selector.rstrip("/"):
         return True
     page = pages_by_id.get(target)
-    return bool(page and _selector_matches_page(selector, page))
+    if page and _selector_matches_page(selector, page):
+        return True
+    try:
+        _mount, _edition, slug = parse_node_id(target)
+    except ValueError:
+        return False
+    normalized = selector.strip("/")
+    return normalized in {slug, "" if slug == "index" else slug}
 
 
 def query_catalog_graph(
@@ -172,7 +179,8 @@ def query_catalog_graph(
     for edge in graph.get("edges", []):
         source_id = str(edge.get("source") or "")
         target_id = str(edge.get("target") or "")
-        if source_id not in selected_ids:
+        external_source = source_id not in pages_by_id
+        if source_id not in selected_ids and not (edge_filters_active and external_source):
             continue
         if target_id in pages_by_id and target_id not in selected_ids and not edge_filters_active:
             continue
@@ -197,7 +205,12 @@ def query_catalog_graph(
     edge_total = len(edges)
     pages = pages[offset : offset + limit]
     page_ids = {str(page.get("node_id") or "") for page in pages}
-    edges = [edge for edge in edges if str(edge.get("source") or "") in page_ids]
+    edges = [
+        edge
+        for edge in edges
+        if str(edge.get("source") or "") in page_ids
+        or str(edge.get("source") or "") not in pages_by_id
+    ]
     next_offset = offset + len(pages) if offset + len(pages) < total else None
 
     return {

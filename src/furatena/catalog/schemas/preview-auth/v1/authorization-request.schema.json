@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/preview-auth/v1/authorization-request.schema.json",
+  "title": "Furatena preview authorization request v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "record_type", "request_id", "client_kind", "binding", "audience", "nonce", "requested_at", "expires_at", "redirect_uri", "state", "code_challenge", "code_challenge_method"],
+  "properties": {
+    "schema_version": {"const": 1}, "record_type": {"const": "furatena.preview-auth.authorization-request"},
+    "request_id": {"$ref": "common.schema.json#/$defs/opaque"}, "client_kind": {"enum": ["browser", "device"]},
+    "binding": {"$ref": "common.schema.json#/$defs/binding"}, "audience": {"$ref": "common.schema.json#/$defs/audience"},
+    "nonce": {"$ref": "common.schema.json#/$defs/oneTime"}, "requested_at": {"$ref": "common.schema.json#/$defs/timestamp"}, "expires_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "redirect_uri": {"oneOf": [{"$ref": "common.schema.json#/$defs/callbackUrl"}, {"type": "null"}]}, "state": {"oneOf": [{"$ref": "common.schema.json#/$defs/oneTime"}, {"type": "null"}]},
+    "code_challenge": {"oneOf": [{"type": "string", "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$"}, {"type": "null"}]}, "code_challenge_method": {"oneOf": [{"const": "S256"}, {"type": "null"}]}
+  },
+  "allOf": [{"if": {"properties": {"client_kind": {"const": "browser"}}}, "then": {"properties": {"redirect_uri": {"$ref": "common.schema.json#/$defs/callbackUrl"}, "state": {"$ref": "common.schema.json#/$defs/oneTime"}, "code_challenge": {"type": "string", "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$"}, "code_challenge_method": {"const": "S256"}}}, "else": {"properties": {"redirect_uri": {"type": "null"}, "state": {"type": "null"}, "code_challenge": {"type": "null"}, "code_challenge_method": {"type": "null"}}}}]
+}

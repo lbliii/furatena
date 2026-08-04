@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://furatena.dev/schemas/preview-auth/v1/revocation.schema.json",
+  "title": "Furatena preview authorization revocation signal v1", "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "record_type", "issuer", "audience", "binding", "subject", "jti", "key_id", "revoked_at", "reason", "sequence"],
+  "properties": {
+    "schema_version": {"const": 1}, "record_type": {"const": "furatena.preview-auth.revocation"}, "issuer": {"$ref": "common.schema.json#/$defs/endpointUrl"}, "audience": {"$ref": "common.schema.json#/$defs/audience"},
+    "binding": {"$ref": "common.schema.json#/$defs/binding"}, "subject": {"type": "string", "minLength": 1, "maxLength": 256}, "jti": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+    "key_id": {"type": "string", "pattern": "^[A-Za-z0-9._~-]{1,128}$"}, "revoked_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "reason": {"enum": ["explicit", "head_changed", "preview_closed", "repository_access_changed", "key_compromise"]}, "sequence": {"type": "integer", "minimum": 1}
+  }
+}

@@ -18,6 +18,31 @@ build, or started outside frozen preview mode. An inherited production
 
 ## Authentication boundary
 
+The shared deployment token below remains the default preview gate. Furatena
+also ships the runtime side of the versioned
+[preview authorization protocol](PREVIEW_AUTH_V1.md): callers can inject a
+`PreviewGrantRuntime` into `DocsApp.from_paths(preview_grant_runtime=...)` after
+loading a trusted registration and broker adapter. Deployment-mode selection
+and credential migration remain explicit orchestration concerns; constructing
+a runtime does not silently replace the existing gate.
+
+The hosted runtime completes browser PKCE authorization once, verifies Ed25519
+or ES256 grants locally against an issuer-bound bounded JWKS cache, and creates
+a commit-bound server session. Its browser cookie is named
+`__Host-furatena-preview` and always uses `Secure`, `HttpOnly`, `SameSite=Lax`,
+`Path=/`, and no `Domain`. Normal session reads and warm known-key Bearer reads
+make no broker request. An existing session therefore remains usable during a
+bounded broker or JWKS outage, while new sign-ins and stale-key verification
+fail closed.
+
+HTML navigations without a session redirect to the registered authorization
+endpoint. Markdown, JSON, search, catalog/query, metadata, DCP, MCP, CLI-shaped,
+and asset requests return a stable HTTP 401 problem response with a Bearer
+challenge instead of HTML. Hosted protected responses use
+`Cache-Control: private, no-store`, vary on both `Cookie` and `Authorization`,
+and carry the preview robots policy. `/healthz` and `/readyz` remain the only
+authorization bypasses.
+
 `FURA_PREVIEW_AUTH_TOKEN` is a deployment-only secret of at least 32
 characters. It must be injected at runtime as a sealed provider variable; it
 must not be a Docker build argument, committed value, frozen artifact, URL
@@ -33,7 +58,8 @@ curl -H "Authorization: Bearer $FURA_PREVIEW_AUTH_TOKEN" \
   https://<preview-origin>/catalog.json
 ```
 
-HTML, htmx fragments, Markdown, JSON, XML, inventories, theme files, scripts,
+In shared-token mode, HTML, htmx fragments, Markdown, JSON, XML, inventories,
+theme files, scripts,
 fonts, images, and error routes share this policy. Authorized and denied review
 responses use `Cache-Control: private, no-store`, vary on `Authorization`, and
 carry `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet`. Full HTML also
@@ -73,3 +99,10 @@ to repair provider configuration.
 On close or merge, the provider adapter must delete the environment and its
 domain. A teardown is complete only after provider state confirms removal, as
 defined by the [preview lifecycle contract](PR_PREVIEW_CONTRACT.md).
+
+The separately operated successor identity boundary is specified by the
+[hosted preview broker architecture](PREVIEW_BROKER_ARCHITECTURE.md) and its
+[threat model](PREVIEW_BROKER_THREAT_MODEL.md). Those records are design gates,
+not evidence that hosted authorization is currently deployed; the shared-token
+boundary on this page remains the implemented behavior until the dependent
+runtime, broker, controller, operations, and conformance work lands.

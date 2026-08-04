@@ -176,24 +176,32 @@ def evaluate_live_slo(
             )
 
     if artifact_verifier is None:
-        completed = subprocess.run(
-            (
-                sys.executable,
-                str(ROOT / "scripts" / "verify-live-artifacts.py"),
-                origin,
-                "--timeout",
-                str(timeout),
-            ),
-            cwd=ROOT,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=max(timeout * 6, 60),
-        )
-        artifact_ok = completed.returncode == 0
-        artifact = (
-            json.loads(completed.stdout) if artifact_ok else {"error": completed.stderr.strip()}
-        )
+        verifier_timeout = max(timeout * 6, 60)
+        try:
+            completed = subprocess.run(
+                (
+                    sys.executable,
+                    str(ROOT / "scripts" / "verify-live-artifacts.py"),
+                    origin,
+                    "--timeout",
+                    str(timeout),
+                ),
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=verifier_timeout,
+            )
+        except subprocess.TimeoutExpired:
+            artifact = {
+                "error": f"bulk-artifact verifier exceeded its {verifier_timeout:g}s timeout"
+            }
+            artifact_ok = False
+        else:
+            artifact_ok = completed.returncode == 0
+            artifact = (
+                json.loads(completed.stdout) if artifact_ok else {"error": completed.stderr.strip()}
+            )
     else:
         try:
             artifact = artifact_verifier(origin, timeout=timeout)
