@@ -6,9 +6,12 @@ import asyncio
 import copy
 import importlib.util
 import json
+import os
 import shutil
+import subprocess
 from pathlib import Path
 
+import yaml
 from chirp.testing.client import TestClient
 
 from furatena.catalog.config import load_docs_config
@@ -332,10 +335,122 @@ def test_clean_account_workflow_proves_lifecycle_and_always_deletes_project() ->
         "/_fura/content/rollback",
         "rollback_hold",
         "verify-live-artifacts.py",
-        "if: always() && steps.project.outputs.project_id != ''",
+        "Delete the disposable project with bounded retries",
+        "if: always()",
+        "for attempt in 1 2 3",
+        "timeout 120s",
+        "conformance-evidence/cleanup.json",
         "delete",
     ):
         assert required in source
     assert "RAILWAY_CLI_VERSION: 5.25.0" in source
     assert "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" in source
     assert "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f" in source
+
+
+def test_clean_account_evidence_excludes_raw_control_plane_identifiers() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+    upload = source.split("      - name: Upload conformance evidence\n", 1)[1]
+
+    assert "conformance-evidence/railway-terminal.json" in upload
+    assert "conformance-evidence/cleanup.json" in upload
+    for raw_control_plane_file in (
+        "project.json",
+        "domains.json",
+        "domain-created.json",
+        "deployments-initial.json",
+        "final-deployments.json",
+        "final-status.json",
+    ):
+        assert raw_control_plane_file not in upload
+    assert "path: conformance-evidence/" not in upload
+    assert "latest_deployment_status" in source
+    assert "deployment_statuses" in source
+    assert 'rm -f "${RUNNER_TEMP}/furatena-final-deployments.json"' in source
+
+
+def test_clean_account_masks_generated_session_secret_before_use() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+
+    generated = source.index("session_secret=$(openssl rand -hex 32)")
+    masked = source.index('echo "::add-mask::$session_secret"')
+    deployed = source.index("FURA_SESSION_SECRET=$session_secret")
+
+    assert generated < masked < deployed
+
+
+def test_clean_account_persists_name_fallback_before_project_init() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+
+    name = source.index('project_name="furatena-conformance-${GITHUB_RUN_ID}"')
+    persisted = source.index(
+        'printf \'%s\\n\' "$project_name" > "${RUNNER_TEMP}/furatena-project-name"'
+    )
+    initialized = source.index('npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" init')
+
+    assert name < persisted < initialized
+
+
+def test_clean_account_removes_disposable_origin_from_uploaded_slo() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+    activation = source.split(
+        "      - name: Prove first activation and private-image identity\n", 1
+    )[1].split("      - name: Inject an unreachable ref", 1)[0]
+    upload = source.split("      - name: Upload conformance evidence\n", 1)[1]
+
+    assert 'raw_slo="${RUNNER_TEMP}/furatena-initial-slo.json"' in activation
+    assert "jq 'del(.origin)' \"$raw_slo\" > conformance-evidence/initial-slo.json" in activation
+    assert "trap 'rm -f \"$raw_slo\"' EXIT" in activation
+    assert "conformance-evidence/initial-slo.json" in upload
+    assert "furatena-initial-slo.json" not in upload
+
+
+def test_clean_account_cleanup_uses_local_id_and_name_fallbacks(tmp_path: Path) -> None:
+    workflow_path = ROOT / ".github" / "workflows" / "railway-template-conformance.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    cleanup = next(
+        step["run"]
+        for step in workflow["jobs"]["clean-account"]["steps"]
+        if step.get("name") == "Delete the disposable project with bounded retries"
+    )
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_npx = fake_bin / "npx"
+    fake_npx.write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALL_LOG"\n',
+        encoding="utf-8",
+    )
+    fake_npx.chmod(0o755)
+
+    for fallback_file, project_target in (
+        ("furatena-project-id", "project-id-fallback"),
+        ("furatena-project-name", "furatena-conformance-name-fallback"),
+    ):
+        case_root = tmp_path / fallback_file
+        runner_temp = case_root / "runner-temp"
+        runner_temp.mkdir(parents=True)
+        (runner_temp / fallback_file).write_text(project_target + "\n", encoding="utf-8")
+        call_log = case_root / "calls.log"
+        completed = subprocess.run(
+            ["bash", "-c", cleanup],
+            cwd=case_root,
+            env={
+                **os.environ,
+                "CALL_LOG": str(call_log),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "PROJECT_ID": "",
+                "RAILWAY_CLI_VERSION": "5.25.0",
+                "RUNNER_TEMP": str(runner_temp),
+            },
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert completed.returncode == 0, completed.stderr
+        assert f"--project {project_target} --yes --json" in call_log.read_text(encoding="utf-8")
+        receipt = json.loads(
+            (case_root / "conformance-evidence" / "cleanup.json").read_text(encoding="utf-8")
+        )
+        assert receipt == {"schema_version": 1, "cleanup": {"status": "deleted", "attempts": 1}}
+        assert not (runner_temp / fallback_file).exists()

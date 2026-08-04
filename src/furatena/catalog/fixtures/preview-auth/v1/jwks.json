@@ -1,0 +1,1 @@
+{"cache_seconds":300,"generated_at":"2030-01-01T00:00:00Z","issuer":"https://auth.furatena.example/preview","keys":[{"alg":"EdDSA","crv":"Ed25519","key_ops":["verify"],"kid":"preview-key-2030-01","kty":"OKP","use":"sig","x":"eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHg"}],"record_type":"furatena.preview-auth.jwks","schema_version":1,"stale_after":"2030-01-01T00:10:00Z"}

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "hub_manifest_url": "https://artifacts.example.com/federation/hub-v1.json",
-  "hub_manifest_sha256": "ad1979a57eef3cb36fd5a804fb781d71e0b4fec80d300b9eb8a700d0f21b7a8c",
+  "hub_manifest_sha256": "f9dc1927c3059fecc34cbf85ca1261581293808cdaae8293195ac4f4a9cdbf54",
   "refresh_after_seconds": 300,
   "max_manifest_bytes": 4194304,
   "max_shards": 10000,

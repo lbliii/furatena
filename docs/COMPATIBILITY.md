@@ -126,6 +126,14 @@ Versioned fixtures are the compatibility oracle. Search, structure, inventory,
 channel, deployment, and agent sidecars are public only to the extent their
 schemas and version fields are documented there or in the CLI contract.
 
+### Preview authorization
+
+The preview-auth wire schemas, record types, closed enums, canonicalization,
+binding, and compatibility policy in [PREVIEW_AUTH_V1.md](PREVIEW_AUTH_V1.md)
+are public. V1 readers fail closed on unknown fields, values, algorithms, keys,
+or versions. Parsing a signed-grant envelope is structural validation only;
+trust requires cryptographic verification against a fresh issuer-bound JWKS.
+
 ### Configuration
 
 Documented `docs.yaml`, `mounts.yaml`, autodoc, theme, environment, and CLI
