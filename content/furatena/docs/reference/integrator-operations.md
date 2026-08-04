@@ -53,7 +53,7 @@ default to `anonymous`, apply actor, tenant, burst, and sensitive-tool limits pl
 | `author_publish` | `target` | `actor`, `confirmed`, `dry_run`, `mount`, `privileged_token`, `source_revision`, `target` | `operation_id`, `ok`, `audit` | Transition draft to public with publication impact. |
 | `author_unpublish` | `target` | `actor`, `confirmed`, `dry_run`, `mount`, `privileged_token`, `source_revision`, `target` | `operation_id`, `ok`, `audit` | Transition public content back to draft. |
 | `author_archive` | `target` | `actor`, `confirmed`, `dry_run`, `mount`, `privileged_token`, `source_revision`, `target` | `operation_id`, `ok`, `audit` | Archive content and remove it from public output. |
-| `author_inspect_publication_impact` | `target` | `actor`, `mount`, `privileged_token`, `target` | `ok`, `status`, `validation`, `stale_impact`, `audit` | Read lifecycle, validation, and stale impact before transition. |
+| `author_inspect_publication_impact` | `target` | `actor`, `mount`, `operation`, `privileged_token`, `target` | `ok`, `status`, `validation`, `stale_impact`, `public_projection`, `audit` | Read lifecycle, validation, stale impact, and every exact public projection before transition. |
 
 ### Resources
 
@@ -235,6 +235,7 @@ configuration errors exit 3, and source conflicts exit 4. Pattern ids ending in
 | `fura.author.*`, `fura.lifecycle` | Authorization, CSRF, method, target, revision, or lifecycle failure; inspect diagnostics and rerun a dry run. |
 | `fura.mcp*`, `fura.evals.*` | MCP protocol/policy/rate/token or deterministic eval failure; repair policy/schema before retry. |
 | `fura.migration.*`, `fura.migrate*` | Source-format compatibility or incomplete migration; use the migration report and suggested mapping. |
+| `fura.public_projection*` | Public projection binding, completeness, mutation, or privacy failure; create a fresh plan for stale bindings and block publication until every production surface and canary check passes. |
 | `fura.content`, `fura.api`, `fura.dcp`, `fura.check` | Content, OpenAPI, graph-schema, or aggregate validation; fix the cited source. |
 | `fura.content_deployment` | Managed-content configuration or persistent-state failure; correct the named `FURA_*` setting or writable Railway volume and retry. |
 | `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial` | Federation shard validation or object-store publication failed. Repair invalid inputs; for `auth`, correct the S3 credentials or permissions; for `conflict`, inspect the immutable remote object and publish a new fingerprint instead of overwriting it; for `partial`, restore transport or storage availability and retry the same input, which remains safe because the manifest is written last. |
@@ -259,6 +260,7 @@ Exact rule-id index:
 - `fura.identity.*`
 - `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.remediation.manual`, `fura.migration.report`, `fura.migration.source_unavailable`
 - `fura.pdf`, `fura.recipes`, `fura.visibility_leak`
+- `fura.public_projection`, `fura.public_projection.catalog_stale`, `fura.public_projection.incomplete`, `fura.public_projection.lifecycle_stale`, `fura.public_projection.mutated`, `fura.public_projection.node_mismatch`, `fura.public_projection.node_missing`, `fura.public_projection.operation`, `fura.public_projection.privacy_canary`, `fura.public_projection.source_stale`
 - `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial`
 - `fura.presentation.conformance`, `fura.presentation.generated_drift`, `fura.presentation.manifest`, `fura.presentation.print`, `fura.presentation.reference_preview`, `fura.presentation.template_reachability`, `fura.presentation.token_ownership`, `fura.presentation.unsafe_html`, `fura.presentation.unsafe_path`, `fura.presentation.unused_tokens`
 - `fura.scorecard.*`

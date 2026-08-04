@@ -693,6 +693,11 @@ class TestAuthorStaleRoute:
         assert inspection["resulting_visibility"] == "public"
         assert inspection["publication_impact"]["change"] == "added_to_public_output"
         assert "visibility: public" in inspection["diff"]
+        assert inspection["read_only"] is True
+        assert inspection["complete"] is True
+        assert inspection["plan"]["source_revision"] == payload["source_revision"]
+        assert inspection["privacy"]["status"] == "pass"
+        assert {surface["change"] for surface in inspection["surfaces"]} == {"added"}
         assert page.read_bytes() == source_before
         assert docs.catalog.get_by_slug("docs/page").meta["visibility"] == "draft"
 

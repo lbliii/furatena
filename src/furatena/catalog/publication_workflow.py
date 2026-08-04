@@ -795,11 +795,43 @@ class PublicationWorkflowTransportAdapter:
     transport: str
     service: PublicationWorkflowService
 
+    def __post_init__(self) -> None:
+        if self.transport not in {"browser", "cli", "mcp", "automation"}:
+            raise ValueError(
+                f"The requested publication workflow transport is unsupported: {self.transport}."
+            )
+
+    def create_plan(self, plan: PublicationPlan) -> dict[str, object]:
+        return self.service.create_plan(plan).to_dict("trusted")
+
+    def get(self, plan_id: str) -> dict[str, object]:
+        return self.service.get(plan_id, projection="trusted")
+
+    def validate(self, plan_id: str, *, actor: PublicationActor) -> dict[str, object]:
+        return self.service.validate(plan_id, actor=actor).to_dict("trusted")
+
     def execute(self, command: Mapping[str, Any], *, actor: PublicationActor) -> dict[str, object]:
         response = self.service.execute(
             str(command["plan_id"]),
             actor=actor,
             idempotency_key=str(command["idempotency_key"]),
+            expected_state_version=int(command["expected_state_version"]),
+        )
+        return response.to_dict("trusted")
+
+    def reconcile(
+        self, command: Mapping[str, Any], *, actor: PublicationActor
+    ) -> dict[str, object]:
+        response = self.service.reconcile(
+            str(command["plan_id"]),
+            actor=actor,
+        )
+        return response.to_dict("trusted")
+
+    def retry(self, command: Mapping[str, Any], *, actor: PublicationActor) -> dict[str, object]:
+        response = self.service.retry(
+            str(command["plan_id"]),
+            actor=actor,
             expected_state_version=int(command["expected_state_version"]),
         )
         return response.to_dict("trusted")
