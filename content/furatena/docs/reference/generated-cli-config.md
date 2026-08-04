@@ -551,6 +551,26 @@ Command parser contract.
 | Argument or option | Required | Default | Choices | Type | Purpose |
 |---|---:|---|---|---|---|
 
+### `fura theme check`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `directory` | no | `.` | — | — | Pack directory relative to the app root |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura theme conformance`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `directory` | no | `.` | — | — | Pack directory relative to the app root |
+| `--output` | no | `.fura-conformance` | — | — | Generated report directory (default: PACK/.fura-conformance) |
+| `--check` | no | false | — | — | Fail without writing if the report drifted |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
 ### `fura theme diff`
 
 Command parser contract.
@@ -579,6 +599,8 @@ Command parser contract.
 |---|---:|---|---|---|---|
 | `directory` | no | `theme-skin` | — | — | Output directory relative to the app root (default: theme-skin) |
 | `--force` | no | false | — | — | Overwrite existing scaffold files |
+| `--type` | no | `skin` | `layout`, `skin`, `override` | — | Presentation pack type (default: skin) |
+| `--id` | no | — | — | — | Manifest identity (default: normalized directory name) |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
 ### `fura theme inspect`
@@ -597,6 +619,17 @@ Command parser contract.
 
 | Argument or option | Required | Default | Choices | Type | Purpose |
 |---|---:|---|---|---|---|
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura theme preview`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `directory` | no | `.` | — | — | Pack directory relative to the app root |
+| `--output` | no | `.fura-preview` | — | — | Generated output directory (default: PACK/.fura-preview) |
+| `--check` | no | false | — | — | Fail without writing if generated output drifted |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
 ## Configuration fields
