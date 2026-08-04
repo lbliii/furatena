@@ -1550,10 +1550,9 @@ class FuraMCPServer:
             if cached is not None:
                 return cached
             with self.catalog.use_edition(edition_id):
-                remote_mounts = self.catalog._remote_mount_ids()
                 index = build_embedding_index(
-                    [node for node in self.catalog.nodes if node.mount not in remote_mounts],
-                    documents=self.catalog.ast_documents(),
+                    self.catalog._local_nodes(),
+                    documents=self.catalog._local_ast_documents(),
                 )
             self._edition_embedding_indexes[edition_id] = index
             return index

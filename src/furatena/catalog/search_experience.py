@@ -7,11 +7,13 @@ from typing import TYPE_CHECKING
 
 from kida.template import Markup
 
-from furatena.catalog.access import AccessPermission, accessible_nodes
+from furatena.catalog.access import AccessPermission, AccessSubject, accessible_nodes
 from furatena.catalog.safe_html import trusted_escaped_markup
 from furatena.catalog.semantic import HybridHit, HybridSearchResult, hybrid_search
 
 if TYPE_CHECKING:
+    from patitas.nodes import Document
+
     from furatena.catalog.embeddings import EmbeddingIndex, SemanticHit
     from furatena.catalog.registry import CatalogRegistry
 
@@ -71,9 +73,10 @@ class SearchCatalogSnapshot:
     nodes: tuple[object, ...]
     page_count: int
     mount_labels: dict[str, str]
+    remote_mount_counts: dict[str, int]
 
     def mount_counts(self) -> dict[str, int]:
-        counts: dict[str, int] = {}
+        counts = dict(self.remote_mount_counts)
         for node in self.nodes:
             mount_id = getattr(node, "mount", None) or "chirp"
             counts[mount_id] = counts.get(mount_id, 0) + 1
@@ -113,21 +116,32 @@ class SearchCatalogSnapshot:
         return tuple(selected)
 
 
-def build_search_catalog_snapshot(catalog: CatalogRegistry) -> SearchCatalogSnapshot:
+def build_search_catalog_snapshot(
+    catalog: CatalogRegistry,
+    *,
+    subject: AccessSubject | None = None,
+    include_private: bool = False,
+) -> SearchCatalogSnapshot:
     """Merge catalog doc nodes once per search request."""
     nodes = tuple(
         accessible_nodes(
             catalog,
-            catalog.doc_nodes(),
+            catalog._local_doc_nodes(),
+            subject=subject,
             permission=AccessPermission.SEARCH,
-            include_private=catalog.include_private,
+            include_private=include_private,
         )
     )
     mount_labels = {mount.id: mount.label for mount in catalog.mounts}
+    remote_mount_counts = catalog._remote_search_mount_counts(
+        subject=subject,
+        include_private=include_private,
+    )
     return SearchCatalogSnapshot(
         nodes=nodes,
-        page_count=len(nodes),
+        page_count=len(nodes) + sum(remote_mount_counts.values()),
         mount_labels=mount_labels,
+        remote_mount_counts=remote_mount_counts,
     )
 
 
@@ -526,7 +540,10 @@ def hybrid_search_hits(
     channel: str | None = None,
     lang: str | None = None,
     global_search: bool = False,
-    documents: dict[str, object] | None = None,
+    documents: dict[str, Document] | None = None,
+    include_federated: bool = True,
+    subject: AccessSubject | None = None,
+    include_private: bool = False,
 ) -> HybridSearchResult:
     """Rank pages with keyword + TF-IDF chunk retrieval."""
     return hybrid_search(
@@ -541,6 +558,9 @@ def hybrid_search_hits(
         lang=lang,
         semantic_limit=max(limit * 3, 64),
         documents=documents,
+        include_federated=include_federated,
+        subject=subject,
+        include_private=include_private,
     )
 
 
@@ -803,10 +823,17 @@ def build_search_workspace_context(
     global_search: bool = False,
     limit: int = 24,
     include_shell_extras: bool = True,
+    include_federated: bool = True,
+    subject: AccessSubject | None = None,
+    include_private: bool = False,
 ) -> dict[str, object]:
     """Build search workspace template context with one catalog snapshot and one hybrid query."""
-    snapshot = build_search_catalog_snapshot(catalog)
-    documents = catalog.ast_documents()
+    snapshot = build_search_catalog_snapshot(
+        catalog,
+        subject=subject,
+        include_private=include_private,
+    )
+    documents = catalog._local_ast_documents()
     effective_lang = lang or None
     if effective_lang is None and catalog.i18n_config.enabled:
         effective_lang = catalog.i18n_config.default_language
@@ -823,6 +850,9 @@ def build_search_workspace_context(
             lang=effective_lang,
             global_search=global_search,
             documents=documents,
+            include_federated=include_federated,
+            subject=subject,
+            include_private=include_private,
         )
         if query
         else None
@@ -985,10 +1015,9 @@ def search_lint_context(catalog: CatalogRegistry) -> dict[str, object]:
     """Minimal search-shell context for ``fura check`` smoke renders."""
     from furatena.catalog.embeddings import EmbeddingIndex
 
-    remote_mounts = catalog._remote_mount_ids()
     index = EmbeddingIndex.from_nodes(
-        [node for node in catalog.nodes if node.mount not in remote_mounts],
-        documents=catalog.ast_documents(),
+        catalog._local_nodes(),
+        documents=catalog._local_ast_documents(),
     )
     ctx = build_search_workspace_context(
         catalog,
@@ -996,6 +1025,7 @@ def search_lint_context(catalog: CatalogRegistry) -> dict[str, object]:
         query="htmx",
         include_shell_extras=True,
         limit=6,
+        include_federated=False,
     )
     ctx["search_oob"] = False
     return ctx
