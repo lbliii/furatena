@@ -90,6 +90,19 @@ _MCP_AUTHOR_OPERATIONS = {
     "author_archive": "archive",
     "author_inspect_publication_impact": "inspect_publication_impact",
 }
+_READ_ONLY_TOOLS = frozenset(
+    {
+        "semantic_search",
+        "retrieve_node",
+        "query_graph",
+        "traverse_graph",
+        "diff_content_ir",
+        "inspect_source_health",
+        "run_checks",
+        "explain_stale_impact",
+        "author_inspect_publication_impact",
+    }
+)
 
 
 def _author_operation(command: str) -> str:
@@ -238,6 +251,10 @@ class FuraMCPServer:
             return self._error_response(request_id, -32603, str(exc))
 
     def list_resources(self) -> list[dict[str, Any]]:
+        with self._catalog_read_snapshot():
+            return self._list_resources()
+
+    def _list_resources(self) -> list[dict[str, Any]]:
         resources = [
             _resource("fura://catalog/nodes", "Catalog nodes", "All catalog page nodes."),
             _resource(
@@ -297,12 +314,13 @@ class FuraMCPServer:
         return resources
 
     def read_resource(self, uri: str) -> MCPResourceContentRecord:
-        payload = self._resource_payload(uri)
-        return {
-            "uri": uri,
-            "mimeType": "application/json",
-            "text": _dumps(payload),
-        }
+        with self._catalog_read_snapshot():
+            payload = self._resource_payload(uri)
+            return {
+                "uri": uri,
+                "mimeType": "application/json",
+                "text": _dumps(payload),
+            }
 
     def list_tools(self) -> list[dict[str, Any]]:
         return [
@@ -668,6 +686,12 @@ class FuraMCPServer:
         ]
 
     def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResultRecord:
+        if name in _READ_ONLY_TOOLS:
+            with self._catalog_read_snapshot():
+                return self._call_tool(name, arguments)
+        return self._call_tool(name, arguments)
+
+    def _call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResultRecord:
         arguments = dict(arguments)
         started = time.monotonic()
         self._apply_rate_limit(name, arguments)
@@ -751,6 +775,10 @@ class FuraMCPServer:
                 duration_ms=_duration_ms(started),
             )
             raise
+
+    def _catalog_read_snapshot(self):
+        snapshot = getattr(self.catalog, "read_snapshot", None)
+        return snapshot() if callable(snapshot) else nullcontext()
 
     def source_health(self, *, mount: Any | None = None) -> dict[str, Any]:
         mount_filter = str(mount).strip() if mount else None

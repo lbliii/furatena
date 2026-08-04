@@ -682,6 +682,13 @@ def validate_inert_presentation_html(value: bytes | str) -> list[str]:
     return parser.errors
 
 
+def validate_published_object_payload(
+    manifest: dict[str, Any], item: dict[str, Any], decoded: bytes
+) -> list[str]:
+    """Validate one decoded inventory object through its role-specific v1 contract."""
+    return _validate_role_payload(manifest, item, decoded)
+
+
 def _inert_url_error(value: str) -> str | None:
     trimmed = value.strip()
     probe = "".join(

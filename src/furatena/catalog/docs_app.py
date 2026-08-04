@@ -11,7 +11,10 @@ import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from furatena.catalog.remote_shards import RemoteRefreshReport, RemoteShardMountRegistry
 
 import yaml
 from chirp import (
@@ -131,6 +134,23 @@ from furatena.catalog.workers import resolve_workers
 from furatena.cli.authoring import (
     author_read_source,
 )
+
+
+class _CatalogReadSnapshotMiddleware:
+    """Pin one composed catalog generation across every read-only HTTP request."""
+
+    __slots__ = ("_catalog",)
+
+    def __init__(self, catalog: CatalogRegistry) -> None:
+        self._catalog = catalog
+
+    async def __call__(self, request: Any, next: Any) -> Any:
+        if request.method not in {"GET", "HEAD", "QUERY"}:
+            return await next(request)
+        self._catalog.refresh_if_stale()
+        with self._catalog.read_snapshot():
+            return await next(request)
+
 
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 
@@ -347,6 +367,7 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
         preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> None:
         self.config = config
@@ -425,9 +446,12 @@ class DocsApp:
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
             state_root=self.roots.state / "source-sync-state",
+            remote_shards=remote_shards,
         )
         if self.roots.managed:
             for mount in self.catalog.mounts:
+                if mount.source.provider == "remote-shard":
+                    continue
                 self.roots.require_site_path(
                     mount.content_root,
                     label=f"content root for mount {mount.id!r}",
@@ -577,6 +601,7 @@ class DocsApp:
             )
         app.add_middleware(GoogleFontsCSPMiddleware())
         app.add_middleware(ConditionalResponseMiddleware(self._response_last_modified))
+        app.add_middleware(_CatalogReadSnapshotMiddleware(self.catalog))
         self._register_contract_refs(app)
         self._register_routes(app)
         return app
@@ -697,6 +722,18 @@ class DocsApp:
         return match
 
     def _render_catalog_page(
+        self,
+        request: Request,
+        *,
+        requested_lang: str | None = None,
+    ):
+        with self.catalog.read_snapshot():
+            return self._render_catalog_page_in_generation(
+                request,
+                requested_lang=requested_lang,
+            )
+
+    def _render_catalog_page_in_generation(
         self,
         request: Request,
         *,
@@ -1945,6 +1982,7 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
         preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
@@ -1964,8 +2002,13 @@ class DocsApp:
             author_truth_provider=author_truth_provider,
             retrieval_feedback=retrieval_feedback,
             observability=observability,
+            remote_shards=remote_shards,
             preview_grant_runtime=preview_grant_runtime,
         )
+
+    def refresh_remote_shards(self) -> RemoteRefreshReport:
+        """Refresh and atomically publish all configured remote shard mounts."""
+        return self.catalog.refresh_remote_shards()
 
     def create_app(self) -> App:
         return self.app
