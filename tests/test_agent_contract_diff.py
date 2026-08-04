@@ -26,6 +26,9 @@ def test_versioned_public_and_trusted_agent_fixtures_are_valid() -> None:
     assert public["fixture_version"] == trusted["fixture_version"] == 1
     assert public["profile"] == "public"
     assert trusted["surfaces"]["tools"]["access"]["include_private"] is True
+    assert public["surfaces"]["mcp_apps"]["contract_version"] == 1
+    assert public["surfaces"]["mcp_apps"]["gateway"]["collision"] == "reject"
+    assert trusted["surfaces"]["mcp_apps"]["resources"] == []
 
 
 def test_semantic_diff_ignores_keyed_reordering_and_reports_compatible_additions(

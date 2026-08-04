@@ -347,6 +347,9 @@ class DocsApp:
         observability: OperationalEventEmitter | None = None,
     ) -> None:
         self.config = config
+        from furatena.catalog.public_projection import PublicProjectionInspectionCache
+
+        self._public_projection_inspection_cache = PublicProjectionInspectionCache()
         self.roots = ApplicationRoots.from_environment(config.root)
         if self.roots.managed:
             self.roots.ensure_writable_roots()
@@ -443,8 +446,6 @@ class DocsApp:
         )
         self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
         self._edition_embedding_lock = RLock()
-        if self.serve.warn_stale_freeze:
-            print("Note: content is newer than frozen/ — run `fura freeze` for a fresh export.")
         self.app = self._build_app()
 
     def _validation_template_env(self):
