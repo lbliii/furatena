@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/content-generation/v1/manifest.schema.json",
+  "title": "Furatena managed content generation manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "record_type", "generation", "source", "config_digest", "runtime", "fingerprints", "artifacts", "lifecycle_state", "actor", "operation_receipt", "verified_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.content-generation.manifest"},
+    "generation": {"type": "string", "minLength": 1, "maxLength": 128},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "ref", "requested_commit", "resolved_commit"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^https://"},
+        "ref": {"type": "string", "minLength": 1},
+        "requested_commit": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/commit"}]},
+        "resolved_commit": {"$ref": "#/$defs/commit"}
+      }
+    },
+    "config_digest": {"$ref": "#/$defs/digest"},
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["image_digest", "build_commit"],
+      "properties": {
+        "image_digest": {"type": "string", "minLength": 1},
+        "build_commit": {"type": "string", "minLength": 1}
+      }
+    },
+    "fingerprints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["renderer", "presentation", "freeze"],
+      "properties": {
+        "renderer": {"type": "string", "minLength": 1},
+        "presentation": {"$ref": "#/$defs/digest"},
+        "freeze": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "bytes", "sha256"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^(source|frozen)/"},
+          "kind": {"enum": ["source", "frozen"]},
+          "bytes": {"type": "integer", "minimum": 0},
+          "sha256": {"$ref": "#/$defs/digest"}
+        }
+      }
+    },
+    "lifecycle_state": {"const": "verified"},
+    "actor": {"type": "string", "minLength": 1},
+    "operation_receipt": {"$ref": "#/$defs/operation"},
+    "verified_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "operation_id": {"type": "string", "pattern": "^refresh-[0-9a-f]{24}$"},
+        "semantic_digest": {"$ref": "#/$defs/digest"},
+        "idempotency_key_digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

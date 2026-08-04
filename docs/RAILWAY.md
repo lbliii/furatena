@@ -157,9 +157,10 @@ adds latency, availability, identity, and evidence checks.
   durable status operation; promotion remains distinct from restart and
   readiness. The image digest remains unchanged.
   Poll `GET /_fura/content/operations/{operation_id}` with the same bearer for
-  the versioned operation state.
+  the versioned operation state and sanitized verification result.
 - Content rollback: call the rollback endpoint; it selects last-known-good and
-  restarts without fetching or rebuilding.
+  revalidates that recorded generation's manifest, artifact hashes, and
+  image/build compatibility, then restarts without fetching or rebuilding.
 - Application change: build one candidate image, scan/attest/smoke the digest,
   promote that digest, canary it, then update production.
 - Image rollback: select the prior stable digest from its durable release
@@ -173,3 +174,10 @@ The request body cannot override the one configured repository, ref, or
 subdirectory, and cannot supply actor identity. Empty-body refresh is a v1-only
 migration compatibility mode that follows the configured ref without exact
 commit or caller idempotency guarantees. Webhooks are not a v1 transport.
+
+New generations include `manifest.json` and `verification.json` beside their
+receipt. These records bind source, configuration, presentation/runtime
+fingerprints, build identity, refresh operation, and every source/frozen file
+size and SHA-256 digest. Startup performs the full artifact check before
+serving. Pre-contract generations are reported as `legacy_v1` during the v1
+migration window and are not described as cryptographically verified.

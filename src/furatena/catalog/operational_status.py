@@ -158,9 +158,10 @@ def _managed_content_readiness() -> dict[str, Any] | None:
         if config is None:
             return _check("content:generation_identity", False, "", remediation)
         store = ContentDeploymentStore(config)
-        status = store.status()
+        status = store.status(full_verification=True)
         active_generation = str(status.get("active_generation") or "")
         receipt = status.get("receipt")
+        verification = status.get("generation_verification")
         if not isinstance(receipt, dict):
             return _check("content:generation_identity", False, "", remediation)
         running_generation = os.environ.get("FURA_ACTIVE_CONTENT_GENERATION", "").strip()
@@ -177,6 +178,9 @@ def _managed_content_readiness() -> dict[str, Any] | None:
             and build_commit
             and build_commit != "unknown"
             and receipt.get("build_commit") == build_commit
+            and isinstance(verification, dict)
+            and verification.get("compatible") is True
+            and verification.get("status") in {"verified", "legacy_v1"}
         )
         from furatena.catalog.content_refresh import ContentRefreshService
 
@@ -187,6 +191,8 @@ def _managed_content_readiness() -> dict[str, Any] | None:
             lifecycle_state = "staging"
         elif latest is not None and latest.state.value == "failed":
             lifecycle_state = "degraded" if active_generation else "failed"
+        elif isinstance(verification, dict) and verification.get("status") == "degraded":
+            lifecycle_state = "degraded"
         elif running_generation != active_generation:
             lifecycle_state = "stale"
         else:
