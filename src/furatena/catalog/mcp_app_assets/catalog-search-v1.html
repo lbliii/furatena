@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="furatena-app" content="catalog-search/v1; audience=public; redaction=public-only">
+  <title>Furatena catalog search</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font: 14px/1.45 system-ui, sans-serif;
+      --bg: var(--color-background-primary, #fff);
+      --panel: var(--color-background-secondary, #f6f7f8);
+      --text: var(--color-text-primary, #17202a);
+      --muted: var(--color-text-secondary, #5d6773);
+      --line: var(--color-border-primary, #d8dde3);
+      --accent: var(--color-accent-primary, #4257d6);
+      --danger: var(--color-text-danger, #a02222);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    main { display: grid; gap: 1rem; padding: 1rem; }
+    h1, h2, h3, p { margin-block: 0; }
+    .lede, .meta, .empty { color: var(--muted); }
+    form, .filters, .results, .diagnostics { display: grid; gap: .75rem; }
+    .query-row { display: grid; grid-template-columns: minmax(12rem, 1fr) auto; gap: .5rem; }
+    .filters { grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); }
+    label { display: grid; gap: .25rem; font-weight: 600; }
+    input, select, button {
+      min-height: 2.5rem; border: 1px solid var(--line); border-radius: .45rem;
+      background: var(--bg); color: var(--text); font: inherit; padding: .45rem .65rem;
+    }
+    button { cursor: pointer; font-weight: 650; }
+    button[type="submit"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 1px; }
+    .summary { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; }
+    .result { border: 1px solid var(--line); border-radius: .55rem; padding: .8rem; display: grid; gap: .55rem; }
+    .result-head, .actions, .scores, .tags { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .result-head { justify-content: space-between; }
+    .score, .tag { border-radius: 999px; background: var(--panel); padding: .15rem .5rem; }
+    .snippet { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .provenance { border-top: 1px solid var(--line); padding-top: .45rem; }
+    .provenance summary { cursor: pointer; font-weight: 600; }
+    .provenance dl { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .65rem; margin: .5rem 0 0; }
+    .provenance dd { margin: 0; overflow-wrap: anywhere; }
+    .diagnostic { border-left: .25rem solid var(--danger); background: var(--panel); padding: .65rem; }
+    .detail { border: 1px solid var(--line); background: var(--panel); padding: .65rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+    [hidden] { display: none !important; }
+    @media (max-width: 520px) { .query-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Catalog search</h1>
+    <p class="lede">Search public documentation with ranking, filters, and source provenance.</p>
+  </header>
+  <form id="search-form" aria-describedby="status">
+    <div class="query-row">
+      <label>Search terms<input id="query" name="query" type="search" required maxlength="500" autocomplete="off"></label>
+      <button type="submit">Search</button>
+    </div>
+    <details>
+      <summary>Filters</summary>
+      <div class="filters">
+        <label>Mount<input name="mount" maxlength="100"></label>
+        <label>Edition<input name="edition" maxlength="100"></label>
+        <label>Tag<input name="tag" maxlength="100"></label>
+        <label>URL prefix<input name="url_prefix" maxlength="300"></label>
+        <label>Status<select name="status"><option value="">Current</option><option value="preview">Preview</option><option value="eol">End of life</option></select></label>
+        <label>Result limit<input name="limit" type="number" min="1" max="25" value="12"></label>
+      </div>
+    </details>
+  </form>
+  <p id="status" class="meta" role="status" aria-live="polite">Ready.</p>
+  <section id="diagnostics" class="diagnostics" aria-label="Search diagnostics" aria-live="assertive" hidden></section>
+  <section aria-labelledby="results-heading">
+    <div class="summary"><h2 id="results-heading">Results</h2><p id="summary" class="meta"></p></div>
+    <div id="results" class="results"><p class="empty">Enter a query to search the public catalog.</p></div>
+  </section>
+  <section id="detail-region" aria-labelledby="detail-heading" hidden>
+    <h2 id="detail-heading">Result context</h2>
+    <div id="detail" class="detail"></div>
+  </section>
+</main>
+<script>
+(() => {
+  'use strict';
+  const SPEC = '2026-01-26';
+  const MAX_TEXT = 100000;
+  const MAX_RESULTS = 25;
+  const REQUEST_TIMEOUT = 15000;
+  const MAX_PENDING = 16;
+  const pending = new Map();
+  let nextId = 1;
+  const form = document.querySelector('#search-form');
+  const query = document.querySelector('#query');
+  const status = document.querySelector('#status');
+  const summary = document.querySelector('#summary');
+  const results = document.querySelector('#results');
+  const diagnostics = document.querySelector('#diagnostics');
+  const detailRegion = document.querySelector('#detail-region');
+  const detail = document.querySelector('#detail');
+
+  function send(method, params) {
+    if (pending.size >= MAX_PENDING) return Promise.reject(new Error('Too many host requests are pending.'));
+    const id = nextId++;
+    window.parent.postMessage({ jsonrpc: '2.0', id, method, params }, '*');
+    return new Promise((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        pending.delete(id);
+        reject(new Error(`The host did not answer ${method} within 15 seconds.`));
+      }, REQUEST_TIMEOUT);
+      pending.set(id, { resolve, reject, timer });
+    });
+  }
+  function notify(method, params) {
+    window.parent.postMessage({ jsonrpc: '2.0', method, params }, '*');
+  }
+  function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+  function textElement(tag, className, value) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    node.textContent = value == null ? '' : String(value);
+    return node;
+  }
+  function safeNumber(value) { return Number.isFinite(Number(value)) ? Number(value) : 0; }
+  function assertBoundedJson(value) {
+    let size = 0;
+    const ancestors = new WeakSet();
+    function add(amount) {
+      size += amount;
+      if (size > MAX_TEXT) throw new Error('The structured result exceeded the App safety limit.');
+    }
+    function visit(item, depth) {
+      if (depth > 64) throw new Error('The structured result exceeded the App nesting limit.');
+      if (item === null) { add(4); return; }
+      if (typeof item === 'string') { add(JSON.stringify(item).length); return; }
+      if (typeof item === 'number') { add(Number.isFinite(item) ? String(item).length : 4); return; }
+      if (typeof item === 'boolean') { add(item ? 4 : 5); return; }
+      if (typeof item !== 'object') throw new Error('The structured result contained a non-JSON value.');
+      if (ancestors.has(item)) throw new Error('The structured result contained a cycle.');
+      ancestors.add(item); add(2);
+      if (Array.isArray(item)) {
+        item.forEach((entry, index) => { if (index) add(1); visit(entry, depth + 1); });
+      } else {
+        Object.entries(item).forEach(([key, entry], index) => {
+          if (index) add(1); add(JSON.stringify(key).length + 1); visit(entry, depth + 1);
+        });
+      }
+      ancestors.delete(item);
+    }
+    visit(value, 0);
+    return value;
+  }
+  function boundedPayload(result) {
+    if (result && result.structuredContent && typeof result.structuredContent === 'object') return assertBoundedJson(result.structuredContent);
+    const item = result && Array.isArray(result.content) && result.content.find(part => part && part.type === 'text');
+    if (!item || typeof item.text !== 'string') throw new Error('The host returned no structured or text result.');
+    if (item.text.length > MAX_TEXT) throw new Error('The text fallback exceeded the App safety limit.');
+    const parsed = JSON.parse(item.text);
+    if (!parsed || typeof parsed !== 'object') throw new Error('The text fallback was not an object.');
+    return assertBoundedJson(parsed);
+  }
+  function renderDiagnostics(payload) {
+    clear(diagnostics);
+    const items = Array.isArray(payload && payload.diagnostics) ? payload.diagnostics.slice(0, 20) : [];
+    diagnostics.hidden = items.length === 0;
+    for (const item of items) {
+      const card = textElement('article', 'diagnostic', item.message || item.detail || 'The request could not be completed.');
+      if (item.rule_id || item.code) card.append(textElement('p', 'meta', item.rule_id || item.code));
+      diagnostics.append(card);
+    }
+  }
+  function appendProvenance(card, provenance) {
+    if (!provenance || typeof provenance !== 'object') return;
+    const box = document.createElement('details'); box.className = 'provenance';
+    box.append(textElement('summary', '', 'Provenance'));
+    const list = document.createElement('dl');
+    for (const key of ['source_kind', 'source_path', 'source_revision', 'content_hash', 'node_id']) {
+      if (provenance[key] == null || provenance[key] === '') continue;
+      list.append(textElement('dt', '', key.replaceAll('_', ' ')), textElement('dd', '', provenance[key]));
+    }
+    box.append(list); card.append(box);
+  }
+  function renderSearch(payload) {
+    renderDiagnostics(payload);
+    const rows = Array.isArray(payload && payload.results) ? payload.results.slice(0, MAX_RESULTS) : [];
+    clear(results);
+    const ranking = payload && payload.ranking ? String(payload.ranking) : 'unspecified';
+    const filters = payload && payload.filters && typeof payload.filters === 'object' ? payload.filters : {};
+    const active = Object.entries(filters).filter(([, value]) => value !== null && value !== '' && value !== false).map(([key, value]) => `${key}=${value}`);
+    summary.textContent = `${rows.length} result${rows.length === 1 ? '' : 's'} · ${ranking}${active.length ? ` · ${active.join(', ')}` : ''}`;
+    if (!rows.length) { results.append(textElement('p', 'empty', 'No public catalog results matched this query.')); return; }
+    for (const row of rows) {
+      const card = document.createElement('article'); card.className = 'result';
+      const head = document.createElement('div'); head.className = 'result-head';
+      head.append(textElement('h3', '', row.title || row.node_id || 'Untitled result'));
+      head.append(textElement('span', 'score', `score ${safeNumber(row.score).toFixed(3)}`)); card.append(head);
+      card.append(textElement('p', 'snippet', row.snippet || 'No excerpt available.'));
+      const scores = document.createElement('div'); scores.className = 'scores meta';
+      scores.append(textElement('span', '', `keyword ${safeNumber(row.keyword_score).toFixed(3)}`), textElement('span', '', `semantic ${safeNumber(row.semantic_score).toFixed(3)}`));
+      if (row.mount) scores.append(textElement('span', '', `mount ${row.mount}`));
+      if (row.edition) scores.append(textElement('span', '', `edition ${row.edition}`));
+      card.append(scores);
+      if (Array.isArray(row.tags) && row.tags.length) {
+        const tags = document.createElement('div'); tags.className = 'tags';
+        row.tags.slice(0, 12).forEach(tag => tags.append(textElement('span', 'tag', tag))); card.append(tags);
+      }
+      const actions = document.createElement('div'); actions.className = 'actions';
+      const inspect = textElement('button', '', 'Inspect result'); inspect.type = 'button';
+      inspect.addEventListener('click', () => inspectNode(row.node_id)); actions.append(inspect);
+      const graph = textElement('button', '', 'Graph context'); graph.type = 'button';
+      graph.addEventListener('click', () => inspectGraph(row)); actions.append(graph); card.append(actions);
+      appendProvenance(card, row.provenance); results.append(card);
+    }
+  }
+  async function inspectNode(nodeId) {
+    if (!nodeId) return;
+    status.textContent = 'Loading public node…';
+    try { showDetail(boundedPayload(await send('tools/call', { name: 'retrieve_node', arguments: { node_id: nodeId } }))); }
+    catch (error) { status.textContent = `Could not retrieve result: ${error.message}`; }
+  }
+  async function inspectGraph(row) {
+    status.textContent = 'Loading public graph context…';
+    const args = { source: row.node_id, limit: 20 };
+    if (row.mount) args.mount = row.mount;
+    if (row.edition) args.edition = row.edition;
+    try { showDetail(boundedPayload(await send('tools/call', { name: 'query_graph', arguments: args }))); }
+    catch (error) { status.textContent = `Could not retrieve graph context: ${error.message}`; }
+  }
+  function showDetail(payload) {
+    const safe = JSON.stringify(payload, null, 2).slice(0, MAX_TEXT);
+    detail.textContent = safe; detailRegion.hidden = false; status.textContent = 'Context loaded.'; detailRegion.scrollIntoView({ block: 'nearest' });
+  }
+  async function runSearch(event) {
+    event.preventDefault();
+    const values = new FormData(form); const term = String(values.get('query') || '').trim();
+    if (!term) return;
+    const args = { query: term, limit: Math.min(MAX_RESULTS, Math.max(1, Number(values.get('limit')) || 12)) };
+    for (const key of ['mount', 'edition', 'tag', 'url_prefix', 'status']) { const value = String(values.get(key) || '').trim(); if (value) args[key] = value; }
+    args.include_preview = args.status === 'preview'; args.include_eol = args.status === 'eol';
+    status.textContent = 'Searching the public catalog…';
+    try { const result = await send('tools/call', { name: 'semantic_search', arguments: args }); const payload = boundedPayload(result); renderSearch(payload); status.textContent = `Search complete. ${Math.min(MAX_RESULTS, Array.isArray(payload.results) ? payload.results.length : 0)} results shown.`; }
+    catch (error) { renderDiagnostics({ diagnostics: [{ message: error.message }] }); status.textContent = 'Search failed.'; }
+  }
+  window.addEventListener('message', event => {
+    if (event.source !== window.parent || !event.data || event.data.jsonrpc !== '2.0') return;
+    const message = event.data;
+    if (message.id != null && !message.method && pending.has(message.id)) {
+      const waiter = pending.get(message.id); pending.delete(message.id); window.clearTimeout(waiter.timer);
+      if (message.error) waiter.reject(new Error(message.error.message || 'Host request failed.')); else waiter.resolve(message.result || {});
+      return;
+    }
+    if (message.method === 'ui/notifications/tool-input' && message.params && message.params.arguments) {
+      const args = message.params.arguments; if (typeof args.query === 'string') query.value = args.query;
+    }
+    if (message.method === 'ui/notifications/tool-result') {
+      try { renderSearch(boundedPayload(message.params || {})); status.textContent = 'Host result loaded.'; } catch (error) { renderDiagnostics({ diagnostics: [{ message: error.message }] }); }
+    }
+    if (message.method === 'ui/resource-teardown' && message.id != null) {
+      window.parent.postMessage({ jsonrpc: '2.0', id: message.id, result: {} }, '*');
+    }
+  });
+  form.addEventListener('submit', runSearch);
+  send('ui/initialize', { protocolVersion: SPEC, appInfo: { name: 'furatena-catalog-search', version: '1' }, appCapabilities: { availableDisplayModes: ['inline'] } })
+    .then(() => { notify('ui/notifications/initialized', {}); status.textContent = 'Ready.'; })
+    .catch(error => { status.textContent = `Host initialization failed: ${error.message}`; });
+})();
+</script>
+</body>
+</html>

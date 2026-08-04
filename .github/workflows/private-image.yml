@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths: &image-inputs
       - .dockerignore
+      - .github/schemas/private-image-promotion-evidence-v1.schema.json
       - .github/workflows/private-image.yml
       - Dockerfile
       - LICENSE
@@ -12,7 +13,9 @@ on:
       - config/**
       - content/**
       - pyproject.toml
+      - scripts/private_image_promotion_evidence.py
       - scripts/private_image_release.py
+      - scripts/private_image_stable_target.py
       - scripts/railway-start.sh
       - scripts/verify-content-diagnostics.sh
       - scripts/verify-unprivileged-image.sh
@@ -34,11 +37,15 @@ on:
         required: false
         type: string
       digest:
-        description: Existing sha256 digest (required for promote or revoke)
+        description: Existing sha256 digest (required for promote, deprecate, or revoke)
         required: false
         type: string
       commit:
         description: Forty-character source commit for the digest being promoted
+        required: false
+        type: string
+      candidate_run_id:
+        description: Successful exact-main candidate workflow run required for promotion
         required: false
         type: string
       reason:
@@ -49,8 +56,16 @@ on:
         description: Optional known-good replacement for a deprecated or revoked digest
         required: false
         type: string
+      replacement_version:
+        description: Stable version owning replacement_digest
+        required: false
+        type: string
       rollback_digest:
         description: Prior known-good sha256 digest required for promotion
+        required: false
+        type: string
+      rollback_version:
+        description: Stable version owning rollback_digest (required for promotion)
         required: false
         type: string
       compatibility:
@@ -370,6 +385,29 @@ jobs:
           SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
         run: scripts/verify-unprivileged-image.sh "$SUBJECT"
 
+      - name: Create exact candidate and smoke promotion evidence
+        run: >-
+          python scripts/private_image_promotion_evidence.py create
+          --image "${IMAGE_NAME}"
+          --digest "${{ needs.candidate.outputs.digest }}"
+          --source-commit "${GITHUB_SHA}"
+          --source-ref "${GITHUB_REF}"
+          --repository "${GITHUB_REPOSITORY}"
+          --workflow-ref "${GITHUB_WORKFLOW_REF}"
+          --workflow-sha "${GITHUB_WORKFLOW_SHA}"
+          --run-id "${GITHUB_RUN_ID}"
+          --run-attempt "${GITHUB_RUN_ATTEMPT}"
+          --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          --output release/promotion-evidence.json
+
+      - name: Retain promotion eligibility evidence
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: private-image-promotion-evidence-${{ github.sha }}
+          path: release/promotion-evidence.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Retain exact-image conformance evidence
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -382,16 +420,40 @@ jobs:
           retention-days: 90
 
   lifecycle:
-    name: Promote or revoke an exact digest
+    name: Promote, deprecate, or revoke an exact digest
     if: github.event_name == 'workflow_dispatch' && inputs.operation != 'candidate'
     runs-on: ubuntu-latest
     environment: private-image-production
     permissions:
+      actions: read
       contents: write
       packages: read
     steps:
       - name: Check out lifecycle tooling
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Validate canonical lifecycle digest inputs
+        env:
+          OPERATION: ${{ inputs.operation }}
+          DIGEST: ${{ inputs.digest }}
+          REPLACEMENT_DIGEST: ${{ inputs.replacement_digest }}
+          ROLLBACK_DIGEST: ${{ inputs.rollback_digest }}
+        run: |
+          validate_digest() {
+            name="$1"
+            value="$2"
+            if [[ ! "$value" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "$name must be an exact lowercase sha256:<64 hex> value." >&2
+              exit 1
+            fi
+          }
+          validate_digest digest "$DIGEST"
+          if [ "$OPERATION" = promote ]; then
+            validate_digest rollback_digest "$ROLLBACK_DIGEST"
+          fi
+          if [ -n "$REPLACEMENT_DIGEST" ]; then
+            validate_digest replacement_digest "$REPLACEMENT_DIGEST"
+          fi
 
       - name: Sign in to the private registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
@@ -403,18 +465,154 @@ jobs:
       - name: Configure registry inspection
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
+      - name: Block promotion of a revoked digest
+        if: inputs.operation == 'promote'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          tag="image-revoked-${DIGEST#sha256:}"
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repository="${GITHUB_REPOSITORY#*/}"
+          revoked_tag="$(
+            gh api graphql \
+              -f query='query($owner: String!, $repository: String!, $tag: String!) { repository(owner: $owner, name: $repository) { release(tagName: $tag) { tagName } } }' \
+              -f owner="$owner" \
+              -f repository="$repository" \
+              -f tag="$tag" \
+              --jq '.data.repository.release.tagName // ""'
+          )"
+          case "$revoked_tag" in
+            "$tag")
+              echo "Digest $DIGEST is revoked and cannot be promoted." >&2
+              exit 1
+              ;;
+            "")
+              ;;
+            *)
+              echo "Revocation lookup returned an unexpected release identity; retry the lifecycle operation." >&2
+              exit 1
+              ;;
+          esac
+
       - name: Require the exact registry subject
         if: inputs.operation != 'revoke'
         run: docker buildx imagetools inspect "${IMAGE_NAME}@${{ inputs.digest }}"
 
-      - name: Verify candidate provenance before lifecycle action
-        if: inputs.operation != 'revoke'
+      - name: Verify exact candidate provenance before promotion
+        if: inputs.operation == 'promote'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ inputs.commit }}
+        run: >-
+          gh attestation verify
+          "oci://${IMAGE_NAME}@${{ inputs.digest }}"
+          --repo "$GITHUB_REPOSITORY"
+          --signer-workflow "github.com/$GITHUB_REPOSITORY/.github/workflows/private-image.yml"
+          --source-digest "$SOURCE_COMMIT"
+          --source-ref refs/heads/main
+          --deny-self-hosted-runners
+
+      - name: Verify existing provenance before deprecation
+        if: inputs.operation == 'deprecate'
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh attestation verify
           "oci://${IMAGE_NAME}@${{ inputs.digest }}"
           --repo "$GITHUB_REPOSITORY"
+          --signer-workflow "github.com/$GITHUB_REPOSITORY/.github/workflows/private-image.yml"
+          --deny-self-hosted-runners
+
+      - name: Require successful exact candidate and smoke evidence
+        if: inputs.operation == 'promote'
+        env:
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          COMMIT: ${{ inputs.commit }}
+          DIGEST: ${{ inputs.digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Promotion requires a numeric candidate_run_id from a successful exact-main candidate workflow." >&2
+            exit 1
+          fi
+          mkdir -p release/candidate-evidence
+          gh run download "$CANDIDATE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "private-image-promotion-evidence-${COMMIT}" \
+            --dir release/candidate-evidence
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CANDIDATE_RUN_ID}" > release/candidate-run.json
+          python scripts/private_image_promotion_evidence.py verify \
+            --receipt release/candidate-evidence/promotion-evidence.json \
+            --run release/candidate-run.json \
+            --image "$IMAGE_NAME" \
+            --digest "$DIGEST" \
+            --commit "$COMMIT" \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-id "$CANDIDATE_RUN_ID"
+
+      - name: Resolve and verify durable stable target ownership
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPERATION: ${{ inputs.operation }}
+          VERSION: ${{ inputs.version }}
+          DIGEST: ${{ inputs.digest }}
+          REPLACEMENT_DIGEST: ${{ inputs.replacement_digest }}
+          REPLACEMENT_VERSION: ${{ inputs.replacement_version }}
+          ROLLBACK_DIGEST: ${{ inputs.rollback_digest }}
+          ROLLBACK_VERSION: ${{ inputs.rollback_version }}
+        run: |
+          mkdir -p release/stable-records
+
+          verify_stable_target() {
+            role="$1"
+            version="$2"
+            digest="$3"
+            association_mode="${4:-full}"
+            destination="release/stable-records/$role"
+            mkdir -p "$destination"
+            gh release download "image-v${version}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern image-record.json \
+              --dir "$destination"
+            arguments=(
+              --record "$destination/image-record.json"
+              --image "$IMAGE_NAME"
+              --digest "$digest"
+              --version "$version"
+              --repository "$GITHUB_REPOSITORY"
+              --role "$role"
+            )
+            if [ "$association_mode" = association-only ]; then
+              arguments+=(--association-only)
+            fi
+            python scripts/private_image_stable_target.py "${arguments[@]}"
+          }
+
+          if [ "$OPERATION" = promote ]; then
+            if [ -z "$ROLLBACK_VERSION" ]; then
+              echo "Promotion requires rollback_version for exact stable-record lookup." >&2
+              exit 1
+            fi
+            verify_stable_target rollback "$ROLLBACK_VERSION" "$ROLLBACK_DIGEST"
+          fi
+
+          if [ "$OPERATION" = deprecate ]; then
+            verify_stable_target deprecation "$VERSION" "$DIGEST"
+          elif [ "$OPERATION" = revoke ]; then
+            verify_stable_target revocation "$VERSION" "$DIGEST" association-only
+          fi
+
+          if [ -n "$REPLACEMENT_DIGEST" ]; then
+            if [ -z "$REPLACEMENT_VERSION" ]; then
+              echo "replacement_digest requires replacement_version for exact stable-record lookup." >&2
+              exit 1
+            fi
+            verify_stable_target replacement "$REPLACEMENT_VERSION" "$REPLACEMENT_DIGEST"
+          elif [ -n "$REPLACEMENT_VERSION" ]; then
+            echo "replacement_version requires replacement_digest." >&2
+            exit 1
+          fi
 
       - name: Create lifecycle record
         env:
@@ -443,19 +641,6 @@ jobs:
             fi
           fi
           python scripts/private_image_release.py "${arguments[@]}"
-
-      - name: Block promotion of a revoked digest
-        if: inputs.operation == 'promote'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DIGEST: ${{ inputs.digest }}
-        run: |
-          tag="image-revoked-${DIGEST#sha256:}"
-          released_tags="$(gh release list --limit 1000 --json tagName --jq '.[].tagName')"
-          if printf '%s\n' "$released_tags" | grep --fixed-strings --line-regexp --quiet -- "$tag"; then
-            echo "Digest $DIGEST is revoked and cannot be promoted." >&2
-            exit 1
-          fi
 
       - name: Publish the durable lifecycle record
         env:

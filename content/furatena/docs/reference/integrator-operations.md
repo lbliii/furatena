@@ -239,6 +239,7 @@ configuration errors exit 3, and source conflicts exit 4. Pattern ids ending in
 | `fura.content`, `fura.api`, `fura.dcp`, `fura.check` | Content, OpenAPI, graph-schema, or aggregate validation; fix the cited source. |
 | `fura.content_deployment` | Managed-content configuration or persistent-state failure; correct the named `FURA_*` setting or writable Railway volume and retry. |
 | `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial` | Federation shard validation or object-store publication failed. Repair invalid inputs; for `auth`, correct the S3 credentials or permissions; for `conflict`, inspect the immutable remote object and publish a new fingerprint instead of overwriting it; for `partial`, restore transport or storage availability and retry the same input, which remains safe because the manifest is written last. |
+| `fura.remote_shard`, `fura.remote_shard.fetch`, `fura.remote_shard.unavailable`, `fura.remote_shard.verify` | Remote federation composition failed. For `fetch`, restore bounded same-origin HTTPS access; for `verify`, repair trust policy or upstream signed material; for `unavailable`, restore or select a verified generation. The last-known-good generation for an unrelated mount remains active. |
 | `fura.impact.stale_public_output`, `fura.visibility_leak` | Public artifact is stale or exposes protected content; rebuild or block promotion. |
 | `fura.identity.*` | Trusted gateway claims are missing, ambiguous, spoofable, or conflict with tenant/site identity; reject the request and repair the deployment-owned claim mapping. |
 | `fura.docs_quality.*`, `fura.docs_quality.exemption` | Documentation completeness or stale exemption; follow the named owner and page-type recommendation. |
@@ -262,6 +263,7 @@ Exact rule-id index:
 - `fura.pdf`, `fura.recipes`, `fura.visibility_leak`
 - `fura.public_projection`, `fura.public_projection.catalog_stale`, `fura.public_projection.incomplete`, `fura.public_projection.lifecycle_stale`, `fura.public_projection.mutated`, `fura.public_projection.node_mismatch`, `fura.public_projection.node_missing`, `fura.public_projection.operation`, `fura.public_projection.privacy_canary`, `fura.public_projection.source_stale`
 - `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial`
+- `fura.remote_shard`, `fura.remote_shard.fetch`, `fura.remote_shard.unavailable`, `fura.remote_shard.verify`
 - `fura.presentation.conformance`, `fura.presentation.generated_drift`, `fura.presentation.manifest`, `fura.presentation.print`, `fura.presentation.reference_preview`, `fura.presentation.template_reachability`, `fura.presentation.token_ownership`, `fura.presentation.unsafe_html`, `fura.presentation.unsafe_path`, `fura.presentation.unused_tokens`
 - `fura.scorecard.*`
 - `fura.catalog`, `fura.config`, `fura.source_sync`, `fura.content_parse`, `fura.access`, `fura.access_denied`, `fura.catalog_load`, `fura.export`

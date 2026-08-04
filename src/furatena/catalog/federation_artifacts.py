@@ -15,6 +15,7 @@ from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from furatena.catalog.dcp_validate import validate_catalog_payload
+from furatena.catalog.federated_search import validate_federated_search_index
 from furatena.catalog.paths import schemas_root
 
 PUBLISHED_SHARD_SCHEMA_VERSION = 1
@@ -80,6 +81,11 @@ def load_federation_hub_schema() -> dict[str, Any]:
 
 def load_federation_discovery_schema() -> dict[str, Any]:
     return _load_schema("federation/v1/channels-extension.schema.json")
+
+
+def load_federated_search_schema() -> dict[str, Any]:
+    """Return the strict rolling-reader schema for shard search indexes."""
+    return _load_schema("federation/v1/search-index.schema.json")
 
 
 def published_manifest_digest(payload: Mapping[str, Any]) -> str:
@@ -537,6 +543,15 @@ def _validate_role_payload(
         errors.extend(_validate_public_node(identity, item["logical_path"], value))
     if item["role"] in {"search", "semantic"}:
         records_key = "documents" if item["role"] == "search" else "records"
+        if item["role"] == "search":
+            errors.extend(
+                f"inventory.{item['logical_path']}: schema {error}"
+                for error in _schema_errors(value, load_federated_search_schema())
+            )
+            errors.extend(
+                f"inventory.{item['logical_path']}: {error}"
+                for error in validate_federated_search_index(value)
+            )
         for record in value.get(records_key, []):
             if not isinstance(record, dict) or not str(record.get("node_id") or "").startswith(
                 f"{identity['mount']}:{identity['edition']}:"
@@ -680,6 +695,13 @@ def validate_inert_presentation_html(value: bytes | str) -> list[str]:
     except Exception as exc:  # HTMLParser subclasses may reject malformed declarations.
         return [f"presentation HTML parse failed: {exc}"]
     return parser.errors
+
+
+def validate_published_object_payload(
+    manifest: dict[str, Any], item: dict[str, Any], decoded: bytes
+) -> list[str]:
+    """Validate one decoded inventory object through its role-specific v1 contract."""
+    return _validate_role_payload(manifest, item, decoded)
 
 
 def _inert_url_error(value: str) -> str | None:

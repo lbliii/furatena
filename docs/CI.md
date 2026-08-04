@@ -107,9 +107,17 @@ The separate `private-image.yml` workflow publishes the proprietary commercial
 artifact when an image input changes. A qualifying merge to `main` builds one
 candidate, adds an SBOM and provenance,
 scans the published digest, and pulls and boots that exact subject in a clean
-job. Protected manual operations promote or revoke an existing digest without
-rebuilding it. Furatena is not published to PyPI; the isolated wheel and sdist
-lane remains an internal packaging-integrity check. See
+job. After every exact-digest check passes, the smoke job stores a strict
+promotion receipt for that workflow run and attempt. Protected manual promotion
+rechecks the successful current run metadata and rejects missing, stale, or
+mismatched evidence before selecting an existing digest without rebuilding it.
+Protected manual operations promote, deprecate, or revoke existing digests
+without rebuilding them. Rollback and replacement inputs resolve through their
+exact stable release records and must remain non-revoked, registry-available,
+and attested. Deprecation also proves that the named stable version owns its
+digest; emergency revocation retains that durable association even when the
+affected subject is unavailable. Furatena is not published to PyPI; the
+isolated wheel and sdist lane remains an internal packaging-integrity check. See
 [RELEASING.md](RELEASING.md) for registry setup, verification, promotion,
 rollback, revocation, and compromise procedures.
 

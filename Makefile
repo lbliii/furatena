@@ -5,7 +5,7 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint format format-check hygiene changelog-draft ty-audit ty-ratchet benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
+.PHONY: help install test lint format format-check hygiene changelog-draft ty-audit ty-ratchet benchmark shard-residency-benchmark link-reconciliation-benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
 	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-browser-htmx4-preview \
@@ -21,8 +21,11 @@ CORE_COVERAGE_TESTS = \
 	tests/test_chirp_docs_sources.py \
 	tests/test_chirp_docs_static_export.py \
 	tests/test_chirp_docs_reference_resolution.py \
-	tests/test_chirp_docs_link_and_inventory_contracts.py
-BROWSER_TESTS = tests/test_author_sse_browser.py
+	tests/test_chirp_docs_link_and_inventory_contracts.py \
+	tests/test_remote_shards.py
+BROWSER_TESTS = \
+	tests/test_author_sse_browser.py \
+	tests/test_mcp_catalog_search_app_browser.py
 BROWSER_RESULTS ?= browser-results
 PDF_PROOF_RESULTS ?= pdf-proof
 
@@ -45,6 +48,8 @@ help:
 	@echo "  make hygiene      changelog and actionable-error hygiene gates"
 	@echo "  make changelog-draft preview unreleased Towncrier notes"
 	@echo "  make benchmark    index/freeze/query/search timing report"
+	@echo "  make shard-residency-benchmark  tiered 100-mount residency profile"
+	@echo "  make link-reconciliation-benchmark  incremental 400-shard link profile"
 	@echo "  make author-benchmark  author startup/request/validation timing report"
 	@echo "  make retrieval-benchmark  known-answer ranking quality/cost report"
 	@echo ""
@@ -113,6 +118,12 @@ ty-ratchet:
 benchmark:
 	$(UV_RUN) python scripts/benchmark_catalog.py $(BENCHMARK_ARGS)
 
+shard-residency-benchmark:
+	$(UV_RUN) python scripts/benchmark_shard_residency.py $(BENCHMARK_ARGS)
+
+link-reconciliation-benchmark:
+	$(UV_RUN) python scripts/benchmark_link_reconciliation.py $(BENCHMARK_ARGS)
+
 author-benchmark:
 	$(UV_RUN) python scripts/benchmark_author_runtime.py $(BENCHMARK_ARGS)
 
@@ -177,7 +188,12 @@ ci-fast: format-check hygiene
 		src/furatena/catalog/pdf_proof.py \
 		src/furatena/catalog/mcp.py \
 		src/furatena/catalog/loader.py \
+		src/furatena/catalog/remote_shards.py \
 		src/furatena/catalog/registry.py \
+		src/furatena/catalog/link_reconciliation.py \
+		src/furatena/catalog/link_reconciliation_benchmarks.py \
+		src/furatena/catalog/shard_discovery.py \
+		src/furatena/catalog/shard_residency_benchmarks.py \
 		src/furatena/catalog/sources/git.py \
 		src/furatena/catalog/sources/types.py \
 		src/furatena/catalog/author_store.py \
@@ -237,6 +253,9 @@ ci-fast: format-check hygiene
 		tests/test_starter_repositories.py \
 		tests/test_migration_playbooks.py \
 		tests/test_benchmark_harness.py \
+		tests/test_shard_link_reconciliation.py \
+		tests/test_shard_residency_benchmark.py \
+		tests/test_remote_shards.py \
 		tests/test_author_benchmark_harness.py \
 		tests/test_validation_snapshots.py \
 		tests/test_chirp_docs_incremental.py \
@@ -267,6 +286,7 @@ ci-contract:
 	$(PYTEST) \
 		tests/test_author_authorization.py \
 		tests/test_author_truth.py \
+		tests/test_edition_projection.py \
 		tests/test_public_projection.py \
 		tests/test_docs_quality.py \
 		tests/test_integrator_operations_reference.py \

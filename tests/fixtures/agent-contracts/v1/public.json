@@ -67,8 +67,8 @@
       "resources": [
         {
           "uri": "ui://furatena/catalog-search/v1",
-          "name": "Catalog search",
-          "description": "Interactive presentation contract for public catalog search results.",
+          "name": "Furatena catalog search",
+          "description": "Search the public documentation catalog and inspect result provenance and graph context.",
           "mimeType": "text/html;profile=mcp-app",
           "_meta": {
             "ui": {
@@ -87,7 +87,8 @@
               "canonicalUri": "ui://furatena/catalog-search/v1",
               "audience": "public",
               "redaction": "public-only",
-              "fallback": "structured-content"
+              "fallback": "structured-content",
+              "assetSha256": "6bb600b8e9cc140b90a6b057d4502f6479b629ee8c9bc3c2d8b8d346d93618db"
             }
           }
         }

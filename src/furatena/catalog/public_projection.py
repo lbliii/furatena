@@ -937,6 +937,11 @@ def _clone_public_catalog(catalog: Any, source_root: Path) -> Any:
     registry = getattr(catalog, "_catalog", catalog)
     if hasattr(registry, "_shards"):
         clone = copy.copy(registry)
+        clone._publication_lock = RLock()
+        clone._read_generation_context = ContextVar(
+            f"furatena_projection_read_generation_{id(clone)}",
+            default=None,
+        )
         clone.mounts = tuple(
             replace(
                 mount,
@@ -985,6 +990,12 @@ def _clone_public_catalog(catalog: Any, source_root: Path) -> Any:
                 catalog=clone,
                 inventory_store=clone._inventory_store,
             )
+        # Rebuild the immutable request snapshot from the visibility-filtered
+        # shards. Reusing the source registry's snapshot would let request-level
+        # read pinning observe nodes that the projection clone intentionally
+        # removed.
+        clone._read_generation = None
+        clone._finalize_federated()
         return clone
     source_root.mkdir(parents=True, exist_ok=True)
     clone = _clone_public_shard(registry, allowed_by_id, content_root=source_root)

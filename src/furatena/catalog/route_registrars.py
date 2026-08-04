@@ -71,6 +71,11 @@ from furatena.catalog.query import (
 from furatena.catalog.railway_preview import runtime_railway_preview_manifest
 from furatena.catalog.runtime import ServeMode
 from furatena.catalog.semantic import retrieve_node, semantic_index_json, semantic_search_json
+from furatena.catalog.shard_discovery import (
+    discovery_mount_id,
+    llms_hub_txt,
+    sitemap_index_xml,
+)
 from furatena.catalog.sitemap import sitemap_xml
 from furatena.catalog.structure_index import build_structure_index
 from furatena.catalog.version_artifacts import versions_for_mount, versions_manifest
@@ -1065,10 +1070,46 @@ def register_catalog_routes(docs: Any, app: App) -> None:
     @app.route("/sitemap.xml", referenced=True)
     def sitemap(request: Request):
         self._ensure_catalog()
-        body = sitemap_xml(
+        frozen = self._frozen_artifact_response(
+            "sitemap.xml",
+            content_type="application/xml; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
+        body = sitemap_index_xml(
             self.catalog,
             base_url=self._site_base(request),
             subject=self._output_access_subject(request),
+        )
+        return Response(body, content_type="application/xml; charset=utf-8")
+
+    @app.route("/sitemaps/{mount_file}", referenced=True)
+    def mount_sitemap(request: Request, mount_file: str):
+        self._ensure_catalog()
+        if not mount_file.endswith(".xml"):
+            raise NotFound(
+                f"Mount sitemap artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        token = mount_file[: -len(".xml")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(
+                f"Mount sitemap artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        frozen = self._frozen_artifact_response(
+            f"sitemaps/{token}.xml",
+            content_type="application/xml; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
+        body = sitemap_xml(
+            self.catalog,
+            base_url=self._site_base(request),
+            subject=subject,
+            mount=mount_id,
         )
         return Response(body, content_type="application/xml; charset=utf-8")
 
@@ -1182,7 +1223,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         if not is_safe_mount_id(mount_id):
             raise NotFound(f"Catalog shard not found: {mount_id}")
         subject = self._output_access_subject(request)
-        shard = getattr(self.catalog, "_shards", {}).get(mount_id)
+        shard = self.catalog._active_shards().get(mount_id)
         if shard is None or not self.catalog.can_access_mount(
             mount_id,
             subject,
@@ -1470,11 +1511,42 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         )
         if frozen is not None:
             return frozen
-        body = llms_index_txt(
+        body = llms_hub_txt(
             self.catalog,
             site_name=self.config.site.name,
             site_description=self.config.site.description,
             subject=self._output_access_subject(request),
+        )
+        return Response(body, content_type="text/plain; charset=utf-8")
+
+    @app.route("/llms/{mount_file}", referenced=True)
+    def mount_llms_txt(request: Request, mount_file: str):
+        self._ensure_catalog()
+        if not mount_file.endswith(".txt"):
+            raise NotFound(
+                f"Mount LLM index artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        token = mount_file[: -len(".txt")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(
+                f"Mount LLM index artifact {mount_file!r} was not found; choose a listed mount."
+            )
+        frozen = self._frozen_artifact_response(
+            f"llms/{token}.txt",
+            content_type="text/plain; charset=utf-8",
+        )
+        if frozen is not None:
+            return frozen
+        body = llms_index_txt(
+            self.catalog,
+            site_name=self.config.site.name,
+            site_description=self.config.site.description,
+            subject=subject,
+            mount=mount_id,
         )
         return Response(body, content_type="text/plain; charset=utf-8")
 

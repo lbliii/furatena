@@ -70,9 +70,14 @@ def check_agent_contracts(server: Any) -> tuple[list[AgentLintFinding], list[Age
         errors.extend(tool_errors)
         warnings.extend(tool_warnings)
 
+    app_resources, app_tools = (
+        server.mcp_app_contract()
+        if callable(getattr(server, "mcp_app_contract", None))
+        else (resources, tools)
+    )
     app_errors, app_warnings = check_mcp_app_contracts(
-        resources,
-        tools,
+        app_resources,
+        app_tools,
         allow_trusted_author=bool(getattr(server, "include_private", False)),
     )
     errors.extend(app_errors)

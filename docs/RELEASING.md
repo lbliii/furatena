@@ -80,11 +80,16 @@ A merge to `main`, or a manual `candidate` operation, performs this sequence:
    channel, and timestamp;
 6. publish a GitHub/Sigstore attestation for the registry subject;
 7. pull the exact subject into a clean job, verify CPython 3.14t is GIL-disabled,
-   boot it, and require `/readyz` to pass.
+   boot it, require `/readyz` and the supported public surfaces to pass, and
+   prove the managed-content diagnostic and unprivileged-volume contracts;
+8. after every exact-digest gate passes, retain a schema-validated promotion
+   receipt binding the digest and source commit to the exact workflow, `main`
+   ref, workflow SHA, run ID, run attempt, and successful conclusion.
 
 The candidate artifact is not production-approved merely because this job
-passes. The workflow artifact is short-term CI evidence; stable promotion also
-creates a durable GitHub release record.
+passes. The workflow artifact is short-term CI evidence and is eligible for
+promotion for seven days; stable promotion also creates a durable GitHub release
+record.
 
 ## Promote a stable digest
 
@@ -94,22 +99,39 @@ Run **Publish proprietary image** manually with:
 - a new immutable `MAJOR.MINOR.PATCH` `version`;
 - the candidate's exact `sha256:...` `digest`;
 - the candidate's forty-character source `commit`;
+- the successful candidate workflow's numeric `candidate_run_id`;
 - the prior known-good `rollback_digest`;
+- the `rollback_version` whose durable stable record owns that digest;
 - a concrete `compatibility` statement; and
 - `migration_notes`, including an explicit no-migration statement when no
   adopter action is required.
 
 The protected `private-image-production` environment supplies the human gate.
-The lifecycle job first proves the subject still exists in GHCR, then writes a
-stable record and creates `image-v<version>` with that record as an asset. It
-does not invoke Docker build. Never reuse a commercial version or move its
-release tag to a different commit.
+The lifecycle job first checks the exact digest-named revocation release, then
+proves the subject still exists in GHCR. It accepts only provenance signed by
+this repository's private-image workflow on a GitHub-hosted runner, from the
+submitted source commit on `main`. It then downloads the exact run's promotion
+receipt and compares that receipt with current GitHub Actions run metadata.
+Missing artifacts, incomplete, failed, cancelled, or non-successful runs,
+evidence older than seven days, and any digest, commit, repository, workflow,
+ref, run, attempt, or timestamp mismatch fail closed. It also downloads
+`image-record.json` from the exact `image-v<rollback_version>` release and
+requires that canonical stable record to own the same image, version, and
+`rollback_digest`. The rollback digest must not be revoked, must still exist in
+GHCR, and must carry the same workflow-, commit-, main-ref-, and runner-bound
+provenance. Only then does the job write a stable record and create
+`image-v<version>` with that record as an asset. It does not invoke Docker
+build. Never reuse a commercial version or move its release tag to a different
+commit. A failed or unavailable revocation lookup or attestation check blocks
+promotion rather than treating the digest as eligible; an invalid, missing, or
+stale promotion receipt does the same.
 
 The stable record includes the exact image and rollback subjects, compatibility
 statement, supported content/config contract version and source-revision URLs,
 changelog URL, migration notes, and support-policy URL. Promotion rejects a
 rollback digest equal to the candidate digest and rejects any digest already
-listed by an immutable revocation release.
+listed by its exact immutable revocation release; the lookup does not depend on
+a bounded recent-release listing.
 
 Verify the selected subject before changing Railway:
 
@@ -145,18 +167,27 @@ attestation, SBOM, and scan evidence joinable.
 
 Run the workflow with `operation=deprecate`, the affected stable `version` and
 `digest`, a specific `reason`, an ISO-8601 `support_ends_at`, and the preferred
-`replacement_digest` when available. The resulting public feed record keeps the
-digest available, identifies the bounded support window, and gives an exact
-replacement subject. Deprecation does not silently move an adopter service.
+`replacement_digest` plus its owning `replacement_version` when available.
+Before publishing, the job requires the exact `image-v<version>` stable record
+to own the affected image and digest. Both the affected digest and any
+replacement must be non-revoked, present in GHCR, and backed by repository
+provenance; the replacement must also be owned by its exact stable record. The
+resulting public feed record keeps the digest available, identifies the bounded
+support window, and gives an exact replacement subject. Deprecation does not
+silently move an adopter service.
 
 ## Revoke a digest
 
 Run the workflow with `operation=revoke`, the affected `digest`, its commercial
-`version`, a specific `reason`, and, when known, a `replacement_digest`. A
-revocation does not require the compromised registry subject to remain
-available. The protected lifecycle job publishes an immutable digest-named
-revocation entry with affected digests and remediation. A later promotion of
-that digest is blocked even if a mutable registry tag points to it.
+`version`, a specific `reason`, and, when known, a `replacement_digest` and its
+owning `replacement_version`. The exact `image-v<version>` stable record must
+still provide the durable image/version/digest association. Emergency
+revocation does not require the affected, potentially compromised registry
+subject to remain available or attestable, but a replacement remains subject
+to the full non-revoked, available, attested stable-target checks. The protected
+lifecycle job publishes an immutable digest-named revocation entry with
+affected digests and remediation. A later promotion of that digest is blocked
+even if a mutable registry tag points to it.
 
 Then:
 

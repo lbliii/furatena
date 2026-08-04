@@ -11,7 +11,10 @@ import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from furatena.catalog.remote_shards import RemoteRefreshReport, RemoteShardMountRegistry
 
 import yaml
 from chirp import (
@@ -121,6 +124,11 @@ from furatena.catalog.search_experience import (
 from furatena.catalog.seo import (
     docs_base_url,
 )
+from furatena.catalog.shard_discovery import (
+    discovery_mount_id,
+    llms_hub_txt,
+    sitemap_index_xml,
+)
 from furatena.catalog.theme import DocsTheme
 from furatena.catalog.toc import build_toc_tree, collection_toc_items, node_toc_items
 from furatena.catalog.validation import ValidationSnapshotService
@@ -131,6 +139,23 @@ from furatena.catalog.workers import resolve_workers
 from furatena.cli.authoring import (
     author_read_source,
 )
+
+
+class _CatalogReadSnapshotMiddleware:
+    """Pin one composed catalog generation across every read-only HTTP request."""
+
+    __slots__ = ("_catalog",)
+
+    def __init__(self, catalog: CatalogRegistry) -> None:
+        self._catalog = catalog
+
+    async def __call__(self, request: Any, next: Any) -> Any:
+        if request.method not in {"GET", "HEAD", "QUERY"}:
+            return await next(request)
+        self._catalog.refresh_if_stale()
+        with self._catalog.read_snapshot():
+            return await next(request)
+
 
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 
@@ -347,6 +372,7 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
         preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> None:
         self.config = config
@@ -425,9 +451,12 @@ class DocsApp:
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
             state_root=self.roots.state / "source-sync-state",
+            remote_shards=remote_shards,
         )
         if self.roots.managed:
             for mount in self.catalog.mounts:
+                if mount.source.provider == "remote-shard":
+                    continue
                 self.roots.require_site_path(
                     mount.content_root,
                     label=f"content root for mount {mount.id!r}",
@@ -454,8 +483,11 @@ class DocsApp:
             frozen or config.root / "frozen", config.identity.to_meta()
         )
         semantic_path = semantic_root / "semantic.json"
-        self.embedding_index = EmbeddingIndex.load(semantic_path) or build_embedding_index(
-            list(self.catalog.nodes),
+        remote_mounts = self.catalog._remote_mount_ids()
+        local_nodes = [node for node in self.catalog.nodes if node.mount not in remote_mounts]
+        persisted_index = None if remote_mounts else EmbeddingIndex.load(semantic_path)
+        self.embedding_index = persisted_index or build_embedding_index(
+            local_nodes,
             documents=self.catalog.ast_documents(),
         )
         self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
@@ -577,6 +609,7 @@ class DocsApp:
             )
         app.add_middleware(GoogleFontsCSPMiddleware())
         app.add_middleware(ConditionalResponseMiddleware(self._response_last_modified))
+        app.add_middleware(_CatalogReadSnapshotMiddleware(self.catalog))
         self._register_contract_refs(app)
         self._register_routes(app)
         return app
@@ -702,6 +735,18 @@ class DocsApp:
         *,
         requested_lang: str | None = None,
     ):
+        with self.catalog.read_snapshot():
+            return self._render_catalog_page_in_generation(
+                request,
+                requested_lang=requested_lang,
+            )
+
+    def _render_catalog_page_in_generation(
+        self,
+        request: Request,
+        *,
+        requested_lang: str | None = None,
+    ):
         self._ensure_catalog()
         path = request.path
         if path.endswith("/index.txt"):
@@ -767,8 +812,9 @@ class DocsApp:
             if cached is not None:
                 return cached
             with self.catalog.use_edition(edition):
+                remote_mounts = self.catalog._remote_mount_ids()
                 index = build_embedding_index(
-                    list(self.catalog.nodes),
+                    [node for node in self.catalog.nodes if node.mount not in remote_mounts],
                     documents=self.catalog.ast_documents(),
                 )
             self._edition_embedding_indexes[edition] = index
@@ -801,15 +847,14 @@ class DocsApp:
             return self._render_catalog_page(request)
 
     def _edition_sitemap(self, request: Request, segment: str) -> Response:
-        from furatena.catalog.sitemap import sitemap_xml
-
         _mount, route = self._edition_route_for_request(request, segment)
         if route.alias:
             return self._edition_redirect(route)
         with self.catalog.use_edition(route.edition):
-            body = sitemap_xml(
+            body = sitemap_index_xml(
                 self.catalog,
                 base_url=self._site_base(request),
+                path_prefix=f"/{segment}",
                 subject=self._output_access_subject(request),
             )
         return Response(body, content_type="application/xml; charset=utf-8")
@@ -826,12 +871,60 @@ class DocsApp:
                     subject=self._output_access_subject(request),
                 )
             else:
-                body = llms_index_txt(
+                body = llms_hub_txt(
                     self.catalog,
                     site_name=self.config.site.name,
                     site_description=self.config.site.description,
+                    path_prefix=f"/{segment}",
                     subject=self._output_access_subject(request),
                 )
+        return Response(body, content_type="text/plain; charset=utf-8")
+
+    def _edition_mount_sitemap(self, request: Request, segment: str, mount_file: str) -> Response:
+        from furatena.catalog.sitemap import sitemap_xml
+
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        if not mount_file.endswith(".xml"):
+            raise NotFound(f"Mount sitemap not found: {mount_file}")
+        token = mount_file[: -len(".xml")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(f"Mount sitemap not found: {mount_file}")
+        with self.catalog.use_edition(route.edition):
+            body = sitemap_xml(
+                self.catalog,
+                base_url=self._site_base(request),
+                subject=subject,
+                mount=mount_id,
+            )
+        return Response(body, content_type="application/xml; charset=utf-8")
+
+    def _edition_mount_llms(self, request: Request, segment: str, mount_file: str) -> Response:
+        _mount, route = self._edition_route_for_request(request, segment)
+        if route.alias:
+            return self._edition_redirect(route)
+        if not mount_file.endswith(".txt"):
+            raise NotFound(f"Mount LLM index not found: {mount_file}")
+        token = mount_file[: -len(".txt")]
+        mount_id = discovery_mount_id(self.catalog, token)
+        subject = self._output_access_subject(request)
+        if mount_id is None or not self.catalog.can_access_mount(
+            mount_id, subject, permission="export"
+        ):
+            raise NotFound(f"Mount LLM index not found: {mount_file}")
+        with self.catalog.use_edition(route.edition):
+            body = llms_index_txt(
+                self.catalog,
+                site_name=self.config.site.name,
+                site_description=self.config.site.description,
+                subject=subject,
+                mount=mount_id,
+            )
         return Response(body, content_type="text/plain; charset=utf-8")
 
     def _edition_catalog_query(self, request: Request, segment: str) -> Response:
@@ -919,6 +1012,14 @@ class DocsApp:
             @app.route(f"{base}/llms-full.txt", referenced=True)
             def edition_llms_full_txt(request: Request, _segment=route_segment):
                 return self._edition_llms(request, _segment, full=True)
+
+            @app.route(f"{base}/sitemaps/{{mount_file}}", referenced=True)
+            def edition_mount_sitemap(request: Request, mount_file: str, _segment=route_segment):
+                return self._edition_mount_sitemap(request, _segment, mount_file)
+
+            @app.route(f"{base}/llms/{{mount_file}}", referenced=True)
+            def edition_mount_llms(request: Request, mount_file: str, _segment=route_segment):
+                return self._edition_mount_llms(request, _segment, mount_file)
 
             @app.route(f"{base}/catalog/query.json", referenced=True)
             def edition_catalog_query(request: Request, _segment=route_segment):
@@ -1945,6 +2046,7 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
         preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
@@ -1964,8 +2066,13 @@ class DocsApp:
             author_truth_provider=author_truth_provider,
             retrieval_feedback=retrieval_feedback,
             observability=observability,
+            remote_shards=remote_shards,
             preview_grant_runtime=preview_grant_runtime,
         )
+
+    def refresh_remote_shards(self) -> RemoteRefreshReport:
+        """Refresh and atomically publish all configured remote shard mounts."""
+        return self.catalog.refresh_remote_shards()
 
     def create_app(self) -> App:
         return self.app

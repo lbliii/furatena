@@ -1,0 +1,41 @@
+{
+  "benchmark": "incremental-shard-link-reconciliation",
+  "delta": {
+    "affected_targets": 600,
+    "changed_shards": 1,
+    "elapsed_ms": 22.505,
+    "neighborhood_edges": 900,
+    "neighborhood_fraction": 0.0075,
+    "peak_allocated_bytes": 567351,
+    "scanned_source_nodes": 600,
+    "state_record_bytes": 93963,
+    "total_shards": 400,
+    "untouched_shards": 399
+  },
+  "environment": {
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "python": "3.14.2"
+  },
+  "initial": {
+    "affected_targets": 120000,
+    "changed_shards": 400,
+    "elapsed_ms": 1285.552,
+    "neighborhood_edges": 120000,
+    "scanned_source_nodes": 120000,
+    "total_shards": 400,
+    "untouched_shards": 0
+  },
+  "persistence": {
+    "format": "atomic-sharded-json",
+    "total_state_bytes": 37585200
+  },
+  "schema_version": 1,
+  "workload": {
+    "edges": 120000,
+    "mounts": 400,
+    "nodes": 120000,
+    "pages_per_shard": 300,
+    "topology": "one outbound edge per page to the next mount"
+  }
+}
