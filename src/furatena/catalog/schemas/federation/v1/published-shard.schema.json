@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/federation/v1/published-shard.schema.json",
+  "title": "Furatena published shard artifact manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "manifest_type", "audience", "identity", "source_shard_fingerprint", "fingerprint",
+    "artifact_base_url", "contracts", "provenance", "lifecycle", "layout",
+    "compression", "inventory", "totals", "integrity", "signatures",
+    "attestations", "retention"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "manifest_type": {"const": "furatena-published-shard"},
+    "audience": {"const": "public"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "source_shard_fingerprint": {"$ref": "#/$defs/sha256"},
+    "fingerprint": {"$ref": "#/$defs/sha256"},
+    "artifact_base_url": {"type": "string", "format": "uri", "pattern": "^https://"},
+    "contracts": {"$ref": "#/$defs/contracts"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "lifecycle": {"$ref": "#/$defs/lifecycle"},
+    "layout": {"$ref": "#/$defs/layout"},
+    "compression": {"$ref": "#/$defs/compression"},
+    "inventory": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 100000,
+      "items": {"$ref": "#/$defs/inventoryEntry"}
+    },
+    "totals": {"$ref": "#/$defs/totals"},
+    "integrity": {"$ref": "#/$defs/integrity"},
+    "signatures": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {"$ref": "#/$defs/signature"}
+    },
+    "attestations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/attestation"}
+    },
+    "retention": {"$ref": "#/$defs/retention"}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitSha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "mount": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"},
+    "edition": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "mount", "edition"],
+      "properties": {
+        "key": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}:[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"},
+        "mount": {"$ref": "#/$defs/mount"},
+        "edition": {"$ref": "#/$defs/edition"}
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "dcp", "content_ir", "adapter", "reader_window"],
+      "properties": {
+        "artifact": {"const": 1},
+        "dcp": {"enum": [2, 3]},
+        "content_ir": {"const": 3},
+        "adapter": {"type": "integer", "minimum": 1},
+        "reader_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["dcp_min", "dcp_max", "content_ir_min", "content_ir_max"],
+          "properties": {
+            "dcp_min": {"const": 2},
+            "dcp_max": {"const": 3},
+            "content_ir_min": {"const": 3},
+            "content_ir_max": {"const": 3}
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "repository", "ref", "resolved_ref", "source_path"],
+      "properties": {
+        "provider": {"enum": ["git"]},
+        "repository": {"type": "string", "format": "uri", "pattern": "^https://"},
+        "ref": {"type": "string", "minLength": 1, "maxLength": 256},
+        "resolved_ref": {"$ref": "#/$defs/gitSha"},
+        "source_path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$"}
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "release_date", "end_of_life"],
+      "properties": {
+        "status": {"enum": ["current", "legacy", "deprecated", "preview", "eol"]},
+        "release_date": {"type": ["string", "null"], "format": "date"},
+        "end_of_life": {"type": ["string", "null"], "format": "date"}
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "style", "manifest_path", "object_prefix", "fragment_prefix",
+        "lookup", "max_object_bytes", "max_fragment_bytes", "max_inventory_entries"
+      ],
+      "properties": {
+        "style": {"const": "object-set-v1"},
+        "manifest_path": {"const": "manifest.json"},
+        "object_prefix": {"const": "objects/sha256/"},
+        "fragment_prefix": {"const": "fragments/"},
+        "lookup": {"const": "node-id-map"},
+        "max_object_bytes": {"type": "integer", "minimum": 1048576, "maximum": 67108864},
+        "max_fragment_bytes": {"type": "integer", "minimum": 65536, "maximum": 4194304},
+        "max_inventory_entries": {"type": "integer", "minimum": 4, "maximum": 100000}
+      }
+    },
+    "compression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default", "threshold_bytes", "allowed"],
+      "properties": {
+        "default": {"const": "zstd"},
+        "threshold_bytes": {"type": "integer", "minimum": 1024, "maximum": 1048576},
+        "allowed": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 2,
+          "items": {"enum": ["identity", "gzip", "zstd"]},
+          "allOf": [
+            {"contains": {"const": "identity"}},
+            {"contains": {"const": "zstd"}}
+          ]
+        }
+      }
+    },
+    "inventoryEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logical_path", "role", "object_url", "media_type", "content_encoding",
+        "uncompressed_size", "encoded_size", "sha256", "encoded_sha256", "required"
+      ],
+      "properties": {
+        "logical_path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]+$"},
+        "role": {"enum": ["catalog", "search", "semantic", "fragment"]},
+        "object_url": {"type": "string", "pattern": "^objects/sha256/[0-9a-f]{64}\\.json(?:\\.(?:gz|zst))?$"},
+        "media_type": {"const": "application/json"},
+        "content_encoding": {"enum": ["identity", "gzip", "zstd"]},
+        "uncompressed_size": {"type": "integer", "minimum": 2, "maximum": 67108864},
+        "encoded_size": {"type": "integer", "minimum": 2, "maximum": 67108864},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "encoded_sha256": {"$ref": "#/$defs/sha256"},
+        "required": {"const": true}
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_count", "fragment_count", "uncompressed_bytes", "encoded_bytes"],
+      "properties": {
+        "object_count": {"type": "integer", "minimum": 4, "maximum": 100000},
+        "fragment_count": {"type": "integer", "minimum": 1, "maximum": 99997},
+        "uncompressed_bytes": {"type": "integer", "minimum": 8},
+        "encoded_bytes": {"type": "integer", "minimum": 8}
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "inventory_sha256", "verification"],
+      "properties": {
+        "algorithm": {"const": "sha256"},
+        "inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "verification": {"const": "eager-manifest-lazy-objects"}
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "url", "sha256", "subject_sha256", "issuer", "identity"],
+      "properties": {
+        "kind": {"enum": ["sigstore-bundle", "dsse"]},
+        "url": {"type": "string", "format": "uri", "pattern": "^https://"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "subject_sha256": {"$ref": "#/$defs/sha256"},
+        "issuer": {"type": "string", "format": "uri", "minLength": 1},
+        "identity": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["predicate_type", "url", "sha256", "subject_sha256"],
+      "properties": {
+        "predicate_type": {"type": "string", "format": "uri", "minLength": 1},
+        "url": {"type": "string", "format": "uri", "pattern": "^https://"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "subject_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "immutable_objects", "minimum_days", "retain_until", "pinned_by"],
+      "properties": {
+        "class": {"enum": ["moving", "release"]},
+        "immutable_objects": {"const": true},
+        "minimum_days": {"type": "integer", "minimum": 30},
+        "retain_until": {"type": ["string", "null"], "format": "date"},
+        "pinned_by": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        }
+      }
+    }
+  }
+}

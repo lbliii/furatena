@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/federation/v1/channels-extension.schema.json",
+  "title": "Furatena channels.json remote_federation extension v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "hub_manifest_url", "hub_manifest_sha256",
+    "refresh_after_seconds", "max_manifest_bytes", "max_shards", "failure_mode"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "hub_manifest_url": {"type": "string", "format": "uri", "pattern": "^https://"},
+    "hub_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "refresh_after_seconds": {"type": "integer", "minimum": 30, "maximum": 86400},
+    "max_manifest_bytes": {"type": "integer", "minimum": 1024, "maximum": 4194304},
+    "max_shards": {"type": "integer", "minimum": 1, "maximum": 10000},
+    "failure_mode": {"const": "last-known-good-or-unavailable"}
+  }
+}
