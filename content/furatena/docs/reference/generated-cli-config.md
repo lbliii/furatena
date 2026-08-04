@@ -877,13 +877,13 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `CHIRP_TRACEBACK` | read | '' | `furatena/catalog/dev_reload.py:220` |
 | `FURA_ACTIVE_CONTENT_GENERATION` | read | '' | `furatena/catalog/build_identity.py:20`, `furatena/catalog/operational_status.py:167` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:42` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1918`, `furatena/cli/commands/serve.py:47` |
-| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1431`, `furatena/catalog/route_registrars.py:1450`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1931`, `furatena/cli/commands/serve.py:47` |
+| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1493`, `furatena/catalog/route_registrars.py:1512`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:51` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:65`, `furatena/catalog/content_deployment.py:308`, `furatena/catalog/content_deployment.py:551`, `furatena/catalog/content_deployment.py:639`, `furatena/catalog/content_refresh.py:461`, `furatena/catalog/operational_status.py:170`, `furatena/catalog/preview_security.py:103` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:36`, `furatena/cli/commands/serve.py:49` |
 | `FURA_CONTENT_REPOSITORY` | read | '' | `furatena/catalog/operational_status.py:150`, `furatena/cli/commands/serve.py:80` |
-| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:123` |
+| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:133` |
 | `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:18`, `furatena/cli/commands/content.py:124` |
 | `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:71`, `furatena/catalog/docs_app.py:290` |
 | `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:255` |

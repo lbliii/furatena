@@ -571,7 +571,8 @@ autodoc:
         assert search_entry["api_operation"]["source_spec"] == str(spec)
         llms_payload = llms_txt(_Catalog(), site_name="Acme Docs")
         assert llms_payload.startswith(
-            "# Acme Docs Documentation\n\n> Documentation index for Acme Docs.\n\n## "
+            "# Acme Docs Documentation\n\n> Documentation index for Acme Docs.\n"
+            "> Edition: latest (current)\n\n## "
         )
         assert ".md)" in llms_payload
         assert "API: POST /users (createUser); examples: sample" in llms_payload

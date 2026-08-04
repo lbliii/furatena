@@ -2920,6 +2920,7 @@ def test_mcp_json_rpc_tools_return_structured_content(tmp_path: Path) -> None:
             "label": "User",
             "mount": "docs",
             "edition": "latest",
+            "edition_status": "current",
         }
     ]
 
@@ -3012,6 +3013,7 @@ def test_mcp_agent_contract_covers_required_resources_tools_and_schemas(tmp_path
             "label": "Invoice",
             "mount": "docs",
             "edition": "latest",
+            "edition_status": "current",
         }
     ]
 

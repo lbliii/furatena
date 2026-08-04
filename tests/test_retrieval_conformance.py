@@ -43,6 +43,9 @@ def test_browser_dcp_sidecars_and_mcp_share_retrieval_contract(docs: DocsApp) ->
         "tag": None,
         "url_prefix": "/docs/",
         "include_private": False,
+        "status": None,
+        "include_preview": False,
+        "include_eol": False,
     }
 
     browser = hybrid_search(
