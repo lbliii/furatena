@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/preview-auth/v1/registration.schema.json",
+  "title": "Furatena preview authorization registration v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "record_type", "registration_id", "issuer", "binding", "authorization_endpoint", "grant_endpoint", "jwks_uri", "revocation_endpoint", "redirect_paths", "audiences", "created_at", "expires_at", "lifetimes", "supported_versions", "deprecated_versions"],
+  "properties": {
+    "schema_version": {"const": 1}, "record_type": {"const": "furatena.preview-auth.registration"},
+    "registration_id": {"$ref": "common.schema.json#/$defs/opaque"},
+    "issuer": {"$ref": "common.schema.json#/$defs/endpointUrl"}, "binding": {"$ref": "common.schema.json#/$defs/binding"},
+    "authorization_endpoint": {"$ref": "common.schema.json#/$defs/endpointUrl"}, "grant_endpoint": {"$ref": "common.schema.json#/$defs/endpointUrl"},
+    "jwks_uri": {"$ref": "common.schema.json#/$defs/endpointUrl"}, "revocation_endpoint": {"$ref": "common.schema.json#/$defs/endpointUrl"},
+    "redirect_paths": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "pattern": "^/(?!/)[^?#]{0,511}$"}},
+    "audiences": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/audience"}},
+    "created_at": {"$ref": "common.schema.json#/$defs/timestamp"}, "expires_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "lifetimes": {"$ref": "common.schema.json#/$defs/lifetimes"},
+    "supported_versions": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "contains": {"const": 1}, "items": {"type": "integer", "minimum": 1, "maximum": 65535}},
+    "deprecated_versions": {"type": "array", "maxItems": 16, "uniqueItems": true, "items": {"type": "integer", "minimum": 1, "maximum": 65535}}
+  }
+}
