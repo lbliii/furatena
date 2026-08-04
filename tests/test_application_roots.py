@@ -14,6 +14,7 @@ from furatena.catalog.content_deployment import ContentDeploymentError, Generati
 from furatena.catalog.exceptions import CatalogConfigError
 from furatena.catalog.theme import DocsTheme
 from furatena.cli.commands._shared import _docs_yaml
+from furatena.themes.docs import ROOT as PACKAGED_DOCS_ROOT
 
 
 def test_local_single_root_profile_preserves_compatible_defaults(tmp_path: Path) -> None:
@@ -102,7 +103,12 @@ def test_platform_layouts_follow_site_theme_roots(tmp_path: Path) -> None:
         state_root=state,
     )
 
-    assert theme.template_roots[-2:] == (site / "theme", platform / "theme")
+    assert theme.template_roots == (
+        site / "theme",
+        PACKAGED_DOCS_ROOT / "templates",
+        PACKAGED_DOCS_ROOT,
+        platform / "theme",
+    )
 
 
 def test_generation_selection_binds_all_roots_to_one_receipt(tmp_path: Path) -> None:

@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "kind": "public_projection_inspection",
+  "ok": true,
+  "complete": true,
+  "read_only": true,
+  "plan": {
+    "plan_id": "projection-plan:fixture",
+    "plan_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_revision": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "change_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "node_id": "chirp:latest:docs/planned",
+    "operation": "publish",
+    "previous_visibility": "draft",
+    "resulting_visibility": "public",
+    "kind": "local_transition"
+  },
+  "identities": {
+    "source": {
+      "plane": "source",
+      "identity": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state": "draft",
+      "freshness": "current",
+      "drift": false
+    },
+    "frozen_artifact": {
+      "plane": "frozen_artifact",
+      "identity": null,
+      "state": "unavailable",
+      "freshness": "unknown",
+      "drift": true
+    },
+    "deployed_artifact": {
+      "plane": "deployed_artifact",
+      "identity": null,
+      "state": "unavailable",
+      "freshness": "unknown",
+      "drift": true
+    }
+  },
+  "surfaces": [
+    {"id": "anonymous_html", "route": "/docs/planned/", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "route_availability", "route": "/docs/planned/", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "navigation", "route": null, "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "sidebar", "route": null, "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "breadcrumbs", "route": null, "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "search", "route": "/search.json", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "suggestions", "route": "/search/suggest", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "dcp_catalog", "route": "/catalog.json", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "dcp_structure", "route": "/structure.json", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "channels", "route": "/channels.json", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "static_export", "route": null, "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "sitemap", "route": "/sitemap.xml", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "pdf", "route": null, "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "page_text", "route": "/docs/planned/index.txt", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "page_markdown", "route": "/docs/planned.md", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "llms_txt", "route": "/llms.txt", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "llms_full_txt", "route": "/llms-full.txt", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "tools", "route": "/tools.json", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}},
+    {"id": "mcp_public_resources", "route": "fura://catalog", "previous_present": false, "resulting_present": true, "previous_digest": null, "resulting_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "change": "added", "affected": true, "preview": {"node_id": "chirp:latest:docs/planned"}}
+  ],
+  "privacy": {
+    "status": "pass",
+    "protected_node_count": 1,
+    "canary_count": 5,
+    "scanned_artifacts": 42,
+    "matches": []
+  },
+  "diagnostics": []
+}

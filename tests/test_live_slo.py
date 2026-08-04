@@ -7,6 +7,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "check_live_slo.py"
 
@@ -114,6 +116,42 @@ def test_live_slo_fails_closed_on_latency_identity_and_artifact() -> None:
         "bulk_artifact_integrity",
     }
     assert all("?" not in alert["summary"] for alert in report["alerts"])
+
+
+def test_live_slo_preserves_report_when_bulk_artifact_verifier_times_out(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _module()
+
+    def request(origin: str, path: str, *, timeout: float):
+        if path == "/meta.json":
+            body = json.dumps(
+                {
+                    "build": {
+                        "distribution": "private-image",
+                        "image": {"digest": f"sha256:{'a' * 64}"},
+                        "content": {"status": "active", "resolved_ref": "b" * 40},
+                    }
+                }
+            ).encode()
+            return 200, body, 20.0
+        if path == "/healthz":
+            return 200, b'{"kind":"health","status":"healthy","ok":true}', 15.0
+        if path == "/catalog/freshness.json":
+            return 200, b'{"kind":"freshness","status":"fresh","ok":true}', 20.0
+        if path == "/readyz":
+            return 200, b"ok", 25.0
+        return 200, b"<html><body>docs</body></html>", 40.0
+
+    def time_out(*args, **kwargs):
+        raise module.subprocess.TimeoutExpired(args[0], kwargs["timeout"])
+
+    monkeypatch.setattr(module.subprocess, "run", time_out)
+    report = module.evaluate_live_slo(_config(), requester=request)
+
+    assert not report["ok"]
+    assert report["artifact"] == {"error": "bulk-artifact verifier exceeded its 60s timeout"}
+    assert {alert["check"] for alert in report["alerts"]} == {"bulk_artifact_integrity"}
 
 
 def test_live_slo_fails_closed_on_unreadable_build_identity() -> None:
