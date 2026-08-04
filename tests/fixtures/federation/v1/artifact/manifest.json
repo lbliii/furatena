@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "manifest_type": "furatena-published-shard",
+  "audience": "public",
+  "identity": {"key": "chirp:0.10.3", "mount": "chirp", "edition": "0.10.3"},
+  "source_shard_fingerprint": "b84016cc7512e8aea0435ebb5991e662c6778ae55ca3afc1662036cd809fdac3",
+  "fingerprint": "6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70",
+  "artifact_base_url": "https://artifacts.example.com/shards/sha256/6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70/",
+  "contracts": {
+    "artifact": 1,
+    "dcp": 3,
+    "content_ir": 3,
+    "adapter": 1,
+    "reader_window": {"dcp_min": 2, "dcp_max": 3, "content_ir_min": 3, "content_ir_max": 3}
+  },
+  "provenance": {
+    "provider": "git",
+    "repository": "https://github.com/example/chirp.git",
+    "ref": "v0.10.3",
+    "resolved_ref": "e20ae88a77558d708e527b883dd655c0c0c656c2",
+    "source_path": "site/content"
+  },
+  "lifecycle": {"status": "legacy", "release_date": null, "end_of_life": null},
+  "layout": {
+    "style": "object-set-v1",
+    "manifest_path": "manifest.json",
+    "object_prefix": "objects/sha256/",
+    "fragment_prefix": "fragments/",
+    "lookup": "node-id-map",
+    "max_object_bytes": 67108864,
+    "max_fragment_bytes": 4194304,
+    "max_inventory_entries": 100000
+  },
+  "compression": {
+    "default": "zstd",
+    "threshold_bytes": 1024,
+    "allowed": ["identity", "zstd"]
+  },
+  "inventory": [
+    {
+      "logical_path": "catalog/catalog.json",
+      "role": "catalog",
+      "object_url": "objects/sha256/f7c96f20e400832f282213004339ee500195ff3932ac8a8b3bac66f8340a56d2.json",
+      "media_type": "application/json",
+      "content_encoding": "identity",
+      "uncompressed_size": 461,
+      "encoded_size": 461,
+      "sha256": "f7c96f20e400832f282213004339ee500195ff3932ac8a8b3bac66f8340a56d2",
+      "encoded_sha256": "f7c96f20e400832f282213004339ee500195ff3932ac8a8b3bac66f8340a56d2",
+      "required": true
+    },
+    {
+      "logical_path": "fragments/nodes/guide.json",
+      "role": "fragment",
+      "object_url": "objects/sha256/016626874c82a5e3dab1e6b8ff5ff68b7404fd4f7ef7c377729e3f2a37952ea9.json",
+      "media_type": "application/json",
+      "content_encoding": "identity",
+      "uncompressed_size": 353,
+      "encoded_size": 353,
+      "sha256": "016626874c82a5e3dab1e6b8ff5ff68b7404fd4f7ef7c377729e3f2a37952ea9",
+      "encoded_sha256": "016626874c82a5e3dab1e6b8ff5ff68b7404fd4f7ef7c377729e3f2a37952ea9",
+      "required": true
+    },
+    {
+      "logical_path": "indexes/search.json",
+      "role": "search",
+      "object_url": "objects/sha256/d26bbcc63f01a2cb95fa909f41c252442e73dd936b9f95e92301baed489a3e14.json",
+      "media_type": "application/json",
+      "content_encoding": "identity",
+      "uncompressed_size": 154,
+      "encoded_size": 154,
+      "sha256": "d26bbcc63f01a2cb95fa909f41c252442e73dd936b9f95e92301baed489a3e14",
+      "encoded_sha256": "d26bbcc63f01a2cb95fa909f41c252442e73dd936b9f95e92301baed489a3e14",
+      "required": true
+    },
+    {
+      "logical_path": "indexes/semantic.json",
+      "role": "semantic",
+      "object_url": "objects/sha256/3b9d8442d69504d4ef1e3f1250596b81762bd14ffe8dece123956cfcb83ced85.json",
+      "media_type": "application/json",
+      "content_encoding": "identity",
+      "uncompressed_size": 158,
+      "encoded_size": 158,
+      "sha256": "3b9d8442d69504d4ef1e3f1250596b81762bd14ffe8dece123956cfcb83ced85",
+      "encoded_sha256": "3b9d8442d69504d4ef1e3f1250596b81762bd14ffe8dece123956cfcb83ced85",
+      "required": true
+    }
+  ],
+  "totals": {"object_count": 4, "fragment_count": 1, "uncompressed_bytes": 1126, "encoded_bytes": 1126},
+  "integrity": {
+    "algorithm": "sha256",
+    "inventory_sha256": "e520b9a7c4f86c9fc286f6a7f7c3ae0aa8f5cbe92275b2dcfc31f7c6a50ee0a4",
+    "verification": "eager-manifest-lazy-objects"
+  },
+  "signatures": [
+    {
+      "kind": "sigstore-bundle",
+      "url": "https://artifacts.example.com/signatures/chirp-0.10.3.sigstore.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "subject_sha256": "6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "identity": "https://github.com/example/chirp/.github/workflows/publish.yml@refs/tags/v0.10.3"
+    }
+  ],
+  "attestations": [
+    {
+      "predicate_type": "https://slsa.dev/provenance/v1",
+      "url": "https://artifacts.example.com/attestations/chirp-0.10.3.slsa.json",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "subject_sha256": "6a937d77448bc15c6ae23413ffea1c65fb5107d75c27f89361f979df9bdc4a70"
+    }
+  ],
+  "retention": {
+    "class": "release",
+    "immutable_objects": true,
+    "minimum_days": 365,
+    "retain_until": null,
+    "pinned_by": ["hub:public-docs"]
+  }
+}
