@@ -1731,9 +1731,10 @@ class CatalogRegistry:
         return default.get_by_slug(slug) if default is not None else None
 
     def get_by_node_id(self, node_id: str) -> DocNode | None:
-        mount, _edition, slug = node_id.split(":", 2)
+        mount, edition, slug = node_id.split(":", 2)
         slug = "" if slug == "index" else slug
-        return self.get_by_slug(slug, mount=mount)
+        with self.use_edition(edition):
+            return self.get_by_slug(slug, mount=mount)
 
     @property
     def translation_index(self) -> dict[str, dict[str, str]]:

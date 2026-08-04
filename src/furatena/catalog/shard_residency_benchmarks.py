@@ -14,7 +14,6 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 from furatena.catalog.benchmarks import assert_free_threading
-from furatena.catalog.edition_routing import edition_segment
 from furatena.catalog.registry import (
     CatalogRegistry,
     MountConfig,
@@ -182,10 +181,8 @@ def run_shard_residency_benchmark(
     target_mount = remote.mounts()[mounts // 2]
     target_edition = f"e{editions - 1}"
     node_id = f"{target_mount}:{target_edition}:page-000"
-    target_url = f"/{edition_segment(target_edition)}/{target_mount}/page-000/"
     cold_started = time.perf_counter_ns()
-    with registry.use_edition(target_edition):
-        node = registry.get(target_url)
+    node = registry.get_by_node_id(node_id)
     cold_ns = time.perf_counter_ns() - cold_started
     if node is None or node.node_id != node_id:
         raise RuntimeError(f"Synthetic shard route did not resolve {node_id}.")
@@ -193,8 +190,7 @@ def run_shard_residency_benchmark(
     after_cold_current, after_cold_peak = tracemalloc.get_traced_memory()
 
     hot_started = time.perf_counter_ns()
-    with registry.use_edition(target_edition):
-        hot_node = registry.get(target_url)
+    hot_node = registry.get_by_node_id(node_id)
     hot_ns = time.perf_counter_ns() - hot_started
     if hot_node is not node:
         raise RuntimeError("Hot shard route did not reuse its immutable node.")
@@ -229,7 +225,7 @@ def run_shard_residency_benchmark(
             "clock": "time.perf_counter_ns",
             "memory": "tracemalloc Python allocations plus cycle-safe sys.getsizeof admission accounting",
             "origin": "deterministic in-process immutable object-store stand-in; network excluded",
-            "route": "edition stripping plus O(1) mount-prefix lookup before catalog mapping access",
+            "route": "mount:edition:node split plus O(1) mount and shard lookup before catalog mapping access",
             "resident_shard_limit": resident_shards,
             "resident_byte_limit": resident_bytes,
         },
