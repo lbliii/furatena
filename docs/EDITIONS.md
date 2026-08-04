@@ -186,18 +186,20 @@ This uses existing DCP edge kinds. No edition-specific edge taxonomy is added.
 
 ### Shared-content deduplication
 
-Identical normalized Content IR and routing metadata must not be copied into every
-edition shard. Freeze computes a semantic content digest per `(mount, slug)` and
-canonicalizes identical records to one internal shared node. Its internal edition id is
-`shared-<digest>` and therefore still obeys `mount:edition:slug`; it is never exposed as
-a public edition or URL prefix. `available_in` edges connect that node to every public
-release that uses it.
+Freeze computes a semantic content digest per `(mount, slug)` and canonicalizes
+identical records to one internal shared-content identity. Its id is
+`mount:shared-<digest>:slug`; it is never exposed as a public edition or URL prefix.
+The immutable source records retain their distinct `mount:edition:slug` ids, refs,
+resolved commits, and source paths. Deduplication is therefore a composition contract,
+not a destructive rewrite of source or public graph identity.
 
-The composition index maps `(mount, requested edition, slug)` to the canonical shared
-node, while the request retains its public edition context for URLs, banners, policy,
-and response metadata. If the page differs between releases, each distinct digest is a
-separate node. This permits more than one historical variant of the same slug without
-making shared content mutable.
+The versioned `edition-projection.json` v1 sidecar records source pages, shared-content
+identities and members, edition order, cross-edition edges, and resolver metrics.
+`available_in` edges connect each public page identity to every
+`release:<mount>:<edition>` in which its logical page is present. If page content
+differs between releases, each distinct digest is a separate shared-content identity.
+This permits more than one historical variant of the same slug without making shared
+content mutable or losing provenance.
 
 ## URL and request-context contract (#351)
 
@@ -270,14 +272,31 @@ The switcher resolves within the current mount and never guesses across mounts:
 3. Walk the slug's ancestors in the target edition, nearest first.
 4. Fall back to the target edition's mount landing page.
 
-Only step 1 is a direct hit. Steps 2–4 show a notice explaining the fallback, and the
-runtime records direct-hit and fallback-reason metrics for the pilot. If lifecycle
-policy disallows the target, the switcher omits it rather than producing a dead link.
+Step 1 is a direct hit. Step 2 is a declared logical-page replacement and keeps its
+canonical target without presenting it as a missing-page fallback. Steps 3 and 4 add
+`version_fallback`, `version_from`, `version_source`, and `version_target` query
+context; the target fragment re-resolves that source identity and renders a status
+notice only when its resolution and destination match the active page.
+If lifecycle policy disallows the target, the switcher omits it rather than producing
+a dead link.
 
 An htmx edition switch requests the target fragment in the new context, updates all
 edition-dependent out-of-band regions, and pushes the canonical URL. It does not
 require a full page reload. Navigation and related-content lookups use the target
 context from the first response onward.
+
+The projection computes deterministic direct, supersedes, ancestor, landing, and
+missing counts for every selectable cross-edition attempt, both globally and per
+mount. `direct_hit_rate` is direct hits divided by attempts; `fallback_rate` includes
+supersedes, ancestor, and landing resolutions but excludes missing targets. The
+registry builds or loads the immutable projection once under a lock, and subsequent
+switcher and graph-query calls use constant-time indices.
+
+The repository's edition-projection fixture creates actual git commits and two release
+tags across two mounts. It is executable local evidence for direct-hit, fallback,
+deduplication, provenance, graph, frozen, static, and htmx behavior. It is not external
+production-pilot evidence; rollout and representative-repository gates remain tracked
+by #356 and #357.
 
 ## `versions.json` and channel discovery (#354)
 

@@ -13,6 +13,7 @@
 {% let page_subtitle = catalog_subtitle ?? node?.description ?? '' %}
 <a href="#page-content" class="skip-link">{% if i18n_enabled | default(false) %}{{ t('Skip to main content') }}{% else %}Skip to main content{% end %}</a>
 {% include "partials/locale_fallback_banner.html" %}
+{% include "partials/version_fallback_notice.html" %}
 <div class="chirp-theme-docs-layout{{ ' chirp-theme-docs-layout--with-toc' if catalog_with_toc else '' }}{{ ' ' ~ catalog_layout_extra if catalog_layout_extra else '' }}" data-chirp-theme-surface="{{ catalog_surface | default('doc') }}">
   <div class="chirp-theme-docs-layout__main" id="page-content">
     <div class="chirp-theme-docs-layout__article-slot">
