@@ -121,6 +121,26 @@ jobs:
           curl --fail --silent "$ORIGIN/_fura/content/status" \
             > conformance-evidence/content-initial.json
 
+      - name: Reject unauthenticated content refresh without changing generations
+        env:
+          ORIGIN: ${{ steps.live.outputs.origin }}
+        run: |
+          set -euo pipefail
+          initial=$(jq -r '.active_generation // empty' \
+            conformance-evidence/content-initial.json)
+          test -n "$initial"
+          status=$(curl --silent --show-error --output \
+            conformance-evidence/content-auth-denied.json --write-out '%{http_code}' \
+            --request POST "$ORIGIN/_fura/content/refresh")
+          test "$status" = 401
+          jq --exit-status \
+            '.error == "content operation authorization failed"' \
+            conformance-evidence/content-auth-denied.json >/dev/null
+          curl --fail --silent "$ORIGIN/_fura/content/status" \
+            > conformance-evidence/content-after-auth-denial.json
+          test "$(jq -r '.active_generation // empty' \
+            conformance-evidence/content-after-auth-denial.json)" = "$initial"
+
       - name: Inject an unreachable ref and require last-known-good service
         env:
           ORIGIN: ${{ steps.live.outputs.origin }}
