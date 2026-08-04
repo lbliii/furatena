@@ -81,19 +81,25 @@ Configure these GitHub Actions secrets:
 - `FURATENA_REFRESH_URL`: the deployment's `/_fura/content/refresh` URL;
 - `FURATENA_REFRESH_TOKEN`: the independently generated content refresh bearer.
 
-The included workflow sends an authenticated refresh request after a push to
-`main`, or when a maintainer starts it manually. Furatena resolves the configured
-`FURA_CONTENT_REF`, validates and freezes a complete generation, and switches
-generations atomically. It does not rebuild or change the application image.
+After a push to `main`, or when a maintainer starts it manually, the included
+workflow reads the active commit and sends an authenticated refresh request
+using the versioned schema, with that expected value, the exact pushed commit,
+and a GitHub-run idempotency key. Furatena proves the commit is reachable from
+the configured `main` policy, validates and freezes a complete generation, and
+switches generations atomically without rebuilding the application image.
 
-The current empty-body request is the v1 migration-compatible workflow. It does
-not provide a caller-selected exact commit or caller-controlled idempotency, so
-confirm the resolved commit before treating a run as published. A later runtime
-contract can add those controls without moving application code into this
-repository.
+HTTP 202 returns an operation/status URL. Treat `stale_active_commit`,
+`unreachable_commit`, `idempotency_key_collision`, and `refresh_in_progress` as
+409 conflicts requiring a fresh operator decision. Empty-body POST is v1-only
+migration compatibility and does not provide exact-commit or caller-controlled
+idempotency guarantees. Webhook delivery is deferred beyond v1.
 
-Confirm the new resolved content commit in `/meta.json` and verify the page in
-reader, search, catalog, and agent outputs.
+The `main` ref is the normal content channel. Maintainers of the conformance
+fixture also keep a `conformance-v2` tag solely so the automated harness can
+prove content update and rollback behavior.
+
+Confirm the resolved content commit in `/meta.json` and verify the page in
+reader, search, catalog, and agent outputs before treating the run as published.
 
 ## Roll back content
 
@@ -116,21 +122,3 @@ Updating this repository never updates that image. Apply an approved runtime
 digest through the Railway service or template release process, preserve the
 previous digest as the image rollback target, and verify that the adopter-owned
 content generation remains selected.
-
-## Publish content
-
-The included workflow reads the active commit, then submits a versioned refresh
-request with that expected value, the exact pushed commit, and a GitHub-run
-idempotency key. Furatena proves the commit is reachable from the configured
-`main` policy, validates and freezes a complete generation, and switches
-generations atomically without rebuilding the application image.
-
-HTTP 202 returns an operation/status URL. Treat `stale_active_commit`,
-`unreachable_commit`, `idempotency_key_collision`, and `refresh_in_progress` as
-409 conflicts requiring a fresh operator decision. Empty-body POST is v1-only
-migration compatibility and does not provide exact-commit or caller-controlled
-idempotency guarantees. Webhook delivery is deferred beyond v1.
-
-The `main` ref is the normal content channel. Maintainers of the conformance
-fixture also keep a `conformance-v2` tag solely so the automated harness can
-prove content update and rollback behavior.
