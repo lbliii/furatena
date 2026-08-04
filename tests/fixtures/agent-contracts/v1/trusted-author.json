@@ -25,6 +25,19 @@
         {"name": "author_read_source", "read_only": true},
         {"name": "author_apply_edit", "read_only": false, "confirmation_required": true}
       ]
+    },
+    "mcp_apps": {
+      "contract_version": 1,
+      "spec_version": "2026-01-26",
+      "access": {
+        "inherits_public_resources": true,
+        "trusted_resource_default": "deny",
+        "required_audience": "trusted-author",
+        "required_redaction": "session-authorized"
+      },
+      "resources": [],
+      "tools": [],
+      "webmcp": "out-of-scope"
     }
   }
 }

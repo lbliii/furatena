@@ -140,6 +140,20 @@ def test_governed_preview_starter_has_secure_reference_integration(tmp_path: Pat
     assert ".env.preview" in (app_root / ".gitignore").read_text(encoding="utf-8")
 
 
+def test_governed_preview_guide_does_not_advertise_unavailable_hosted_access() -> None:
+    guide = (Path(__file__).resolve().parents[1] / "docs/GOVERNED_PR_PREVIEWS.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(guide.split())
+
+    assert "Status: planned, not available in the current release." in normalized
+    assert "Hosted GitHub sign-in is not the released Railway default." in normalized
+    assert "do not ship `FURA_PREVIEW_AUTH_MODE`" in normalized
+    assert "Keep `FURA_PREVIEW_AUTH_TOKEN` configured" in normalized
+    assert "This is a release-readiness gate, not an actionable migration procedure." in normalized
+    assert "A future hosted default must retain an explicit password rollback path" in normalized
+
+
 def test_api_portal_openapi_fixture_is_valid_json_projection(tmp_path: Path) -> None:
     app_root = tmp_path / "api"
     run_command(["init", str(app_root), "--starter", "api-portal"])
