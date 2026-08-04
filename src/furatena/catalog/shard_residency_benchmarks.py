@@ -76,6 +76,7 @@ class _SyntheticCatalog(Mapping[str, Any]):
 
 @dataclass(frozen=True, slots=True)
 class _SyntheticGeneration:
+    generation_id: str
     shards: Mapping[str, Any]
 
 
@@ -105,6 +106,7 @@ class _SyntheticRemoteRegistry:
 
     def generation(self, mount: str) -> _SyntheticGeneration:
         return _SyntheticGeneration(
+            f"synthetic:{mount}",
             {
                 identity: shard
                 for identity, shard in self._shards.items()

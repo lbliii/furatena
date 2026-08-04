@@ -23,6 +23,10 @@ from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.config import load_docs_config
 from furatena.catalog.deployment_manifest import DeploymentManifest, write_deployment_manifest
 from furatena.catalog.deployment_profiles import deployment_profiles_manifest
+from furatena.catalog.edition_projection import (
+    EDITION_PROJECTION_FILENAME,
+    write_edition_projection,
+)
 from furatena.catalog.edition_shards import EditionShardStatus, freeze_edition_shards
 from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.exceptions import ExportError
@@ -511,6 +515,12 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
     reused_editions = tuple(
         f"{status.mount}:{status.edition}" for status in edition_status if status.status == "reused"
     )
+    has_edition_projection = (
+        bool(registry.edition_projection().pages) if not failed_mounts else False
+    )
+    edition_projection_changed = (
+        write_edition_projection(registry, out_dir) if not failed_mounts else False
+    )
 
     for mount in registry.mounts:
         _write_catalog_shard_route_alias(out_dir, mount.id)
@@ -542,6 +552,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         "surface.json",
         "deployment-profiles.json",
         "versions.json",
+        *((EDITION_PROJECTION_FILENAME,) if has_edition_projection else ()),
         "channels.json",
     )
     visible_discovery_mounts = discovery_mounts(registry)
@@ -573,6 +584,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         or frozen_editions
         or versions_changed
         or discovery_changed
+        or edition_projection_changed
         or any(not (out_dir / path).is_file() for path in required_agent_sidecars)
         or any(
             not (out_dir / "sitemaps" / f"{discovery_mount_token(mount.id)}.xml").is_file()

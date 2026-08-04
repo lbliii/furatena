@@ -68,6 +68,14 @@ def catalog_graph(
     )
     node_ids = {node.node_id for node in nodes}
     public_urls = {node.url for node in nodes}
+    public_target_ids_method = getattr(catalog, "public_cross_edition_node_ids", None)
+    public_target_ids = (
+        set(public_target_ids_method()) if callable(public_target_ids_method) else set()
+    )
+    public_source_ids_method = getattr(catalog, "public_cross_edition_source_ids", None)
+    public_source_ids = (
+        set(public_source_ids_method()) if callable(public_source_ids_method) else set()
+    )
     for node in nodes:
         pages.append(
             _page_record(
@@ -80,9 +88,10 @@ def catalog_graph(
     edges = [
         edge
         for edge in catalog.graph_edges()
-        if edge.get("source") in node_ids
+        if edge.get("source") in node_ids | public_source_ids
         and (
             edge.get("target") in node_ids
+            or edge.get("target") in public_target_ids
             or _is_external_graph_target(str(edge.get("target") or ""))
         )
     ]

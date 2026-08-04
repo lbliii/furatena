@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 
 from furatena.catalog.exceptions import CatalogError
+from furatena.catalog.federated_search import build_federated_search_index
 from furatena.catalog.federation_artifacts import (
     MAX_PRESENTATION_BYTES,
     MAX_PUBLISHED_INVENTORY_ENTRIES,
@@ -265,19 +266,7 @@ def build_published_shard(options: PublishShardOptions) -> tuple[Path, dict[str,
             path=source / "pages",
             operation="publish_shard_presentation",
         )
-    search = {
-        "schema_version": 1,
-        "mount": mount,
-        "edition": edition,
-        "documents": [
-            {
-                "node_id": str(page.get("node_id") or ""),
-                "title": str(page.get("title") or ""),
-                "text": _page_text(page),
-            }
-            for page in page_records
-        ],
-    }
+    search = build_federated_search_index(page_records, mount=mount, edition=edition)
     semantic = {
         "schema_version": 1,
         "mount": mount,
@@ -625,16 +614,6 @@ def _read_json(path: Path) -> dict[str, Any]:
             "required JSON must contain an object", path=path, operation="publish_shard_package"
         )
     return value
-
-
-def _page_text(page: dict[str, Any]) -> str:
-    parts = [str(page.get("title") or "")]
-    sections = page.get("sections")
-    if isinstance(sections, list):
-        parts.extend(
-            str(section.get("text") or "") for section in sections if isinstance(section, dict)
-        )
-    return " ".join(part for part in parts if part).strip()
 
 
 def _canonical_json(payload: Any) -> bytes:

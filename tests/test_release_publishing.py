@@ -247,8 +247,9 @@ def test_private_image_workflow_has_separate_candidate_and_lifecycle_authority()
     jobs = workflow["jobs"]
     triggers = workflow.get("on") or workflow.get(True)
 
-    assert set(jobs) == {"candidate", "smoke", "lifecycle"}
+    assert set(jobs) == {"pull-request", "candidate", "smoke", "lifecycle"}
     assert workflow["permissions"] == {"contents": "read"}
+    assert jobs["pull-request"]["permissions"] == {"contents": "read"}
     assert jobs["candidate"]["permissions"] == {
         "contents": "read",
         "packages": "write",
@@ -263,6 +264,9 @@ def test_private_image_workflow_has_separate_candidate_and_lifecycle_authority()
     assert "PYPI_TOKEN" not in source
     assert "pull_request:" in source
     assert "github.event.pull_request.head.repo.full_name == github.repository" in source
+    pull_request = jobs["pull-request"]
+    assert "docker/login-action" not in json.dumps(pull_request)
+    assert "actions/attest" not in json.dumps(pull_request)
     expected_inputs = {
         ".dockerignore",
         ".github/workflows/private-image.yml",
@@ -298,12 +302,12 @@ def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() 
     }
     for action, sha in pins.items():
         assert f"{action}@{sha}" in source
-    assert (
-        "provenance: ${{ github.event_name == 'pull_request' && 'false' || 'mode=max' }}" in source
-    )
-    assert "sbom: ${{ github.event_name == 'pull_request' && 'false' || 'true' }}" in source
-    assert "push: ${{ github.event_name != 'pull_request' }}" in source
-    assert "load: ${{ github.event_name == 'pull_request' }}" in source
+    assert "provenance: mode=max" in source
+    assert "sbom: true" in source
+    assert "push: true" in source
+    assert "Build the pull-request image without publishing authority" in source
+    assert "push: false" in source
+    assert "load: true" in source
     assert "severity: CRITICAL,HIGH" in source
     assert "subject-digest: ${{ steps.build.outputs.digest }}" in source
     assert "push-to-registry: true" in source
@@ -325,10 +329,10 @@ def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() 
 
 def test_private_image_smokes_reader_search_catalog_and_agent_surfaces() -> None:
     source = WORKFLOW.read_text(encoding="utf-8")
-    candidate = source.split("  candidate:\n", 1)[1].split("\n  smoke:\n", 1)[0]
+    pull_request = source.split("  pull-request:\n", 1)[1].split("\n  candidate:\n", 1)[0]
     smoke = source.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
 
-    for job in (candidate, smoke):
+    for job in (pull_request, smoke):
         for required in (
             "Accept: text/markdown",
             "/docs/get-started/",

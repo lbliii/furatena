@@ -62,6 +62,7 @@ from furatena.catalog.export import (
 )
 from furatena.catalog.graph_schema import EdgeKind
 from furatena.catalog.operational_status import operational_status, process_health
+from furatena.catalog.public_projection import inspect_public_transition
 from furatena.catalog.query import (
     DEFAULT_GRAPH_QUERY_LIMIT,
     MAX_GRAPH_QUERY_LIMIT,
@@ -680,8 +681,29 @@ def register_author_routes(docs: Any, app: App) -> None:
             if denied is not None:
                 return denied
             source = self._author_source_info(node)
+            operation = (request.query.get("operation") or "publish").strip().lower()
+            if operation not in {"publish", "unpublish", "archive"}:
+                return _json_response(
+                    {
+                        "ok": False,
+                        "diagnostics": [
+                            {
+                                "severity": "error",
+                                "message": (
+                                    "Public inspection operation must be publish, unpublish, "
+                                    "or archive."
+                                ),
+                                "rule_id": "fura.public_projection.operation",
+                                "next_action": (
+                                    "Retry with operation=publish, unpublish, or archive."
+                                ),
+                            }
+                        ],
+                    },
+                    status=422,
+                )
             inspection = author_transition(
-                "publish",
+                operation,
                 node.slug,
                 mounts=tuple(self.catalog.mounts),
                 subject=self._browser_author_subject(),
@@ -693,7 +715,26 @@ def register_author_routes(docs: Any, app: App) -> None:
             )
             if _author_authorization_denied(inspection):
                 return _json_response({"ok": False, "data": inspection.to_dict()}, status=403)
-            feedback = inspection.to_dict()
+            if not inspection.ok:
+                return _json_response({"ok": False, "data": inspection.to_dict()}, status=422)
+            publication = (
+                self.author_truth_provider.snapshot(
+                    node,
+                    source_revision=source["revision"],
+                )
+                if self.author_truth_provider is not None
+                else None
+            )
+            feedback = inspect_public_transition(
+                self.catalog,
+                node,
+                inspection,
+                current_source_revision=source["revision"],
+                config=self.config,
+                docs_app=self,
+                publication=publication,
+                transport="browser",
+            )
         if request.is_htmx:
             return self._author_page_chrome_fragment(
                 node,
@@ -710,7 +751,8 @@ def register_author_routes(docs: Any, app: App) -> None:
                 {
                     **chrome,
                     "public_inspection": feedback,
-                }
+                },
+                status=200 if feedback.get("ok") else 422,
             )
         return _json_response(chrome)
 

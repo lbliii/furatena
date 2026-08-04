@@ -607,7 +607,13 @@ def build_search_page_cards(
                 tag_labels=tuple(sorted(node.tags)[:4]),
             )
         )
-    cards.sort(key=lambda card: (-card.score, getattr(card.node, "title", "").lower()))
+    cards.sort(
+        key=lambda card: (
+            -card.score,
+            getattr(card.node, "title", "").lower(),
+            getattr(card.node, "node_id", ""),
+        )
+    )
     return cards
 
 
@@ -979,7 +985,11 @@ def search_lint_context(catalog: CatalogRegistry) -> dict[str, object]:
     """Minimal search-shell context for ``fura check`` smoke renders."""
     from furatena.catalog.embeddings import EmbeddingIndex
 
-    index = EmbeddingIndex.from_nodes(list(catalog.nodes), documents=catalog.ast_documents())
+    remote_mounts = catalog._remote_mount_ids()
+    index = EmbeddingIndex.from_nodes(
+        [node for node in catalog.nodes if node.mount not in remote_mounts],
+        documents=catalog.ast_documents(),
+    )
     ctx = build_search_workspace_context(
         catalog,
         index,

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, cast
 if TYPE_CHECKING:
     from patitas.nodes import Document
 
+    from furatena.catalog.edition_projection import EditionPageResolution, EditionProjection
     from furatena.catalog.inventories import InventoryStore
     from furatena.catalog.remote_shards import RemoteRefreshReport, RemoteShardMountRegistry
 
@@ -95,6 +96,17 @@ class _CatalogReadGeneration:
     inventory_store: InventoryStore | None
     edges: tuple[EdgeRecord, ...] | None
     namespaces: tuple[NamespaceRecord, ...] | None
+
+
+@dataclass(frozen=True, slots=True)
+class FederatedCatalogSearchHit:
+    """A remote shard result resolved to the active catalog generation."""
+
+    node: DocNode
+    score: float
+    snippet: str
+    keyword_score: float
+    tfidf_score: float
 
 
 class _CatalogReadSnapshotContext:
@@ -491,6 +503,8 @@ class CatalogRegistry:
         self._shards: dict[str, DocCatalog] = {}
         self._edition_shards: dict[str, dict[str, DocCatalog]] = {}
         self._edition_shards_lock = RLock()
+        self._edition_projection_cache: EditionProjection | None = None
+        self._edition_projection_lock = Lock()
         self._mount_for_url: list[tuple[str, MountConfig]] = []
         self._mount_for_route_segment: dict[str, MountConfig] = {}
         self._ambiguous_route_segments: set[str] = set()
@@ -1795,6 +1809,8 @@ class CatalogRegistry:
         if changed_mounts:
             self._edges = None
             self._namespaces = None
+            with self._edition_projection_lock:
+                self._edition_projection_cache = None
             with self._query_graph_lock:
                 self._query_graph_cache.clear()
             self._reconcile_link_shards(mount_ids=frozenset(changed_mounts))
@@ -2176,7 +2192,86 @@ class CatalogRegistry:
             permission=AccessPermission.SEARCH,
             include_private=self.include_private,
         )
-        return search_nodes(nodes, query, limit=limit, documents=self.ast_documents())
+        remote_mounts = self._remote_mount_ids()
+        local_nodes = [node for node in nodes if node.mount not in remote_mounts]
+        hits = search_nodes(
+            local_nodes,
+            query,
+            limit=limit * 2,
+            documents=self.ast_documents(),
+        )
+        hits.extend(
+            SearchHit(
+                node=hit.node,
+                score=round(hit.score * 100, 4),
+                snippet=hit.snippet,
+            )
+            for hit in self.federated_search_hits(query, nodes=nodes, limit=limit * 2)
+        )
+        hits.sort(
+            key=lambda hit: (
+                -hit.score,
+                hit.node.weight,
+                hit.node.title.casefold(),
+                hit.node.node_id,
+            )
+        )
+        return hits[:limit]
+
+    def federated_search_hits(
+        self,
+        query: str,
+        *,
+        nodes: list[DocNode],
+        limit: int,
+        mount: str | None = None,
+        edition: str | None = None,
+        status: str | None = None,
+        include_preview: bool = False,
+        include_eol: bool = False,
+    ) -> tuple[FederatedCatalogSearchHit, ...]:
+        """Query per-shard indexes and intersect them with already-authorized nodes."""
+        if self.remote_shards is None:
+            return ()
+        remote_mounts = self._remote_mount_ids()
+        if mount is not None:
+            remote_mounts &= {mount}
+        if not remote_mounts:
+            return ()
+        target_edition = edition or self.active_channel
+        uses_active_edition = target_edition == self.active_channel
+        allowed = {
+            node.node_id: node
+            for node in nodes
+            if node.mount in remote_mounts
+            and (uses_active_edition or node.edition == target_edition)
+        }
+        if not allowed:
+            return ()
+        result = self.remote_shards.search(
+            query,
+            mounts=remote_mounts,
+            edition=target_edition,
+            limit=max(limit * 2, 16),
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        )
+        hits = tuple(
+            FederatedCatalogSearchHit(
+                node=allowed[hit.node_id],
+                score=hit.score,
+                snippet=hit.snippet,
+                keyword_score=hit.keyword_score,
+                tfidf_score=hit.tfidf_score,
+            )
+            for hit in result.hits
+            if hit.node_id in allowed
+        )
+        return hits[:limit]
+
+    def _remote_mount_ids(self) -> set[str]:
+        return {mount.id for mount in self.mounts if mount.source.provider == "remote-shard"}
 
     def graph_edges(self) -> list[EdgeRecord]:
         pinned = self._read_generation_context.get()
@@ -2205,9 +2300,70 @@ class CatalogRegistry:
                     )
             if self.i18n_config.enabled:
                 edges.extend(edge_record(edge) for edge in build_translation_edges(self.nodes))
+            projection = self.edition_projection()
+            seen = {
+                (
+                    edge["kind"],
+                    edge["source"],
+                    edge["target"],
+                    edge.get("mount", ""),
+                    edge.get("edition", ""),
+                )
+                for edge in edges
+            }
+            for edge in projection.edges_for(self.active_channel):
+                key = (
+                    edge["kind"],
+                    edge["source"],
+                    edge["target"],
+                    edge.get("mount", ""),
+                    edge.get("edition", ""),
+                )
+                if key not in seen:
+                    edges.append(edge)
+                    seen.add(key)
             if latest and pinned is None:
                 self._edges = edges
             return edges
+
+    def edition_projection(self) -> EditionProjection:
+        """Return the immutable, visibility-safe cross-edition projection."""
+        with self._edition_projection_lock:
+            cached = self._edition_projection_cache
+            if cached is None:
+                from furatena.catalog.edition_projection import (
+                    load_or_build_edition_projection,
+                )
+
+                cached = load_or_build_edition_projection(self)
+                self._edition_projection_cache = cached
+            return cached
+
+    def resolve_edition_page(
+        self,
+        node: DocNode,
+        target_edition: str,
+    ) -> EditionPageResolution | None:
+        """Resolve a page through the shared cross-edition composition index."""
+        return self.edition_projection().resolve(
+            mount=node.mount,
+            source_node_id=node.node_id,
+            target_edition=target_edition,
+        )
+
+    def public_cross_edition_node_ids(self) -> frozenset[str]:
+        """Public page targets that may appear outside the active edition payload."""
+        return self.edition_projection().public_node_ids
+
+    def public_cross_edition_source_ids(self) -> frozenset[str]:
+        """Public page/release sources generated by the edition projection."""
+        return self.edition_projection().public_source_ids
+
+    def version_resolution_metrics(self) -> dict[str, Any]:
+        """Return deterministic direct-hit and fallback metrics for this source set."""
+        from copy import deepcopy
+
+        return deepcopy(dict(self.edition_projection().metrics))
 
     def namespaces(self) -> list[NamespaceRecord]:
         pinned = self._read_generation_context.get()

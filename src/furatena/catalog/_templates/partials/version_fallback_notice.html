@@ -1,0 +1,11 @@
+{% if version_fallback_notice | default(false) %}
+<div class="version-banner version-banner--info"
+     role="status"
+     data-version-fallback="{{ version_fallback_notice.resolution }}"
+     data-version-source-slug="{{ version_fallback_notice.source_slug }}">
+  <div class="version-banner__content">
+    <span class="version-banner__icon" aria-hidden="true">ⓘ</span>
+    <p class="version-banner__message">{{ version_fallback_notice.message }}</p>
+  </div>
+</div>
+{% end %}
