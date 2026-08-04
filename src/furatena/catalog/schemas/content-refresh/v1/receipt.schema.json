@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/content-refresh/v1/receipt.schema.json",
+  "title": "Furatena content refresh receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_type",
+    "operation_id",
+    "semantic_digest",
+    "idempotency_key_digest",
+    "actor",
+    "expected_active_commit",
+    "requested_commit",
+    "configured_repository_digest",
+    "configured_ref",
+    "configured_subdirectory",
+    "state",
+    "active_commit_before",
+    "resolved_commit",
+    "generation",
+    "restart_required",
+    "restart_scheduled",
+    "readiness",
+    "failure",
+    "compatibility_mode",
+    "replayed",
+    "terminal",
+    "created_at",
+    "updated_at",
+    "history"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.content-refresh.receipt"},
+    "operation_id": {"type": "string", "pattern": "^refresh-[0-9a-f]{24}$"},
+    "semantic_digest": {"$ref": "#/$defs/digest"},
+    "idempotency_key_digest": {"$ref": "#/$defs/digest"},
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actor", "identity_source", "transport"],
+      "properties": {
+        "actor": {"type": "string", "minLength": 1},
+        "identity_source": {"type": "string", "minLength": 1},
+        "transport": {"type": "string", "minLength": 1}
+      }
+    },
+    "expected_active_commit": {"$ref": "#/$defs/optionalCommit"},
+    "requested_commit": {"$ref": "#/$defs/optionalCommit"},
+    "configured_repository_digest": {"$ref": "#/$defs/digest"},
+    "configured_ref": {"type": "string", "minLength": 1},
+    "configured_subdirectory": {"type": "string", "minLength": 1},
+    "state": {
+      "enum": [
+        "queued",
+        "staging",
+        "promoted",
+        "activation_pending_restart",
+        "restart_scheduled",
+        "ready",
+        "failed"
+      ]
+    },
+    "active_commit_before": {"$ref": "#/$defs/optionalCommit"},
+    "resolved_commit": {"$ref": "#/$defs/optionalCommit"},
+    "generation": {"type": ["string", "null"]},
+    "restart_required": {"type": "boolean"},
+    "restart_scheduled": {"type": "boolean"},
+    "readiness": {"type": ["object", "null"]},
+    "failure": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"type": "string", "minLength": 1},
+            "message": {"type": "string", "minLength": 1, "maxLength": 500}
+          }
+        }
+      ]
+    },
+    "compatibility_mode": {"type": "boolean"},
+    "replayed": {"type": "boolean"},
+    "terminal": {"type": "boolean"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "updated_at": {"type": "string", "format": "date-time"},
+    "history": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state", "recorded_at"],
+        "properties": {
+          "state": {"$ref": "#/$defs/state"},
+          "recorded_at": {"type": "string", "format": "date-time"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "optionalCommit": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      ]
+    },
+    "state": {
+      "enum": [
+        "queued",
+        "staging",
+        "promoted",
+        "activation_pending_restart",
+        "restart_scheduled",
+        "ready",
+        "failed"
+      ]
+    }
+  }
+}

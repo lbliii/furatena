@@ -112,6 +112,9 @@ assert hasattr(sys, "_is_gil_enabled"), "distribution smoke requires CPython 3.1
 assert not sys._is_gil_enabled(), "distribution smoke unexpectedly enabled the GIL"
 
 import furatena
+from furatena.catalog.config import DocsConfig, ThemeConfig
+from furatena.catalog.presentation_pack import discover_presentation_packs
+from furatena.catalog.view_kinds import VIEW_KINDS
 from furatena.cli.main import main
 
 package_file = pathlib.Path(furatena.__file__).resolve()
@@ -131,6 +134,21 @@ scripts = {{entry.name: entry.value for entry in importlib.metadata.entry_points
 themes = {{entry.name: entry.value for entry in importlib.metadata.entry_points(group="furatena.themes")}}
 assert scripts.get("fura") == "furatena.cli.main:main"
 assert themes.get("lagoon") == "furatena.themes.lagoon:PACK"
+
+pack_registry = {{
+    pack.id: pack
+    for pack in discover_presentation_packs(
+        DocsConfig(root=pathlib.Path.cwd() / "pack-discovery-site", theme=ThemeConfig(use=None))
+    )
+}}
+expected_views = {{spec.kind for spec in VIEW_KINDS}}
+for identity in ("docs", "vanilla"):
+    pack = pack_registry[identity]
+    assert pack.source == "packaged"
+    assert pack.root.is_relative_to(package_file.parent), (identity, pack.root, package_file)
+    assert repo not in pack.root.parents, (identity, pack.root, repo)
+    assert pack.requires_trust == frozenset()
+    assert {{name for name, _path in pack.templates}} == expected_views
 """
 
 

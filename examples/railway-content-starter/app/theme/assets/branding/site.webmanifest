@@ -1,0 +1,14 @@
+{
+  "name": "Acme Developer Platform",
+  "short_name": "Acme Docs",
+  "icons": [
+    {
+      "src": "/docs-theme/branding/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#17324d"
+}

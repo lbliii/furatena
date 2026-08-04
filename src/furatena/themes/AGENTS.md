@@ -11,7 +11,7 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 
 | Invariant | Sev | Backing | Proof / anchor |
 | --- | --- | --- | --- |
-| Theme packs, presets, lint, package paths, and catalog rendering contracts remain synchronized. | P0 | machine-backed | `uv run pytest tests/test_chirp_docs_theming.py tests/test_chirp_docs_template_stack.py tests/test_theme_lint.py tests/test_theme_pack.py tests/test_theme_preset.py -q` (`theme-suite`) |
+| Theme packs, presets, lint, package paths, and catalog rendering contracts remain synchronized. | P0 | machine-backed | `uv run pytest tests/test_builtin_layouts.py tests/test_chirp_docs_theming.py tests/test_chirp_docs_template_stack.py tests/test_theme_lint.py tests/test_theme_pack.py tests/test_theme_preset.py -q` (`theme-suite`) |
 
 ## Guardrails
 
@@ -20,8 +20,10 @@ Do not open `.stewards/PROTOCOL.md` or `.stewards/manifest.toml` unless the task
 
 ## Edges
 
+- contains → **docs_layout** (complete documentation layout)
 - contains → **furatena_theme** (primary product theme)
 - contains → **lagoon** (packaged Lagoon theme)
+- contains → **vanilla_layout** (complete neutral layout)
 
 ## Owns
 

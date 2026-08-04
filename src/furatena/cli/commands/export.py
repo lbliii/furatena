@@ -26,6 +26,7 @@ def _run_export(args: argparse.Namespace) -> None:
         os.environ["FURA_BASE_URL"] = args.base_url
     if args.base_path:
         os.environ["FURA_BASE_PATH"] = args.base_path
+    from furatena.catalog.application_roots import ApplicationRoots
     from furatena.catalog.docs_app import DocsApp
     from furatena.catalog.freeze import FreezeCatalogOptions, freeze_catalog
     from furatena.catalog.runtime import ServeConfig, ServeMode
@@ -38,9 +39,21 @@ def _run_export(args: argparse.Namespace) -> None:
     from furatena.catalog.visibility_audit import StaticExportVisibilityError
 
     app_root = _app_root(args)
+    roots = ApplicationRoots.from_environment(app_root)
+    if roots.managed:
+        roots.ensure_writable_roots()
     repo_root = _repo_for_app(app_root)
-    output = Path(args.output).expanduser().resolve() if args.output else app_root / "public"
-    frozen = Path(args.frozen).expanduser().resolve() if args.frozen else app_root / "frozen"
+    output = Path(args.output).expanduser().resolve() if args.output else roots.output / "public"
+    configured_frozen = os.environ.get("FURA_FROZEN_DIR", "").strip()
+    frozen = (
+        Path(args.frozen).expanduser().resolve()
+        if args.frozen
+        else (
+            Path(configured_frozen).expanduser().resolve()
+            if configured_frozen
+            else roots.output / "frozen"
+        )
+    )
     if args.fresh or not (frozen / "catalog.json").is_file():
         freeze_catalog(
             FreezeCatalogOptions(
@@ -48,6 +61,8 @@ def _run_export(args: argparse.Namespace) -> None:
                 app_root=app_root,
                 repo_root=repo_root,
                 output_dir=frozen,
+                platform_root=roots.platform if roots.managed else None,
+                state_root=roots.state,
                 full_rebuild=args.fresh,
                 autodoc=True,
                 autodoc_config=_autodoc_config(args, repo_root),
@@ -172,12 +187,12 @@ def configure(sub: Any) -> None:
         "output",
         nargs="?",
         default=None,
-        help="Output directory (default app/public)",
+        help="Output directory (default FURA_OUTPUT_ROOT/public or APP_ROOT/public)",
     )
     export.add_argument(
         "--frozen",
         default=None,
-        help="Frozen catalog directory",
+        help="Frozen catalog directory (default FURA_FROZEN_DIR or FURA_OUTPUT_ROOT/frozen)",
     )
     export.add_argument("--base-path", default="/chirp", help="URL path prefix")
     export.add_argument(

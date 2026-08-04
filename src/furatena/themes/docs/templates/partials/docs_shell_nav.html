@@ -1,0 +1,123 @@
+{# Site top bar — app-surface pages only (home, search, portal). #}
+{% from "chirpui/navbar.html" import navbar, navbar_link %}
+{% from "partials/docs_nav_icons.html" import docs_icon %}
+{% from "partials/shell_nav_mega.html" import shell_mega_overview, shell_mega_item, shell_nav_dropdown %}
+
+{% let active_url = node?.url ?? '' %}
+{% let docs_nav = site_nav.documentation %}
+{% let develop_nav = site_nav.develop %}
+<header class="chirp-theme-shell__header header-appshell" data-sticky="true">
+{% call navbar(
+  cls="chirpui-navbar chirp-theme-shell__nav chirpui-navbar--sticky fura-shell-nav",
+  brand_url="/",
+  use_slots=true,
+  brand_slot=true,
+  current_path=active_url,
+  aria_label="Primary"
+) %}
+  {% slot brand %}
+  <span class="logo chirp-theme-shell__brand">
+    <span class="brand-mark" aria-hidden="true">{{ site_mark }}</span>
+    <span class="brand-word">{{ site_name }}</span>
+  </span>
+  {% end %}
+
+  {% slot %}
+  <button type="button"
+          class="chirp-theme-shell__mobile-toggle"
+          aria-label="Open site menu"
+          aria-expanded="false"
+          aria-controls="fura-shell-mobile-nav">
+    {{ docs_icon('menu', 18) }}
+  </button>
+  <div class="chirp-theme-shell__desktop-nav">
+    {% call shell_nav_dropdown(docs_nav.menu_label, current_path=active_url, match="prefix", href=docs_nav.dropdown_href) %}
+      <div class="chirp-theme-shell__mega">
+        {{ shell_mega_overview(docs_nav.overview_href, docs_nav.overview_kicker, docs_nav.overview_title, docs_nav.overview_blurb) }}
+        <div class="chirp-theme-shell__mega-list">
+          {% for link in docs_nav.links %}
+          {{ shell_mega_item(link.href, link.label, link.blurb, link.icon) }}
+          {% end %}
+        </div>
+      </div>
+    {% end %}
+
+    {% call shell_nav_dropdown(develop_nav.menu_label, current_path=active_url, match="prefix", href=develop_nav.dropdown_href) %}
+      <div class="chirp-theme-shell__mega">
+        {{ shell_mega_overview(develop_nav.overview_href, develop_nav.overview_kicker, develop_nav.overview_title, develop_nav.overview_blurb) }}
+        <div class="chirp-theme-shell__mega-list">
+          {% for link in develop_nav.links %}
+          {{ shell_mega_item(link.href, link.label, link.blurb, link.icon) }}
+          {% end %}
+        </div>
+      </div>
+    {% end %}
+  </div>
+  {% end %}
+
+  {% slot end %}
+  <div class="chirp-theme-shell__actions">
+    <button type="button" class="nav-search-trigger chirp-theme-shell__nav-link" aria-label="Search documentation">
+      {{ docs_icon('magnifying-glass', 16) }}
+      <span>Search</span>
+      <kbd class="nav-search-shortcut">⌘K</kbd>
+    </button>
+    {% let theme_menu_id = "theme-menu-desktop" %}
+    {% include "partials/theme_menu.html" %}
+  </div>
+  {% end %}
+{% end %}
+</header>
+
+<div id="fura-shell-mobile-nav"
+     class="chirp-theme-shell__mobile-nav"
+     hidden
+     aria-hidden="true">
+  <button type="button"
+          class="chirp-theme-shell__mobile-backdrop"
+          aria-label="Close site menu"></button>
+  <div class="chirp-theme-shell__mobile-panel" role="dialog" aria-modal="true" aria-label="Site menu">
+    <div class="chirp-theme-shell__mobile-header">
+      <p class="chirp-theme-shell__mobile-title">Menu</p>
+      <button type="button" class="chirp-theme-shell__mobile-close" aria-label="Close site menu">
+        {{ docs_icon('close', 18) }}
+      </button>
+    </div>
+
+    <section class="chirp-theme-shell__mobile-section" aria-label="{{ docs_nav.menu_label }}">
+      <p class="chirp-theme-shell__mobile-section-label">{{ docs_nav.menu_label }}</p>
+      <div class="chirp-theme-shell__mobile-links">
+        <a class="chirp-theme-shell__mobile-link"
+           href="{{ docs_nav.overview_href }}"{{ route_link_attrs(docs_nav.overview_href) | html_attrs }}>
+          {{ docs_nav.overview_title }}
+          <span class="chirp-theme-shell__mobile-link-desc">{{ docs_nav.overview_blurb }}</span>
+        </a>
+        {% for link in docs_nav.links %}
+        <a class="chirp-theme-shell__mobile-link"
+           href="{{ link.href }}"{{ route_link_attrs(link.href) | html_attrs }}>
+          {{ link.label }}
+          <span class="chirp-theme-shell__mobile-link-desc">{{ link.blurb }}</span>
+        </a>
+        {% end %}
+      </div>
+    </section>
+
+    <section class="chirp-theme-shell__mobile-section" aria-label="{{ develop_nav.menu_label }}">
+      <p class="chirp-theme-shell__mobile-section-label">{{ develop_nav.menu_label }}</p>
+      <div class="chirp-theme-shell__mobile-links">
+        <a class="chirp-theme-shell__mobile-link"
+           href="{{ develop_nav.overview_href }}"{{ route_link_attrs(develop_nav.overview_href) | html_attrs }}>
+          {{ develop_nav.overview_title }}
+          <span class="chirp-theme-shell__mobile-link-desc">{{ develop_nav.overview_blurb }}</span>
+        </a>
+        {% for link in develop_nav.links %}
+        <a class="chirp-theme-shell__mobile-link"
+           href="{{ link.href }}"{{ route_link_attrs(link.href) | html_attrs }}>
+          {{ link.label }}
+          <span class="chirp-theme-shell__mobile-link-desc">{{ link.blurb }}</span>
+        </a>
+        {% end %}
+      </div>
+    </section>
+  </div>
+</div>

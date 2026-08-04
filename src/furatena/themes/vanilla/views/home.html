@@ -1,0 +1,11 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+<article>
+  <header>
+    <p>{{ site_tagline }}</p>
+    <h1>{{ node.title }}</h1>
+    {% if node.description %}<p class="vanilla-lede">{{ node.description }}</p>{% end %}
+  </header>
+  <div class="vanilla-prose">{{ node | doc_body | boost_doc_links }}</div>
+</article>
+{% end %}

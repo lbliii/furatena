@@ -24,17 +24,23 @@ def _run_freeze(args: argparse.Namespace) -> None:
     _ensure_pythonpath()
     if args.workers is not None:
         os.environ["FURA_WORKERS"] = str(args.workers)
+    from furatena.catalog.application_roots import ApplicationRoots
     from furatena.catalog.freeze import FreezeCatalogOptions, freeze_catalog
 
     app_root = _app_root(args)
+    roots = ApplicationRoots.from_environment(app_root)
+    if roots.managed:
+        roots.ensure_writable_roots()
     repo_root = _repo_for_app(app_root)
-    output = Path(args.output).expanduser().resolve() if args.output else app_root / "frozen"
+    output = Path(args.output).expanduser().resolve() if args.output else roots.output / "frozen"
     result = freeze_catalog(
         FreezeCatalogOptions(
             docs_config=_docs_yaml(args),
             app_root=app_root,
             repo_root=repo_root,
             output_dir=output,
+            platform_root=roots.platform if roots.managed else None,
+            state_root=roots.state,
             full_rebuild=args.full,
             workers=args.workers,
             autodoc=True,
@@ -88,7 +94,7 @@ def configure(sub: Any) -> None:
         "output",
         nargs="?",
         default=None,
-        help="Output directory (default app/frozen)",
+        help="Output directory (default FURA_OUTPUT_ROOT/frozen or APP_ROOT/frozen)",
     )
     freeze.set_defaults(handler=_run_freeze)
 
