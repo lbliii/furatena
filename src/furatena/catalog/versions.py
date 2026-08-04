@@ -223,3 +223,29 @@ def channel_context(
         "doc_channels": channel_records,
         "active_channel": active_id,
     }
+
+
+def edition_banner_context(catalog: Any, node: Any) -> dict[str, Any]:
+    """Build one lifecycle banner using the shared cross-edition resolver."""
+    lifecycle_for = getattr(catalog, "edition_lifecycle_for", None)
+    if not callable(lifecycle_for):
+        return {"edition_banner": None}
+    lifecycle = lifecycle_for(str(node.mount), str(node.edition))
+    if lifecycle.status == "current":
+        return {"edition_banner": None}
+    target = resolve_channel_target(catalog, node, "latest")
+    labels = {
+        "legacy": "This page documents a legacy edition.",
+        "deprecated": "This documentation edition is deprecated.",
+        "preview": "This page documents a preview edition.",
+        "eol": "This documentation edition has reached end of life.",
+    }
+    return {
+        "edition_banner": {
+            "status": lifecycle.status,
+            "message": lifecycle.banner or labels[lifecycle.status],
+            "current_href": target.href if target is not None else None,
+            "resolution": target.resolution if target is not None else None,
+            "end_of_life": lifecycle.end_of_life,
+        }
+    }

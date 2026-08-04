@@ -84,6 +84,9 @@ _CATALOG_QUERY_FILTERS = frozenset(
     {
         "mount",
         "edition",
+        "status",
+        "include_preview",
+        "include_eol",
         "tag",
         "format",
         "owner",
@@ -112,6 +115,13 @@ _CATALOG_QUERY_MEDIA_TYPE = "application/vnd.furatena.catalog-query+json;version
 _CATALOG_ACCEPT_QUERY = f'{_CATALOG_QUERY_MEDIA_TYPE.partition(";")[0]};version="1"'
 _CATALOG_QUERY_CACHE_CONTROL = "private, max-age=0, must-revalidate"
 _CONTENT_NO_STORE = (("Cache-Control", "private, no-store"),)
+
+
+def _mapping_bool(params: Mapping[str, Any], name: str) -> bool:
+    raw = params.get(name)
+    if isinstance(raw, bool):
+        return raw
+    return str(raw or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _content_store() -> ContentDeploymentStore | None:
@@ -174,9 +184,27 @@ def _catalog_query_error(params: Mapping[str, Any], edge_kind: str | None) -> Re
     invalid: dict[str, object] = {}
     if unknown:
         invalid["unknown"] = unknown
-    for name in _CATALOG_QUERY_FILTERS - {"limit", "offset"}:
+    for name in _CATALOG_QUERY_FILTERS - {"limit", "offset", "include_preview", "include_eol"}:
         raw = params.get(name)
         if raw is not None and not isinstance(raw, str):
+            invalid[name] = raw
+    for name in ("include_preview", "include_eol"):
+        raw = params.get(name)
+        if (raw is not None and not isinstance(raw, (str, bool))) or (
+            isinstance(raw, str)
+            and raw.strip().lower()
+            not in {
+                "",
+                "0",
+                "1",
+                "false",
+                "true",
+                "no",
+                "yes",
+                "off",
+                "on",
+            }
+        ):
             invalid[name] = raw
     normalized_edge = str(edge_kind or "").strip().lower()
     if normalized_edge and normalized_edge not in _GRAPH_EDGE_KINDS:
@@ -837,6 +865,9 @@ def register_search_routes(docs: Any, app: App) -> None:
         base = self._site_base(request)
         query = (request.query.get("q") or "").strip()
         subject = self._output_access_subject(request)
+        status = (request.query.get("status") or "").strip() or None
+        include_preview = _query_bool(request, "include_preview", default=False)
+        include_eol = _query_bool(request, "include_eol", default=False)
         if query:
             from furatena.catalog.export import search_json_for_query
 
@@ -845,15 +876,26 @@ def register_search_routes(docs: Any, app: App) -> None:
                 query,
                 base_url=base,
                 subject=subject,
+                status=status,
+                include_preview=include_preview,
+                include_eol=include_eol,
             )
         else:
-            frozen = self._frozen_artifact_response(
-                "search.json",
-                content_type="application/json; charset=utf-8",
+            if not any((status, include_preview, include_eol)):
+                frozen = self._frozen_artifact_response(
+                    "search.json",
+                    content_type="application/json; charset=utf-8",
+                )
+                if frozen is not None:
+                    return frozen
+            body = search_json(
+                self.catalog,
+                base_url=base,
+                subject=subject,
+                status=status,
+                include_preview=include_preview,
+                include_eol=include_eol,
             )
-            if frozen is not None:
-                return frozen
-            body = search_json(self.catalog, base_url=base, subject=subject)
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
 
@@ -952,6 +994,9 @@ def register_catalog_routes(docs: Any, app: App) -> None:
         url_prefix = (request.query.get("url_prefix") or "").strip() or None
         subject = self._output_access_subject(request)
         selected_edition = edition or "latest"
+        status = (request.query.get("status") or "").strip() or None
+        include_preview = _query_bool(request, "include_preview", default=False)
+        include_eol = _query_bool(request, "include_eol", default=False)
         target_mount = mount or self.catalog.default_mount.id
         if not self.catalog.has_edition(target_mount, selected_edition):
             return Response(
@@ -981,6 +1026,9 @@ def register_catalog_routes(docs: Any, app: App) -> None:
                     tag=tag,
                     url_prefix=url_prefix,
                     subject=subject,
+                    status=status,
+                    include_preview=include_preview,
+                    include_eol=include_eol,
                 )
         return Response(json.dumps(body, indent=2), content_type="application/json; charset=utf-8")
 
@@ -1000,6 +1048,7 @@ def register_catalog_routes(docs: Any, app: App) -> None:
             node_id,
             include_private=False,
             subject=self._output_access_subject(request),
+            include_eol=_query_bool(request, "include_eol", default=False),
         )
         if payload is None:
             return Response(
@@ -1168,21 +1217,34 @@ def register_catalog_routes(docs: Any, app: App) -> None:
                 request=request,
             )
         with self.catalog.use_edition(requested_edition):
-            payload = query_catalog_graph(
-                self.catalog,
-                mount=params.get("mount"),
-                edition=requested_edition,
-                tag=params.get("tag"),
-                format=params.get("format"),
-                owner=params.get("owner") or params.get("team"),
-                locale=params.get("locale") or params.get("lang"),
-                edge_kind=str(edge_kind) if edge_kind is not None else None,
-                source=str(source) if source is not None else None,
-                target=str(target) if target is not None else None,
-                subject=self._output_access_subject(request),
-                limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
-                offset=int(params.get("offset") or 0),
-            )
+            try:
+                payload = query_catalog_graph(
+                    self.catalog,
+                    mount=params.get("mount"),
+                    edition=requested_edition,
+                    status=params.get("status"),
+                    include_preview=_mapping_bool(params, "include_preview"),
+                    include_eol=_mapping_bool(params, "include_eol"),
+                    tag=params.get("tag"),
+                    format=params.get("format"),
+                    owner=params.get("owner") or params.get("team"),
+                    locale=params.get("locale") or params.get("lang"),
+                    edge_kind=str(edge_kind) if edge_kind is not None else None,
+                    source=str(source) if source is not None else None,
+                    target=str(target) if target is not None else None,
+                    subject=self._output_access_subject(request),
+                    limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
+                    offset=int(params.get("offset") or 0),
+                )
+            except ValueError as exc:
+                return _catalog_query_response(
+                    Response(
+                        json.dumps({"error": "invalid lifecycle filter", "detail": str(exc)}),
+                        status=400,
+                        content_type="application/json; charset=utf-8",
+                    ),
+                    request=request,
+                )
         return _catalog_query_response(
             Response(json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"),
             request=request,

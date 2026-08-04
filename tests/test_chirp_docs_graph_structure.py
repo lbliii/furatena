@@ -14,7 +14,13 @@ sys.path.insert(0, str(REPO / "src"))
 from furatena.catalog.content_ir import ContentDirective, ContentIR, collect_node_link_urls
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.graph import extract_page_links
-from furatena.catalog.graph_schema import EdgeKind, build_graph_edges, edge_record
+from furatena.catalog.graph_schema import (
+    EdgeKind,
+    build_graph_edges,
+    edge_record,
+    graph_node_records,
+    namespace_record,
+)
 from furatena.catalog.loader import DocCatalog
 from furatena.catalog.models import DocNode
 from furatena.catalog.query import query_catalog
@@ -135,6 +141,49 @@ class TestAstLinkExtraction:
         assert (EdgeKind.API_AUTH.value, "auth:oauth2") in by_kind
         assert (EdgeKind.API_ENVIRONMENT.value, "environment:prod") in by_kind
         assert (EdgeKind.API_ENVIRONMENT.value, "environment:sandbox") in by_kind
+
+    def test_external_graph_nodes_include_edition_lifecycle_status(self) -> None:
+        records = graph_node_records(
+            [
+                {
+                    "kind": EdgeKind.API_SCHEMA.value,
+                    "source": "chirp:v1:docs/api",
+                    "target": "schema:User",
+                    "mount": "chirp",
+                    "edition": "v1",
+                },
+                {
+                    "kind": EdgeKind.API_SCHEMA.value,
+                    "source": "chirp:v2:docs/api",
+                    "target": "schema:User",
+                    "mount": "chirp",
+                    "edition": "v2",
+                },
+            ],
+            edition_statuses={("chirp", "v1"): "end_of_life"},
+        )
+
+        assert [record["edition_status"] for record in records] == [
+            "end_of_life",
+            "current",
+        ]
+
+    def test_namespace_record_includes_edition_lifecycle_metadata(self) -> None:
+        record = namespace_record(
+            "chirp",
+            "Chirp",
+            edition="v1",
+            page_count=4,
+            edition_status="end_of_life",
+            release_date="2025-01-01",
+            end_of_life="2026-01-01",
+            banner="Upgrade to v2.",
+        )
+
+        assert record["edition_status"] == "end_of_life"
+        assert record["release_date"] == "2025-01-01"
+        assert record["end_of_life"] == "2026-01-01"
+        assert record["banner"] == "Upgrade to v2."
 
     def test_catalog_graph_preserves_api_external_edges(self) -> None:
         node = replace(

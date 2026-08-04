@@ -1,0 +1,18 @@
+{% if edition_banner | default(false) %}
+<div class="version-banner version-banner--{% if edition_banner.status == 'eol' %}danger{% elif edition_banner.status == 'deprecated' %}warning{% else %}info{% end %}"
+     role="status"
+     data-edition-status="{{ edition_banner.status }}">
+  <div class="version-banner__content">
+    <span class="version-banner__icon" aria-hidden="true">ⓘ</span>
+    <p class="version-banner__message">
+      {{ edition_banner.message }}
+      {% if edition_banner.end_of_life %} End of life: {{ edition_banner.end_of_life }}.{% end %}
+      {% if edition_banner.current_href %}
+      <a class="version-banner__link"
+         href="{{ edition_banner.current_href }}"
+         data-resolution="{{ edition_banner.resolution }}">View the current documentation</a>
+      {% end %}
+    </p>
+  </div>
+</div>
+{% end %}

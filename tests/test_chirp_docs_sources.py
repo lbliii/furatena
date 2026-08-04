@@ -734,6 +734,7 @@ class TestCatalogGraphV3:
             "team": "docs-infra",
             "mount": "docs",
             "edition": "latest",
+            "edition_status": "current",
             "tenant": "default",
             "workspace": "platform",
             "site": "docs",

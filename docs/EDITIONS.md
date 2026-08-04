@@ -234,21 +234,31 @@ Furatena adopts Bengal's lifecycle vocabulary and fields:
 |--------|------------------|
 | `current` | Moving head; unprefixed canonical URLs; normal retrieval weight. |
 | `legacy` | Supported prior release; directly routable and searchable with a modest recency penalty. |
-| `deprecated` | Routable with a warning; excluded from broad retrieval unless explicitly requested or no supported result exists. |
+| `deprecated` | Routable with a warning and retained in broad retrieval at a stronger deterministic ranking penalty than `legacy`. |
 | `preview` | Prerelease; direct URLs are routable, while broad search and retrieval include it only when preview results are requested. It cannot receive the `stable` alias. |
 | `eol` | Direct URLs may remain for archival policy, but default search, semantic retrieval, MCP, and cross-shard fan-out never return it without opt-in. |
 
-Policy defaults are `latest=current`, selected stable tags=`legacy`, included
-prereleases=`preview`, and an edition aged out of `count`=`eol`. Per-edition overrides
-may set `status`, `release_date`, `end_of_life`, and banner content. Invalid transitions
-or a `stable` alias targeting `preview`, `deprecated`, or `eol` fail validation.
+Policy defaults are `latest=current`, selected stable tags=`legacy`, and included
+prereleases=`preview`. An edition aged out of `count` becomes `eol` only when the
+previous verified source-sync state and retained content preserve its exact immutable
+ref; Furatena never synthesizes an archival edition without provenance. Per-edition
+overrides may set `status`, `release_date`, `end_of_life`, and banner content. Invalid
+date ordering or a `stable` alias targeting `preview`, `deprecated`, or `eol` fails
+validation.
 
 Lifecycle lives on release/namespace graph metadata so it can change without rewriting
 IR. Browser banners render on every non-current edition and link to the best current
 equivalent. Catalog, search, semantic, diff, MCP, `llms.txt`, and `channels.json`
-responses carry the resolved edition and status. Explicit `edition=<id>` is sufficient
-to retrieve that edition except for EOL, which additionally requires an EOL opt-in;
-broad queries can use status filters.
+responses carry the resolved edition and status. Broad retrieval defaults to
+`current`, `legacy`, and down-ranked `deprecated` editions. `status=preview` and
+`status=eol` are exact opt-ins; `include_preview=true` and `include_eol=true` broaden
+an otherwise unspecified lifecycle query. Direct authorized edition routes remain
+addressable. Lifecycle selection is applied only after the existing visibility check,
+so no lifecycle flag can disclose private, protected, draft, or archived content.
+
+The registry builds one immutable `(mount, edition)` lifecycle lookup after source
+discovery or frozen-state restoration. Query, search, MCP, render, and export hot paths
+perform constant-time lookups and never rescan the discovered snapshot list.
 
 ## Cross-edition resolution and switcher (#353)
 

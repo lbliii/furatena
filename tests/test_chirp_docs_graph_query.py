@@ -287,6 +287,7 @@ def test_graph_query_endpoint_returns_typed_graph_nodes(tmp_path: Path) -> None:
             "label": "User",
             "mount": "chirp",
             "edition": "latest",
+            "edition_status": "current",
         }
     ]
 
@@ -455,5 +456,6 @@ def test_graph_query_endpoint_uses_frozen_catalog(tmp_path: Path) -> None:
             "label": "oauth2",
             "mount": "chirp",
             "edition": "latest",
+            "edition_status": "current",
         }
     ]

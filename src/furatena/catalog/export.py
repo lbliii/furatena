@@ -43,6 +43,13 @@ class CatalogExport(Protocol):
     def inventories_metadata(self) -> list[dict[str, Any]]: ...
 
 
+def _edition_status(catalog: Any, node: Any) -> str:
+    status_for = getattr(catalog, "edition_status_for", None)
+    if callable(status_for):
+        return str(status_for(node.mount, node.edition))
+    return "current" if str(getattr(node, "edition", "latest")) == "latest" else "legacy"
+
+
 def catalog_graph(
     catalog: CatalogExport | DocCatalog,
     *,
@@ -79,7 +86,13 @@ def catalog_graph(
             or _is_external_graph_target(str(edge.get("target") or ""))
         )
     ]
-    graph_nodes = graph_node_records(edges)
+    edition_statuses = {
+        (str(page.get("mount") or ""), str(page.get("edition") or "")): str(
+            page.get("edition_status") or "current"
+        )
+        for page in pages
+    }
+    graph_nodes = graph_node_records(edges, edition_statuses=edition_statuses)
     payload: CatalogGraphRecord = {
         "schema_version": schema_version,
         "version": schema_version,
@@ -133,6 +146,7 @@ def _page_record(
         "doc_version": node.meta.get("doc_version"),
         "mount": node.mount,
         "edition": node.edition,
+        "edition_status": _edition_status(catalog, node),
         "lang": node.lang,
         "translation_key": node.translation_key,
         "section_root": node.section_root,
@@ -266,6 +280,7 @@ def _provenance_record(
         "team": team,
         "mount": node.mount,
         "edition": node.edition,
+        "edition_status": _edition_status(catalog, node),
         "tenant": _string_or_none(_meta_value(meta, "tenant")),
         "workspace": _string_or_none(_meta_value(meta, "workspace")),
         "site": _string_or_none(_meta_value(meta, "site")),
@@ -483,7 +498,18 @@ def llms_txt(
 ) -> str:
     """Compact llmstxt.org page index with grouped API operation hints."""
     summary = " ".join(site_description.split()) or f"Documentation index for {site_name}."
-    lines = [f"# {site_name} Documentation", "", f"> {summary}", ""]
+    active_status = "current"
+    lifecycle_for = getattr(catalog, "edition_lifecycle_for", None)
+    default_mount = getattr(getattr(catalog, "default_mount", None), "id", "")
+    if callable(lifecycle_for) and default_mount:
+        active_status = lifecycle_for(default_mount, catalog.active_channel).status
+    lines = [
+        f"# {site_name} Documentation",
+        "",
+        f"> {summary}",
+        f"> Edition: {catalog.active_channel} ({active_status})",
+        "",
+    ]
     nodes = accessible_nodes(
         catalog,
         catalog.doc_nodes(),
@@ -562,7 +588,17 @@ def llms_full_txt(
     subject: AccessSubject | None = None,
 ) -> str:
     """Full LLM-safe corpus for agents (Patitas ``render_llm`` when AST is available)."""
-    lines = [f"# {site_name} Documentation (full corpus)", ""]
+    active_status = "current"
+    lifecycle_for = getattr(catalog, "edition_lifecycle_for", None)
+    default_mount = getattr(getattr(catalog, "default_mount", None), "id", "")
+    if callable(lifecycle_for) and default_mount:
+        active_status = lifecycle_for(default_mount, catalog.active_channel).status
+    lines = [
+        f"# {site_name} Documentation (full corpus)",
+        "",
+        f"> Edition: {catalog.active_channel} ({active_status})",
+        "",
+    ]
     documents = (
         catalog.ast_documents()
         if hasattr(catalog, "ast_documents")
@@ -577,6 +613,7 @@ def llms_full_txt(
     )
     for node in nodes:
         lines.extend((f"## {node.title}", ""))
+        lines.extend((f"Edition status: {_edition_status(catalog, node)}", ""))
         if node.description.strip():
             lines.extend((node.description.strip(), ""))
         api_line = _api_operation_line(node)
@@ -598,6 +635,9 @@ def search_json(
     base_url: str = "",
     include_private: bool = False,
     subject: AccessSubject | None = None,
+    status: str | None = None,
+    include_preview: bool = False,
+    include_eol: bool = False,
 ) -> SearchIndexRecord:
     """Machine-readable search index for tools and agents."""
     entries: list[SearchEntryRecord] = []
@@ -613,6 +653,12 @@ def search_json(
         permission=AccessPermission.SEARCH,
         include_private=include_private,
     )
+    from furatena.catalog.edition_lifecycle import lifecycle_statuses
+
+    selected_statuses = lifecycle_statuses(
+        status=status, include_preview=include_preview, include_eol=include_eol
+    )
+    nodes = [node for node in nodes if _edition_status(catalog, node) in selected_statuses]
     documents = (
         catalog.ast_documents()
         if hasattr(catalog, "ast_documents")
@@ -678,6 +724,7 @@ def search_json(
             "snippet": body_text[:240],
             "mount": node.mount,
             "edition": node.edition,
+            "edition_status": _edition_status(catalog, node),
             "tags": sorted(node.tags),
             "lang": getattr(node, "lang", "en"),
             "provenance": provenance_record(catalog, node),
@@ -713,6 +760,9 @@ def search_json_for_query(
     limit: int = 12,
     include_private: bool = False,
     subject: AccessSubject | None = None,
+    status: str | None = None,
+    include_preview: bool = False,
+    include_eol: bool = False,
 ) -> dict[str, Any]:
     """Ranked search results in the same schema as ``search_json`` entries."""
     hits = search_nodes(
@@ -728,6 +778,10 @@ def search_json_for_query(
         documents=catalog.ast_documents()
         if hasattr(catalog, "ast_documents")
         else getattr(catalog, "_ast_documents", None),
+        status_for=lambda node: _edition_status(catalog, node),
+        status=status,
+        include_preview=include_preview,
+        include_eol=include_eol,
     )
     return {
         "version": 1,
@@ -744,6 +798,7 @@ def search_json_for_query(
                 "score": hit.score,
                 "mount": hit.node.mount,
                 "edition": hit.node.edition,
+                "edition_status": _edition_status(catalog, hit.node),
                 "tags": sorted(hit.node.tags),
                 "provenance": provenance_record(catalog, hit.node),
                 **(

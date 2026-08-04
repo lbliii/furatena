@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from furatena.catalog.content_ir import content_ir_record
+from furatena.catalog.edition_lifecycle import lifecycle_statuses
 from furatena.catalog.export import catalog_graph
 from furatena.catalog.graph_schema import graph_node_records
 from furatena.catalog.record_types import EdgeRecord, GraphQueryRecord, PageRecord
@@ -38,10 +39,13 @@ def _page_matches(
     format_value: str,
     owner: str,
     locale: str,
+    statuses: frozenset[str],
 ) -> bool:
     if mount and page.get("mount") != mount:
         return False
     if edition and page.get("edition") != edition:
+        return False
+    if str(page.get("edition_status") or "current") not in statuses:
         return False
     if tag and tag not in {str(item).lower() for item in page.get("tags") or ()}:
         return False
@@ -100,6 +104,9 @@ def query_catalog_graph(
     *,
     mount: str | None = None,
     edition: str | None = None,
+    status: str | None = None,
+    include_preview: bool = False,
+    include_eol: bool = False,
     tag: str | None = None,
     format: str | None = None,
     owner: str | None = None,
@@ -137,6 +144,11 @@ def query_catalog_graph(
     edge_kind_value = _clean_lower(edge_kind)
     source_value = _clean(source)
     target_value = _clean(target)
+    selected_statuses = lifecycle_statuses(
+        status=status,
+        include_preview=include_preview,
+        include_eol=include_eol,
+    )
 
     pages = [
         page
@@ -149,6 +161,7 @@ def query_catalog_graph(
             format_value=format_value,
             owner=owner_value,
             locale=locale_value,
+            statuses=selected_statuses,
         )
     ]
     pages_by_id = {str(page.get("node_id")): page for page in graph.get("pages", [])}
@@ -195,6 +208,9 @@ def query_catalog_graph(
         "query": {
             "mount": mount_value or None,
             "edition": edition_value or None,
+            "status": _clean_lower(status) or None,
+            "include_preview": include_preview,
+            "include_eol": include_eol,
             "tag": tag_value or None,
             "format": format_value or None,
             "owner": owner_value or None,
@@ -215,8 +231,20 @@ def query_catalog_graph(
         "next_offset": next_offset,
         "pages": pages,
         "edges": edges,
-        "graph_nodes": graph_node_records(edges),
-        "namespaces": graph.get("namespaces", []),
+        "graph_nodes": graph_node_records(
+            edges,
+            edition_statuses={
+                (str(page.get("mount") or ""), str(page.get("edition") or "")): str(
+                    page.get("edition_status") or "current"
+                )
+                for page in pages
+            },
+        ),
+        "namespaces": [
+            item
+            for item in graph.get("namespaces", [])
+            if str(item.get("edition_status") or "current") in selected_statuses
+        ],
     }
 
 
@@ -227,6 +255,9 @@ def query_catalog(
     heading: str | None = None,
     mount: str | None = None,
     edition: str | None = None,
+    status: str | None = None,
+    include_preview: bool = False,
+    include_eol: bool = False,
     tag: str | None = None,
     url_prefix: str | None = None,
 ) -> list[dict[str, Any]]:
@@ -237,12 +268,25 @@ def query_catalog(
     edition_value = (edition or "").strip()
     tag_value = (tag or "").strip().lower()
     prefix = (url_prefix or "").strip()
+    selected_statuses = lifecycle_statuses(
+        status=status,
+        include_preview=include_preview,
+        include_eol=include_eol,
+    )
     if prefix and not prefix.startswith("/"):
         prefix = f"/{prefix}"
     if prefix and not prefix.endswith("/"):
         prefix = f"{prefix}/"
 
     for node in catalog.nodes:
+        status_for = getattr(catalog, "edition_status_for", None)
+        node_status = (
+            str(status_for(node.mount, node.edition))
+            if callable(status_for)
+            else ("current" if node.edition == "latest" else "legacy")
+        )
+        if node_status not in selected_statuses:
+            continue
         if mount_value and node.mount != mount_value:
             continue
         if edition_value and node.edition != edition_value:
@@ -269,6 +313,7 @@ def query_catalog(
             "slug": node.slug,
             "mount": node.mount,
             "edition": node.edition,
+            "edition_status": node_status,
         }
         if content is not None:
             record["content"] = content

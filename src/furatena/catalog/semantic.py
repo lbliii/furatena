@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from furatena.catalog.access import AccessPermission, AccessSubject, accessible_nodes
 from furatena.catalog.chunks import chunk_node
+from furatena.catalog.edition_lifecycle import lifecycle_rank_multiplier, lifecycle_statuses
 from furatena.catalog.embedding_providers import EmbeddingSearchIndex
 from furatena.catalog.embeddings import SemanticHit
 from furatena.catalog.export import provenance_record
@@ -31,7 +32,7 @@ class HybridHit:
     node: DocNode
     score: float
     snippet: str
-    keyword_score: int
+    keyword_score: float
     semantic_score: float
     chunk_id: str | None = None
 
@@ -112,6 +113,9 @@ def hybrid_search(
     include_private: bool = True,
     subject: AccessSubject | None = None,
     ranking: str = "keyword_guarded",
+    status: str | None = None,
+    include_preview: bool = False,
+    include_eol: bool = False,
 ) -> HybridSearchResult:
     """Rank pages with keyword + TF-IDF chunk retrieval (one semantic scan)."""
     if ranking not in {"additive", "keyword_guarded"}:
@@ -127,6 +131,17 @@ def hybrid_search(
         permission=AccessPermission.SEARCH,
         include_private=include_private,
     )
+    selected_statuses = lifecycle_statuses(
+        status=status, include_preview=include_preview, include_eol=include_eol
+    )
+    status_for = getattr(catalog, "edition_status_for", None)
+
+    def node_status(node: DocNode) -> str:
+        if callable(status_for):
+            return str(status_for(node.mount, node.edition))
+        return "current" if node.edition == "latest" else "legacy"
+
+    nodes = [node for node in nodes if node_status(node) in selected_statuses]
     if any((mount, section, tag, edition, lang, url_prefix)):
         nodes = [
             node
@@ -147,6 +162,10 @@ def hybrid_search(
         query,
         limit=limit * 2,
         documents=documents,
+        status_for=node_status,
+        status=status,
+        include_preview=include_preview,
+        include_eol=include_eol,
     )
     chunk_limit = semantic_limit if semantic_limit is not None else max(limit * 3, 64)
     semantic_hits = index.search(query, limit=chunk_limit, mount=mount, edition=edition)
@@ -166,7 +185,7 @@ def hybrid_search(
         node = catalog.get_by_node_id(sem_hit.chunk.node_id)
         if node is None:
             continue
-        if not include_private and node.node_id not in accessible_node_ids:
+        if node.node_id not in accessible_node_ids:
             continue
         if not _node_matches_filters(
             node,
@@ -178,7 +197,7 @@ def hybrid_search(
             url_prefix=url_prefix,
         ):
             continue
-        sem_score = round(sem_hit.score * 100, 2)
+        sem_score = round(sem_hit.score * 100 * lifecycle_rank_multiplier(node_status(node)), 2)
         existing = combined.get(node.node_id)
         if existing is not None:
             combined[node.node_id] = HybridHit(
@@ -226,7 +245,24 @@ def retrieve_node(
     *,
     include_private: bool = True,
     subject: AccessSubject | None = None,
+    include_eol: bool = False,
 ) -> dict[str, Any] | None:
+    try:
+        _mount, requested_edition, _slug = node_id.split(":", 2)
+    except ValueError:
+        requested_edition = ""
+    active_edition = str(getattr(catalog, "active_channel", ""))
+    use_edition = getattr(catalog, "use_edition", None)
+    if requested_edition and requested_edition != active_edition and callable(use_edition):
+        with use_edition(requested_edition):
+            return retrieve_node(
+                catalog,
+                index,
+                node_id,
+                include_private=include_private,
+                subject=subject,
+                include_eol=include_eol,
+            )
     node = catalog.get_by_node_id(node_id)
     if node is None or (
         not include_private
@@ -238,6 +274,14 @@ def retrieve_node(
             permission=AccessPermission.RETRIEVE,
         )
     ):
+        return None
+    status_for = getattr(catalog, "edition_status_for", None)
+    edition_status = (
+        str(status_for(node.mount, node.edition))
+        if callable(status_for)
+        else ("current" if node.edition == "latest" else "legacy")
+    )
+    if edition_status == "eol" and not include_eol:
         return None
     ast_documents = getattr(catalog, "ast_documents", None)
     documents = ast_documents() if callable(ast_documents) else None
@@ -283,6 +327,7 @@ def retrieve_node(
         "description": node.description,
         "mount": node.mount,
         "edition": node.edition,
+        "edition_status": edition_status,
         "section": node.section,
         "tags": sorted(node.tags),
         "backlinks": backlinks,
@@ -311,6 +356,9 @@ def semantic_search_json(
     url_prefix: str | None = None,
     include_private: bool = False,
     subject: AccessSubject | None = None,
+    status: str | None = None,
+    include_preview: bool = False,
+    include_eol: bool = False,
 ) -> dict[str, Any]:
     result = hybrid_search(
         catalog,
@@ -323,6 +371,9 @@ def semantic_search_json(
         url_prefix=url_prefix,
         include_private=include_private,
         subject=subject,
+        status=status,
+        include_preview=include_preview,
+        include_eol=include_eol,
     )
     hits = result.hits
     return {
@@ -336,6 +387,9 @@ def semantic_search_json(
             "tag": tag,
             "url_prefix": url_prefix,
             "include_private": include_private,
+            "status": status,
+            "include_preview": include_preview,
+            "include_eol": include_eol,
         },
         "count": len(hits),
         "results": [
@@ -350,6 +404,11 @@ def semantic_search_json(
                 "chunk_id": hit.chunk_id,
                 "mount": hit.node.mount,
                 "edition": hit.node.edition,
+                "edition_status": (
+                    catalog.edition_status_for(hit.node.mount, hit.node.edition)
+                    if hasattr(catalog, "edition_status_for")
+                    else ("current" if hit.node.edition == "latest" else "legacy")
+                ),
                 "tags": sorted(hit.node.tags),
                 "provenance": provenance_record(catalog, hit.node),
             }

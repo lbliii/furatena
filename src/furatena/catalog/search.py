@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from furatena.catalog.edition_lifecycle import lifecycle_rank_multiplier, lifecycle_statuses
 from furatena.catalog.models import DocNode
 from furatena.catalog.patitas_bridge import excerpt_text, plain_text
 
@@ -45,7 +47,7 @@ class SearchHit:
     """One search result with excerpt text."""
 
     node: DocNode
-    score: int
+    score: float
     snippet: str
 
 
@@ -55,6 +57,10 @@ def search_nodes(
     *,
     limit: int = 12,
     documents: dict[str, Document] | None = None,
+    status_for: Callable[[DocNode], str] | None = None,
+    status: str | None = None,
+    include_preview: bool = False,
+    include_eol: bool = False,
 ) -> list[SearchHit]:
     """Rank doc nodes and attach a plain-text snippet."""
     needle = query.strip().lower()
@@ -65,8 +71,20 @@ def search_nodes(
     if not terms:
         terms = [needle]
 
-    ranked: list[tuple[DocNode, int]] = []
+    selected_statuses = lifecycle_statuses(
+        status=status,
+        include_preview=include_preview,
+        include_eol=include_eol,
+    )
+    ranked: list[tuple[DocNode, float]] = []
     for node in nodes:
+        node_status = (
+            status_for(node)
+            if status_for is not None
+            else ("current" if node.edition == "latest" else "legacy")
+        )
+        if node_status not in selected_statuses:
+            continue
         document = None
         if documents is not None:
             document = documents.get(node.node_id) or documents.get(node.slug)
@@ -111,7 +129,7 @@ def search_nodes(
                 score += 6
 
         if score:
-            ranked.append((node, score))
+            ranked.append((node, round(score * lifecycle_rank_multiplier(node_status), 4)))
 
     ranked.sort(key=lambda item: (-item[1], item[0].weight, item[0].title.lower()))
     return [

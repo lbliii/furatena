@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 
 class ProvenanceRecord(TypedDict, total=False):
@@ -16,6 +16,7 @@ class ProvenanceRecord(TypedDict, total=False):
     team: str | None
     mount: str
     edition: str
+    edition_status: str
     tenant: str | None
     workspace: str | None
     site: str | None
@@ -37,6 +38,7 @@ class PageRecord(TypedDict, total=False):
     doc_version: Any
     mount: str
     edition: str
+    edition_status: str
     lang: str
     translation_key: str
     section_root: bool
@@ -83,11 +85,16 @@ class GraphNodeRecord(TypedDict):
     label: str
     mount: str
     edition: str
+    edition_status: NotRequired[str]
 
 
 class NamespaceRecord(TypedDict, total=False):
     mount: str
     edition: str
+    edition_status: str
+    release_date: str | None
+    end_of_life: str | None
+    banner: str | None
     label: str
     page_count: int
     tenant: str
@@ -113,6 +120,9 @@ class CatalogGraphRecord(TypedDict, total=False):
 class GraphQuerySpec(TypedDict):
     mount: str | None
     edition: str | None
+    status: str | None
+    include_preview: bool
+    include_eol: bool
     tag: str | None
     format: str | None
     owner: str | None
@@ -161,6 +171,7 @@ class SearchEntryRecord(TypedDict, total=False):
     snippet: str
     mount: str
     edition: str
+    edition_status: str
     tags: list[str]
     lang: str
     translation_key: str

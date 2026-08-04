@@ -27,6 +27,7 @@ from furatena.catalog.access import (
     AccessSubject,
 )
 from furatena.catalog.catalog_nav import CatalogNavConfig
+from furatena.catalog.edition_lifecycle import EditionLifecycle
 from furatena.catalog.graph import build_federated_backlinks, normalize_internal_url
 from furatena.catalog.graph_schema import build_graph_edges
 from furatena.catalog.i18n import DocsI18nConfig, build_translation_index
@@ -142,6 +143,9 @@ def _frozen_editions(
                     status=str(edition.get("status") or ""),
                     prerelease=bool(edition.get("prerelease")),
                     discovered_at=str(edition.get("discovered_at") or ""),
+                    release_date=str(edition.get("release_date") or "") or None,
+                    end_of_life=str(edition.get("end_of_life") or "") or None,
+                    banner=str(edition.get("banner") or "") or None,
                 )
             )
         if snapshots:
@@ -308,6 +312,9 @@ class CatalogRegistry:
         )
         if serve_mode == ServeMode.PREVIEW and self.scoped_frozen_dir is not None:
             self._discovered_editions.update(_frozen_editions(self.scoped_frozen_dir, self.mounts))
+        from furatena.catalog.edition_lifecycle import lifecycle_lookup
+
+        self._edition_lifecycle = lifecycle_lookup(self.mounts, self._discovered_editions)
         self._html_cache: dict[str, str] = {}
         self._shards: dict[str, DocCatalog] = {}
         self._edition_shards: dict[str, dict[str, DocCatalog]] = {}
@@ -366,6 +373,8 @@ class CatalogRegistry:
                 source_repo=mount.source.git.repo,
                 requested_ref=mount.source.git.ref,
             )
+            previous_state = self.source_sync_state.load(mount.id) or {}
+            previous_editions = _state_editions(previous_state)
             try:
                 sync = sync_git_source(
                     mount.source.git,
@@ -377,6 +386,7 @@ class CatalogRegistry:
                         content_root,
                     ),
                     edition_policy=mount.editions,
+                    previous_editions=previous_editions,
                 )
             except Exception as exc:
                 sync_state = self.source_sync_state.record_failure(
@@ -1175,6 +1185,20 @@ class CatalogRegistry:
         """Return source-sync edition provenance without expanding mount config."""
         return self._discovered_editions.get(mount_id, ())
 
+    def edition_lifecycle_for(self, mount_id: str, edition: str | None = None) -> EditionLifecycle:
+        """Return lifecycle facts; unknown namespaces fail closed."""
+        edition_id = (edition or self.active_channel).strip() or "latest"
+        try:
+            return self._edition_lifecycle[(mount_id, edition_id)]
+        except KeyError as exc:
+            raise KeyError(
+                f"Unknown edition lifecycle namespace {mount_id}:{edition_id}; "
+                "choose a discovered edition."
+            ) from exc
+
+    def edition_status_for(self, mount_id: str, edition: str | None = None) -> str:
+        return self.edition_lifecycle_for(mount_id, edition).status
+
     @property
     def nodes(self) -> tuple[DocNode, ...]:
         items: list[DocNode] = []
@@ -1472,6 +1496,7 @@ class CatalogRegistry:
             shard = shards.get(mount.id)
             if shard is None:
                 continue
+            lifecycle = self.edition_lifecycle_for(mount.id, self.active_channel)
             records.append(
                 namespace_record(
                     mount.id,
@@ -1481,6 +1506,10 @@ class CatalogRegistry:
                     tenant=self.catalog_identity.get("tenant"),
                     workspace=self.catalog_identity.get("workspace"),
                     site=self.catalog_identity.get("site"),
+                    edition_status=lifecycle.status,
+                    release_date=lifecycle.release_date,
+                    end_of_life=lifecycle.end_of_life,
+                    banner=lifecycle.banner,
                 )
             )
         if latest:

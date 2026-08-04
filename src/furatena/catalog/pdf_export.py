@@ -113,6 +113,13 @@ def export_pdfs(
         raise ValueError("no public pages matched the PDF export target")
     filename = _filename_for_target(target, options.page or options.collection)
     path = output_dir / filename
+    from furatena.catalog.versions import edition_banner_context
+
+    lifecycle_banners = {
+        node.node_id: banner
+        for node in nodes
+        if (banner := edition_banner_context(catalog, node).get("edition_banner")) is not None
+    }
     _write_pdf(
         path,
         nodes,
@@ -121,6 +128,7 @@ def export_pdfs(
         base_url=options.base_url,
         paper=options.paper,
         grayscale=options.grayscale,
+        lifecycle_banners=lifecycle_banners,
     )
     physical_page_count = len(PdfReader(str(path)).pages)
     _write_pdf_manifest(
@@ -287,6 +295,7 @@ def _write_pdf(
     base_url: str,
     paper: str,
     grayscale: bool,
+    lifecycle_banners: dict[str, dict[str, Any]] | None = None,
 ) -> None:
     paper_key = paper.strip().lower()
     if paper_key not in {"letter", "a4"}:
@@ -385,6 +394,7 @@ def _write_pdf(
                 node_index=index,
                 table_header=table_header,
                 table_grid=table_grid,
+                lifecycle_banner=(lifecycle_banners or {}).get(node.node_id),
             )
         )
     title = _document_title(nodes, site_name=site_name, target=target)
@@ -418,6 +428,7 @@ def _node_story(
     node_index: int,
     table_header: Any,
     table_grid: Any,
+    lifecycle_banner: dict[str, Any] | None = None,
 ) -> list[Any]:
     canonical = _canonical_url(base_url, node.url)
     outline = (f"node-{node_index}", str(node.title), 0)
@@ -437,6 +448,16 @@ def _node_story(
             tag_records,
         ),
     ]
+    if lifecycle_banner is not None:
+        message = escape(str(lifecycle_banner["message"]))
+        current_href = lifecycle_banner.get("current_href")
+        if current_href:
+            absolute = _canonical_url(base_url, str(current_href))
+            message = (
+                f'{message} <link href="{escape(absolute, quote=True)}">'
+                "View the current documentation</link>"
+            )
+        items.append(_tag(Paragraph(message, styles["FuraCallout"]), "P", tag_records))
     if node.description:
         items.append(
             _tag(Paragraph(escape(node.description), styles["FuraBody"]), "P", tag_records)
