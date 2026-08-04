@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths: &image-inputs
       - .dockerignore
+      - .github/schemas/private-image-promotion-evidence-v1.schema.json
       - .github/workflows/private-image.yml
       - Dockerfile
       - LICENSE
@@ -12,6 +13,7 @@ on:
       - config/**
       - content/**
       - pyproject.toml
+      - scripts/private_image_promotion_evidence.py
       - scripts/private_image_release.py
       - scripts/railway-start.sh
       - scripts/verify-content-diagnostics.sh
@@ -39,6 +41,10 @@ on:
         type: string
       commit:
         description: Forty-character source commit for the digest being promoted
+        required: false
+        type: string
+      candidate_run_id:
+        description: Successful exact-main candidate workflow run required for promotion
         required: false
         type: string
       reason:
@@ -370,6 +376,29 @@ jobs:
           SUBJECT: ${{ env.IMAGE_NAME }}@${{ needs.candidate.outputs.digest }}
         run: scripts/verify-unprivileged-image.sh "$SUBJECT"
 
+      - name: Create exact candidate and smoke promotion evidence
+        run: >-
+          python scripts/private_image_promotion_evidence.py create
+          --image "${IMAGE_NAME}"
+          --digest "${{ needs.candidate.outputs.digest }}"
+          --source-commit "${GITHUB_SHA}"
+          --source-ref "${GITHUB_REF}"
+          --repository "${GITHUB_REPOSITORY}"
+          --workflow-ref "${GITHUB_WORKFLOW_REF}"
+          --workflow-sha "${GITHUB_WORKFLOW_SHA}"
+          --run-id "${GITHUB_RUN_ID}"
+          --run-attempt "${GITHUB_RUN_ATTEMPT}"
+          --run-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          --output release/promotion-evidence.json
+
+      - name: Retain promotion eligibility evidence
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: private-image-promotion-evidence-${{ github.sha }}
+          path: release/promotion-evidence.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Retain exact-image conformance evidence
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -387,6 +416,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: private-image-production
     permissions:
+      actions: read
       contents: write
       packages: read
     steps:
@@ -453,6 +483,33 @@ jobs:
           --repo "$GITHUB_REPOSITORY"
           --signer-workflow "github.com/$GITHUB_REPOSITORY/.github/workflows/private-image.yml"
           --deny-self-hosted-runners
+
+      - name: Require successful exact candidate and smoke evidence
+        if: inputs.operation == 'promote'
+        env:
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+          COMMIT: ${{ inputs.commit }}
+          DIGEST: ${{ inputs.digest }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ ! "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Promotion requires a numeric candidate_run_id from a successful exact-main candidate workflow." >&2
+            exit 1
+          fi
+          mkdir -p release/candidate-evidence
+          gh run download "$CANDIDATE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "private-image-promotion-evidence-${COMMIT}" \
+            --dir release/candidate-evidence
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CANDIDATE_RUN_ID}" > release/candidate-run.json
+          python scripts/private_image_promotion_evidence.py verify \
+            --receipt release/candidate-evidence/promotion-evidence.json \
+            --run release/candidate-run.json \
+            --image "$IMAGE_NAME" \
+            --digest "$DIGEST" \
+            --commit "$COMMIT" \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-id "$CANDIDATE_RUN_ID"
 
       - name: Create lifecycle record
         env:
