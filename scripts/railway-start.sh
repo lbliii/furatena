@@ -81,10 +81,16 @@ python -c 'import os, sys; from furatena.catalog.docs_app import DocsApp; expect
 APP_ROOT=/app/app
 if [ -n "${FURA_CONTENT_REPOSITORY:-}" ]; then
   fura content reconcile
+  FURA_ACTIVE_CONTENT_GENERATION="$(python -c 'import json, os, pathlib; root = pathlib.Path(os.environ.get("FURA_CONTENT_STATE_ROOT", "/data/furatena")); print(json.loads((root / "active" / "receipt.json").read_text(encoding="utf-8"))["generation"])')"
   APP_ROOT="$CONTENT_STATE_ROOT/active/source/${FURA_CONTENT_SUBDIRECTORY:-app}"
   FURA_FROZEN_DIR="$CONTENT_STATE_ROOT/active/frozen"
-  export FURA_FROZEN_DIR
+  FURA_PLATFORM_ROOT="${FURA_PLATFORM_ROOT:-/app/app}"
+  FURA_RUNTIME_STATE_ROOT="${FURA_RUNTIME_STATE_ROOT:-$CONTENT_STATE_ROOT/runtime-state}"
+  FURA_OUTPUT_ROOT="${FURA_OUTPUT_ROOT:-$CONTENT_STATE_ROOT/runtime-output}"
+  export FURA_ACTIVE_CONTENT_GENERATION FURA_FROZEN_DIR FURA_PLATFORM_ROOT FURA_RUNTIME_STATE_ROOT FURA_OUTPUT_ROOT
 fi
+FURA_APP_ROOT="$APP_ROOT"
+export FURA_APP_ROOT
 
 exec fura --app-root "$APP_ROOT" serve \
   --preview \

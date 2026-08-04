@@ -61,6 +61,10 @@ def test_container_installs_and_enforces_free_threaded_python() -> None:
     assert "--workers 1" in start
     assert "fura content reconcile" in start
     assert "FURA_FROZEN_DIR" in start
+    assert "FURA_PLATFORM_ROOT" in start
+    assert "FURA_RUNTIME_STATE_ROOT" in start
+    assert "FURA_OUTPUT_ROOT" in start
+    assert 'FURA_APP_ROOT="$APP_ROOT"' in start
 
 
 def test_exact_digest_smoke_proves_sanitized_content_failures() -> None:

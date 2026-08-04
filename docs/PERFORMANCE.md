@@ -65,10 +65,12 @@ make author-benchmark BENCHMARK_ARGS="--synthetic-pages 25 --repeats 5 --output 
 
 The default profile uses an isolated deterministic corpus. Add `--dogfood` to use the
 repository's configured mounts. The versioned v1 report independently measures author
-`DocsApp` construction, cold and warm Chirp startup contract checks, the first and warm
-full-page request, page status JSON, explicit validation, and the full docs validation
-pipeline. It also records corpus size, dependency versions, free-threading state, and
-per-phase profiler timings.
+`DocsApp` construction, cold and warm composed serve preflight (freeze plus the one Chirp
+contract pass), the first and warm full-page request, page status JSON, explicit
+validation, and the full docs validation pipeline. It also records corpus size,
+dependency versions, free-threading state, and per-phase profiler timings. The
+`startup_contract_checks` operation uses the same typed preflight service as `fura serve`,
+with Pounce networking and terminal rendering excluded from the timing.
 
 Every operation includes structural call counts for secondary `DocsApp` construction and
 full `check_catalog()` execution. These counts are stable CI signals; wall-clock samples
@@ -81,6 +83,13 @@ pre/post snapshot profiles. Their methodology, medians, and proposed relative di
 budgets are recorded in `benchmarks/profiles/issue-373-author-runtime.md`. Fast CI guards
 the portable structural contract: unchanged ordinary page/status requests perform zero
 full validation runs and construct zero secondary `DocsApp` instances.
+
+`benchmarks/profiles/issue-486-after.json` records the phase-aware serve-preflight path
+with a 12-page synthetic corpus, one sample, one worker, and no autodoc. The cold
+preflight performs one full validation and zero secondary `DocsApp` constructions; the
+warm preflight performs zero full validations and zero secondary constructions. Its
+wall-clock samples are environment evidence, not a threshold or a direct comparison to
+the earlier three-repeat profile.
 
 ## Optimization profiles
 

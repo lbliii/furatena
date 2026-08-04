@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-03",
+  "configuration": "config/pilots/b-stack/mounts.yaml",
+  "discovery": {
+    "transport": "git ls-remote over HTTPS",
+    "source": "canonical public GitHub remotes",
+    "tag_pattern": "v*",
+    "sort": "semver-desc",
+    "include_prereleases": false,
+    "release_limit_per_mount": 3,
+    "bounded": true
+  },
+  "expected_edition_shards": 30,
+  "mounts": [
+    {
+      "id": "bengal",
+      "repository": "https://github.com/lbliii/bengal.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "ec656b36e06b8d97fddea8499be22c3c34bac091",
+      "releases": [
+        {"edition": "0.5.1", "ref": "v0.5.1", "resolved_ref": "88c29b8a785a1211208e782ccf1898a0141055cd"},
+        {"edition": "0.5.0", "ref": "v0.5.0", "resolved_ref": "18d020a13fe0be54c4fdd9f06989728a0088029c"},
+        {"edition": "0.4.3", "ref": "v0.4.3", "resolved_ref": "69ec6098fe36f349f39625153fe1c88d07607c1b"}
+      ]
+    },
+    {
+      "id": "chirp",
+      "repository": "https://github.com/lbliii/chirp.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "789d53e4c49f3b5d66ff5fa80ac064d82f41c168",
+      "releases": [
+        {"edition": "0.10.3", "ref": "v0.10.3", "resolved_ref": "e20ae88a77558d708e527b883dd655c0c0c656c2"},
+        {"edition": "0.10.2", "ref": "v0.10.2", "resolved_ref": "09f976b3478453c88d648dea69d4a60404ed1941"},
+        {"edition": "0.10.1", "ref": "v0.10.1", "resolved_ref": "fc0c8ed5227b7c16ea455dd7198435c1e70aa7ad"}
+      ]
+    },
+    {
+      "id": "chirp-ui",
+      "repository": "https://github.com/lbliii/chirp-ui.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "d06ea60536ee8b909ae8a23815799d018809742d",
+      "releases": [
+        {"edition": "0.11.4", "ref": "v0.11.4", "resolved_ref": "5c15470e6a3705326fc0a7159b93928f0864aea3"},
+        {"edition": "0.11.3", "ref": "v0.11.3", "resolved_ref": "f93fd057079b856efbb810322615388b193ea953"},
+        {"edition": "0.11.2", "ref": "v0.11.2", "resolved_ref": "e757d06ebd4c4fdb0aba58d4f70d1c6da625ebd7"}
+      ]
+    },
+    {
+      "id": "kida",
+      "repository": "https://github.com/lbliii/kida.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "2ebe4ca2e7299697156c4966f09c9d28161e8273",
+      "releases": [
+        {"edition": "0.12.1", "ref": "v0.12.1", "resolved_ref": "48456498e8b575f92467416705f9cc77b72afa34"},
+        {"edition": "0.12.0", "ref": "v0.12.0", "resolved_ref": "516c5500299c32becce9c9d55a3d53da667a611f"},
+        {"edition": "0.11.0", "ref": "v0.11.0", "resolved_ref": "2479177568a5f9e3b0208db9dccb749a50081d22"}
+      ]
+    },
+    {
+      "id": "patitas",
+      "repository": "https://github.com/lbliii/patitas.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "f7bd9794a7951c084c807af21ca490cd777af606",
+      "releases": [
+        {"edition": "0.4.0", "ref": "v0.4.0", "resolved_ref": "ae19514a0410d859d402e1e840c197266f051982"},
+        {"edition": "0.3.5", "ref": "v0.3.5", "resolved_ref": "16b16dc78377b7e22a636fcad887f6eb0c462ea0"},
+        {"edition": "0.3.4", "ref": "v0.3.4", "resolved_ref": "0085dad5cd044e927cc227d728192bef3bb62567"}
+      ]
+    },
+    {
+      "id": "pounce",
+      "repository": "https://github.com/lbliii/pounce.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "08d045be2946ead572ac30c53fe88fa3c7348868",
+      "releases": [
+        {"edition": "0.9.2", "ref": "v0.9.2", "resolved_ref": "421a45455964829fd6976f79e868e80814856d75"},
+        {"edition": "0.9.1", "ref": "v0.9.1", "resolved_ref": "6270f4071e0633bf7b6394b7745e044e6d953645"},
+        {"edition": "0.9.0", "ref": "v0.9.0", "resolved_ref": "d6d46191dbd59921d07d9a6c44025dfd5ef858ef"}
+      ]
+    },
+    {
+      "id": "rosettes",
+      "repository": "https://github.com/lbliii/rosettes.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "6c15c7a0ec9f49fcb3d954b1e3991c87924f11e0",
+      "releases": [
+        {"edition": "0.2.0", "ref": "v0.2.0", "resolved_ref": "6e0079176c311df0d13d4424d8abec488480f554"}
+      ]
+    },
+    {
+      "id": "zoomies",
+      "repository": "https://github.com/lbliii/zoomies.git",
+      "default_ref": "main",
+      "latest_resolved_ref": "43b28faca36377a0cd5250a13bcf4eac204a8514",
+      "releases": [
+        {"edition": "0.3.3", "ref": "v0.3.3", "resolved_ref": "43b28faca36377a0cd5250a13bcf4eac204a8514"},
+        {"edition": "0.3.1", "ref": "v0.3.1", "resolved_ref": "ef18fb8a2717c22a4e6c336158ac62a9f9499806"},
+        {"edition": "0.3.0", "ref": "v0.3.0", "resolved_ref": "d1cd78ea9c68248920438673786df730028fafc2"}
+      ]
+    }
+  ],
+  "proof": {
+    "selected_refs_expose_content_root": true,
+    "content_root": "site/content",
+    "production_configuration_changed": false,
+    "remote_repositories_mutated": false,
+    "content_check": {
+      "ok": false,
+      "error_count": 20,
+      "warning_count": 219,
+      "classification": "upstream source diagnostics",
+      "pilot_template_error_count": 0,
+      "error_categories": {
+        "broken_internal_link": 16,
+        "unresolved_reference": 1,
+        "unknown_collection": 1,
+        "directive_nesting": 2
+      }
+    },
+    "freeze": {
+      "ok": true,
+      "worker_count": 8,
+      "current_page_count": 775,
+      "current_mount_count": 8,
+      "release_shard_count": 22,
+      "total_edition_context_count": 30,
+      "index_seconds": 42.323,
+      "edition_seconds": 23.95,
+      "export_seconds": 26.387,
+      "output_bytes": 392918523,
+      "channels_sha256": "52f8b3ed269df8cf6596ca1713c0ca1f963a6181e112eba2ed1180e5d6430507",
+      "manifest_sha256": "57872e8bdcd28a88af3646bc9e299b647e584a48bf1fe3e9f624bd93c1089eb2",
+      "shard_bytes": {
+        "bengal": {"latest": 31126188, "0.5.1": 35986178, "0.5.0": 35816752, "0.4.3": 35709182},
+        "chirp": {"latest": 16862826, "0.10.3": 17869302, "0.10.2": 17869302, "0.10.1": 17869302},
+        "chirp-ui": {"latest": 4568757, "0.11.4": 5200751, "0.11.3": 5172808, "0.11.2": 5109859},
+        "kida": {"latest": 15188434, "0.12.1": 15480596, "0.12.0": 15430463, "0.11.0": 14594333},
+        "patitas": {"latest": 2419229, "0.4.0": 2532357, "0.3.5": 2183970, "0.3.4": 2137524},
+        "pounce": {"latest": 5020287, "0.9.2": 5550754, "0.9.1": 5522571, "0.9.0": 5463708},
+        "rosettes": {"latest": 2992328, "0.2.0": 3198274},
+        "zoomies": {"latest": 1147986, "0.3.3": 1275687, "0.3.1": 1017341, "0.3.0": 985656}
+      }
+    },
+    "preview": {
+      "preflight_ok": true,
+      "health_status": "healthy",
+      "health_http_status": 200,
+      "mount_count": 8,
+      "page_count": 775,
+      "stale_freeze": false,
+      "rss_kib": 317952,
+      "rss_sample": "single loopback preview process after health response"
+    }
+  },
+  "limitations": [
+    "The latest branch is intentionally moving; rerun discovery before a later pilot freeze and update this evidence deliberately.",
+    "The composed content check is not green: 20 upstream source errors and 219 warnings remain for #357; the pilot does not suppress or rewrite them.",
+    "Timing and RSS are single local observations for this exact ref snapshot, not performance guarantees."
+  ]
+}

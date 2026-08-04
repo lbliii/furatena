@@ -150,6 +150,11 @@ def _register_stub_filters_and_globals(env: Environment) -> None:
         "fura_effects_code": lambda: "flat",
         "fura_effects_cards": lambda: "flat",
         "fura_effects_hero": lambda: "wash",
+        "fura_presentation": lambda: {
+            "content_digest": "lint",
+            "layout": {"id": "lint", "version": "0.0.0", "source": "compatibility"},
+            "skin": None,
+        },
     }
     for name, func in stubs.items():
         if name not in env.globals:

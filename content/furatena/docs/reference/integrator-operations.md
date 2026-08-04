@@ -41,6 +41,7 @@ default to `anonymous`, apply actor, tenant, burst, and sensitive-tool limits pl
 | `retrieve_node` | `node_id` | `node_id` | `node_id`, `chunks`, `backlinks`, `api_operation` | Retrieve one accessible catalog node and its context. |
 | `query_graph` | none | `edge`, `edge_kind`, `format`, `from`, `include_private`, `kind`, `lang`, `limit`, `link_edge`, `linked_from`, `linked_to`, `locale`, `mount`, `offset`, `owner`, `source`, `tag`, `target`, `team`, `to` | `query`, `page_count`, `edge_count`, `total`, `edge_total`, `limit`, `offset`, `next_offset`, `pages`, `edges`, `graph_nodes` | Filter and paginate pages plus their DCP edges; private inclusion is bounded by session policy. |
 | `traverse_graph` | none | `direction`, `limit`, `node_id`, `url` | `node`, `direction`, `results` | Traverse `neighbors`, `backlinks`, `children`, or `outbound`; limit is 1–100. |
+| `diff_content_ir` | `from_edition`, `to_edition` | `from_edition`, `include_eol`, `limit`, `mount`, `offset`, `slug`, `to_edition` | `schema_version`, `ok`, `kind`, `mount`, `from`, `to`, `query`, `summary`, `total`, `limit`, `offset`, `next_offset`, `page`, `changes`, `pages` | Compare normalized Content IR for one logical page or a mount rollup across two explicit editions; rendered HTML is excluded. |
 | `inspect_source_health` | none | `mount` | `mount_count`, `mounts` | Return source sync, index, file, page, and channel health per mount. |
 | `run_checks` | none | none | `ok`, `errors`, `warnings` | Run content, link, schema, theme, and view checks. |
 | `explain_stale_impact` | none | `slug` | `stale_count`, `entries`, `impact`, `repair_tasks`, `task_markdown` | Explain stale graph/search/export impact and produce repair tasks. |
@@ -142,6 +143,7 @@ preserve room for additional pages without changing the public prefix.
 |---|---|---|
 | `/catalog.json` | `json` | Catalog/DCP graph with schema version, pages, edges, and graph nodes. |
 | `/catalog/api-operations.json` | `json` | `schema_version`, operation count, and API `operations`. |
+| `/catalog/diff` | `json` | Paginated structural Content IR page diff or mount rollup across two explicit editions. |
 | `/catalog/artifacts.json` | `json` | Freeze/export presence, manifest validity, generation time, age, upstream freshness, counts, and paths. |
 | `/catalog/freshness.json` | `json` | Source, index, freeze, and export freshness signals plus remediation. |
 | `/catalog/mounts/{mount_id}` | `json` | One mount-scoped catalog shard for live HTTP and static export consumers. |
@@ -235,6 +237,7 @@ configuration errors exit 3, and source conflicts exit 4. Pattern ids ending in
 | `fura.migration.*`, `fura.migrate*` | Source-format compatibility or incomplete migration; use the migration report and suggested mapping. |
 | `fura.content`, `fura.api`, `fura.dcp`, `fura.check` | Content, OpenAPI, graph-schema, or aggregate validation; fix the cited source. |
 | `fura.content_deployment` | Managed-content configuration or persistent-state failure; correct the named `FURA_*` setting or writable Railway volume and retry. |
+| `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial` | Federation shard validation or object-store publication failed. Repair invalid inputs; for `auth`, correct the S3 credentials or permissions; for `conflict`, inspect the immutable remote object and publish a new fingerprint instead of overwriting it; for `partial`, restore transport or storage availability and retry the same input, which remains safe because the manifest is written last. |
 | `fura.impact.stale_public_output`, `fura.visibility_leak` | Public artifact is stale or exposes protected content; rebuild or block promotion. |
 | `fura.identity.*` | Trusted gateway claims are missing, ambiguous, spoofable, or conflict with tenant/site identity; reject the request and repair the deployment-owned claim mapping. |
 | `fura.docs_quality.*`, `fura.docs_quality.exemption` | Documentation completeness or stale exemption; follow the named owner and page-type recommendation. |
@@ -254,6 +257,7 @@ Exact rule-id index:
 - `fura.identity.*`
 - `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.remediation.manual`, `fura.migration.report`, `fura.migration.source_unavailable`
 - `fura.pdf`, `fura.recipes`, `fura.visibility_leak`
+- `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial`
 - `fura.scorecard.*`
 - `fura.catalog`, `fura.config`, `fura.source_sync`, `fura.content_parse`, `fura.access`, `fura.access_denied`, `fura.catalog_load`, `fura.export`
 
@@ -285,7 +289,7 @@ requires admin regardless of lifecycle state. Request arguments cannot choose
 their effective actor, roles, or teams.
 
 Anonymous export permission is applied consistently to browser/static routes,
-`/catalog.json`, `/catalog/api-operations.json`, `/search.json`, `/tools.json`,
+`/catalog.json`, `/catalog/api-operations.json`, `/catalog/diff`, `/search.json`, `/tools.json`,
 `/meta.json`, `/structure.json`, `/versions.json`, `/llms.txt`, `/llms-full.txt`,
 `/sitemap.xml`, `/index.txt`, MCP resources, retrieval, graph traversal, and semantic search.
 `include_private=true` is an author inspection capability, never a public export

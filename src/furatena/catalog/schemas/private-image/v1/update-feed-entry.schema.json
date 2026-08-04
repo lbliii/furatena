@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/private-image/v1/update-feed-entry.schema.json",
+  "title": "Furatena public private-image update feed entry v1",
+  "type": "object",
+  "required": ["schema_version", "record_type", "product", "distribution", "operation", "image", "digest", "subject", "channel", "status", "version", "recorded_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.private-image.lifecycle"},
+    "product": {"const": "furatena"},
+    "distribution": {"const": "private-image"},
+    "operation": {"enum": ["promote", "deprecate", "revoke"]},
+    "image": {"type": "string", "pattern": "^ghcr\\.io/"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "subject": {"type": "string", "pattern": "@sha256:[0-9a-f]{64}$"},
+    "channel": {"enum": ["stable", "deprecated", "revoked"]},
+    "status": {"enum": ["active", "deprecated", "revoked"]},
+    "version": {"type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"},
+    "recorded_at": {"type": "string", "format": "date-time"}
+  }
+}

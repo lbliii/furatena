@@ -1,6 +1,7 @@
 # Generated pre-refactor route contract. Update intentionally with route changes.
-# handler-origins-sha256: b437fb7710e57a71c24f85409730b0cab0084fdcfb43bb88245b80e8ffc8be5b
+# handler-origins-sha256: 5842d3ff5479cdfef2483484b24911884b4cb7e4100d7d8fa6b01e8d2788f901
 GET|/|-|furatena|home|html-document|dynamic:view-kind|-
+GET|/_fura/content/operations/{operation_id}|-|application|content_refresh_operation|html-document|-|-
 POST|/_fura/content/refresh|-|application|content_refresh|html-document|-|-
 POST|/_fura/content/rollback|-|application|content_rollback|html-document|-|-
 GET|/_fura/content/status|-|application|content_status|html-document|-|-
@@ -10,6 +11,7 @@ GET|/agents/{slug:path}|-|furatena|default_agents|html-document|dynamic:view-kin
 GET|/catalog.json|-|application|catalog_json|json|-|-
 GET|/catalog/api-operations.json|-|application|catalog_api_operations_json|json|-|-
 GET|/catalog/artifacts.json|-|application|artifacts_json|json|-|-
+GET|/catalog/diff|-|application|catalog_content_ir_diff|json|-|-
 GET|/catalog/freshness.json|-|application|freshness_json|json|-|-
 GET|/catalog/mounts/{mount_id}|-|application|catalog_mount_json|json|-|-
 GET|/catalog/operational-status.json|-|application|operational_status_json|json|-|-

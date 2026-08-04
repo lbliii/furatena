@@ -155,6 +155,7 @@ def write_freeze_manifest(
     renderer_fingerprint: str | None = None,
     renderer_changed: bool = False,
     edition_statuses: list[dict[str, Any]] | None = None,
+    presentation: dict[str, Any] | None = None,
 ) -> None:
     mounts = [
         mount_dir.name for mount_dir in sorted((out_dir / "mounts").glob("*")) if mount_dir.is_dir()
@@ -184,6 +185,8 @@ def write_freeze_manifest(
         extensions["mount_status"] = public_statuses
     if edition_statuses is not None:
         extensions["edition_shards"] = edition_statuses
+    if presentation is not None:
+        extensions["presentation"] = presentation
     write_deployment_manifest(
         out_dir / "freeze.manifest.json",
         DeploymentManifest(
@@ -198,6 +201,7 @@ def write_freeze_manifest(
                 "mount_status": public_statuses,
                 "renderer_changed": renderer_changed,
                 **({"edition_shards": edition_statuses} if edition_statuses is not None else {}),
+                **({"presentation": presentation} if presentation is not None else {}),
             },
             extensions=extensions,
         ),

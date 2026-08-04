@@ -1,0 +1,17 @@
+{# App-surface view layout — site nav + #page-content for home, search, portal, page. #}
+{% extends "shell.html" %}
+
+{% block page_root %}
+<div id="page-root" class="chirpui-page-fill" data-fura-surface="{{ chirp_docs_surface | default('app') }}">
+{% include "partials/agent_discovery.html" %}
+{% block page_root_inner %}
+{% block page_content %}
+<a href="#page-content" class="skip-link">Skip to main content</a>
+{% include "partials/docs_shell_nav.html" %}
+<div id="page-content" class="{{ app_page_cls | default('') }}" data-chirp-theme-surface="{{ app_surface | default('page') }}">
+  {% block app_content %}{% end %}
+</div>
+{% end %}
+{% end %}
+</div>
+{% end %}

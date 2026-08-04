@@ -56,6 +56,27 @@ build, sdist build, and isolated installed-artifact smoke uses this runtime.
 Thread safety is therefore a release contract, not an optional performance
 mode.
 
+## Private-image release compatibility
+
+Each stable private-image release carries a machine-readable compatibility
+statement bound to its exact image digest and source commit. The record links
+the supported v1 content contract in `DCP.md`, the documented v1 configuration
+contract, the release changelog, migration notes, and this support policy at
+that source revision. An explicit “no migration required” statement is still
+required; absence is not compatibility evidence.
+
+An image upgrade changes only the application image subject. Adopter-owned
+content generations, persistent volume, repository identity, configuration,
+and refresh credentials remain independent inputs. A stable release also names
+a distinct known-good rollback digest. Production rollback selects that digest
+and does not rebuild a source commit or resolve a mutable tag.
+
+The `deprecated` image channel follows the normal window below and publishes a
+support deadline plus replacement digest when known. The `revoked` channel is
+the emergency exception: its public record names every affected digest and an
+actionable remediation. A revoked digest cannot be promoted again. Release
+discovery and record validation are documented in [RELEASING.md](RELEASING.md).
+
 GIL-enabled CPython, CPython 3.15+, PyPy, and other implementations are not in
 the 0.1 support matrix. Packaging may not prevent every unsupported
 combination from installing, but a defect is release-blocking only when it
