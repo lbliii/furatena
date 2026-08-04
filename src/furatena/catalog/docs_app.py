@@ -101,10 +101,12 @@ from furatena.catalog.incremental import is_partial_reload
 from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
 from furatena.catalog.observability import OperationalEventEmitter
+from furatena.catalog.preview_grant_runtime import PreviewGrantRuntime
 from furatena.catalog.preview_security import (
     PreviewAccessCredentials,
     PreviewConfigurationError,
     PreviewEnvironment,
+    PreviewGrantSecurityMiddleware,
     PreviewSecurityMiddleware,
 )
 from furatena.catalog.registry import CatalogRegistry
@@ -366,8 +368,12 @@ class DocsApp:
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
         remote_shards: RemoteShardMountRegistry | None = None,
+        preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> None:
         self.config = config
+        from furatena.catalog.public_projection import PublicProjectionInspectionCache
+
+        self._public_projection_inspection_cache = PublicProjectionInspectionCache()
         self.roots = ApplicationRoots.from_environment(config.root)
         if self.roots.managed:
             self.roots.ensure_writable_roots()
@@ -384,11 +390,22 @@ class DocsApp:
         self.repo_root = repo_root
         self.serve = serve or ServeConfig(ServeMode.AUTHOR, None, False, True)
         self.preview_environment = PreviewEnvironment.from_environment()
+        self.preview_grant_runtime = preview_grant_runtime
+        if self.preview_grant_runtime is not None and self.preview_environment is None:
+            raise PreviewConfigurationError(
+                "Hosted preview authorization requires an explicit pull-request preview identity."
+            )
         if self.preview_environment is not None and (
             self.serve.mode != ServeMode.PREVIEW or self.serve.auto_reload
         ):
             raise PreviewConfigurationError(
                 "a pull-request preview requires frozen preview mode with auto-reload disabled"
+            )
+        if self.preview_environment is not None and self.preview_grant_runtime is not None:
+            self.preview_grant_runtime.assert_environment(
+                pull_request_number=self.preview_environment.pull_request_number,
+                head_sha=self.preview_environment.head_sha,
+                origin=self.preview_environment.origin,
             )
         self.author_subject = author_subject or (
             AccessSubject.from_values(actor="local-author", roles=[AccessRole.ADMIN])
@@ -470,8 +487,6 @@ class DocsApp:
         )
         self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
         self._edition_embedding_lock = RLock()
-        if self.serve.warn_stale_freeze:
-            print("Note: content is newer than frozen/ — run `fura freeze` for a fresh export.")
         self.app = self._build_app()
 
     def _validation_template_env(self):
@@ -512,8 +527,13 @@ class DocsApp:
         app = App(app_config)
         use_chirp_ui(app)
         if self.preview_environment is not None:
+            preview_security = (
+                PreviewGrantSecurityMiddleware(self.preview_grant_runtime)
+                if self.preview_grant_runtime is not None
+                else PreviewSecurityMiddleware(PreviewAccessCredentials.from_environment())
+            )
             app.add_middleware(
-                PreviewSecurityMiddleware(PreviewAccessCredentials.from_environment()),
+                preview_security,
                 priority=-100,
             )
         security_middleware = secure_stack(
@@ -1967,6 +1987,7 @@ class DocsApp:
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
         remote_shards: RemoteShardMountRegistry | None = None,
+        preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
         if autodoc is None:
@@ -1986,6 +2007,7 @@ class DocsApp:
             retrieval_feedback=retrieval_feedback,
             observability=observability,
             remote_shards=remote_shards,
+            preview_grant_runtime=preview_grant_runtime,
         )
 
     def refresh_remote_shards(self) -> RemoteRefreshReport:

@@ -91,6 +91,31 @@ These wall-clock values are evidence, not cross-machine thresholds. The
 portable contracts are bounded fan-out/workers/cache, deterministic ordering,
 index validation, and the absence of a hub-wide corpus index.
 
+## Tiered shard residency profile
+
+Measure descriptor memory, cold-first and hot node-id routing, and Python
+object-accounting overhead for a 100-mount × 4-edition composition with 300
+pages per immutable shard (120,000 logical pages):
+
+```bash
+make shard-residency-benchmark
+make shard-residency-benchmark BENCHMARK_ARGS="--output benchmarks/profiles/issue-362-tiered-residency.json"
+```
+
+The deterministic harness uses an in-process immutable object-store stand-in,
+so cold-first latency is the routing, decoding, composition, and accounting
+floor; it deliberately excludes network and provider variance. It starts
+`tracemalloc` before allocating the 400 eager descriptors, resolves one
+`mount:edition:node` identity through the node-id API, then proves the other 399
+shards and 119,700 pages were not materialized. The committed free-threaded
+CPython 3.14.2 profile records 0.42 MiB of current descriptor allocations, a
+58.68 ms cold-first route, a 0.03 ms hot route, and one 0.37 MiB accounted
+resident graph. Cycle-safe admission accounting took 31.70 ms under active
+allocation tracing and runs
+only when a graph is admitted, never on a hot lookup. These host timings are
+evidence rather than portable pass/fail thresholds; correctness and configured
+entry/byte bounds are executable test contracts.
+
 ## Author-runtime profile
 
 Measure the author-mode paths separately from catalog indexing:

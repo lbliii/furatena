@@ -140,6 +140,18 @@ Command parser contract.
 | `--yes` | no | false | — | — | Confirm source mutation |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
+### `fura author inspect-public`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `target` | yes | — | — | — | Source path or page slug |
+| `--operation` | no | `publish` | `publish`, `unpublish`, `archive` | — | Lifecycle transition to project without applying it |
+| `--mount` | no | — | — | — | Mount id from mounts.yaml |
+| `--no-autodoc` | no | false | — | — | Skip Python autodoc while projecting |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
 ### `fura author new`
 
 Command parser contract.
@@ -551,6 +563,26 @@ Command parser contract.
 | Argument or option | Required | Default | Choices | Type | Purpose |
 |---|---:|---|---|---|---|
 
+### `fura theme check`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `directory` | no | `.` | — | — | Pack directory relative to the app root |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura theme conformance`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `directory` | no | `.` | — | — | Pack directory relative to the app root |
+| `--output` | no | `.fura-conformance` | — | — | Generated report directory (default: PACK/.fura-conformance) |
+| `--check` | no | false | — | — | Fail without writing if the report drifted |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
 ### `fura theme diff`
 
 Command parser contract.
@@ -579,6 +611,8 @@ Command parser contract.
 |---|---:|---|---|---|---|
 | `directory` | no | `theme-skin` | — | — | Output directory relative to the app root (default: theme-skin) |
 | `--force` | no | false | — | — | Overwrite existing scaffold files |
+| `--type` | no | `skin` | `layout`, `skin`, `override` | — | Presentation pack type (default: skin) |
+| `--id` | no | — | — | — | Manifest identity (default: normalized directory name) |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
 ### `fura theme inspect`
@@ -597,6 +631,17 @@ Command parser contract.
 
 | Argument or option | Required | Default | Choices | Type | Purpose |
 |---|---:|---|---|---|---|
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura theme preview`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `directory` | no | `.` | — | — | Pack directory relative to the app root |
+| `--output` | no | `.fura-preview` | — | — | Generated output directory (default: PACK/.fura-preview) |
+| `--check` | no | false | — | — | Fail without writing if generated output drifted |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
 ## Configuration fields
@@ -871,44 +916,44 @@ implementation treats absence as significant or supplies behavior elsewhere.
 
 | Variable | Modes | Observed defaults | Implementation sources |
 |---|---|---|---|
-| `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:275` |
-| `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:281` |
-| `CHIRP_SKIP_CONTRACT_CHECKS` | read, write | '', None | `furatena/catalog/docs_app.py:487`, `furatena/cli/commands/serve.py:115`, `furatena/cli/commands/serve.py:122`, `furatena/cli/commands/serve.py:135` |
+| `CHIRP_ENV` | read | None | `furatena/catalog/docs_app.py:277` |
+| `CHIRP_SECRET_KEY` | read | None | `furatena/catalog/docs_app.py:283` |
+| `CHIRP_SKIP_CONTRACT_CHECKS` | read, write | '', None | `furatena/catalog/docs_app.py:502`, `furatena/cli/commands/serve.py:115`, `furatena/cli/commands/serve.py:122`, `furatena/cli/commands/serve.py:135` |
 | `CHIRP_TRACEBACK` | read | '' | `furatena/catalog/dev_reload.py:220` |
 | `FURA_ACTIVE_CONTENT_GENERATION` | read | '' | `furatena/catalog/build_identity.py:20`, `furatena/catalog/operational_status.py:167` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:42` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1973`, `furatena/cli/commands/serve.py:47` |
-| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1493`, `furatena/catalog/route_registrars.py:1512`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:1994`, `furatena/cli/commands/serve.py:47` |
+| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1535`, `furatena/catalog/route_registrars.py:1554`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:51` |
-| `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:65`, `furatena/catalog/content_deployment.py:308`, `furatena/catalog/content_deployment.py:551`, `furatena/catalog/content_deployment.py:639`, `furatena/catalog/content_refresh.py:461`, `furatena/catalog/operational_status.py:170`, `furatena/catalog/preview_security.py:103` |
-| `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:36`, `furatena/cli/commands/serve.py:49` |
+| `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:65`, `furatena/catalog/content_deployment.py:304`, `furatena/catalog/content_deployment.py:546`, `furatena/catalog/content_deployment.py:638`, `furatena/catalog/content_refresh.py:467`, `furatena/catalog/operational_status.py:170`, `furatena/catalog/preview_security.py:141` |
+| `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:39`, `furatena/cli/commands/serve.py:49` |
 | `FURA_CONTENT_REPOSITORY` | read | '' | `furatena/catalog/operational_status.py:150`, `furatena/cli/commands/serve.py:80` |
-| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:133` |
+| `FURA_CONTENT_RESTART_AFTER_PROMOTION` | read | '1' | `furatena/catalog/route_registrars.py:134` |
 | `FURA_CONTENT_STATE_ROOT` | read | '/data/furatena' | `furatena/catalog/build_identity.py:18`, `furatena/cli/commands/content.py:124` |
-| `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:71`, `furatena/catalog/docs_app.py:310` |
-| `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:275` |
+| `FURA_DISTRIBUTION` | read | '', 'source' | `furatena/catalog/build_identity.py:71`, `furatena/catalog/docs_app.py:312` |
+| `FURA_ENV` | read | None | `furatena/catalog/docs_app.py:277` |
 | `FURA_FROZEN` | read | None | `furatena/cli/commands/serve.py:108` |
 | `FURA_FROZEN_DIR` | read | '' | `furatena/cli/commands/export.py:47`, `furatena/cli/commands/serve.py:76` |
 | `FURA_HTMX_PREVIEW` | read | '' | `furatena/catalog/vendor_paths.py:33` |
 | `FURA_IMAGE_CHANNEL` | read | 'development' | `furatena/catalog/build_identity.py:74` |
-| `FURA_IMAGE_DIGEST` | read | '', 'unknown' | `furatena/catalog/build_identity.py:75`, `furatena/catalog/content_deployment.py:306`, `furatena/catalog/content_deployment.py:549`, `furatena/catalog/content_deployment.py:637`, `furatena/catalog/content_refresh.py:459`, `furatena/catalog/operational_status.py:168` |
+| `FURA_IMAGE_DIGEST` | read | '', 'unknown' | `furatena/catalog/build_identity.py:75`, `furatena/catalog/content_deployment.py:302`, `furatena/catalog/content_deployment.py:544`, `furatena/catalog/content_deployment.py:636`, `furatena/catalog/content_refresh.py:465`, `furatena/catalog/operational_status.py:168` |
 | `FURA_IMAGE_VERSION` | read | 'development' | `furatena/catalog/build_identity.py:76` |
-| `FURA_KEEP_ALIVE_TIMEOUT` | read | '5' | `furatena/catalog/docs_app.py:291` |
+| `FURA_KEEP_ALIVE_TIMEOUT` | read | '5' | `furatena/catalog/docs_app.py:293` |
 | `FURA_LANG` | read | '' | `furatena/catalog/i18n.py:112` |
 | `FURA_MODE` | write | None | `furatena/cli/commands/serve.py:41`, `furatena/cli/commands/serve.py:43`, `furatena/cli/commands/serve.py:45` |
 | `FURA_OPERATION_LEASE_SECONDS` | read | '3600' | `furatena/catalog/operation_lease.py:221` |
 | `FURA_OPERATION_LOCK_TIMEOUT` | read | '30' | `furatena/catalog/operation_lease.py:216` |
-| `FURA_PLATFORM_ROOT` | read | '', '/app/app' | `furatena/catalog/content_deployment.py:793`, `furatena/catalog/renderer_fingerprint.py:68` |
+| `FURA_PLATFORM_ROOT` | read | '', '/app/app' | `furatena/catalog/content_deployment.py:829`, `furatena/catalog/renderer_fingerprint.py:68` |
 | `FURA_PORT` | read, write | '8001', None | `furatena/catalog/dev_reload.py:152`, `furatena/cli/commands/serve.py:137`, `furatena/cli/commands/serve.py:53`, `furatena/cli/commands/stop.py:17` |
-| `FURA_PREVIEW_AUTH_TOKEN` | read | '' | `furatena/catalog/preview_security.py:159` |
-| `FURA_PREVIEW_ORIGIN` | read | '' | `furatena/catalog/preview_security.py:105` |
-| `FURA_PREVIEW_PR_NUMBER` | read | '' | `furatena/catalog/preview_security.py:101` |
-| `FURA_PREVIEW_REVIEW_URL` | read | '' | `furatena/catalog/preview_security.py:104` |
-| `FURA_PREVIEW_SHA` | read | '' | `furatena/catalog/preview_security.py:102` |
-| `FURA_PR_PREVIEW` | read | '' | `furatena/catalog/preview_security.py:100` |
+| `FURA_PREVIEW_AUTH_TOKEN` | read | '' | `furatena/catalog/preview_security.py:197` |
+| `FURA_PREVIEW_ORIGIN` | read | '' | `furatena/catalog/preview_security.py:143` |
+| `FURA_PREVIEW_PR_NUMBER` | read | '' | `furatena/catalog/preview_security.py:139` |
+| `FURA_PREVIEW_REVIEW_URL` | read | '' | `furatena/catalog/preview_security.py:142` |
+| `FURA_PREVIEW_SHA` | read | '' | `furatena/catalog/preview_security.py:140` |
+| `FURA_PR_PREVIEW` | read | '' | `furatena/catalog/preview_security.py:138` |
 | `FURA_RELOAD_SRC` | read | '' | `furatena/catalog/dev_banner.py:132`, `furatena/catalog/dev_reload.py:177` |
-| `FURA_SERVER_WORKERS` | read | '' | `furatena/catalog/docs_app.py:308` |
-| `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:281` |
+| `FURA_SERVER_WORKERS` | read | '' | `furatena/catalog/docs_app.py:310` |
+| `FURA_SESSION_SECRET` | read | None | `furatena/catalog/docs_app.py:283` |
 | `FURA_STATIC` | read, write | None | `furatena/catalog/static_export.py:328`, `furatena/catalog/static_export.py:336` |
 | `FURA_STRUCTURED_LOGS` | read | '' | `furatena/catalog/observability.py:136` |
 | `FURA_TELEMETRY` | read | 'none' | `furatena/catalog/observability.py:142` |

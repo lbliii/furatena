@@ -24,6 +24,7 @@ from furatena.catalog.content_generation import (
 )
 from furatena.catalog.operation_lease import (
     OperationLease,
+    OperationLeaseTimeout,
     operation_lease_seconds,
     operation_timeout_seconds,
 )
@@ -32,6 +33,7 @@ _TRUE = frozenset({"1", "true", "yes", "on"})
 _REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+-]{0,254}$")
 _SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 _UNSET = object()
+_STATUS_RECONCILE_TIMEOUT_SECONDS = 0.01
 _PROTECTED_MANAGED_PATHS = frozenset(
     {
         ".docs-cache",
@@ -268,14 +270,8 @@ class ContentDeploymentStore:
         idempotency_key_digest: str | None = None,
     ) -> dict[str, Any]:
         """Build and atomically activate one immutable generation."""
-        with OperationLease(
-            self.leases,
-            "content-refresh",
-            resource=self.config.repository,
-            timeout_seconds=operation_timeout_seconds(),
-            lease_seconds=operation_lease_seconds(),
-        ):
-            self.reconcile()
+        with self._content_refresh_lease():
+            self._reconcile_owned()
             current = self._active_receipt()
             current_commit = str(current.get("resolved_ref") or "") if current is not None else None
             if expected_active_commit is not _UNSET and current_commit != expected_active_commit:
@@ -481,6 +477,11 @@ class ContentDeploymentStore:
 
     def reconcile(self) -> dict[str, Any]:
         """Repair safe crash residue and report the selected generation."""
+        with self._content_refresh_lease():
+            return self._reconcile_owned()
+
+    def _reconcile_owned(self) -> dict[str, Any]:
+        """Reconcile state while the caller owns the content-refresh lease."""
         for workspace in self.staging.glob("*") if self.staging.is_dir() else ():
             if workspace.is_dir() and not workspace.name.startswith("failed-"):
                 shutil.rmtree(workspace, ignore_errors=True)
@@ -524,13 +525,7 @@ class ContentDeploymentStore:
         reason: str = "Legacy rollback request.",
     ) -> dict[str, Any]:
         """Atomically select last-known-good and retain the prior active generation."""
-        with OperationLease(
-            self.leases,
-            "content-refresh",
-            resource=self.config.repository,
-            timeout_seconds=operation_timeout_seconds(),
-            lease_seconds=operation_lease_seconds(),
-        ):
+        with self._content_refresh_lease():
             active, active_quarantine = self._reconcile_link(self.active)
             lkg, lkg_quarantine = self._reconcile_link(self.last_known_good)
             if lkg is None:
@@ -602,8 +597,12 @@ class ContentDeploymentStore:
             return receipt
 
     def status(self, *, full_verification: bool = False) -> dict[str, Any]:
-        status = self.reconcile()
-        active = self._link_target(self.active)
+        try:
+            with self._content_refresh_lease(timeout_seconds=_STATUS_RECONCILE_TIMEOUT_SECONDS):
+                status = self._reconcile_owned()
+                active = self._link_target(self.active)
+        except OperationLeaseTimeout:
+            status, active = self._read_only_status(operation_active=True)
         status["repository"] = self.config.repository
         status["requested_ref"] = self.config.ref
         status["subdirectory"] = self.config.subdirectory
@@ -663,12 +662,47 @@ class ContentDeploymentStore:
 
     def resolve_requested_commit(self, requested_commit: str) -> str:
         """Resolve one exact commit under configured ref policy without promotion."""
-        commit = _full_commit(requested_commit, "requested_commit")
-        workspace = self.staging / f"resolve-{uuid.uuid4().hex}"
-        try:
-            return self._checkout(workspace, requested_commit=commit)
-        finally:
-            shutil.rmtree(workspace, ignore_errors=True)
+        with self._content_refresh_lease():
+            commit = _full_commit(requested_commit, "requested_commit")
+            workspace = self.staging / f"resolve-{uuid.uuid4().hex}"
+            try:
+                return self._checkout(workspace, requested_commit=commit)
+            finally:
+                shutil.rmtree(workspace, ignore_errors=True)
+
+    def _content_refresh_lease(self, *, timeout_seconds: float | None = None) -> OperationLease:
+        return OperationLease(
+            self.leases,
+            "content-refresh",
+            resource=self.config.repository,
+            timeout_seconds=(
+                operation_timeout_seconds() if timeout_seconds is None else timeout_seconds
+            ),
+            lease_seconds=operation_lease_seconds(),
+        )
+
+    def _read_only_status(
+        self,
+        *,
+        operation_active: bool,
+    ) -> tuple[dict[str, Any], Path | None]:
+        active = self._link_target(self.active)
+        lkg = self._link_target(self.last_known_good)
+        state = self._read_state()
+        return (
+            {
+                "configured": True,
+                "status": "staging"
+                if operation_active
+                else ("ready" if active is not None else "uninitialized"),
+                "active_generation": active.name if active is not None else None,
+                "last_known_good_generation": lkg.name if lkg is not None else None,
+                "repaired": False,
+                "rollback_hold": bool(state.get("rollback_hold")),
+                "generation_quarantine": self._latest_quarantine(),
+            },
+            active,
+        )
 
     def _checkout(self, target: Path, *, requested_commit: str | None = None) -> str:
         target.mkdir(parents=True)
@@ -686,6 +720,8 @@ class ContentDeploymentStore:
             ("git", "-C", str(target), "remote", "add", "origin", self.config.repository),
             (
                 "git",
+                "-c",
+                "http.followRedirects=false",
                 "-C",
                 str(target),
                 "fetch",

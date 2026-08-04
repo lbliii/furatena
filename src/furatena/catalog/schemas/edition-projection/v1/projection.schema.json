@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/edition-projection/v1/projection.schema.json",
+  "title": "Furatena edition projection v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "page_count",
+    "shared_node_count",
+    "deduplicated_page_count",
+    "edition_order",
+    "pages",
+    "shared_nodes",
+    "edges",
+    "metrics"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "page_count": {"type": "integer", "minimum": 0},
+    "shared_node_count": {"type": "integer", "minimum": 0},
+    "deduplicated_page_count": {"type": "integer", "minimum": 0},
+    "edition_order": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 2,
+        "uniqueItems": true,
+        "items": {"type": "string", "minLength": 1}
+      }
+    },
+    "pages": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/page"}
+    },
+    "shared_nodes": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/shared_node"}
+    },
+    "edges": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/edge"}
+    },
+    "metrics": {"$ref": "#/$defs/metrics"}
+  },
+  "$defs": {
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "node_id",
+        "shared_node_id",
+        "content_digest",
+        "mount",
+        "edition",
+        "slug",
+        "url",
+        "title",
+        "source_path",
+        "source_ref",
+        "resolved_ref",
+        "supersedes"
+      ],
+      "properties": {
+        "node_id": {"type": "string", "pattern": "^[^:]+:[^:]+:.*$"},
+        "shared_node_id": {"type": "string", "pattern": "^[^:]+:shared-[a-f0-9]{64}:.*$"},
+        "content_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "mount": {"type": "string", "minLength": 1},
+        "edition": {"type": "string", "minLength": 1},
+        "slug": {"type": "string"},
+        "url": {"type": "string", "pattern": "^/"},
+        "title": {"type": "string"},
+        "source_path": {"type": "string"},
+        "source_ref": {"type": "string"},
+        "resolved_ref": {"type": "string"},
+        "supersedes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "shared_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "mount", "slug", "content_digest", "members"],
+      "properties": {
+        "node_id": {"type": "string", "pattern": "^[^:]+:shared-[a-f0-9]{64}:.*$"},
+        "mount": {"type": "string", "minLength": 1},
+        "slug": {"type": "string"},
+        "content_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/member"}
+        }
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "edition", "source_path", "source_ref", "resolved_ref"],
+      "properties": {
+        "node_id": {"type": "string", "pattern": "^[^:]+:[^:]+:.*$"},
+        "edition": {"type": "string", "minLength": 1},
+        "source_path": {"type": "string"},
+        "source_ref": {"type": "string"},
+        "resolved_ref": {"type": "string"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source", "target", "mount", "edition"],
+      "properties": {
+        "kind": {"enum": ["available_in", "supersedes"]},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "mount": {"type": "string", "minLength": 1},
+        "edition": {"type": "string", "minLength": 1}
+      }
+    },
+    "metrics": {
+      "allOf": [
+        {"$ref": "#/$defs/metric_record"},
+        {
+          "type": "object",
+          "required": ["mounts"],
+          "properties": {
+            "mounts": {
+              "type": "object",
+              "additionalProperties": {"$ref": "#/$defs/metric_record_strict"}
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "metric_record": {
+      "type": "object",
+      "required": [
+        "attempts",
+        "direct_hits",
+        "fallbacks",
+        "missing",
+        "direct_hit_rate",
+        "fallback_rate",
+        "resolutions"
+      ],
+      "properties": {
+        "attempts": {"type": "integer", "minimum": 0},
+        "direct_hits": {"type": "integer", "minimum": 0},
+        "fallbacks": {"type": "integer", "minimum": 0},
+        "missing": {"type": "integer", "minimum": 0},
+        "direct_hit_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "fallback_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "resolutions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["direct", "supersedes", "ancestor", "landing", "missing"],
+          "properties": {
+            "direct": {"type": "integer", "minimum": 0},
+            "supersedes": {"type": "integer", "minimum": 0},
+            "ancestor": {"type": "integer", "minimum": 0},
+            "landing": {"type": "integer", "minimum": 0},
+            "missing": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "metric_record_strict": {
+      "allOf": [{"$ref": "#/$defs/metric_record"}],
+      "unevaluatedProperties": false
+    }
+  }
+}

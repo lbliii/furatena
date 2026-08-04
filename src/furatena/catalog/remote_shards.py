@@ -6,12 +6,14 @@ import gzip
 import hashlib
 import io
 import json
+import os
 import re
 import threading
 import urllib.request
 from collections import OrderedDict
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -47,6 +49,8 @@ MAX_SEARCH_CACHE_BYTES = 64 * 1024 * 1024
 MAX_SEARCH_CACHE_ENTRIES = 256
 MAX_SEARCH_FANOUT = 256
 MAX_SEARCH_WORKERS = 16
+DEFAULT_RESIDENT_SHARD_ENTRIES = 32
+DEFAULT_RESIDENT_SHARD_BYTES = 128 * 1024 * 1024
 
 
 class RemoteShardError(CatalogError, RuntimeError):
@@ -281,6 +285,201 @@ class RemoteRefreshReport:
     mounts: tuple[RemoteMountRefresh, ...]
 
 
+@dataclass(slots=True)
+class _CatalogFlight:
+    completed: threading.Event
+    value: Mapping[str, Any] | None = None
+    error: _CatalogFailure | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _CatalogFailure:
+    error_type: type[BaseException]
+    summary: str
+    context: tuple[tuple[str, str], ...] = ()
+
+    @classmethod
+    def capture(cls, error: BaseException) -> _CatalogFailure:
+        context = error.context if isinstance(error, CatalogError) else {}
+        return cls(type(error), str(error), tuple(sorted(context.items())))
+
+    def recreate(self) -> BaseException:
+        try:
+            if issubclass(self.error_type, CatalogError):
+                return self.error_type(self.summary, **dict(self.context))
+            return self.error_type(self.summary)
+        except Exception:
+            return RemoteShardFetchError(
+                f"A coalesced remote catalog load failed: {self.summary}.",
+                operation="remote_shard_catalog_load",
+            )
+
+
+class _LazyCatalog(Mapping[str, Any]):
+    """Mapping facade that resolves one immutable catalog through residency."""
+
+    __slots__ = ("_loader",)
+
+    def __init__(self, loader: Callable[[], Mapping[str, Any]]) -> None:
+        self._loader = loader
+
+    def __getitem__(self, key: str) -> Any:
+        return self._loader()[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._loader())
+
+    def __len__(self) -> int:
+        return len(self._loader())
+
+
+@dataclass(frozen=True, slots=True)
+class _CatalogLocation:
+    key: str
+    mount: str
+    identity: str
+    manifest: Mapping[str, Any]
+    item: Mapping[str, Any]
+    warm_path: Path
+    legacy_path: Path
+
+
+class _CatalogResidency:
+    """Free-threaded bounded LRU for decoded immutable catalog mappings."""
+
+    def __init__(
+        self,
+        loader: Callable[[_CatalogLocation], tuple[Mapping[str, Any], int, str]],
+        *,
+        max_entries: int,
+        max_bytes: int,
+    ) -> None:
+        if max_entries <= 0 or max_bytes <= 0:
+            raise ValueError("Remote resident shard bounds must both be positive integers.")
+        self._loader = loader
+        self._max_entries = max_entries
+        self._max_bytes = max_bytes
+        self._cache: OrderedDict[str, tuple[Mapping[str, Any], int]] = OrderedDict()
+        self._flights: dict[str, _CatalogFlight] = {}
+        self._locations: dict[str, _CatalogLocation] = {}
+        self._lock = threading.Lock()
+        self._hot_hits = 0
+        self._warm_loads = 0
+        self._cold_loads = 0
+        self._evictions = 0
+        self._coalesced = 0
+        self._failures = 0
+        self._resident_bytes = 0
+
+    def register(self, location: _CatalogLocation) -> _LazyCatalog:
+        with self._lock:
+            self._locations[location.key] = location
+        return _LazyCatalog(lambda: self.load(location))
+
+    def load(self, location: _CatalogLocation) -> Mapping[str, Any]:
+        with self._lock:
+            cached = self._cache.get(location.key)
+            if cached is not None:
+                self._hot_hits += 1
+                self._cache.move_to_end(location.key)
+                return cached[0]
+            flight = self._flights.get(location.key)
+            owner = flight is None
+            if flight is None:
+                flight = _CatalogFlight(threading.Event())
+                self._flights[location.key] = flight
+            else:
+                self._coalesced += 1
+        if not owner:
+            flight.completed.wait()
+            if flight.error is not None:
+                raise flight.error.recreate()
+            assert flight.value is not None
+            return flight.value
+        try:
+            value, size, tier = self._loader(location)
+        except BaseException as exc:
+            with self._lock:
+                self._failures += 1
+                flight.error = _CatalogFailure.capture(exc)
+                self._flights.pop(location.key, None)
+                flight.completed.set()
+            raise
+        with self._lock:
+            flight.value = value
+            if tier == "warm":
+                self._warm_loads += 1
+            else:
+                self._cold_loads += 1
+            registered = self._locations.get(location.key) is location
+            if size <= self._max_bytes and registered:
+                while self._cache and (
+                    len(self._cache) >= self._max_entries
+                    or self._resident_bytes + size > self._max_bytes
+                ):
+                    _key, (_value, evicted_size) = self._cache.popitem(last=False)
+                    self._resident_bytes -= evicted_size
+                    self._evictions += 1
+                self._cache[location.key] = (value, size)
+                self._resident_bytes += size
+            self._flights.pop(location.key, None)
+            flight.completed.set()
+        return value
+
+    def discard_mount(self, mount: str) -> None:
+        self.retain_mount(mount, frozenset())
+
+    def retain_mount(self, mount: str, valid_keys: frozenset[str]) -> None:
+        with self._lock:
+            keys = {
+                key
+                for key, item in self._locations.items()
+                if item.mount == mount and key not in valid_keys
+            }
+            for key in keys:
+                cached = self._cache.pop(key, None)
+                if cached is not None:
+                    self._resident_bytes -= cached[1]
+                self._locations.pop(key, None)
+
+    def status(self) -> dict[str, Any]:
+        with self._lock:
+            hot = set(self._cache)
+            locations = tuple(self._locations.values())
+            snapshot: dict[str, Any] = {
+                "schema_version": 1,
+                "resident_entries": len(self._cache),
+                "resident_bytes": self._resident_bytes,
+                "max_resident_entries": self._max_entries,
+                "max_resident_bytes": self._max_bytes,
+                "in_flight": len(self._flights),
+                "hot_hits": self._hot_hits,
+                "warm_loads": self._warm_loads,
+                "cold_loads": self._cold_loads,
+                "evictions": self._evictions,
+                "coalesced_loads": self._coalesced,
+                "load_failures": self._failures,
+            }
+        # Filesystem probes are status-only I/O and never hold the residency
+        # lock needed by active readers.
+        shards = [
+            {
+                "identity": item.identity,
+                "mount": item.mount,
+                "tier": (
+                    "hot"
+                    if item.key in hot
+                    else "warm"
+                    if item.warm_path.is_file() or item.legacy_path.is_file()
+                    else "cold"
+                ),
+            }
+            for item in locations
+        ]
+        snapshot["shards"] = sorted(shards, key=lambda item: str(item["identity"]))
+        return snapshot
+
+
 class RemoteShardMountRegistry:
     """Immutable, atomically swapped registry of verified remote mount generations."""
 
@@ -296,6 +495,8 @@ class RemoteShardMountRegistry:
         max_search_cache_entries: int = MAX_SEARCH_CACHE_ENTRIES,
         max_search_fanout: int = MAX_SEARCH_FANOUT,
         max_search_workers: int = MAX_SEARCH_WORKERS,
+        resident_shard_entries: int = DEFAULT_RESIDENT_SHARD_ENTRIES,
+        resident_shard_bytes: int = DEFAULT_RESIDENT_SHARD_BYTES,
     ) -> None:
         self.hub_url = fetcher.validate_url(hub_url)
         self.state_root = state_root.expanduser().resolve()
@@ -331,6 +532,11 @@ class RemoteShardMountRegistry:
         self._search_cache: OrderedDict[str, tuple[FederatedShardSearchIndex, int]] = OrderedDict()
         self._search_cache_bytes = 0
         self._search_flights: dict[str, Future[FederatedShardSearchIndex]] = {}
+        self._catalog_residency = _CatalogResidency(
+            self._load_catalog_location,
+            max_entries=resident_shard_entries,
+            max_bytes=resident_shard_bytes,
+        )
         self._load_last_known_good()
 
     def mounts(self) -> tuple[str, ...]:
@@ -355,6 +561,10 @@ class RemoteShardMountRegistry:
     def shard(self, mount: str, edition: str = "latest") -> RemoteShardGeneration:
         """Return one immutable verified shard generation by edition or channel alias."""
         return self._resolve_shard(self.generation(mount), edition)
+
+    def residency_status(self) -> dict[str, Any]:
+        """Return bounded shard-residency and churn diagnostics for operators."""
+        return self._catalog_residency.status()
 
     def refresh(self) -> RemoteRefreshReport:
         hub_bytes = self.fetcher.fetch(self.hub_url, max_bytes=self.max_hub_bytes)
@@ -414,21 +624,10 @@ class RemoteShardMountRegistry:
         """Fetch and verify one inert presentation without fetching semantic content."""
         generation = self.generation(mount)
         shard = self._resolve_shard(generation, edition)
-        return self._fetch_presentation_from_shard(shard, node_id)
+        return self.fetch_presentation_from(shard, node_id)
 
-    def _bind_presentation_loader(
-        self, mount: str, edition: str
-    ) -> tuple[str, RemoteShardGeneration, Callable[[str], bytes]]:
-        """Bind lazy presentation reads to one immutable mount generation."""
-        generation = self.generation(mount)
-        shard = self._resolve_shard(generation, edition)
-        return (
-            generation.generation_id,
-            shard,
-            lambda node_id: self._fetch_presentation_from_shard(shard, node_id),
-        )
-
-    def _fetch_presentation_from_shard(self, shard: RemoteShardGeneration, node_id: str) -> bytes:
+    def fetch_presentation_from(self, shard: RemoteShardGeneration, node_id: str) -> bytes:
+        """Fetch from an already resolved immutable generation without refresh mixing."""
         presentation_ref = shard.presentations.get(node_id)
         if presentation_ref is None:
             raise RemoteShardUnavailableError(
@@ -758,7 +957,6 @@ class RemoteShardMountRegistry:
         channel = hub["channels"][mount]
         identities = tuple(str(value) for value in channel["editions"])
         manifests: dict[str, dict[str, Any]] = {}
-        catalogs: dict[str, dict[str, Any]] = {}
         shard_verifications: dict[str, dict[str, Any]] = {}
         for identity in identities:
             entry = hub["shards"][identity]
@@ -781,16 +979,6 @@ class RemoteShardMountRegistry:
                 )
             self._validate_shard_urls(manifest)
             shard_verifications[identity] = self._verify_shard(manifest, mount=mount)
-            catalog_item = next(item for item in manifest["inventory"] if item["role"] == "catalog")
-            catalog_bytes = self._fetch_decoded(manifest, catalog_item)
-            role_errors = validate_published_object_payload(manifest, catalog_item, catalog_bytes)
-            if role_errors:
-                raise RemoteShardVerificationError(
-                    f"Remote shard {identity} catalog failed validation: {'; '.join(role_errors[:6])}.",
-                    mount=mount,
-                    operation="remote_shard_catalog_validate",
-                )
-            catalogs[identity] = _json_object(catalog_bytes, label=f"catalog {identity}")
             manifests[identity] = manifest
         generation_shards = {
             identity: {
@@ -822,7 +1010,6 @@ class RemoteShardMountRegistry:
                 for identity in identities:
                     name = _identity_digest(identity)
                     _write_json(staging / "manifests" / f"{name}.json", manifests[identity])
-                    _write_json(staging / "catalogs" / f"{name}.json", catalogs[identity])
                 transaction.commit()
             finally:
                 transaction.cleanup()
@@ -866,7 +1053,6 @@ class RemoteShardMountRegistry:
         for identity in channel["editions"]:
             name = _identity_digest(identity)
             manifest = _read_json_file(root / "manifests" / f"{name}.json")
-            catalog = _read_json_file(root / "catalogs" / f"{name}.json")
             manifest_errors = validate_published_shard_manifest(manifest)
             manifest_errors.extend(
                 validate_federation_hub_manifest(hub, published_manifests={identity: manifest})
@@ -875,15 +1061,8 @@ class RemoteShardMountRegistry:
                 (item for item in manifest.get("inventory", []) if item.get("role") == "catalog"),
                 None,
             )
-            catalog_bytes = _canonical_json(catalog)
             if catalog_item is None:
                 manifest_errors.append("inventory: catalog object is missing")
-            else:
-                if _digest_bytes(catalog_bytes) != catalog_item["sha256"]:
-                    manifest_errors.append("catalog: stored decoded digest mismatch")
-                manifest_errors.extend(
-                    validate_published_object_payload(manifest, catalog_item, catalog_bytes)
-                )
             if manifest_errors:
                 raise RemoteShardVerificationError(
                     f"Stored remote shard {identity} failed validation: {'; '.join(manifest_errors[:6])}.",
@@ -906,7 +1085,23 @@ class RemoteShardMountRegistry:
                     mount=mount,
                     operation="remote_shard_generation_load",
                 )
-            shards[identity] = _shard_generation(manifest, catalog)
+            assert catalog_item is not None
+            catalog_key = f"{identity}:{manifest['fingerprint']}"
+            location = _CatalogLocation(
+                key=catalog_key,
+                mount=mount,
+                identity=str(identity),
+                manifest=_freeze_json(manifest),
+                item=_freeze_json(catalog_item),
+                warm_path=(
+                    self.state_root / "object-cache" / "sha256" / f"{catalog_item['sha256']}.json"
+                ),
+                legacy_path=root / "catalogs" / f"{name}.json",
+            )
+            shards[identity] = _shard_generation(
+                manifest,
+                self._catalog_residency.register(location),
+            )
         computed_id = _mount_generation_id(
             mount,
             channel,
@@ -941,6 +1136,50 @@ class RemoteShardMountRegistry:
             value for value in manifest["inventory"] if value["logical_path"] == item.logical_path
         )
         return self._fetch_decoded(manifest, raw_item)
+
+    def _load_catalog_location(
+        self, location: _CatalogLocation
+    ) -> tuple[Mapping[str, Any], int, str]:
+        manifest = dict(location.manifest)
+        item = dict(location.item)
+        decoded: bytes | None = None
+        tier = "cold"
+        for path in (location.warm_path, location.legacy_path):
+            try:
+                candidate = path.read_bytes()
+            except OSError:
+                continue
+            if path == location.legacy_path:
+                try:
+                    candidate = _canonical_json(
+                        _json_object(candidate, label=f"legacy catalog {location.identity}")
+                    )
+                except RemoteShardVerificationError:
+                    continue
+            if (
+                len(candidate) == int(item["uncompressed_size"])
+                and _digest_bytes(candidate) == str(item["sha256"])
+                and not validate_published_object_payload(manifest, item, candidate)
+            ):
+                decoded = candidate
+                tier = "warm"
+                break
+        if decoded is None:
+            decoded = self._fetch_decoded(manifest, item)
+            location.warm_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = location.warm_path.with_name(
+                f".{location.warm_path.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+            )
+            try:
+                temporary.write_bytes(decoded)
+                temporary.replace(location.warm_path)
+            finally:
+                with suppress(FileNotFoundError):
+                    temporary.unlink()
+        catalog = _json_object(decoded, label=f"catalog {location.identity}")
+        frozen = _freeze_json(catalog)
+        _validate_catalog_identity(manifest, frozen)
+        return frozen, _deep_size(frozen), tier
 
     def _fetch_decoded(self, manifest: dict[str, Any], item: dict[str, Any]) -> bytes:
         url = str(manifest["artifact_base_url"]).rstrip("/") + "/" + str(item["object_url"])
@@ -1090,6 +1329,12 @@ class RemoteShardMountRegistry:
             updated = dict(self._mounts)
             updated[generation.mount] = generation
             self._mounts = MappingProxyType(updated)
+        self._catalog_residency.retain_mount(
+            generation.mount,
+            frozenset(
+                f"{shard.identity}:{shard.fingerprint}" for shard in generation.shards.values()
+            ),
+        )
 
     def _deactivate_mount(self, mount: str) -> None:
         lock = self._lock_for(mount)
@@ -1114,6 +1359,7 @@ class RemoteShardMountRegistry:
                 updated = dict(self._mounts)
                 updated.pop(mount, None)
                 self._mounts = MappingProxyType(updated)
+            self._catalog_residency.discard_mount(mount)
 
     def _current(self, mount: str) -> RemoteMountGeneration | None:
         with self._state_lock:
@@ -1142,19 +1388,17 @@ class RemoteShardMountRegistry:
         return self.state_root / "mounts" / mount
 
 
-def _shard_generation(manifest: dict[str, Any], catalog: dict[str, Any]) -> RemoteShardGeneration:
+def _shard_generation(
+    manifest: dict[str, Any], catalog: Mapping[str, Any]
+) -> RemoteShardGeneration:
     identity = str(manifest["identity"]["key"])
-    public_node_ids = frozenset(
-        str(page["node_id"])
-        for page in catalog.get("pages", [])
-        if isinstance(page, dict) and page.get("node_id")
-    )
     refs = [_object_ref(item) for item in manifest["inventory"]]
     fragments = {item.node_id: item for item in refs if item.role == "fragment" and item.node_id}
     presentations = {
         item.node_id: item for item in refs if item.role == "presentation" and item.node_id
     }
-    if set(fragments) != public_node_ids or set(presentations) != public_node_ids:
+    public_node_ids = frozenset(str(value) for value in fragments)
+    if set(presentations) != public_node_ids:
         raise RemoteShardVerificationError(
             f"Remote shard {identity} per-node inventory differs from its public catalog.",
             mount=str(manifest["identity"]["mount"]),
@@ -1176,6 +1420,45 @@ def _shard_generation(manifest: dict[str, Any], catalog: dict[str, Any]) -> Remo
         search=search,
         semantic=semantic,
     )
+
+
+def _validate_catalog_identity(manifest: Mapping[str, Any], catalog: Mapping[str, Any]) -> None:
+    identity = str(manifest["identity"]["key"])
+    catalog_ids = {
+        str(page["node_id"])
+        for page in catalog.get("pages", ())
+        if isinstance(page, Mapping) and page.get("node_id")
+    }
+    inventory_ids = {
+        str(item["node_id"])
+        for item in manifest["inventory"]
+        if isinstance(item, Mapping) and item.get("role") == "fragment" and item.get("node_id")
+    }
+    if catalog_ids != inventory_ids:
+        raise RemoteShardVerificationError(
+            f"Remote shard {identity} catalog node set differs from its public inventory.",
+            mount=str(manifest["identity"]["mount"]),
+            operation="remote_shard_catalog_validate",
+        )
+
+
+def _deep_size(value: Any, seen: set[int] | None = None) -> int:
+    """Return a cycle-safe resident-size estimate for frozen JSON containers."""
+    import sys
+
+    visited = seen if seen is not None else set()
+    identity = id(value)
+    if identity in visited:
+        return 0
+    visited.add(identity)
+    size = sys.getsizeof(value)
+    if isinstance(value, Mapping):
+        return size + sum(
+            _deep_size(key, visited) + _deep_size(item, visited) for key, item in value.items()
+        )
+    if isinstance(value, tuple):
+        return size + sum(_deep_size(item, visited) for item in value)
+    return size
 
 
 def _object_ref(item: dict[str, Any]) -> RemoteObjectRef:

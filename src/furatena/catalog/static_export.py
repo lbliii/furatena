@@ -638,12 +638,13 @@ def _markdown_routes(docs_app: DocsApp) -> list[str]:
     routes: set[str] = set()
     public_urls: set[str] = set()
 
-    def add_aliases(url: str) -> None:
+    def add_aliases(url: str, *, edition_landing: bool = False) -> None:
         base = url.rstrip("/")
         if not base:
             routes.add(docs_app.catalog.scoped_url("/index.md"))
             return
-        routes.add(docs_app.catalog.scoped_url(f"{base}.md"))
+        if not edition_landing:
+            routes.add(docs_app.catalog.scoped_url(f"{base}.md"))
         routes.add(docs_app.catalog.scoped_url(f"{base}/index.md"))
 
     for edition in _export_editions(docs_app):
@@ -655,7 +656,10 @@ def _markdown_routes(docs_app: DocsApp) -> list[str]:
             )
             public_urls.update(node.url for node in public_nodes)
             for node in public_nodes:
-                add_aliases(node.url)
+                add_aliases(
+                    node.url,
+                    edition_landing=node.edition != "latest" and not node.slug,
+                )
     i18n = docs_app.config.i18n
     if i18n.enabled and i18n.fallback_to_default:
         from furatena.catalog.i18n import collect_i18n_export_routes
@@ -942,9 +946,27 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                 written_paths.add(target.relative_to(output_dir))
                 sidecar_count += 1
 
-        for frozen_sidecar in ("semantic.json", "structure.json"):
+        from furatena.catalog.edition_projection import EDITION_PROJECTION_FILENAME
+
+        projection_copied = False
+        for frozen_sidecar in (
+            "semantic.json",
+            "structure.json",
+            EDITION_PROJECTION_FILENAME,
+        ):
             if _copy_frozen_sidecar(frozen_dir, frozen_sidecar, output_dir, base_path):
                 written_paths.add(Path(frozen_sidecar))
+                sidecar_count += 1
+                projection_copied = projection_copied or (
+                    frozen_sidecar == EDITION_PROJECTION_FILENAME
+                )
+        if not projection_copied:
+            projection = docs_app.catalog.edition_projection()
+            if projection.pages:
+                body = json.dumps(projection.to_dict(), indent=2, sort_keys=True) + "\n"
+                body = prefix_root_paths(body, base_path)
+                (output_dir / EDITION_PROJECTION_FILENAME).write_text(body, encoding="utf-8")
+                written_paths.add(Path(EDITION_PROJECTION_FILENAME))
                 sidecar_count += 1
 
         if frozen_dir is not None:

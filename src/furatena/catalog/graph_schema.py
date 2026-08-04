@@ -415,29 +415,27 @@ def graph_node_records(
     """Project external edge endpoints into typed graph node records."""
     records: dict[tuple[str, str, str], GraphNodeRecord] = {}
     for edge in edges:
-        target = str(edge.get("target") or "")
-        prefix, separator, label = target.partition(":")
-        if not separator:
-            continue
-        kind = _GRAPH_NODE_PREFIXES.get(prefix)
-        if kind is None:
-            continue
-        mount = str(edge.get("mount") or "")
-        edition = str(edge.get("edition") or "")
-        key = (target, mount, edition)
-        record: GraphNodeRecord = {
-            "id": target,
-            "kind": kind,
-            "label": label,
-            "mount": mount,
-            "edition": edition,
-        }
-        if edition_statuses is not None:
-            record["edition_status"] = edition_statuses.get((mount, edition), "current")
-        records.setdefault(
-            key,
-            record,
-        )
+        for endpoint in ("source", "target"):
+            value = str(edge.get(endpoint) or "")
+            prefix, separator, label = value.partition(":")
+            if not separator:
+                continue
+            kind = _GRAPH_NODE_PREFIXES.get(prefix)
+            if kind is None:
+                continue
+            mount = str(edge.get("mount") or "")
+            edition = str(edge.get("edition") or "")
+            key = (value, mount, edition)
+            record: GraphNodeRecord = {
+                "id": value,
+                "kind": kind,
+                "label": label,
+                "mount": mount,
+                "edition": edition,
+            }
+            if edition_statuses is not None:
+                record["edition_status"] = edition_statuses.get((mount, edition), "current")
+            records.setdefault(key, record)
     return sorted(
         records.values(),
         key=lambda item: (item["kind"], item["id"], item["mount"], item["edition"]),

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "editions": [
+    {
+      "id": "1.0.0",
+      "mounts": {
+        "docs": {
+          "": {"title": "Docs", "body": "Documentation landing."},
+          "guide": {"title": "Guide", "body": "The original guide."},
+          "old-location": {"title": "Moved guide", "body": "The original moved guide."},
+          "removed": {"title": "Removed page", "body": "Only the first release has this page."},
+          "shared": {"title": "Shared page", "body": "This content is identical across every edition."},
+          "topic": {"title": "Topic", "body": "Topic landing."}
+        },
+        "sdk": {
+          "": {"title": "SDK", "body": "SDK landing."},
+          "sdk-only": {"title": "SDK-only page", "body": "This slug belongs only to the SDK mount."}
+        }
+      }
+    },
+    {
+      "id": "1.1.0",
+      "mounts": {
+        "docs": {
+          "": {"title": "Docs", "body": "Documentation landing."},
+          "guide": {"title": "Guide", "body": "The revised guide."},
+          "new-location": {"title": "Moved guide", "body": "The replacement guide.", "supersedes": "docs:1.0.0:old-location"},
+          "shared": {"title": "Shared page", "body": "This content is identical across every edition."},
+          "topic": {"title": "Topic", "body": "Topic landing."}
+        },
+        "sdk": {
+          "": {"title": "SDK", "body": "SDK landing."},
+          "sdk-only": {"title": "SDK-only page", "body": "This slug belongs only to the SDK mount."}
+        }
+      }
+    },
+    {
+      "id": "latest",
+      "mounts": {
+        "docs": {
+          "": {"title": "Docs", "body": "Documentation landing."},
+          "brand-new": {"title": "Brand new", "body": "Only latest has this top-level page."},
+          "guide": {"title": "Guide", "body": "The latest guide."},
+          "new-location": {"title": "Moved guide", "body": "The replacement guide.", "supersedes": "docs:1.0.0:old-location"},
+          "sdk-only": {"title": "Docs SDK name collision", "body": "This same slug is new in the docs mount."},
+          "shared": {"title": "Shared page", "body": "This content is identical across every edition."},
+          "topic": {"title": "Topic", "body": "Topic landing."},
+          "topic/new": {"title": "New topic", "body": "Only latest has this child page."}
+        },
+        "sdk": {
+          "": {"title": "SDK", "body": "SDK landing."},
+          "sdk-only": {"title": "SDK-only page", "body": "This slug belongs only to the SDK mount."}
+        }
+      }
+    }
+  ]
+}

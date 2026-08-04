@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import errno
 import json
+import subprocess
+import threading
+import time
 from pathlib import Path
+from queue import Queue
 
 import pytest
 
@@ -84,6 +88,26 @@ def test_environment_accepts_only_credential_free_allowlisted_https() -> None:
                 "FURA_CONTENT_ALLOWED_HOSTS": "github.com",
             }
         )
+
+
+def test_checkout_disables_http_redirects_before_contacting_the_allowed_host(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = ContentDeploymentStore(_config(tmp_path))
+    commands: list[tuple[str, ...]] = []
+
+    def run(command, **_values):
+        normalized = tuple(command)
+        commands.append(normalized)
+        stdout = "a" * 40 + "\n" if normalized[-2:] == ("rev-parse", "HEAD") else ""
+        return subprocess.CompletedProcess(normalized, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+    assert store._checkout(tmp_path / "checkout") == "a" * 40
+    fetch = next(command for command in commands if "fetch" in command)
+    assert fetch[:4] == ("git", "-c", "http.followRedirects=false", "-C")
 
 
 def test_content_cli_reports_configuration_errors_without_a_traceback(
@@ -239,6 +263,69 @@ def test_reconcile_restores_dangling_active_from_last_known_good(
 
     assert status["repaired"]
     assert store.active.resolve() == target
+
+
+def test_status_preserves_live_refresh_staging_and_returns_promptly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = ContentDeploymentStore(_config(tmp_path), freezer=_freezer, clock=lambda: 1_700_000_000)
+    monkeypatch.setattr(store, "_checkout", _checkout("a" * 40, title="First"))
+    store.refresh()
+    previous = store.active.resolve()
+    checkout_started = threading.Event()
+    checkout_release = threading.Event()
+    results: Queue[dict[str, object]] = Queue()
+    errors: Queue[Exception] = Queue()
+
+    def blocking_checkout(target: Path) -> str:
+        app = target / "app"
+        app.mkdir(parents=True)
+        (app / "docs.yaml").write_text("site:\n  title: Second\n", encoding="utf-8")
+        (app / "index.md").write_text("# Second\n", encoding="utf-8")
+        (target / "live-refresh.marker").write_text("owned\n", encoding="utf-8")
+        checkout_started.set()
+        if not checkout_release.wait(timeout=5):
+            raise RuntimeError("test did not release the blocked content checkout")
+        if not (target / "live-refresh.marker").is_file():
+            raise RuntimeError("live content refresh staging was removed")
+        return "b" * 40
+
+    def run_refresh() -> None:
+        try:
+            results.put(store.refresh(trigger="test"))
+        except Exception as exc:  # pragma: no cover - asserted through the queue
+            errors.put(exc)
+
+    monkeypatch.setattr(store, "_checkout", blocking_checkout)
+    worker = threading.Thread(target=run_refresh, name="test-content-refresh")
+    worker.start()
+    assert checkout_started.wait(timeout=5)
+
+    started = time.monotonic()
+    try:
+        status = store.status()
+        elapsed = time.monotonic() - started
+        live_workspaces = [
+            path
+            for path in store.staging.iterdir()
+            if path.is_dir() and not path.name.startswith("failed-")
+        ]
+
+        assert elapsed < 0.5
+        assert status["status"] == "staging"
+        assert status["active_generation"] == previous.name
+        assert len(live_workspaces) == 1
+        assert (live_workspaces[0] / "source" / "live-refresh.marker").is_file()
+    finally:
+        checkout_release.set()
+        worker.join(timeout=10)
+
+    assert not worker.is_alive()
+    assert errors.empty(), errors.get_nowait() if not errors.empty() else None
+    promoted = results.get_nowait()
+    assert promoted["resolved_ref"] == "b" * 40
+    assert store.active.resolve().name.endswith("-bbbbbbbbbbbb")
 
 
 def test_source_limits_and_symlinks_fail_closed(tmp_path: Path) -> None:
