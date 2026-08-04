@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-artifact/v1/verification.schema.json",
+  "title": "Furatena publication artifact verification v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "artifact_id", "artifact_digest", "manifest_digest",
+    "status", "artifact_count", "artifact_bytes", "privacy_scan", "verified_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.artifact-verification"},
+    "artifact_id": {"type": "string", "pattern": "^publication-artifact-[0-9a-f]{64}$"},
+    "artifact_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"const": "verified"},
+    "artifact_count": {"type": "integer", "minimum": 1},
+    "artifact_bytes": {"type": "integer", "minimum": 0},
+    "privacy_scan": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "canaries", "artifacts"],
+      "properties": {
+        "status": {"const": "pass"},
+        "canaries": {"type": "integer", "minimum": 0},
+        "artifacts": {"type": "integer", "minimum": 1}
+      }
+    },
+    "verified_at": {"type": "string", "format": "date-time"}
+  }
+}
