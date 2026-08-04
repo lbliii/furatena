@@ -186,6 +186,6 @@ Local agents can use `fura mcp --author --include-private` for source-aware auth
 - `author_apply_edit` writes an exact-text edit only when `confirmed: true` and `dry_run: false`.
 - `author_validate` returns structured validation diagnostics.
 - `author_publish`, `author_unpublish`, and `author_archive` change lifecycle state and default to dry-run.
-- `author_inspect_publication_impact` reports lifecycle state, validation, and stale impact.
+- `author_inspect_publication_impact` reports lifecycle state, validation, stale impact, and every revision-bound public projection without changing source or delivery state.
 
 Every authoring tool response includes audit metadata with actor, command, target path, previous state, resulting state, diagnostics, dry-run state, and confirmation state.
