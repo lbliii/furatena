@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import errno
-import hashlib
-import hmac
 import json
 from pathlib import Path
 
@@ -272,16 +270,11 @@ def test_managed_subdirectory_and_state_roots_fail_closed() -> None:
         )
 
 
-def test_refresh_authority_is_independent_and_constant_time_compatible() -> None:
+def test_refresh_authority_requires_the_independent_bearer() -> None:
     token = "t" * 32
-    secret = "s" * 32
     body = b'{"ref":"refs/heads/main"}'
-    signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-    environ = {
-        "FURA_CONTENT_REFRESH_TOKEN": token,
-        "FURA_CONTENT_WEBHOOK_SECRET": secret,
-    }
+    environ = {"FURA_CONTENT_REFRESH_TOKEN": token}
 
     assert refresh_authorized(f"Bearer {token}", b"", None, environ=environ)
-    assert refresh_authorized(None, body, f"sha256={signature}", environ=environ)
+    assert not refresh_authorized(None, body, "sha256=deferred", environ=environ)
     assert not refresh_authorized("Bearer wrong", body, "sha256=wrong", environ=environ)
