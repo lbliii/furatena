@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://furatena.dev/schemas/preview-auth/v1/one-time-code.schema.json",
+  "title": "Furatena preview authorization one-time code v1", "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "record_type", "code", "code_kind", "binding", "audience", "subject", "nonce", "issued_at", "expires_at", "redirect_uri", "user_code", "verification_uri", "poll_interval_seconds"],
+  "properties": {
+    "schema_version": {"const": 1}, "record_type": {"const": "furatena.preview-auth.one-time-code"}, "code": {"$ref": "common.schema.json#/$defs/oneTime"},
+    "code_kind": {"enum": ["authorization_code", "device_code"]}, "binding": {"$ref": "common.schema.json#/$defs/binding"}, "audience": {"$ref": "common.schema.json#/$defs/audience"},
+    "subject": {"type": "string", "minLength": 1, "maxLength": 256}, "nonce": {"$ref": "common.schema.json#/$defs/oneTime"},
+    "issued_at": {"$ref": "common.schema.json#/$defs/timestamp"}, "expires_at": {"$ref": "common.schema.json#/$defs/timestamp"},
+    "redirect_uri": {"oneOf": [{"$ref": "common.schema.json#/$defs/callbackUrl"}, {"type": "null"}]},
+    "user_code": {"oneOf": [{"type": "string", "pattern": "^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$"}, {"type": "null"}]},
+    "verification_uri": {"oneOf": [{"$ref": "common.schema.json#/$defs/endpointUrl"}, {"type": "null"}]},
+    "poll_interval_seconds": {"oneOf": [{"type": "integer", "minimum": 1, "maximum": 30}, {"type": "null"}]}
+  },
+  "allOf": [{"if": {"properties": {"code_kind": {"const": "authorization_code"}}}, "then": {"properties": {"redirect_uri": {"$ref": "common.schema.json#/$defs/callbackUrl"}, "user_code": {"type": "null"}, "verification_uri": {"type": "null"}, "poll_interval_seconds": {"type": "null"}}}, "else": {"properties": {"redirect_uri": {"type": "null"}, "user_code": {"type": "string", "pattern": "^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$"}, "verification_uri": {"$ref": "common.schema.json#/$defs/endpointUrl"}, "poll_interval_seconds": {"type": "integer", "minimum": 1, "maximum": 30}}}}]
+}
