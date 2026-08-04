@@ -28,3 +28,4 @@ def test_public_safety_map_documents_surfaces_gaps_and_collateral() -> None:
         assert surface in text
     assert "test_public_projection.py" in text
     assert "test_visibility_audit.py" in text
+    assert "make ci-public-safety" in text

@@ -100,8 +100,8 @@ downstream bundles before promotion or deploy.
 
 | Gap | Owner lane | Notes |
 | --- | --- | --- |
-| Browser canary grep on public URLs | browser (#584) | Projection covers simulation today |
-| Dedicated `objects.inv` private-symbol integration | export | Scanner unit test exists; no end-to-end `.inv` canary |
+| Browser canary grep on public URLs | browser (#585) | Projection covers simulation today |
+| Dedicated `objects.inv` private-symbol integration | export | Scanner detects `.inv` payloads; end-to-end export canary still open |
 | Federation publish E2E with dynamic canaries | contract | Schema rejection tests exist today |
 | `semantic.json` as named projection surface | export | Covered by retrieval parity only |
 | Suggestions-only sidecar test | contract | Projection-only today |
@@ -143,6 +143,7 @@ downstream bundles before promotion or deploy.
 
 | Lane | Public-safety scope |
 | --- | --- |
+| `make ci-public-safety` | **Focused gate:** projection, canaries, RBAC, retrieval parity, federation/publication privacy, MCP audience |
 | `make ci-fast` | RBAC/access unit tests, `visibility_audit` unit, projection schemas |
 | `make ci-contract` | RBAC, response conformance, retrieval conformance, federation schema, **public projection** |
 | `make ci-export` | Static export tests, Pages build, **visibility canaries on full tree**, URL crawl |
@@ -151,6 +152,9 @@ downstream bundles before promotion or deploy.
 | `make ci-pdf-proof` | PDF sentinel proof on stress page |
 | `make ci-release` | Scaffolded app freeze + export smoke |
 
-Wave 2 follow-up ([#584](https://github.com/lbliii/furatena/issues/584)): extract
-`make ci-public-safety` from the rows above without weakening export or release
-proof until impact routing lands in wave 3.
+`make ci-public-safety` owns the tests listed in `PUBLIC_SAFETY_TESTS` inside the
+Makefile. Export, browser, agent, and contract lanes still run their full suites
+until impact routing lands in wave 3 ([#586](https://github.com/lbliii/furatena/issues/586)).
+
+Wave 2 follow-up ([#585](https://github.com/lbliii/furatena/issues/585)): ratchet
+timing expectations for `ci-public-safety` after the lane has baseline evidence.

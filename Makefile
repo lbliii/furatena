@@ -6,10 +6,10 @@ PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
 .PHONY: help install test lint format format-check hygiene changelog-draft ty-audit ty-ratchet benchmark shard-residency-benchmark link-reconciliation-benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
-	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
+	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release public-safety \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-browser-htmx4-preview \
-	ci-agent ci-pdf-proof ci-release
+	ci-agent ci-pdf-proof ci-release ci-public-safety
 
 CORE_COVERAGE_SOURCE = furatena.catalog.graph,furatena.catalog.graph_schema,furatena.catalog.access,furatena.catalog.export,furatena.catalog.loader
 CORE_COVERAGE_TESTS = \
@@ -26,6 +26,24 @@ CORE_COVERAGE_TESTS = \
 BROWSER_TESTS = \
 	tests/test_author_sse_browser.py \
 	tests/test_mcp_catalog_search_app_browser.py
+PUBLIC_SAFETY_TESTS = \
+	tests/test_public_projection.py \
+	tests/test_visibility_audit.py \
+	tests/test_public_projection_schemas.py \
+	tests/test_chirp_docs_rbac.py \
+	tests/test_retrieval_conformance.py \
+	tests/test_access_isolation.py \
+	tests/test_edition_shards.py \
+	tests/test_federation_artifacts.py \
+	tests/test_publication_adversarial_conformance.py \
+	tests/test_publication_artifacts.py \
+	tests/test_content_generation.py \
+	tests/test_presentation_tooling.py \
+	tests/test_mcp_apps_contract.py \
+	tests/test_mcp_catalog_search_app.py \
+	tests/test_chirp_docs_catalog_surfaces.py \
+	tests/test_agent_contract_diff.py \
+	tests/test_builtin_layouts.py
 BROWSER_RESULTS ?= browser-results
 PDF_PROOF_RESULTS ?= pdf-proof
 
@@ -56,6 +74,7 @@ help:
 	@echo "CI lanes (see docs/CI.md)"
 	@echo "  make ci-fast      lint + ty ratchets + core unit tests (~30s)"
 	@echo "  make ci-contract  hypermedia/content contract tests (~60s)"
+	@echo "  make ci-public-safety  visibility and public-projection regression tests (~3m)"
 	@echo "  make ci-coverage  core per-module coverage ratchets (~60s)"
 	@echo "  make ci-export    export tests + Pages artifact build (~3m)"
 	@echo "  make ci-browser   Playwright author browser tests (~60s)"
@@ -147,6 +166,8 @@ browser-responsive: ci-browser-responsive
 agent: ci-agent
 
 release: ci-release
+
+public-safety: ci-public-safety
 
 ci-fast: format-check hygiene
 	$(UV_RUN) ruff check src tests app
@@ -298,6 +319,9 @@ ci-contract:
 		tests/test_chirp_docs_view_lint.py \
 		tests/test_csp.py \
 		tests/test_shell_boost_links.py
+
+ci-public-safety:
+	$(PYTEST) $(PUBLIC_SAFETY_TESTS)
 
 ci-coverage:
 	$(COVERAGE) erase
