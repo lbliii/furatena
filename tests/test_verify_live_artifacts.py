@@ -29,6 +29,7 @@ def _payloads() -> dict[str, bytes]:
         ).encode(),
         "/search.json": json.dumps({"page_count": 2, "entries": [{}, {}]}).encode(),
         "/semantic.json": json.dumps({"chunk_count": 2, "chunks": [{}, {}]}).encode(),
+        "/llms.txt": b"agent index\n",
         "/llms-full.txt": b"complete agent corpus\n",
     }
 
@@ -47,8 +48,24 @@ def test_paginated_query_and_search_subset_are_valid(monkeypatch: pytest.MonkeyP
         "query_page_count": 2,
         "search_page_count": 2,
         "semantic_chunk_count": 2,
+        "llms_index_bytes": 12,
         "llms_full_bytes": 22,
     }
+
+
+@pytest.mark.parametrize("path", ("/llms.txt", "/llms-full.txt"))
+def test_empty_agent_indexes_fail(monkeypatch: pytest.MonkeyPatch, path: str) -> None:
+    verifier = _load_verifier()
+    payloads = _payloads()
+    payloads[path] = b"\n"
+    monkeypatch.setattr(
+        verifier,
+        "_fetch",
+        lambda origin, requested_path, *, timeout: payloads[requested_path],
+    )
+
+    with pytest.raises(RuntimeError, match=path):
+        verifier.verify_live_artifacts("https://example.test")
 
 
 @pytest.mark.parametrize(

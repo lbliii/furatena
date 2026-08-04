@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "private_image_release.py"
@@ -15,6 +16,8 @@ WORKFLOW = ROOT / ".github" / "workflows" / "private-image.yml"
 DIGEST = f"sha256:{'a' * 64}"
 REPLACEMENT = f"sha256:{'b' * 64}"
 COMMIT = "c" * 40
+REPOSITORY = "https://github.com/lbliii/furatena"
+SCHEMAS = ROOT / "src" / "furatena" / "catalog" / "schemas" / "private-image" / "v1"
 
 
 def _run_record(tmp_path: Path, operation: str, *arguments: str):
@@ -43,6 +46,21 @@ def _run_record(tmp_path: Path, operation: str, *arguments: str):
     return completed, output
 
 
+def _validate_record(record: dict[str, object], *, feed_entry: bool) -> None:
+    checker = FormatChecker()
+    lifecycle_schema = json.loads(
+        (SCHEMAS / "lifecycle-record.schema.json").read_text(encoding="utf-8")
+    )
+    Draft202012Validator.check_schema(lifecycle_schema)
+    Draft202012Validator(lifecycle_schema, format_checker=checker).validate(record)
+    if feed_entry:
+        feed_schema = json.loads(
+            (SCHEMAS / "update-feed-entry.schema.json").read_text(encoding="utf-8")
+        )
+        Draft202012Validator.check_schema(feed_schema)
+        Draft202012Validator(feed_schema, format_checker=checker).validate(record)
+
+
 def test_candidate_record_is_digest_addressed_and_deterministic(tmp_path: Path) -> None:
     completed, output = _run_record(tmp_path, "candidate", "--commit", COMMIT)
 
@@ -57,10 +75,22 @@ def test_candidate_record_is_digest_addressed_and_deterministic(tmp_path: Path) 
         "operation": "candidate",
         "product": "furatena",
         "recorded_at": "2026-07-14T12:00:00+00:00",
+        "record_type": "furatena.private-image.lifecycle",
         "schema_version": 1,
         "status": "active",
         "subject": f"ghcr.io/lbliii/furatena@{DIGEST}",
     }
+    _validate_record(record, feed_entry=False)
+
+
+def test_development_channel_is_explicit_but_not_a_feed_entry(tmp_path: Path) -> None:
+    completed, output = _run_record(tmp_path, "development", "--commit", COMMIT)
+
+    assert completed.returncode == 0, completed.stderr
+    record = json.loads(output.read_text(encoding="utf-8"))
+    assert record["channel"] == "development"
+    assert record["digest"] == DIGEST
+    _validate_record(record, feed_entry=False)
 
 
 def test_promotion_keeps_the_candidate_digest(tmp_path: Path) -> None:
@@ -71,6 +101,14 @@ def test_promotion_keeps_the_candidate_digest(tmp_path: Path) -> None:
         COMMIT,
         "--version",
         "1.2.3",
+        "--rollback-digest",
+        REPLACEMENT,
+        "--compatibility",
+        "Compatible with the v1 content and configuration contracts.",
+        "--migration-notes",
+        "No adopter configuration migration is required.",
+        "--source-repository",
+        REPOSITORY,
     )
 
     assert completed.returncode == 0, completed.stderr
@@ -80,6 +118,46 @@ def test_promotion_keeps_the_candidate_digest(tmp_path: Path) -> None:
     assert record["channel"] == "stable"
     assert record["version"] == "1.2.3"
     assert record["commit"] == COMMIT
+    assert record["rollback"] == {
+        "digest": REPLACEMENT,
+        "subject": f"ghcr.io/lbliii/furatena@{REPLACEMENT}",
+    }
+    assert record["compatibility"]["content_contract"]["version"] == 1
+    assert record["compatibility"]["configuration_contract"]["version"] == 1
+    assert record["release_notes"]["changelog_url"].endswith(f"/{COMMIT}/CHANGELOG.md")
+    assert record["release_notes"]["migration_notes"].startswith("No adopter")
+
+    _validate_record(record, feed_entry=True)
+    assert all(
+        forbidden not in json.dumps(record).lower()
+        for forbidden in ("credential", "password", "token", "secret")
+    )
+
+
+def test_deprecation_names_support_window_and_replacement(tmp_path: Path) -> None:
+    completed, output = _run_record(
+        tmp_path,
+        "deprecate",
+        "--reason",
+        "Upgrade before the compatibility window closes.",
+        "--version",
+        "1.2.3",
+        "--replacement-digest",
+        REPLACEMENT,
+        "--support-ends-at",
+        "2026-12-31T23:59:59+00:00",
+        "--source-repository",
+        REPOSITORY,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    record = json.loads(output.read_text(encoding="utf-8"))
+    assert record["channel"] == "deprecated"
+    assert record["status"] == "deprecated"
+    assert record["affected_digests"] == [DIGEST]
+    assert record["support_ends_at"] == "2026-12-31T23:59:59+00:00"
+    assert record["remediation"]["subject"].endswith(f"@{REPLACEMENT}")
+    _validate_record(record, feed_entry=True)
 
 
 def test_revocation_preserves_subject_and_names_replacement(tmp_path: Path) -> None:
@@ -92,6 +170,8 @@ def test_revocation_preserves_subject_and_names_replacement(tmp_path: Path) -> N
         "1.2.3",
         "--replacement-digest",
         REPLACEMENT,
+        "--source-repository",
+        REPOSITORY,
     )
 
     assert completed.returncode == 0, completed.stderr
@@ -101,6 +181,35 @@ def test_revocation_preserves_subject_and_names_replacement(tmp_path: Path) -> N
     assert record["replacement_digest"] == REPLACEMENT
     assert record["reason"] == "critical runtime vulnerability"
     assert record["version"] == "1.2.3"
+    assert record["channel"] == "revoked"
+    assert record["affected_digests"] == [DIGEST]
+    assert record["remediation"]["action"] == "select_replacement_digest"
+    _validate_record(record, feed_entry=True)
+
+
+def test_promotion_requires_distinct_digest_pinned_rollback_and_release_contracts(
+    tmp_path: Path,
+) -> None:
+    completed, output = _run_record(
+        tmp_path,
+        "promote",
+        "--commit",
+        COMMIT,
+        "--version",
+        "1.2.3",
+        "--rollback-digest",
+        DIGEST,
+        "--compatibility",
+        "Compatible.",
+        "--migration-notes",
+        "No migration required.",
+        "--source-repository",
+        REPOSITORY,
+    )
+
+    assert completed.returncode != 0
+    assert "rollback digest must differ" in completed.stderr
+    assert not output.exists()
 
 
 def test_lifecycle_records_reject_ambiguous_identity(tmp_path: Path) -> None:
@@ -202,6 +311,38 @@ def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() 
     assert "docker buildx imagetools inspect" in source
     assert "gh attestation verify" in source
     assert "private-image-production" in source
+    assert "options: [candidate, promote, deprecate, revoke]" in source
+    assert "rollback_digest:" in source
+    assert "compatibility:" in source
+    assert "migration_notes:" in source
+    assert "support_ends_at:" in source
+    assert "Block promotion of a revoked digest" in source
+    assert 'tag="image-revoked-${DIGEST#sha256:}"' in source
+    assert "--rollback-digest" in source
+    assert "--support-ends-at" in source
+    assert "--clobber" not in source
+
+
+def test_private_image_smokes_reader_search_catalog_and_agent_surfaces() -> None:
+    source = WORKFLOW.read_text(encoding="utf-8")
+    candidate = source.split("  candidate:\n", 1)[1].split("\n  smoke:\n", 1)[0]
+    smoke = source.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
+
+    for job in (candidate, smoke):
+        for required in (
+            "Accept: text/markdown",
+            "/docs/get-started/",
+            "/search/semantic?q=deployment",
+            "/catalog/query.json",
+            "/tools.json",
+            "/llms.txt",
+        ):
+            assert required in job
+        assert "test -s /tmp/furatena-reader.md" in job
+        assert "test -s /tmp/furatena-search.json" in job
+        assert "test -s /tmp/furatena-catalog.json" in job
+        assert "test -s /tmp/furatena-tools.json" in job
+        assert "test -s /tmp/furatena-llms.txt" in job
 
 
 def test_release_runbook_covers_promotion_rollback_and_compromise() -> None:
@@ -218,5 +359,10 @@ def test_release_runbook_covers_promotion_rollback_and_compromise() -> None:
         "never reuse",
         "registry credential",
         "private-image-production",
+        "releases.atom",
+        "image-record.json",
+        "docker-image template",
+        "same digest",
+        "content volume",
     ):
         assert required in runbook

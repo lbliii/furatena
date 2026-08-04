@@ -53,16 +53,31 @@ def evaluate_live_slo(
 ) -> dict[str, Any]:
     """Collect point-in-time indicators and compare them with committed objectives."""
     origin = str(config["origin"]).rstrip("/")
+    service = str(config.get("service") or "furatena-live")
     samples = int(config.get("samples") or 5)
     timeout = float(config.get("timeout_seconds") or 30)
     objectives = dict(config["objectives"])
     observations: dict[str, list[dict[str, Any]]] = {"ready": [], "home": []}
     failures: list[str] = []
+    alerts: list[dict[str, str]] = []
+
+    def fail(check: str, summary: str, remediation: str) -> None:
+        failures.append(summary)
+        alerts.append(
+            {
+                "check": check,
+                "summary": summary,
+                "remediation": remediation,
+            }
+        )
+
     for name, path in (("ready", "/readyz"), ("home", "/")):
         for _ in range(samples):
             try:
                 status, body, elapsed = requester(origin, path, timeout=timeout)
                 ok = status == 200 and bool(body)
+                if name == "home":
+                    ok = ok and b"<html" in body.lower()
                 observations[name].append(
                     {
                         "status": status,
@@ -84,17 +99,55 @@ def evaluate_live_slo(
     ready_p95 = _percentile(latencies["ready"], 0.95)
     home_p95 = _percentile(latencies["home"], 0.95)
     if availability < float(objectives["probe_availability_percent"]):
-        failures.append(
-            f"probe availability {availability:.3f}% is below {objectives['probe_availability_percent']}%"
+        fail(
+            "probe_availability",
+            f"probe availability {availability:.3f}% is below {objectives['probe_availability_percent']}%",
+            "Inspect readiness and representative HTML failures, then restore the last known good image or content generation.",
         )
     if ready_p95 > float(objectives["ready_p95_milliseconds"]):
-        failures.append(
-            f"ready p95 {ready_p95:.3f}ms exceeds {objectives['ready_p95_milliseconds']}ms"
+        fail(
+            "readiness_latency",
+            f"ready p95 {ready_p95:.3f}ms exceeds {objectives['ready_p95_milliseconds']}ms",
+            "Inspect Railway service metrics and deployment logs; roll back the responsible digest when latency follows an image change.",
         )
     if home_p95 > float(objectives["home_p95_milliseconds"]):
-        failures.append(
-            f"home p95 {home_p95:.3f}ms exceeds {objectives['home_p95_milliseconds']}ms"
+        fail(
+            "html_latency",
+            f"home p95 {home_p95:.3f}ms exceeds {objectives['home_p95_milliseconds']}ms",
+            "Inspect Railway service metrics and the active content receipt, then restore the last known good image or content generation.",
         )
+
+    surface_checks: dict[str, bool] = {}
+    for check, path, expected_kind, expected_status, remediation in (
+        (
+            "health",
+            "/healthz",
+            "health",
+            "healthy",
+            "Inspect Railway deployment state and logs; restore the prior stable digest if the process is not healthy.",
+        ),
+        (
+            "freshness",
+            "/catalog/freshness.json",
+            "freshness",
+            str(objectives.get("freshness_status") or "fresh"),
+            "Repair source synchronization or restore the last known good content generation, then refresh frozen artifacts.",
+        ),
+    ):
+        try:
+            status, body, _elapsed = requester(origin, path, timeout=timeout)
+            payload = json.loads(body) if status == 200 else {}
+            ok = (
+                isinstance(payload, dict)
+                and payload.get("kind") == expected_kind
+                and payload.get("status") == expected_status
+                and payload.get("ok") is True
+            )
+        except META_PARSE_ERRORS:
+            ok = False
+        surface_checks[check] = ok
+        if not ok:
+            fail(check, f"{check} contract failed", remediation)
 
     try:
         status, meta_body, _elapsed = requester(origin, "/meta.json", timeout=timeout)
@@ -108,11 +161,19 @@ def evaluate_live_slo(
         if build.get("distribution") != "private-image" or not (
             digest.startswith("sha256:") and len(digest) == 71
         ):
-            failures.append("/meta.json does not prove an exact private-image digest")
+            fail(
+                "image_identity",
+                "/meta.json does not prove an exact private-image digest",
+                "Select a promoted private-image digest and set the matching runtime identity variables before redeploying.",
+            )
     if objectives.get("managed_content_identity"):
         content = build.get("content") or {}
         if content.get("status") != "active" or not content.get("resolved_ref"):
-            failures.append("/meta.json does not prove an active managed-content generation")
+            fail(
+                "content_identity",
+                "/meta.json does not prove an active managed-content generation",
+                "Restore the last known good managed-content generation or repair and retry the content refresh.",
+            )
 
     if artifact_verifier is None:
         completed = subprocess.run(
@@ -142,10 +203,15 @@ def evaluate_live_slo(
             artifact_ok = False
     artifact_integrity = 100.0 if artifact_ok else 0.0
     if artifact_integrity < float(objectives["artifact_integrity_percent"]):
-        failures.append(f"artifact integrity failed: {artifact.get('error', 'unknown error')}")
+        fail(
+            "bulk_artifact_integrity",
+            f"artifact integrity failed: {artifact.get('error', 'unknown error')}",
+            "Restore the last known good content generation and rerun the complete bulk-artifact verifier.",
+        )
 
     return {
         "schema_version": 1,
+        "service": service,
         "origin": origin,
         "observed_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "ok": not failures,
@@ -160,7 +226,9 @@ def evaluate_live_slo(
         "observations": observations,
         "build": build,
         "artifact": artifact,
+        "surface_checks": surface_checks,
         "failures": failures,
+        "alerts": alerts,
         "latency_median_milliseconds": {
             name: round(statistics.median(values), 3) if values else None
             for name, values in latencies.items()
