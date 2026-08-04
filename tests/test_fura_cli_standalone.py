@@ -803,7 +803,7 @@ def test_agent_evals_json_reports_golden_path_categories(tmp_path: Path, capsys)
     )
     assert payload["data"]["known_answer_dataset"] == {
         "id": "furatena-known-answers",
-        "version": "1.1.13",
+        "version": "1.1.14",
         "case_count": 8,
         "corpora": ["furatena-dogfood", "access-boundary-fixture"],
         "query_classes": [
@@ -1893,6 +1893,19 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
                 "source_revision": source_revision,
             },
         )
+        assert target.read_text(encoding="utf-8") == original
+        invalid_csrf = await author_client.post(
+            "/docs/_author/studio/save",
+            headers=_csrf_headers("invalid", session_cookie, htmx=True),
+            data={
+                "slug": "docs/get-started",
+                "mode": "edit",
+                "title": "Get started",
+                "source": edited,
+                "source_revision": source_revision,
+            },
+        )
+        assert target.read_text(encoding="utf-8") == original
         saved = await author_client.post(
             "/docs/_author/studio/save",
             headers=_csrf_headers(csrf_token, session_cookie, htmx=True),
@@ -1931,6 +1944,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
         return {
             "studio": studio,
             "missing_csrf": missing_csrf,
+            "invalid_csrf": invalid_csrf,
             "saved": saved,
             "page": page,
             "invalid": invalid,
@@ -1947,6 +1961,13 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     assert 'name="_csrf_token"' in payload["studio"].text
     assert "Run the local docs server:" in payload["studio"].text
     assert payload["missing_csrf"].status == 403
+    assert json.loads(payload["missing_csrf"].text)["diagnostics"][0]["rule_id"] == (
+        "fura.author.csrf"
+    )
+    assert payload["invalid_csrf"].status == 403
+    assert json.loads(payload["invalid_csrf"].text)["diagnostics"][0]["rule_id"] == (
+        "fura.author.csrf"
+    )
     assert payload["saved"].status == 200
     assert "Updated in studio." in payload["saved"].text
     assert 'data-author-studio-saved="true"' in payload["saved"].text
@@ -1967,25 +1988,51 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     async def _exercise_public() -> dict[str, object]:
         studio = await public_client.get("/docs/_author/studio?slug=docs/get-started")
         public_page = await public_client.get("/docs/get-started/")
-        csrf_token, session_cookie = _csrf_context(public_page)
-        save = await public_client.post(
+        save_without_proof = await public_client.post(
             "/docs/_author/studio/save",
-            headers=_csrf_headers(csrf_token, session_cookie),
             data={
                 "slug": "docs/get-started",
                 "mode": "edit",
                 "title": "Get started",
-                "source": edited,
+                "source": "must not persist",
             },
         )
-        return {"studio": studio, "save": save}
+        save_with_malformed_proof = await public_client.post(
+            "/docs/_author/studio/save",
+            headers={
+                "Cookie": "chirp_session=malformed",
+                "HX-Request": "true",
+                "X-CSRF-Token": "malformed",
+            },
+            data={
+                "slug": "docs/get-started",
+                "mode": "edit",
+                "title": "Get started",
+                "source": "must not persist",
+            },
+        )
+        return {
+            "studio": studio,
+            "public_page": public_page,
+            "save_without_proof": save_without_proof,
+            "save_with_malformed_proof": save_with_malformed_proof,
+        }
 
     public_payload = asyncio.run(_exercise_public())
     assert public_payload["studio"].status == 404
-    assert public_payload["save"].status == 404
-    assert json.loads(public_payload["save"].text)["error"] == (
-        "author studio saves are available only in author mode"
-    )
+    assert public_payload["studio"].text == "author studio is available only in author mode"
+    assert public_payload["public_page"].status == 200
+    assert '<meta name="csrf-token"' not in public_payload["public_page"].text
+    for response in public_payload.values():
+        assert "set-cookie" not in {str(key).lower() for key, _value in response.headers}
+    for response_key in ("save_without_proof", "save_with_malformed_proof"):
+        response = public_payload[response_key]
+        assert response.status == 404
+        assert json.loads(response.text) == {
+            "ok": False,
+            "error": "author studio saves are available only in author mode",
+        }
+    assert target.read_text(encoding="utf-8") == edited
 
 
 def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> None:
@@ -2070,6 +2117,29 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert validate_payload["ok"] is True
     assert validate_payload["command"] == "author validate"
     assert validate_data["changed_files"] == []
+
+    source_before_inspection = target.read_bytes()
+    main(
+        [
+            "--app-root",
+            str(app_root),
+            "author",
+            "inspect-public",
+            "docs/release-notes",
+            "--no-autodoc",
+            "--json",
+        ]
+    )
+    inspect_payload = json.loads(capsys.readouterr().out)
+    assert inspect_payload["ok"] is True
+    assert inspect_payload["command"] == "author inspect-public"
+    inspect_data = inspect_payload["data"]
+    assert inspect_data["read_only"] is True
+    assert inspect_data["complete"] is True
+    assert inspect_data["plan"]["source_revision"] == status_data["source_revision"]
+    assert {surface["change"] for surface in inspect_data["surfaces"]} == {"added"}
+    assert inspect_data["privacy"]["status"] == "pass"
+    assert target.read_bytes() == source_before_inspection
 
     try:
         main(["--app-root", str(app_root), "author", "publish", "docs/release-notes", "--json"])
@@ -3436,6 +3506,13 @@ def test_mcp_authoring_tools_are_private_structured_and_confirmation_gated(tmp_p
     assert validation["structuredContent"]["audit"]["command"] == "author_validate"
     assert "status" in impact["structuredContent"]
     assert "stale_impact" in impact["structuredContent"]
+    projection = impact["structuredContent"]["public_projection"]
+    assert projection["ok"] is True
+    assert projection["read_only"] is True
+    assert projection["complete"] is True
+    assert projection["privacy"]["status"] == "pass"
+    assert {surface["change"] for surface in projection["surfaces"]} == {"added"}
+    assert "visibility: public" not in target.read_text(encoding="utf-8")
 
     publish = call(
         private_server,

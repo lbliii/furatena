@@ -70,7 +70,9 @@ document.body.classList.add("chirp-theme-shell--rail-only");
 <script nonce="{{ csp_nonce() }}">
 document.body.addEventListener("htmx:configRequest", function(event) {
   var meta = document.querySelector('meta[name="csrf-token"]');
-  if (meta) { event.detail.headers["X-CSRF-Token"] = meta.content; }
+  var detail = event.detail || {};
+  var headers = detail.headers || (detail.ctx && detail.ctx.request && detail.ctx.request.headers);
+  if (meta && headers) { headers["X-CSRF-Token"] = meta.content; }
 });
 </script>
 {{ shell_runtime_script() }}

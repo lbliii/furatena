@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from http.client import HTTPMessage
+from typing import IO, Any
 
 from furatena.catalog.preview_contracts import PreviewManifest, PreviewState
 
@@ -62,6 +64,38 @@ class PreviewConformanceResult:
 PreviewFetcher = Callable[[str, str | None, str | None], PreviewHTTPResponse]
 
 
+class _SameOriginRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Permit redirects only while they retain the original HTTPS origin."""
+
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: HTTPMessage,
+        newurl: str,
+    ) -> urllib.request.Request | None:
+        try:
+            same_origin = _https_origin(req.full_url) == _https_origin(newurl)
+        except ValueError as error:
+            raise urllib.error.URLError(
+                "Preview conformance refused an invalid redirect target before forwarding credentials."
+            ) from error
+        if not same_origin:
+            raise urllib.error.URLError(
+                "Preview conformance refused a cross-origin redirect before forwarding credentials."
+            )
+        return super().redirect_request(
+            req,
+            fp,
+            code,
+            msg,
+            headers,
+            newurl,
+        )
+
+
 def inspect_preview(
     origin: str,
     token: str,
@@ -71,12 +105,28 @@ def inspect_preview(
 ) -> PreviewConformanceResult:
     """Verify human and agent surfaces against the preview manifest identity."""
 
-    root = origin.rstrip("/")
+    try:
+        root, expected_origin = _preview_root(origin)
+    except ValueError as error:
+        return PreviewConformanceResult(
+            origin.strip().rstrip("/"),
+            expected_sha,
+            None,
+            (
+                PreviewConformanceCheck(
+                    check_id="origin",
+                    ok=False,
+                    summary=f"Preview origin could not be verified: {_safe_error(error)}",
+                    remediation="Provide the exact HTTPS preview origin without a path or credentials.",
+                ),
+            ),
+        )
     client = fetch or fetch_preview_url
     checks: list[PreviewConformanceCheck] = []
     manifest: PreviewManifest | None = None
     try:
         response = client(f"{root}/preview-manifest.json", token, "application/json")
+        _require_origin(response.url, expected_origin)
         _require_response(response, media="application/json")
         manifest = PreviewManifest.from_dict(_json_object(response.body))
         checks.append(
@@ -120,7 +170,50 @@ def inspect_preview(
         )
         return PreviewConformanceResult(root, expected_sha, manifest, tuple(checks))
 
+    surface_urls = (
+        surfaces.human_url,
+        surfaces.markdown_url_template.replace("{path}", "index"),
+        surfaces.llms_url,
+        surfaces.catalog_url,
+        surfaces.query_url,
+        surfaces.search_url,
+        surfaces.metadata_url,
+        surfaces.health_url,
+        surfaces.readiness_url,
+    )
+    exact_origin = True
+    try:
+        exact_origin = all(_https_origin(url) == expected_origin for url in surface_urls)
+    except ValueError:
+        exact_origin = False
+    checks.append(
+        _check(
+            "immutable-origin",
+            exact_origin,
+            (
+                "Every advertised preview surface uses the requested HTTPS origin."
+                if exact_origin
+                else "The preview manifest advertises an invalid or cross-origin surface."
+            ),
+            "Rebuild the manifest with every surface bound to the allocated preview origin.",
+        )
+    )
+    if not exact_origin:
+        return PreviewConformanceResult(root, expected_sha, manifest, tuple(checks))
+
     readiness = client(surfaces.readiness_url, None, "application/json")
+    try:
+        _require_origin(readiness.url, expected_origin)
+    except ValueError as error:
+        checks.append(
+            PreviewConformanceCheck(
+                "readiness",
+                False,
+                f"Readiness origin could not be verified: {_safe_error(error)}",
+                "Repair the readiness route so it remains on the allocated preview origin.",
+            )
+        )
+        return PreviewConformanceResult(root, expected_sha, manifest, tuple(checks))
     readiness_body = _json_object(readiness.body) if readiness.status == 200 else {}
     checks.append(
         _check(
@@ -149,6 +242,7 @@ def inspect_preview(
     for check_id, url, accept, expected_media in probes:
         try:
             response = client(url, token, accept)
+            _require_origin(response.url, expected_origin)
             ok = response.status == 200 and expected_media in response.content_type.lower()
             if ok and expected_media == "application/json":
                 _json_object(response.body)
@@ -254,7 +348,8 @@ def fetch_preview_url(url: str, token: str | None, accept: str | None) -> Previe
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(request, timeout=30) as response:
+    opener = urllib.request.build_opener(_SameOriginRedirectHandler())
+    with opener.open(request, timeout=30) as response:
         return PreviewHTTPResponse(
             status=int(response.status),
             content_type=str(response.headers.get("Content-Type") or ""),
@@ -266,6 +361,37 @@ def fetch_preview_url(url: str, token: str | None, accept: str | None) -> Previe
 def _require_response(response: PreviewHTTPResponse, *, media: str) -> None:
     if response.status != 200 or media not in response.content_type.lower():
         raise ValueError(f"HTTP {response.status} as {response.content_type or 'unknown'}")
+
+
+def _preview_root(value: str) -> tuple[str, tuple[str, str, int]]:
+    candidate = value.strip()
+    parsed = urllib.parse.urlsplit(candidate)
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        raise ValueError("preview origin must not contain a path, query, or fragment")
+    origin = _https_origin(candidate)
+    return candidate.rstrip("/"), origin
+
+
+def _https_origin(value: str) -> tuple[str, str, int]:
+    parsed = urllib.parse.urlsplit(value)
+    if (
+        parsed.scheme.lower() != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or "%" in parsed.netloc
+    ):
+        raise ValueError("preview URL must use HTTPS without credentials")
+    try:
+        port = parsed.port or 443
+    except ValueError as error:
+        raise ValueError("preview URL has an invalid port") from error
+    return ("https", parsed.hostname.casefold(), port)
+
+
+def _require_origin(url: str, expected: tuple[str, str, int]) -> None:
+    if _https_origin(url) != expected:
+        raise ValueError("response crossed the allocated preview origin")
 
 
 def _json_object(body: bytes) -> Mapping[str, Any]:

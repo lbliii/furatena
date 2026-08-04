@@ -68,24 +68,30 @@ present service.
 
 ## Runtime re-sync finding
 
-The production Railway service is not a living source-sync deployment today. Its
-Docker build runs `fura freeze`, sets `FURA_MODE=preview`, and packages the frozen
-catalog into the image. Preview mode deliberately skips git source sync and live
-reload. Content changes therefore reach production only through a new image and
-deployment.
+The accepted managed Railway profile separates the immutable Furatena image
+from adopter-owned public Git content. An authenticated refresh request names
+one exact commit reachable from the service's configured ref. Furatena stages
+and validates the checkout, freezes the browser, search, catalog, and agent
+artifacts together, verifies their generation manifest, and atomically advances
+the active selector while retaining last-known-good.
 
-The code supports two adjacent mechanisms, but they do not close that gap:
+Promotion does not mutate the process that accepted the request. The durable
+operation reports `activation_pending_restart`, optionally schedules a graceful
+restart, and becomes `ready` only after startup proves that the running
+generation, image digest, and build commit match the promoted receipt. Content
+publication can therefore keep the same image digest and Railway deployment ID,
+but the single-replica process still restarts to load one coherent generation.
 
-- `CatalogRegistry` calls `sync_git_source` while it is constructed in author or
-  hybrid mode. That fetches and atomically promotes a git snapshot.
-- author/hybrid watchers reindex changed files already present under a mounted
-  content root.
+HTTP and `fura content refresh` share the same provider-neutral operation model.
+The v1 HTTP credential is scoped to one configured service/site and cannot
+override repository, ref, subdirectory, mount subset, or actor identity. Every
+refresh rebuilds all mounts and reached frozen/static/agent artifacts for that
+site. Webhook, scheduler, private-repository, multi-site, and multi-replica
+transports require separate approved trust and coordination contracts.
 
-There is no runtime endpoint, scheduler, or control-plane action that fetches a
-new git ref and swaps the running registry. Issue
-[#318](https://github.com/lbliii/furatena/issues/318) remains the design and
-demonstration task for that mechanism. Until it lands, "live" means dynamic
-queries over a deploy-time snapshot, not content publication without a deploy.
+Git-backed author and hybrid mounts remain a different mechanism: they can sync
+during catalog construction and reindex local file changes, but they are not the
+managed production publication authority.
 
 ## Recommendation and follow-ups
 
@@ -100,9 +106,9 @@ The recommendation implies these follow-ups:
 
 - [#329](https://github.com/lbliii/furatena/issues/329): completed on 2026-07-13
   with Pounce 0.9.2 production identity and full-body transfer evidence.
-- [#318](https://github.com/lbliii/furatena/issues/318): design and demonstrate a
-  controlled git re-sync trigger if no-redeploy publication remains a product
-  requirement.
+- [#436](https://github.com/lbliii/furatena/issues/436): retain the external
+  Railway same-deployment proof separately from the shipped provider-neutral
+  refresh contract.
 - expose and secure a deployed MCP transport before describing the current
   Railway web service itself as an MCP endpoint; until then, use `fura mcp` as a
   separate live process and treat `tools.json` as discovery metadata.

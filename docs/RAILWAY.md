@@ -8,7 +8,9 @@ interactive source-modification path.
 
 See [RAILWAY_TEMPLATE_ARCHITECTURE.md](RAILWAY_TEMPLATE_ARCHITECTURE.md) for
 the accepted architecture, [RELEASING.md](RELEASING.md) for image promotion and
-revocation, and [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents.
+revocation, [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents,
+and [RAILWAY_TEMPLATE_EXPERIMENT.md](RAILWAY_TEMPLATE_EXPERIMENT.md) for the
+privacy-safe 90-day marketplace experiment policy.
 
 ## Service shape
 
@@ -54,7 +56,7 @@ namespaces such as `.docs-cache`, `frozen`, `public`, and `dist` fail closed.
 Local applications may continue to use explicit external mounts; an external
 `--config` may not disagree with `--app-root`.
 
-## Required variables
+## Template variables
 
 | Variable | Purpose |
 | --- | --- |
@@ -81,6 +83,31 @@ development leaves it unset so Pounce may size its serving pool automatically.
 Optional bounds and behavior are documented in the architecture configuration
 table. Never place the GHCR registry credential in a normal application
 variable. Configure it only through Railway's private image credentials.
+
+Every composer-visible variable has a purpose description. Optional variables
+carry safe defaults, release-bound image identity is supplied by the promoted
+release, and secrets use Railway's generated-secret function rather than a
+committed value.
+
+### Public domains and canonical base URL
+
+The template enables public networking and derives `FURA_BASE_URL` from
+`https://${{RAILWAY_PUBLIC_DOMAIN}}`. Railway defines that variable as the
+service's public or customer domain, so the template does not commit a hostname.
+
+For a custom domain, attach the domain to the Furatena service and add the DNS
+ownership and routing records supplied by Railway. Wait until Railway reports
+both domain verification and certificate readiness before making it canonical.
+Confirm that `RAILWAY_PUBLIC_DOMAIN` resolves to the intended hostname; if the
+service has multiple public domains, set `FURA_BASE_URL` to the one canonical
+HTTPS origin and redeploy so generated URLs use the same origin.
+
+Probe `/readyz`, representative reader and search routes, `/catalog.json`, and
+`/llms.txt` through the custom origin. Keep the Railway-provided origin available
+for comparison during DNS or certificate recovery, but do not change the image
+or content generation when only the custom-domain path is unhealthy. Follow
+Railway's [domain setup and verification guide](https://docs.railway.com/networking/domains/working-with-domains)
+for the current DNS record requirements.
 
 Railway mounts volumes as root, so a non-root image needs the platform's
 `RAILWAY_RUN_UID=0` compatibility setting. Furatena uses that authority only to
@@ -138,6 +165,12 @@ curl --fail --silent --show-error \
 python scripts/verify-live-artifacts.py "$ORIGIN"
 python scripts/check_live_slo.py --origin "$ORIGIN" --output /tmp/furatena-slo.json
 ```
+
+For the isolated eight-mount versioned-corpus pilot, also run the exact-identity
+and edition-aware verifier documented in [B_STACK_PILOT.md](B_STACK_PILOT.md).
+Its retained JSON receipt covers edition routes and redirects, scoped agent
+queries, lifecycle banners, and the Pounce cross-version diff; it does not
+replace this service-wide artifact and SLO gate.
 
 `/meta.json` must report:
 
