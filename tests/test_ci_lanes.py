@@ -58,6 +58,9 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "src/furatena/catalog/railway_preview.py" in makefile
     assert "src/furatena/catalog/railway_preview_controller.py" in makefile
     assert "src/furatena/catalog/preview_conformance.py" in makefile
+    assert "src/furatena/catalog/federation_publish.py" in makefile
+    assert "src/furatena/catalog/federation_s3.py" in makefile
+    assert "src/furatena/cli/commands/publish_shard.py" in makefile
     assert "tests/test_preview_contracts.py" in makefile
     assert "tests/test_preview_schemas.py" in makefile
     assert "tests/test_preview_fixtures.py" in makefile
@@ -66,6 +69,10 @@ def test_ci_lanes_use_shared_project_commands() -> None:
     assert "tests/test_railway_preview_controller.py" in makefile
     assert "tests/test_preview_conformance.py" in makefile
     assert "tests/test_preview_reporting_workflow.py" in makefile
+    assert "tests/test_federation_artifacts.py" in makefile
+    assert "tests/test_federation_publish.py" in makefile
+    assert "tests/test_federation_s3.py" in makefile
+    assert "tests/test_cli_publish_shard.py" in makefile
     assert "uv build --clear --no-sources" in makefile
     assert "scripts/check_distributions.py --dist-dir dist" in makefile
     assert "env -u FURA_BASE_URL -u FURA_BASE_PATH -u FURA_WORKERS $(PYTEST)" in makefile

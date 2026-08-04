@@ -157,8 +157,10 @@ def hybrid_search(
             )
         ]
 
+    remote_mount_ids = getattr(catalog, "_remote_mount_ids", lambda: set())()
+    local_nodes = [node for node in nodes if node.mount not in remote_mount_ids]
     keyword_hits = search_nodes(
-        nodes,
+        local_nodes,
         query,
         limit=limit * 2,
         documents=documents,
@@ -181,9 +183,33 @@ def hybrid_search(
             semantic_score=0.0,
         )
 
+    federated_search = getattr(catalog, "federated_search_hits", None)
+    if callable(federated_search):
+        for hit in federated_search(
+            query,
+            nodes=nodes,
+            limit=limit * 2,
+            mount=mount,
+            edition=edition,
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
+        ):
+            keyword_score = round(hit.keyword_score * 100, 4)
+            semantic_score = round(hit.tfidf_score * 100, 4)
+            combined[hit.node.node_id] = HybridHit(
+                node=hit.node,
+                score=round(hit.score * 100, 4),
+                snippet=hit.snippet,
+                keyword_score=keyword_score,
+                semantic_score=semantic_score,
+            )
+
     for sem_hit in semantic_hits:
         node = catalog.get_by_node_id(sem_hit.chunk.node_id)
         if node is None:
+            continue
+        if node.mount in remote_mount_ids:
             continue
         if node.node_id not in accessible_node_ids:
             continue
@@ -227,10 +253,14 @@ def hybrid_search(
                 -hit.semantic_score if hit.keyword_score == 0 else 0.0,
                 hit.node.weight,
                 hit.node.title.lower(),
+                hit.node.node_id,
             ),
         )
     else:
-        hits = sorted(combined.values(), key=lambda hit: (-hit.score, hit.node.title.lower()))
+        hits = sorted(
+            combined.values(),
+            key=lambda hit: (-hit.score, hit.node.title.lower(), hit.node.node_id),
+        )
     return HybridSearchResult(
         hits=tuple(hits[:limit]),
         semantic_hits=tuple(semantic_hits),
