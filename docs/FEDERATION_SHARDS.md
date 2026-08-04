@@ -270,8 +270,9 @@ warm presentation cache.
 Signed hub and manifest descriptors are eager; catalog graphs, presentation
 HTML, search indexes, and semantic indexes remain lazy. A node-id route splits its mount and
 edition and performs direct dictionary lookup before catalog access. Global
-operations may deliberately enumerate shards; incremental cross-shard
-reconciliation remains separately owned.
+operations may deliberately enumerate shards; federated search scopes eligible
+descriptors before loading indexes, while incremental cross-shard reconciliation
+remains owned by #364.
 
 Concurrent first reads of the same catalog, presentation, or search index
 coalesce behind a temporary per-identity flight,
@@ -287,6 +288,14 @@ Least-recently-used entries are evicted until both limits hold. A body larger
 than the byte budget is still verified and served but is not cached; failed
 fetches are never cached, and per-node flight records are removed on success or
 failure.
+
+`CatalogRegistry.remote_residency_status()` and the `remote_residency` member of
+`source_health()` report current tier, resident entries and bytes, configured
+bounds, in-flight loads, hits, cold and warm loads, evictions, coalescing, and
+failures. Counters have process-lifetime scope and remain monotonic across a
+refresh; refresh prunes stale identity residency. Metric names are aggregate
+and bounded-cardinality, while the per-identity list is an on-demand status
+snapshot.
 
 ## Federated keyword and TF-IDF search
 

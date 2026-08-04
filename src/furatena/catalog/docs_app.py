@@ -484,11 +484,11 @@ class DocsApp:
         )
         semantic_path = semantic_root / "semantic.json"
         remote_mounts = self.catalog._remote_mount_ids()
-        local_nodes = [node for node in self.catalog.nodes if node.mount not in remote_mounts]
+        local_nodes = self.catalog._local_nodes()
         persisted_index = None if remote_mounts else EmbeddingIndex.load(semantic_path)
         self.embedding_index = persisted_index or build_embedding_index(
             local_nodes,
-            documents=self.catalog.ast_documents(),
+            documents=self.catalog._local_ast_documents(),
         )
         self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
         self._edition_embedding_lock = RLock()
@@ -612,6 +612,12 @@ class DocsApp:
         app.add_middleware(_CatalogReadSnapshotMiddleware(self.catalog))
         self._register_contract_refs(app)
         self._register_routes(app)
+        # Chirp's compile-time Alpine probe performs representative live GETs
+        # while holding the freeze lock. A zero-local hub may have no static
+        # home route, so the probe can otherwise walk and compose every remote
+        # mount before serving traffic. Explicit post-freeze checks and real
+        # requests keep the complete remote navigation contract.
+        self.catalog._remote_materialization_allowed = lambda: not app._freeze_lock.locked()
         return app
 
     def body_html(self, node) -> str:
@@ -812,10 +818,9 @@ class DocsApp:
             if cached is not None:
                 return cached
             with self.catalog.use_edition(edition):
-                remote_mounts = self.catalog._remote_mount_ids()
                 index = build_embedding_index(
-                    [node for node in self.catalog.nodes if node.mount not in remote_mounts],
-                    documents=self.catalog.ast_documents(),
+                    self.catalog._local_nodes(),
+                    documents=self.catalog._local_ast_documents(),
                 )
             self._edition_embedding_indexes[edition] = index
             return index
@@ -1674,6 +1679,8 @@ class DocsApp:
         channel: str | None = None,
         lang: str | None = None,
         global_search: bool = False,
+        subject: AccessSubject | None = None,
+        include_private: bool = False,
     ):
         effective_lang = lang or self.config.i18n.default_language
         return hybrid_search_hits(
@@ -1687,6 +1694,8 @@ class DocsApp:
             channel=channel,
             lang=effective_lang if self.config.i18n.enabled else None,
             global_search=global_search,
+            subject=subject,
+            include_private=include_private,
         ).hits
 
     def _search_context(
@@ -1720,6 +1729,8 @@ class DocsApp:
             global_search=global_search,
             limit=limit,
             include_shell_extras=not partial,
+            subject=self._output_access_subject(request),
+            include_private=self._include_private_output(request),
         )
         if query:
             hits = workspace.get("hits")
@@ -1759,11 +1770,14 @@ class DocsApp:
             **self._shell_context(query=query, request=request),
             **workspace,
             **layout,
-            "catalog_rail_items": self.catalog.catalog_rail_items(
+            "catalog_rail_items": self.catalog._local_catalog_rail_items(
                 active_url="/search",
                 lang=page_lang,
             ),
-            "nav_items": self.catalog.docs_section_nav(active_url="/search", lang=page_lang),
+            "nav_items": self.catalog._local_docs_section_nav(
+                active_url="/search",
+                lang=page_lang,
+            ),
         }
 
     def _shell_context(self, *, query: str = "", request: Request | None = None) -> dict[str, Any]:
@@ -1771,7 +1785,11 @@ class DocsApp:
         if self.config.i18n.enabled:
             set_locale(active_lang)
         return {
-            **self.render_context.shell_context(query=query, request=request),
+            **self.render_context.shell_context(
+                query=query,
+                request=request,
+                local_only=True,
+            ),
             **self._preview_template_context(),
         }
 

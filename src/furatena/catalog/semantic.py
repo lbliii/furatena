@@ -116,17 +116,23 @@ def hybrid_search(
     status: str | None = None,
     include_preview: bool = False,
     include_eol: bool = False,
+    include_federated: bool = True,
 ) -> HybridSearchResult:
     """Rank pages with keyword + TF-IDF chunk retrieval (one semantic scan)."""
     if ranking not in {"additive", "keyword_guarded"}:
         raise ValueError(f"unknown hybrid ranking mode: {ranking}")
-    ast_documents = getattr(catalog, "ast_documents", None)
+    ast_documents = getattr(catalog, "_local_ast_documents", None)
+    if not callable(ast_documents):
+        ast_documents = getattr(catalog, "ast_documents", None)
     if documents is None and callable(ast_documents):
         documents = ast_documents()
 
+    doc_nodes = getattr(catalog, "_local_doc_nodes", None)
+    if not callable(doc_nodes):
+        doc_nodes = catalog.doc_nodes
     nodes = accessible_nodes(
         catalog,
-        catalog.doc_nodes(lang=lang),
+        doc_nodes(lang=lang),
         subject=subject,
         permission=AccessPermission.SEARCH,
         include_private=include_private,
@@ -158,9 +164,8 @@ def hybrid_search(
         ]
 
     remote_mount_ids = getattr(catalog, "_remote_mount_ids", lambda: set())()
-    local_nodes = [node for node in nodes if node.mount not in remote_mount_ids]
     keyword_hits = search_nodes(
-        local_nodes,
+        nodes,
         query,
         limit=limit * 2,
         documents=documents,
@@ -184,13 +189,18 @@ def hybrid_search(
         )
 
     federated_search = getattr(catalog, "federated_search_hits", None)
-    if callable(federated_search):
+    if include_federated and callable(federated_search):
         for hit in federated_search(
             query,
-            nodes=nodes,
             limit=limit * 2,
+            subject=subject,
+            include_private=include_private,
             mount=mount,
             edition=edition,
+            section=section,
+            tag=tag,
+            lang=lang,
+            url_prefix=url_prefix,
             status=status,
             include_preview=include_preview,
             include_eol=include_eol,

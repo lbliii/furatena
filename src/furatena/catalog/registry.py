@@ -157,6 +157,7 @@ class _RemoteCatalogResidency:
         *,
         mount: str,
         loader: Callable[[], DocCatalog],
+        admit: Callable[[], bool] | None = None,
     ) -> DocCatalog:
         with self._lock:
             cached = self._cache.get(key)
@@ -186,6 +187,7 @@ class _RemoteCatalogResidency:
         try:
             catalog = loader()
             size = _doc_catalog_resident_size(catalog)
+            admission_allowed = admit is None or admit()
         except BaseException as exc:
             with self._lock:
                 flight.error = exc
@@ -196,7 +198,7 @@ class _RemoteCatalogResidency:
             self._loads += 1
             flight.value = catalog
             current_epoch = self._mount_epochs.get(mount, 0)
-            if size <= self.max_bytes and flight.mount_epoch == current_epoch:
+            if admission_allowed and size <= self.max_bytes and flight.mount_epoch == current_epoch:
                 while self._cache and (
                     len(self._cache) >= self.max_entries
                     or self._resident_bytes + size > self.max_bytes
@@ -472,6 +474,9 @@ class CatalogRegistry:
             link_state_root /= namespace
         self._link_index = IncrementalLinkIndex(link_state_root / "v1")
         self.remote_shards = remote_shards
+        self._remote_materialization_allowed: Callable[[], bool] = lambda: True
+        self._remote_materialization_gate = Lock()
+        self._remote_materialization_suspensions = 0
         self._remote_residency = _RemoteCatalogResidency(
             max_entries=remote_resident_shard_entries,
             max_bytes=remote_resident_shard_bytes,
@@ -723,13 +728,26 @@ class CatalogRegistry:
             )
         remote_registry = self.remote_shards
         remote = remote_registry.shard(mount.id, edition)
-        key = f"{remote.identity}:{remote.fingerprint}:route={edition}"
+        return self._build_remote_generation_shard(mount, remote, route_edition=edition)
+
+    def _build_remote_generation_shard(
+        self,
+        mount: MountConfig,
+        remote: Any,
+        *,
+        route_edition: str,
+        admission_edition: str | None = None,
+    ) -> DocCatalog:
+        """Compose one exact immutable remote descriptor without re-resolving it."""
+        assert self.remote_shards is not None
+        remote_registry = self.remote_shards
+        key = f"{remote.identity}:{remote.fingerprint}:route={route_edition}"
 
         def compose() -> DocCatalog:
             shard = DocCatalog.from_remote(
                 remote.catalog,
                 mount=mount.id,
-                edition=edition,
+                edition=route_edition,
                 presentation_loader=lambda node_id: remote_registry.fetch_presentation_from(
                     remote, node_id
                 ),
@@ -739,14 +757,28 @@ class CatalogRegistry:
             shard._federated_slug_urls = self._federated_slug_urls
             return shard
 
+        def descriptor_is_current() -> bool:
+            from furatena.catalog.remote_shards import RemoteShardUnavailableError
+
+            try:
+                current = remote_registry.shard(
+                    remote.mount,
+                    admission_edition or route_edition,
+                )
+            except RemoteShardUnavailableError:
+                return False
+            return current.identity == remote.identity and current.fingerprint == remote.fingerprint
+
         shard = self._remote_residency.load(
             key,
             mount=mount.id,
             loader=compose,
+            admit=descriptor_is_current,
         )
         backlinks = self._reconcile_remote_link_snapshot(remote)
         pinned = self._read_generation_context.get()
-        if pinned is not None and pinned.edition == edition:
+        snapshot_edition = admission_edition or route_edition
+        if pinned is not None and pinned.edition == snapshot_edition:
             shards = dict(pinned.shards)
             shards[mount.id] = shard
             self._read_generation_context.set(
@@ -1385,6 +1417,18 @@ class CatalogRegistry:
                 self._edition_shards[edition] = shards
                 return shards
 
+    def _local_active_shards(self) -> Mapping[str, DocCatalog]:
+        """Return active local shards without resolving any remote descriptor."""
+        with self._publication_lock:
+            shards: dict[str, DocCatalog] = {}
+            for mount in self.mounts:
+                if mount.source.provider == "remote-shard":
+                    continue
+                shard = self._active_shard(mount.id)
+                if shard is not None:
+                    shards[mount.id] = shard
+            return MappingProxyType(shards)
+
     def _active_shard(self, mount_id: str) -> DocCatalog | None:
         """Resolve mount and edition before materializing one catalog shard."""
         mount = self._mount_by_id.get(mount_id)
@@ -1397,6 +1441,8 @@ class CatalogRegistry:
             if shard is not None:
                 return shard
         if mount.source.provider == "remote-shard":
+            if not self._can_materialize_remote():
+                return None
             try:
                 shard = self._build_remote_shard(mount, edition=edition)
             except Exception as exc:
@@ -1425,6 +1471,68 @@ class CatalogRegistry:
                 cached = self._load_edition_shards(edition, include_remote=False)
                 self._edition_shards[edition] = cached
             return cached.get(mount_id)
+
+    def _can_materialize_remote(self) -> bool:
+        """Return whether the current lifecycle phase may compose remote graphs."""
+        with self._remote_materialization_gate:
+            suspended = self._remote_materialization_suspensions > 0
+        return not suspended and self._remote_materialization_allowed()
+
+    @contextmanager
+    def _defer_remote_materialization(self) -> Iterator[None]:
+        """Keep serve preflight descriptor-only across free-threaded contract probes."""
+        with self._remote_materialization_gate:
+            self._remote_materialization_suspensions += 1
+        try:
+            yield
+        finally:
+            with self._remote_materialization_gate:
+                self._remote_materialization_suspensions -= 1
+
+    def _serve_preflight_page_count(self) -> int:
+        """Count active local nodes and published remote IDs without graph composition."""
+        count = len(self._local_nodes())
+        if self.remote_shards is None:
+            return count
+        from furatena.catalog.remote_shards import RemoteShardUnavailableError
+
+        for mount in self.mounts:
+            if mount.source.provider != "remote-shard":
+                continue
+            try:
+                remote = self.remote_shards.shard(mount.id, self.active_channel)
+            except RemoteShardUnavailableError:
+                continue
+            count += len(remote.public_node_ids)
+        return count
+
+    def _remote_search_mount_counts(
+        self,
+        *,
+        subject: AccessSubject | None = None,
+        include_private: bool = False,
+    ) -> dict[str, int]:
+        """Return visible descriptor counts without composing remote catalog graphs."""
+        if self.remote_shards is None:
+            return {}
+        from furatena.catalog.remote_shards import RemoteShardUnavailableError
+
+        counts: dict[str, int] = {}
+        for mount in self.mounts:
+            if mount.source.provider != "remote-shard":
+                continue
+            if not include_private and not self.can_access_mount(
+                mount,
+                subject,
+                permission=AccessPermission.SEARCH,
+            ):
+                continue
+            try:
+                remote = self.remote_shards.shard(mount.id, self.active_channel)
+            except RemoteShardUnavailableError:
+                continue
+            counts[mount.id] = len(remote.public_node_ids)
+        return counts
 
     def _pin_remote_shard_for_request(self, mount_id: str, shard: DocCatalog) -> None:
         """Add one lazy remote shard to the current immutable request generation."""
@@ -1972,6 +2080,19 @@ class CatalogRegistry:
             items.extend(shard.doc_nodes(lang=lang))
         return sorted(items, key=lambda n: (n.mount, n.section, n.weight, n.title))
 
+    def _local_nodes(self) -> list[DocNode]:
+        """Project local nodes without materializing remote catalog graphs."""
+        return [node for shard in self._local_active_shards().values() for node in shard.nodes]
+
+    def _local_doc_nodes(self, *, lang: str | None = None) -> list[DocNode]:
+        """Project searchable local documents without touching remote catalogs."""
+        items = [
+            node
+            for shard in self._local_active_shards().values()
+            for node in shard.doc_nodes(lang=lang)
+        ]
+        return sorted(items, key=lambda n: (n.mount, n.section, n.weight, n.title))
+
     def all_doc_nodes(self) -> list[DocNode]:
         """Doc nodes across every configured locale."""
         if not self.i18n_config.enabled:
@@ -2117,6 +2238,55 @@ class CatalogRegistry:
         )
         return items
 
+    def _local_catalog_rail_items(
+        self,
+        active_url: str | None = None,
+        *,
+        lang: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Build search-shell catalog navigation without composing remote graphs."""
+        shards = self._local_active_shards()
+        if len(self.mounts) == 1:
+            shard = shards.get(self.mounts[0].id)
+            return (
+                shard.catalog_rail_items(active_url, lang=lang, home_mark=self.site_mark)
+                if shard is not None
+                else []
+            )
+        return [
+            {
+                "title": "Home",
+                "href": "/",
+                "mark": self.site_mark,
+                "active": active_url == "/",
+            },
+            {
+                "title": "Portal",
+                "href": "/portal/",
+                "mark": "P",
+                "active": active_url == "/portal/",
+            },
+            {
+                "title": "Search",
+                "href": "/search",
+                "mark": "⌕",
+                "active": active_url == "/search",
+            },
+        ]
+
+    def _local_docs_section_nav(
+        self,
+        active_url: str | None = None,
+        *,
+        lang: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Build search-shell section navigation without composing remote graphs."""
+        shards = self._local_active_shards()
+        if len(self.mounts) == 1:
+            shard = shards.get(self.mounts[0].id)
+            return shard.docs_section_nav(active_url, lang=lang) if shard is not None else []
+        return self._nav_tree_from_shards(shards, active_url=active_url, lang=lang)
+
     def _shard_for_slug(self, slug: str) -> DocCatalog | None:
         node = self.get_by_slug(slug)
         if node is not None:
@@ -2146,8 +2316,30 @@ class CatalogRegistry:
     def nav_tree(
         self, active_url: str | None = None, *, lang: str | None = None
     ) -> list[dict[str, Any]]:
+        return self._nav_tree_from_shards(
+            self._active_shards(),
+            active_url=active_url,
+            lang=lang,
+        )
+
+    def _local_nav_tree(
+        self, active_url: str | None = None, *, lang: str | None = None
+    ) -> list[dict[str, Any]]:
+        """Build compile-time navigation without composing remote graphs."""
+        return self._nav_tree_from_shards(
+            self._local_active_shards(),
+            active_url=active_url,
+            lang=lang,
+        )
+
+    def _nav_tree_from_shards(
+        self,
+        shards: Mapping[str, DocCatalog],
+        *,
+        active_url: str | None,
+        lang: str | None,
+    ) -> list[dict[str, Any]]:
         items: list[dict[str, Any]] = []
-        shards = self._active_shards()
         if len(self.mounts) > 1:
             items.append(
                 {
@@ -2183,22 +2375,36 @@ class CatalogRegistry:
     def search(self, query: str, *, limit: int = 12) -> list[DocNode]:
         return [hit.node for hit in self.search_hits(query, limit=limit)]
 
-    def search_hits(self, query: str, *, limit: int = 12) -> list[SearchHit]:
+    def search_hits(
+        self,
+        query: str,
+        *,
+        limit: int = 12,
+        subject: AccessSubject | None = None,
+        include_private: bool | None = None,
+        status: str | None = None,
+        include_preview: bool = False,
+        include_eol: bool = False,
+    ) -> list[SearchHit]:
         from furatena.catalog.access import AccessPermission, accessible_nodes
 
+        private = self.include_private if include_private is None else include_private
         nodes = accessible_nodes(
             self,
-            self.doc_nodes(),
+            self._local_doc_nodes(),
+            subject=subject,
             permission=AccessPermission.SEARCH,
-            include_private=self.include_private,
+            include_private=private,
         )
-        remote_mounts = self._remote_mount_ids()
-        local_nodes = [node for node in nodes if node.mount not in remote_mounts]
         hits = search_nodes(
-            local_nodes,
+            nodes,
             query,
             limit=limit * 2,
-            documents=self.ast_documents(),
+            documents=self._local_ast_documents(),
+            status_for=lambda node: self.edition_status_for(node.mount, node.edition),
+            status=status,
+            include_preview=include_preview,
+            include_eol=include_eol,
         )
         hits.extend(
             SearchHit(
@@ -2206,7 +2412,15 @@ class CatalogRegistry:
                 score=round(hit.score * 100, 4),
                 snippet=hit.snippet,
             )
-            for hit in self.federated_search_hits(query, nodes=nodes, limit=limit * 2)
+            for hit in self.federated_search_hits(
+                query,
+                limit=limit * 2,
+                subject=subject,
+                include_private=private,
+                status=status,
+                include_preview=include_preview,
+                include_eol=include_eol,
+            )
         )
         hits.sort(
             key=lambda hit: (
@@ -2222,53 +2436,120 @@ class CatalogRegistry:
         self,
         query: str,
         *,
-        nodes: list[DocNode],
         limit: int,
+        subject: AccessSubject | None = None,
+        include_private: bool = False,
         mount: str | None = None,
         edition: str | None = None,
+        section: str | None = None,
+        tag: str | None = None,
+        lang: str | None = None,
+        url_prefix: str | None = None,
         status: str | None = None,
         include_preview: bool = False,
         include_eol: bool = False,
     ) -> tuple[FederatedCatalogSearchHit, ...]:
-        """Query per-shard indexes and intersect them with already-authorized nodes."""
-        if self.remote_shards is None:
+        """Pre-scope verified indexes, then authorize and resolve only result shards."""
+        allow_remote = getattr(self, "_can_materialize_remote", lambda: True)
+        if self.remote_shards is None or not allow_remote():
             return ()
-        remote_mounts = self._remote_mount_ids()
+        remote_mounts = {
+            mount_id
+            for mount_id in self._remote_mount_ids()
+            if include_private
+            or self.can_access_mount(
+                mount_id,
+                subject,
+                permission=AccessPermission.SEARCH,
+            )
+        }
         if mount is not None:
             remote_mounts &= {mount}
         if not remote_mounts:
             return ()
         target_edition = edition or self.active_channel
-        uses_active_edition = target_edition == self.active_channel
-        allowed = {
-            node.node_id: node
-            for node in nodes
-            if node.mount in remote_mounts
-            and (uses_active_edition or node.edition == target_edition)
-        }
-        if not allowed:
+        from furatena.catalog.remote_shards import RemoteShardUnavailableError
+
+        scoped_shards: dict[str, Any] = {}
+        for mount_id in remote_mounts:
+            try:
+                shard = self.remote_shards.shard(mount_id, target_edition)
+            except RemoteShardUnavailableError:
+                continue
+            if shard.public_node_ids:
+                scoped_shards[mount_id] = shard
+        if not scoped_shards:
             return ()
-        result = self.remote_shards.search(
-            query,
-            mounts=remote_mounts,
-            edition=target_edition,
-            limit=max(limit * 2, 16),
-            status=status,
-            include_preview=include_preview,
-            include_eol=include_eol,
-        )
-        hits = tuple(
-            FederatedCatalogSearchHit(
-                node=allowed[hit.node_id],
-                score=hit.score,
-                snippet=hit.snippet,
-                keyword_score=hit.keyword_score,
-                tfidf_score=hit.tfidf_score,
+        exact_search = getattr(self.remote_shards, "_search_generations", None)
+        if callable(exact_search):
+            result = exact_search(
+                query,
+                shards=tuple(scoped_shards.values()),
+                limit=max(limit * 2, 16),
+                status=status,
+                include_preview=include_preview,
+                include_eol=include_eol,
             )
-            for hit in result.hits
-            if hit.node_id in allowed
-        )
-        return hits[:limit]
+        else:
+            result = self.remote_shards.search(
+                query,
+                mounts=set(scoped_shards),
+                edition=target_edition,
+                limit=max(limit * 2, 16),
+                status=status,
+                include_preview=include_preview,
+                include_eol=include_eol,
+            )
+        hits: list[FederatedCatalogSearchHit] = []
+        for hit in result.hits:
+            shard = scoped_shards.get(hit.mount)
+            if shard is None or getattr(shard, "fingerprint", None) != hit.shard_fingerprint:
+                continue
+            if hit.node_id not in shard.public_node_ids:
+                continue
+            mount_configs = getattr(self, "_mount_by_id", None)
+            if isinstance(mount_configs, Mapping):
+                mount_config = mount_configs.get(hit.mount)
+                if mount_config is None:
+                    continue
+                remote_catalog = self._build_remote_generation_shard(
+                    mount_config,
+                    shard,
+                    route_edition=hit.edition,
+                    admission_edition=target_edition,
+                )
+                _mount_id, _edition_id, slug = hit.node_id.split(":", 2)
+                node = remote_catalog.get_by_slug("" if slug == "index" else slug)
+            else:
+                node = self.get_by_node_id(hit.node_id)
+            if node is None or node.mount != hit.mount or node.edition != hit.edition:
+                continue
+            if not include_private and not self.can_access_node(
+                node,
+                subject,
+                permission=AccessPermission.SEARCH,
+            ):
+                continue
+            if section is not None and node.section != section:
+                continue
+            if tag is not None and tag not in node.tags:
+                continue
+            if lang is not None and node.lang != lang:
+                continue
+            if url_prefix is not None and not node.url.startswith(url_prefix):
+                continue
+            hits.append(
+                FederatedCatalogSearchHit(
+                    node=node,
+                    score=hit.score,
+                    snippet=hit.snippet,
+                    keyword_score=hit.keyword_score,
+                    tfidf_score=hit.tfidf_score,
+                )
+            )
+            if len(hits) >= limit:
+                break
+        return tuple(hits)
 
     def _remote_mount_ids(self) -> set[str]:
         return {mount.id for mount in self.mounts if mount.source.provider == "remote-shard"}
@@ -2405,6 +2686,13 @@ class CatalogRegistry:
         """Merge live Patitas AST documents from all mount shards."""
         documents: dict[str, Document] = {}
         for shard in self._active_shards().values():
+            documents.update(shard.ast_documents())
+        return documents
+
+    def _local_ast_documents(self) -> dict[str, Document]:
+        """Project local Patitas documents without touching remote catalogs."""
+        documents: dict[str, Document] = {}
+        for shard in self._local_active_shards().values():
             documents.update(shard.ast_documents())
         return documents
 

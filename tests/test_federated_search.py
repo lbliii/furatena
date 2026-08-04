@@ -231,11 +231,22 @@ def test_rank_merge_has_a_total_order_for_cross_shard_score_ties() -> None:
     )
 
 
-def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
+def test_catalog_prescopes_mount_and_resolves_only_published_authorized_hits() -> None:
     class RemoteSearch:
         def __init__(self) -> None:
             self.calls = 0
             self.result_node_id = "alpha:latest:allowed"
+
+        def shard(self, mount: str, edition: str) -> object:
+            assert mount == "alpha"
+            public_ids = (
+                frozenset({self.result_node_id}) if edition in {"latest", "2026.1"} else frozenset()
+            )
+            return type(
+                "Shard",
+                (),
+                {"public_node_ids": public_ids, "fingerprint": "a" * 64},
+            )()
 
         def search(self, *args: object, **kwargs: object) -> FederatedSearchResult:
             self.calls += 1
@@ -274,22 +285,36 @@ def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
     class CatalogStub:
         remote_shards = remote
         active_channel = "latest"
+        mount_allowed = False
+        nodes: dict[str, DocNode] = {}
 
         @staticmethod
         def _remote_mount_ids() -> set[str]:
             return {"alpha"}
+
+        def can_access_mount(self, *args: object, **kwargs: object) -> bool:
+            del args, kwargs
+            return self.mount_allowed
+
+        def get_by_node_id(self, node_id: str) -> DocNode | None:
+            return self.nodes.get(node_id)
+
+        @staticmethod
+        def can_access_node(*args: object, **kwargs: object) -> bool:
+            del args, kwargs
+            return True
 
     catalog = CatalogStub()
     assert (
         CatalogRegistry.federated_search_hits(
             cast(CatalogRegistry, catalog),
             "allowed",
-            nodes=[],
             limit=4,
         )
         == ()
     )
     assert remote.calls == 0
+    catalog.mount_allowed = True
     allowed = DocNode(
         url="/alpha/allowed/",
         slug="allowed",
@@ -305,11 +330,11 @@ def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
         source_path="allowed.md",
         mount="alpha",
     )
+    catalog.nodes[allowed.node_id] = allowed
     assert (
         CatalogRegistry.federated_search_hits(
             cast(CatalogRegistry, catalog),
             "allowed",
-            nodes=[allowed],
             edition="old",
             limit=4,
         )
@@ -320,7 +345,6 @@ def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
     hits = CatalogRegistry.federated_search_hits(
         cast(CatalogRegistry, catalog),
         "allowed",
-        nodes=[allowed],
         limit=4,
     )
 
@@ -329,10 +353,11 @@ def test_catalog_intersects_authorized_nodes_before_fanout_and_merge() -> None:
 
     concrete = replace(allowed, edition="2026.1")
     remote.result_node_id = concrete.node_id
+    catalog.nodes[concrete.node_id] = concrete
     concrete_hits = CatalogRegistry.federated_search_hits(
         cast(CatalogRegistry, catalog),
         "allowed",
-        nodes=[concrete],
+        edition="2026.1",
         limit=4,
     )
 
