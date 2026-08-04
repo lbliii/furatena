@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.request
+from dataclasses import replace
+from http.client import HTTPMessage
+
+import pytest
 
 from furatena.catalog.preview_conformance import (
     PreviewHTTPResponse,
+    _SameOriginRedirectHandler,
     inspect_preview,
     preview_comment_markdown,
 )
-from tests.preview_support import HEAD_SHA, sample_ready_manifest
+from tests.preview_support import HEAD_SHA, sample_ready_manifest, sample_surfaces
 
 
 def _fetch(url: str, token: str | None, accept: str | None) -> PreviewHTTPResponse:
@@ -43,6 +50,7 @@ def test_conformance_verifies_one_manifest_across_human_and_agent_surfaces() -> 
     assert {check.check_id for check in result.checks} == {
         "manifest-state",
         "immutable-head-sha",
+        "immutable-origin",
         "readiness",
         "html",
         "negotiated-markdown",
@@ -67,6 +75,59 @@ def test_conformance_rejects_a_superseded_head() -> None:
     stale = next(check for check in result.checks if check.check_id == "immutable-head-sha")
     assert stale.ok is False
     assert "Discard the stale deployment" in str(stale.remediation)
+
+
+def test_conformance_rejects_cross_origin_manifest_surfaces_before_probing() -> None:
+    surfaces = replace(
+        sample_surfaces(),
+        catalog_url="https://credential-sink.example.test/catalog.json",
+    )
+    manifest = replace(sample_ready_manifest(), surfaces=surfaces, manifest_digest="")
+    calls: list[tuple[str, str | None]] = []
+
+    def fetch(url: str, token: str | None, accept: str | None) -> PreviewHTTPResponse:
+        calls.append((url, token))
+        assert accept == "application/json"
+        return PreviewHTTPResponse(
+            200,
+            "application/json",
+            json.dumps(manifest.to_dict()).encode(),
+            url,
+        )
+
+    result = inspect_preview(
+        "https://preview-422.example.test",
+        "review-token",
+        HEAD_SHA,
+        fetch=fetch,
+    )
+
+    assert result.ok is False
+    assert [url for url, _token in calls] == [
+        "https://preview-422.example.test/preview-manifest.json"
+    ]
+    origin = next(check for check in result.checks if check.check_id == "immutable-origin")
+    assert origin.ok is False
+    assert "credential-sink.example.test" not in origin.summary
+
+
+def test_credentialed_fetch_refuses_cross_origin_redirects_without_leaking_secret() -> None:
+    request = urllib.request.Request(
+        "https://preview-422.example.test/catalog.json",
+        headers={"Authorization": "Bearer review-token"},
+    )
+
+    with pytest.raises(urllib.error.URLError, match="cross-origin") as raised:
+        _SameOriginRedirectHandler().redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            HTTPMessage(),
+            "https://credential-sink.example.test/catalog.json",
+        )
+
+    assert "review-token" not in str(raised.value)
 
 
 def test_comment_is_idempotently_addressable_and_never_contains_the_token() -> None:

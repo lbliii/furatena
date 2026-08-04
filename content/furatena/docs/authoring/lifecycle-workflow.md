@@ -91,6 +91,7 @@ server-owned capabilities.
 ## 5. Inspect every public projection
 
 ```bash
+uv run fura author inspect-public docs/proposed-page --operation publish --json
 uv run fura export --fresh --base-path ""
 uv run fura query --json --url-prefix /docs/proposed-page
 ```
@@ -103,9 +104,12 @@ Confirm the page appears in:
 - `app/public/tools.json` when it changes an agent-facing operation; and
 - `app/public/channels.json` as part of the static/agent outputs.
 
-For an unpublish/archive review, assert the inverse: the title, slug, and a unique
-content canary must be absent from every public file while remaining available to
-an authorized `--include-private` author session.
+The inspector enumerates anonymous HTML, route, navigation, sidebar, breadcrumb,
+search, suggestion, DCP, channel, static, sitemap, PDF, page text/Markdown, LLM,
+tools, and MCP output. For an unpublish/archive review, pass the corresponding
+`--operation` and assert the inverse: the title, slug, and a unique content canary
+must be absent from every public projection while remaining available to an
+authorized `--include-private` author session.
 
 ## 6. Recover safely
 
