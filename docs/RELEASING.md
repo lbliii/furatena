@@ -10,6 +10,37 @@ The public adopter content repository is a separate input. Publishing an image
 must not grant content-refresh authority, and refreshing content must not grant
 registry authority.
 
+## Lifecycle and discovery contract
+
+The five private-image channels are deliberately asymmetric:
+
+| Channel | Meaning | Permitted deployment use |
+| --- | --- | --- |
+| `development` | Local or maintainer-only build at an exact source commit | Never an adopter rollback target |
+| `candidate` | Built, scanned, attested, and smoke-tested exact digest | Canary validation only |
+| `stable` | Protected approval plus a complete public release record | Production by exact digest |
+| `deprecated` | Still available during a stated support window | Existing deployments while migrating |
+| `revoked` | Unsafe or unsupported affected digest | No new deployment or promotion |
+
+An OCI tag or GitHub release tag is only a discovery label. Every deployment,
+upgrade, rollback, deprecation, and revocation record uses the immutable
+`ghcr.io/lbliii/furatena@sha256:...` subject. Mutable tags such as `latest`,
+`stable`, and `image-v1.2.3` are never rollback identity.
+
+The public adopter update feed is the repository's GitHub Releases Atom feed:
+
+```text
+https://github.com/lbliii/furatena/releases.atom
+```
+
+Stable entries are named `image-v<version>` and attach `image-record.json`.
+Deprecations add a digest-named asset to that stable release. Emergency
+revocations publish a separate `image-revoked-<digest>` entry so a previously
+revoked digest is discoverable and promotion can fail closed. Consumers must
+validate attached records against the versioned schemas under
+`src/furatena/catalog/schemas/private-image/v1/`, compare digests rather than
+tags, and treat an unknown schema version as requiring manual review.
+
 ## One-time controls
 
 1. Keep the `furatena` GHCR package private and grant the repository workflow
@@ -60,13 +91,23 @@ Run **Publish proprietary image** manually with:
 - `operation=promote`;
 - a new immutable `MAJOR.MINOR.PATCH` `version`;
 - the candidate's exact `sha256:...` `digest`;
-- the candidate's forty-character source `commit`.
+- the candidate's forty-character source `commit`;
+- the prior known-good `rollback_digest`;
+- a concrete `compatibility` statement; and
+- `migration_notes`, including an explicit no-migration statement when no
+  adopter action is required.
 
 The protected `private-image-production` environment supplies the human gate.
 The lifecycle job first proves the subject still exists in GHCR, then writes a
 stable record and creates `image-v<version>` with that record as an asset. It
 does not invoke Docker build. Never reuse a commercial version or move its
 release tag to a different commit.
+
+The stable record includes the exact image and rollback subjects, compatibility
+statement, supported content/config contract version and source-revision URLs,
+changelog URL, migration notes, and support-policy URL. Promotion rejects a
+rollback digest equal to the candidate digest and rejects any digest already
+listed by an immutable revocation release.
 
 Verify the selected subject before changing Railway:
 
@@ -76,10 +117,13 @@ gh attestation verify oci://ghcr.io/lbliii/furatena@sha256:<digest> \
   --repo lbliii/furatena
 ```
 
-Update a canary Railway environment to the exact digest, wait for readiness,
-then run the live artifact verifier and SLO probes. Only after the canary passes
-should production and the template reference be changed. Record the previous
-digest as last-known-good in the change evidence.
+Update only the canary Railway application's image subject to the exact digest;
+do not replace or detach its adopter-owned content volume, content repository,
+or configuration. Wait for readiness, then run the live artifact verifier and
+SLO probes. A failed readiness or conformance check leaves the production
+service on the prior digest and restores the canary to the record's exact
+rollback digest. Only after the canary passes should production and the
+template reference be changed.
 
 ## Rollback
 
@@ -95,12 +139,22 @@ Rollback is an image selection, not a rebuild:
 Do not delete the failed digest. Preserving it keeps the investigation,
 attestation, SBOM, and scan evidence joinable.
 
+## Deprecate a digest
+
+Run the workflow with `operation=deprecate`, the affected stable `version` and
+`digest`, a specific `reason`, an ISO-8601 `support_ends_at`, and the preferred
+`replacement_digest` when available. The resulting public feed record keeps the
+digest available, identifies the bounded support window, and gives an exact
+replacement subject. Deprecation does not silently move an adopter service.
+
 ## Revoke a digest
 
 Run the workflow with `operation=revoke`, the affected `digest`, its commercial
-`version`, a specific `reason`, and, when known, a `replacement_digest`. The
-protected lifecycle job confirms that the subject exists and uploads a durable
-revocation record to the matching image release.
+`version`, a specific `reason`, and, when known, a `replacement_digest`. A
+revocation does not require the compromised registry subject to remain
+available. The protected lifecycle job publishes an immutable digest-named
+revocation entry with affected digests and remediation. A later promotion of
+that digest is blocked even if a mutable registry tag points to it.
 
 Then:
 
@@ -112,6 +166,37 @@ Then:
 
 Do not delete the image during active response. Registry deletion destroys
 useful evidence and can break adopters before they receive the replacement.
+
+## Registry credential rotation
+
+Registry pull credentials are Railway-owned delivery configuration, not
+application variables. Rotate them without changing the selected image:
+
+1. Create a new least-privilege, read-only GHCR credential without printing it
+   to logs or storing it in repository, workflow, template, or application
+   variables.
+2. Replace the private-image credential on a canary service while keeping the
+   same digest, volume, content configuration, and refresh credential.
+3. Redeploy and require readiness, build identity, public projection, and
+   content-generation continuity to match the pre-rotation evidence.
+4. Move healthy production services to the new hidden credential one at a
+   time, still on the same digest.
+5. Revoke the old credential only after all services are healthy. Preserve
+   redacted credential revision identifiers and probe receipts, never the
+   credential value.
+
+This procedure needs a real registry and Railway service to prove; unit tests
+verify only that lifecycle records and documentation never contain credential
+fields.
+
+## Docker-image template update limitation
+
+A Railway Docker-image template is not connected to this repository's commit
+history, so repository-based template update notifications do not announce a
+new private image. The GitHub release feed is the update signal. Adopters review
+the compatibility and migration record, canary the exact subject, and
+explicitly replace only the application image digest. Neither Furatena nor the
+template silently follows a mutable tag.
 
 ## Compromised-release response
 
