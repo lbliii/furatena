@@ -141,6 +141,7 @@ ci-fast: format-check hygiene
 	$(UV_RUN) ruff check src tests app
 	$(MAKE) ty-ratchet
 	$(UV_RUN) ty check \
+		src/furatena/catalog/author_truth.py \
 		src/furatena/catalog/record_types.py \
 		src/furatena/catalog/export.py \
 		src/furatena/catalog/graph_schema.py \
@@ -254,6 +255,7 @@ ci-contract:
 	$(UV_RUN) fura docs-quality
 	$(PYTEST) \
 		tests/test_author_authorization.py \
+		tests/test_author_truth.py \
 		tests/test_docs_quality.py \
 		tests/test_integrator_operations_reference.py \
 		tests/test_chirp_docs_content_lint.py \

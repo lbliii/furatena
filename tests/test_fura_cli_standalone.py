@@ -1592,15 +1592,16 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert "data-fura-author-chrome" in author_payload["boosted_page"].text
     assert "Open source" in author_payload["page"].text
     assert "Copy source path" in author_payload["page"].text
-    assert "Inspect public" in author_payload["page"].text
-    assert 'data-author-surface="local"' in author_payload["page"].text
-    assert "Not exported" in author_payload["page"].text
+    assert "Inspect public output" in author_payload["page"].text
+    assert 'data-author-truth-schema="1"' in author_payload["page"].text
+    assert "Repository state is not connected" in author_payload["page"].text
+    assert author_payload["page"].text.count('id="fura-author-sse"') == 1
     assert 'data-action="copy-source-path"' in author_payload["page"].text
     assert 'hx-target="#fura-author-chrome"' in author_payload["page"].text
     assert 'action="/docs/_author/transition"' in author_payload["page"].text
     assert 'hx-post="/docs/_author/transition"' in author_payload["page"].text
     assert 'name="operation" value="draft"' in author_payload["page"].text
-    assert 'name="operation" value="publish"' in author_payload["page"].text
+    assert 'name="operation" value="publish"' in author_payload["private_page"].text
     assert 'name="_csrf_token"' in author_payload["page"].text
     assert 'hx-get="/docs/_author/transition' not in author_payload["page"].text
     assert (
@@ -1613,13 +1614,13 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert status_payload["export_impact"]["included"] is True
     assert author_payload["source"].status == 200
     assert "# Get started" in author_payload["source"].text
-    assert 'data-author-state="private"' in author_payload["private_page"].text
+    assert 'data-author-plane-state="private"' in author_payload["private_page"].text
     assert {"private", "excluded-output"} <= set(private_payload["states"])
     assert author_payload["transition_get"].status == 405
     assert author_payload["htmx_validate"].status == 200
     assert 'id="fura-author-chrome"' in author_payload["htmx_validate"].text
-    assert "Author page" in author_payload["htmx_validate"].text
-    assert "Local only" in author_payload["htmx_validate"].text
+    assert "Author workflow" in author_payload["htmx_validate"].text
+    assert "Independent publication state planes" in author_payload["htmx_validate"].text
     assert '"ok":' not in author_payload["htmx_validate"].text
 
     private_before = private.read_text(encoding="utf-8")
@@ -1671,7 +1672,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     )
     assert draft_response.status == 200
     assert 'id="fura-author-chrome"' in draft_response.text
-    assert 'data-author-state="draft"' in draft_response.text
+    assert 'data-author-plane-state="draft"' in draft_response.text
     assert '"ok":' not in draft_response.text
     draft_revision = _source_revision_context(draft_response)
 
@@ -1961,7 +1962,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     assert "visibility: draft" in draft_source
     assert "draft: true" in draft_source
     assert payload["created_page"].status == 200
-    assert 'data-author-state="draft"' in payload["created_page"].text
+    assert 'data-author-plane-state="draft"' in payload["created_page"].text
 
     async def _exercise_public() -> dict[str, object]:
         studio = await public_client.get("/docs/_author/studio?slug=docs/get-started")
@@ -2919,6 +2920,7 @@ def test_mcp_json_rpc_tools_return_structured_content(tmp_path: Path) -> None:
             "label": "User",
             "mount": "docs",
             "edition": "latest",
+            "edition_status": "current",
         }
     ]
 
@@ -3011,6 +3013,7 @@ def test_mcp_agent_contract_covers_required_resources_tools_and_schemas(tmp_path
             "label": "Invoice",
             "mount": "docs",
             "edition": "latest",
+            "edition_status": "current",
         }
     ]
 

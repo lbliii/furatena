@@ -81,6 +81,39 @@ validation action. Reports include `catalog_generation` and
 results describe the same state. `fura check` remains an explicit fresh CLI check and
 uses the same content/configuration check functions.
 
+## Browser state and actions
+
+Every author page renders one server-owned state-and-action surface. It keeps four
+planes independent so a public source is never presented as merged, built, or deployed
+unless the corresponding service supplied that exact record:
+
+- **Lifecycle** reports source visibility and the exact `source_revision`.
+- **Repository** reports a commit or review identity when a Git provider is connected.
+- **Artifact** reports a plan-bound artifact digest and verification freshness.
+- **Deployment** reports the serving deployment identity and health freshness.
+
+Unavailable repository, artifact, or deployment services render as unavailable with a
+recovery explanation; the browser does not infer success from lifecycle state. When a
+publication integration is connected, its immutable read projection may add exact plan,
+commit, artifact, and deployment identities. Provider explanations are plain text and
+provider action links must stay on the local server origin.
+
+The workflow lists validation, public-output inspection, lifecycle dry run, approval,
+source transition, Git review, build, promotion, serving verification, and rollback as
+separate effects. Disabled controls include the server-supplied blocker and recovery
+action. Lifecycle changes use a two-step disclosure and confirmation form, remain usable
+without JavaScript, and state explicitly that changing source metadata does not commit,
+build, or deploy. The server reauthorizes every request; hiding or enabling a control in
+HTML never grants authority. Public-output inspection requires the same publisher policy
+as the endpoint because it can disclose publication impact for non-public source.
+
+Dry runs and public-output inspection return an exact diff without writing source or
+reindexing the catalog. htmx validation and transition responses replace the same chrome;
+conflicts retain HTTP `409`, validation or confirmation failures retain `422`, and the
+returned recovery region receives focus. The normal form submission path retains those
+server decisions when JavaScript is absent. Live-update connection state is announced as
+connecting, connected, polling, or reconnecting without creating a second SSE owner.
+
 ## CLI Lifecycle Commands
 
 `fura author` exposes deterministic local source operations:
@@ -131,8 +164,10 @@ Dry runs remain non-mutating and return the revision to use for a later write.
 
 Successful lifecycle forms use Chirp `FormAction` semantics: htmx receives the
 updated author-chrome fragment, and a browser without JavaScript receives a
-`303` redirect to the affected page. GET requests to the transition endpoint
-return `405` and cannot mutate lifecycle state.
+`303` redirect to the affected page. Failed htmx submissions retain their
+`409` or `422` status while returning the same inline recovery fragment. GET
+requests to the transition endpoint return `405` and cannot mutate lifecycle
+state.
 
 Local development uses an ephemeral signing secret, so author sessions reset
 when the process restarts. Set `FURA_SESSION_SECRET` (or

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -670,30 +671,141 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         details_panel = chrome.locator(".fura-author-chrome__details-panel")
         await chrome.wait_for()
 
-        assert await chrome.locator(".fura-author-chrome__signal").count() == 3
+        assert await chrome.locator("[data-author-plane]").count() == 4
+        assert await chrome.locator("[data-author-action]").count() == 11
+        assert await chrome.locator('[data-author-plane="lifecycle"]').is_visible()
+        assert await chrome.locator('[data-author-plane="repository"]').is_visible()
+        assert await chrome.locator('[data-author-plane="artifact"]').is_visible()
+        assert await chrome.locator('[data-author-plane="deployment"]').is_visible()
+        assert await chrome.get_by_role("heading", name="State and actions").is_visible()
+        assert await chrome.locator('button[aria-disabled="true"]').count() >= 1
         assert await details_panel.is_hidden()
-        await details.locator("summary").click()
-        await details_panel.wait_for(state="visible")
 
-        boxes = {
+        initial_boxes = {
             "chrome": await chrome.bounding_box(),
             "actions": await actions.bounding_box(),
             "article": await article.bounding_box(),
-            "details": await details_panel.bounding_box(),
         }
-        assert all(box is not None for box in boxes.values())
-        assert boxes["actions"] is not None
-        assert boxes["chrome"] is not None
-        assert boxes["article"] is not None
-        assert boxes["details"] is not None
-        assert boxes["actions"]["width"] <= viewport["width"]
-        assert boxes["chrome"]["width"] <= viewport["width"]
-        assert boxes["details"]["width"] <= boxes["chrome"]["width"]
-        assert boxes["chrome"]["y"] >= boxes["actions"]["y"] + boxes["actions"]["height"]
-        assert boxes["article"]["y"] >= boxes["chrome"]["y"]
+        assert all(box is not None for box in initial_boxes.values())
+        assert initial_boxes["actions"] is not None
+        assert initial_boxes["chrome"] is not None
+        assert initial_boxes["article"] is not None
+        assert initial_boxes["chrome"]["y"] >= (
+            initial_boxes["actions"]["y"] + initial_boxes["actions"]["height"]
+        )
+        assert initial_boxes["article"]["y"] >= initial_boxes["chrome"]["y"]
+
+        await details.locator("summary").click()
+        await details_panel.wait_for(state="visible")
+
+        confirmation = chrome.locator('[data-author-action="mark_draft"] details')
+        confirmation_summary = confirmation.locator("summary")
+        await confirmation_summary.focus()
+        await confirmation_summary.press("Enter")
+        assert await confirmation.get_attribute("open") is not None
+        assert await confirmation.get_by_role(
+            "button", name=re.compile("Confirm Mark draft")
+        ).is_visible()
+
+        chrome_box = await chrome.bounding_box()
+        details_box = await details_panel.bounding_box()
+        assert chrome_box is not None
+        assert details_box is not None
+        assert initial_boxes["actions"]["width"] <= viewport["width"]
+        assert chrome_box["width"] <= viewport["width"]
+        assert details_box["width"] <= chrome_box["width"]
         assert await page.evaluate("document.documentElement.scrollWidth") <= viewport["width"]
         assert await page.locator("#fura-author-sse").count() == 1
         assert await page.evaluate("window.__furaAuthorReloadMode") == "sse"
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_authoring
+@pytest.mark.browser_full
+@pytest.mark.parametrize("server_fixture", ["author_server", "htmx4_author_server"])
+async def test_author_htmx_failure_keeps_status_focus_recovery_and_one_sse_owner(
+    browser: Browser,
+    request: pytest.FixtureRequest,
+    server_fixture: str,
+) -> None:
+    base_url, page_path = request.getfixturevalue(server_fixture)
+    source_before = page_path.read_bytes()
+    context = await browser.new_context(viewport={"width": 1280, "height": 900})
+    page = await context.new_page()
+    try:
+        await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
+        await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
+        confirmation = page.locator('[data-author-action="mark_draft"] details')
+        await confirmation.locator("summary").click()
+        confirm = confirmation.get_by_role("button", name=re.compile("Confirm Mark draft"))
+        await confirm.evaluate("button => { button.value = '0'; }")
+
+        async with page.expect_response(
+            lambda response: (
+                response.request.method == "POST" and "/docs/_author/transition" in response.url
+            ),
+            timeout=20_000,
+        ) as response_info:
+            await confirm.click()
+        response = await response_info.value
+        assert response.status == 422
+
+        feedback = page.locator("#fura-author-feedback")
+        await feedback.wait_for()
+        await page.wait_for_function(
+            "document.activeElement && document.activeElement.id === 'fura-author-feedback'"
+        )
+        assert await feedback.get_attribute("data-author-feedback-ok") == "false"
+        assert await page.locator("#fura-author-sse").count() == 1
+        assert page_path.read_bytes() == source_before
+    finally:
+        await context.close()
+
+
+@pytest.mark.browser
+@pytest.mark.browser_responsive
+@pytest.mark.browser_full
+async def test_author_truth_and_confirmation_remain_usable_without_javascript(
+    browser: Browser,
+    author_server: tuple[str, Path],
+) -> None:
+    base_url, page_path = author_server
+    source_before = page_path.read_bytes()
+    context = await browser.new_context(
+        viewport={"width": 390, "height": 844},
+        is_mobile=True,
+        java_script_enabled=False,
+    )
+    page = await context.new_page()
+    try:
+        response = await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
+        assert response is not None and response.status == 200
+
+        chrome = page.locator("#fura-author-chrome")
+        await chrome.wait_for()
+        assert await chrome.locator("[data-author-plane]").count() == 4
+        assert await chrome.locator("[data-author-action]").count() == 11
+        assert (
+            await chrome.locator('[data-author-action="mark_public"] button:disabled').count() == 1
+        )
+
+        confirmation = chrome.locator('[data-author-action="mark_draft"] details')
+        summary = confirmation.locator("summary")
+        await summary.focus()
+        await summary.press("Enter")
+        assert await confirmation.get_attribute("open") is not None
+        assert await confirmation.get_by_role(
+            "button", name=re.compile("Confirm Mark draft")
+        ).is_visible()
+        assert page_path.read_bytes() == source_before
+
+        described = chrome.locator('button[aria-disabled="true"]').first
+        recovery_id = await described.get_attribute("aria-describedby")
+        assert recovery_id is not None
+        assert await chrome.locator(f"#{recovery_id}").count() == 1
+        assert await page.evaluate("document.documentElement.scrollWidth") <= 390
     finally:
         await context.close()
 

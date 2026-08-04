@@ -668,9 +668,46 @@ def register_author_routes(docs: Any, app: App) -> None:
         if denied is not None:
             return denied
         force_validation = _query_bool(request, "validate", default=False)
+        inspect_public = _query_bool(request, "inspect_public", default=False)
+        feedback = None
+        if inspect_public:
+            denied = self._browser_node_denial(node, "inspect_publication_impact")
+            if denied is not None:
+                return denied
+            source = self._author_source_info(node)
+            inspection = author_transition(
+                "publish",
+                node.slug,
+                mounts=tuple(self.catalog.mounts),
+                subject=self._browser_author_subject(),
+                expected_revision=source["revision"],
+                mount_id=node.mount,
+                dry_run=True,
+                confirmed=False,
+                store=self.author_store,
+            )
+            if _author_authorization_denied(inspection):
+                return _json_response({"ok": False, "data": inspection.to_dict()}, status=403)
+            feedback = inspection.to_dict()
         if request.is_htmx:
-            return self._author_page_chrome_fragment(node, force_validation=force_validation)
-        return _json_response(self._author_page_chrome(node, force_validation=force_validation))
+            return self._author_page_chrome_fragment(
+                node,
+                force_validation=force_validation,
+                feedback=feedback,
+            )
+        chrome = self._author_page_chrome(
+            node,
+            force_validation=force_validation,
+            feedback=feedback,
+        )
+        if feedback is not None:
+            return _json_response(
+                {
+                    **chrome,
+                    "public_inspection": feedback,
+                }
+            )
+        return _json_response(chrome)
 
     @app.route("/docs/_author/source")
     def author_page_source(request: Request):
@@ -730,6 +767,7 @@ def register_author_routes(docs: Any, app: App) -> None:
             )
         operation = str(form.get("operation") or "").strip()
         expected_revision = str(form.get("source_revision") or "").strip() or None
+        dry_run = _form_bool(form, "dry_run", default=True)
         if operation not in {"draft", "publish", "unpublish", "archive"}:
             return _json_response(
                 {
@@ -751,7 +789,7 @@ def register_author_routes(docs: Any, app: App) -> None:
             subject=self._browser_author_subject(),
             expected_revision=expected_revision,
             mount_id=node.mount,
-            dry_run=_form_bool(form, "dry_run", default=True),
+            dry_run=dry_run,
             confirmed=_form_bool(form, "confirmed", default=False),
             store=self.author_store,
         )
@@ -763,7 +801,22 @@ def register_author_routes(docs: Any, app: App) -> None:
                 if _author_conflict(result)
                 else 422
             )
+            if request.is_htmx and status != 403:
+                return self._author_page_chrome_fragment(
+                    node,
+                    status=status,
+                    feedback=result.to_dict(),
+                )
             return _json_response({"ok": False, "data": result.to_dict()}, status=status)
+        refreshed = self.catalog.get_by_slug(node.slug, mount=node.mount) or node
+        if dry_run:
+            feedback = result.to_dict()
+            if request.is_htmx:
+                return self._author_page_chrome_fragment(
+                    refreshed,
+                    feedback=feedback,
+                )
+            return FormAction(refreshed.url)
         self._reindex_author_result(result)
         refreshed = self.catalog.get_by_slug(node.slug, mount=node.mount) or node
         if request.is_htmx:

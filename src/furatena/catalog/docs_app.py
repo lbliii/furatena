@@ -43,6 +43,16 @@ from furatena.catalog.access import (
 )
 from furatena.catalog.application_roots import ApplicationRoots
 from furatena.catalog.author_store import AuthorMutationStore, FilesystemAuthorMutationStore
+from furatena.catalog.author_truth import (
+    AuthorActionCapability,
+    AuthorActionKey,
+    AuthorActionState,
+    AuthorFreshness,
+    AuthorJobState,
+    AuthorTruthProvider,
+    LifecycleTruthState,
+    build_author_truth_surface,
+)
 from furatena.catalog.channel_manifest import channel_manifest
 from furatena.catalog.conditional_response import ConditionalResponseMiddleware
 from furatena.catalog.config import DocsConfig, load_docs_config
@@ -332,6 +342,7 @@ class DocsApp:
         workers: int | None = None,
         author_subject: AccessSubject | None = None,
         author_store: AuthorMutationStore | None = None,
+        author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
     ) -> None:
@@ -364,6 +375,7 @@ class DocsApp:
             else AccessSubject.anonymous()
         )
         self.author_store = author_store or FilesystemAuthorMutationStore()
+        self.author_truth_provider = author_truth_provider
         self.retrieval_feedback = retrieval_feedback or RetrievalFeedbackCollector.disabled()
         self.observability = observability or OperationalEventEmitter.from_environment()
         frozen = self.serve.frozen_dir or frozen_dir
@@ -1073,7 +1085,13 @@ class DocsApp:
             status=403,
         )
 
-    def _author_page_chrome(self, node, *, force_validation: bool = False) -> dict[str, Any]:
+    def _author_page_chrome(
+        self,
+        node,
+        *,
+        force_validation: bool = False,
+        feedback: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         source = self._author_source_info(node)
         validation = self._author_validation_status(node, force=force_validation)
         visibility = visibility_state(getattr(node, "meta", {}) or {})
@@ -1091,6 +1109,49 @@ class DocsApp:
         states.append("public-output" if export_included else "excluded-output")
         source_path = source["path"]
         query = f"slug={node.slug}"
+        action_urls = {
+            "dashboard": "/docs/_author/dashboard",
+            "status": f"/docs/_author/page.json?{query}",
+            "studio": f"/docs/_author/studio?{query}",
+            "open_source": f"/docs/_author/source?{query}",
+            "validate": f"/docs/_author/page.json?{query}&validate=1",
+            "transition": "/docs/_author/transition",
+            "inspect_public": f"/docs/_author/page.json?{query}&inspect_public=1",
+        }
+        lifecycle = {
+            "public": LifecycleTruthState.PUBLIC,
+            "draft": LifecycleTruthState.DRAFT,
+            "private": LifecycleTruthState.PRIVATE,
+            "internal": LifecycleTruthState.INTERNAL,
+            "unlisted": LifecycleTruthState.UNLISTED,
+            "archived": LifecycleTruthState.ARCHIVED,
+        }.get(visibility, LifecycleTruthState.RESTRICTED)
+        publication = (
+            self.author_truth_provider.snapshot(node, source_revision=source["revision"])
+            if self.author_truth_provider is not None
+            else None
+        )
+        truth = build_author_truth_surface(
+            lifecycle=lifecycle,
+            source_revision=source["revision"],
+            source_freshness=(AuthorFreshness.STALE if stale else AuthorFreshness.CURRENT),
+            source_summary=(
+                "Source differs from the indexed catalog and requires validation."
+                if stale
+                else "Source matches the currently indexed catalog revision."
+            ),
+            validation_ok=bool(validation["ok"]),
+            validation_error_count=int(validation["error_count"]),
+            validation_warning_count=int(validation["warning_count"]),
+            export_included=export_included,
+            local_capabilities=self._author_local_capabilities(
+                node,
+                visibility=visibility,
+            ),
+            actions=action_urls,
+            publication=publication,
+            feedback=feedback,
+        )
         return {
             "enabled": True,
             "node_id": node.node_id,
@@ -1114,16 +1175,88 @@ class DocsApp:
                 "reason": "public visibility" if export_included else f"{visibility} visibility",
             },
             "stale": stale_entries,
-            "actions": {
-                "dashboard": "/docs/_author/dashboard",
-                "status": f"/docs/_author/page.json?{query}",
-                "studio": f"/docs/_author/studio?{query}",
-                "open_source": f"/docs/_author/source?{query}",
-                "validate": f"/docs/_author/page.json?{query}&validate=1",
-                "transition": "/docs/_author/transition",
-                "inspect_public": f"/docs/_author/page.json?{query}&inspect_public=1",
-            },
+            "actions": action_urls,
+            "truth": truth,
         }
+
+    def _author_local_capabilities(
+        self,
+        node: Any,
+        *,
+        visibility: str,
+    ) -> dict[AuthorActionKey, AuthorActionCapability]:
+        inspect_decision = self.catalog.access_decision_for_node(
+            node,
+            self._browser_author_subject(),
+            permission=author_permission_for("inspect_publication_impact"),
+        )
+        capabilities = {
+            AuthorActionKey.VALIDATE: AuthorActionCapability(
+                allowed=True,
+                state=AuthorActionState.AVAILABLE,
+                reason="The server authorizes validation for the current author session.",
+                remediation="No remediation is required.",
+            ),
+            AuthorActionKey.INSPECT_PUBLIC: AuthorActionCapability(
+                allowed=inspect_decision.allowed,
+                state=(
+                    AuthorActionState.AVAILABLE
+                    if inspect_decision.allowed
+                    else AuthorActionState.DENIED
+                ),
+                reason=(
+                    "The server authorizes inspection of the exact public projection."
+                    if inspect_decision.allowed
+                    else inspect_decision.reason
+                ),
+                remediation=(
+                    "No remediation is required."
+                    if inspect_decision.allowed
+                    else f"Authenticate with the required {inspect_decision.required_role.value} role."
+                ),
+            ),
+        }
+        for key, operation, already in (
+            (AuthorActionKey.MARK_PUBLIC, "publish", visibility == "public"),
+            (AuthorActionKey.MARK_DRAFT, "draft", visibility == "draft"),
+            (
+                AuthorActionKey.REVIEW_PLAN,
+                "draft" if visibility == "public" else "publish",
+                False,
+            ),
+        ):
+            decision = self.catalog.access_decision_for_node(
+                node,
+                self._browser_author_subject(),
+                permission=author_permission_for(operation),
+            )
+            allowed = decision.allowed and not already
+            capabilities[key] = AuthorActionCapability(
+                allowed=allowed,
+                state=(
+                    AuthorActionState.AVAILABLE
+                    if allowed
+                    else AuthorActionState.BLOCKED
+                    if already
+                    else AuthorActionState.DENIED
+                ),
+                reason=(
+                    "The server will reauthorize this source operation on submission."
+                    if allowed
+                    else f"The lifecycle is already {visibility}."
+                    if already
+                    else decision.reason
+                ),
+                remediation=(
+                    "No remediation is required."
+                    if allowed
+                    else "Choose an action that changes the current lifecycle."
+                    if already
+                    else f"Authenticate with the required {decision.required_role.value} role."
+                ),
+                job_state=AuthorJobState.IDLE,
+            )
+        return capabilities
 
     def _author_page_chrome_fragment(
         self,
@@ -1131,12 +1264,23 @@ class DocsApp:
         *,
         status: int = 200,
         force_validation: bool = False,
+        feedback: dict[str, Any] | None = None,
     ):
-        return Fragment(
+        fragment = Fragment(
             "partials/author_chrome.html",
             "author_chrome",
+            author_chrome=self._author_page_chrome(
+                node,
+                force_validation=force_validation,
+                feedback=feedback,
+            ),
+        )
+        if status == 200:
+            return fragment
+        return Response(
+            self.app.render(fragment),
             status=status,
-            author_chrome=self._author_page_chrome(node, force_validation=force_validation),
+            render_intent="fragment",
         )
 
     def _author_dashboard_context(self, request: Request) -> dict[str, Any]:
@@ -1778,6 +1922,7 @@ class DocsApp:
         workers: int | None = None,
         author_subject: AccessSubject | None = None,
         author_store: AuthorMutationStore | None = None,
+        author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
     ) -> DocsApp:
@@ -1795,6 +1940,7 @@ class DocsApp:
             workers=workers,
             author_subject=author_subject,
             author_store=author_store,
+            author_truth_provider=author_truth_provider,
             retrieval_feedback=retrieval_feedback,
             observability=observability,
         )

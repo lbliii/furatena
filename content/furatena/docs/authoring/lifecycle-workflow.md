@@ -31,6 +31,14 @@ an authenticated role and deployment boundary protect it.
 
 ## 2. Inspect status and validate
 
+On the page itself, use **State and actions** as the truthful sequence. Its
+Lifecycle, Repository, Artifact, and Deployment cards are independent. An
+unavailable repository, artifact, or deployment card means that service has not
+provided an exact record; public lifecycle state alone does not mean the change
+is merged, built, promoted, or healthy. Expand **Exact identities and source
+tools** to compare the source revision, plan digest, artifact digest, and
+deployment identity before taking the next action.
+
 ```bash
 uv run fura author status docs/proposed-page --json
 uv run fura author validate docs/proposed-page --json
@@ -54,6 +62,11 @@ diagnostics, and `publication_impact` for navigation, search, static export, and
 agent retrieval. If another writer changed the source, refresh `status` and review
 again rather than bypassing the `fura.author.conflict` revision check.
 
+In the browser, **Review lifecycle diff** performs the same non-mutating preview.
+**Inspect public output** is also read-only and is available only when the server
+authorizes publication-impact inspection. Neither action writes source or reindexes
+the catalog.
+
 ## 4. Confirm, then revalidate
 
 ```bash
@@ -67,6 +80,13 @@ Use `draft`, `unpublish`, or `archive` with the same dry-run/revision/confirmati
 sequence. Browser lifecycle controls perform the same policy check and POST to
 `/docs/_author/transition`; CLI and MCP clients must never emulate that browser
 form without its session and CSRF boundary.
+
+The browser separates opening **Mark public** or **Mark draft** from the final
+confirmation button. That native disclosure works with JavaScript disabled. The
+confirmed effect changes source lifecycle metadata only: it does not create a Git
+review, build an artifact, promote, verify serving, or roll back. Those steps stay
+separate and remain disabled until connected automation returns exact identities and
+server-owned capabilities.
 
 ## 5. Inspect every public projection
 
