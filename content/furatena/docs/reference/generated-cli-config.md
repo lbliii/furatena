@@ -922,8 +922,8 @@ implementation treats absence as significant or supplies behavior elsewhere.
 | `CHIRP_TRACEBACK` | read | '' | `furatena/catalog/dev_reload.py:220` |
 | `FURA_ACTIVE_CONTENT_GENERATION` | read | '' | `furatena/catalog/build_identity.py:20`, `furatena/catalog/operational_status.py:167` |
 | `FURA_APP_ROOT` | read | None | `furatena/cli/commands/_shared.py:42` |
-| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:2054`, `furatena/cli/commands/serve.py:47` |
-| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1607`, `furatena/catalog/route_registrars.py:1626`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
+| `FURA_AUTODOC` | read, write | '1', None | `furatena/catalog/docs_app.py:2072`, `furatena/cli/commands/serve.py:47` |
+| `FURA_BASE_PATH` | read, write | '', None | `furatena/catalog/route_registrars.py:1617`, `furatena/catalog/route_registrars.py:1636`, `furatena/catalog/static_export.py:189`, `furatena/catalog/static_export.py:327`, `furatena/catalog/static_export.py:333`, `furatena/cli/commands/export.py:28` |
 | `FURA_BASE_URL` | read, write | '', None | `furatena/catalog/seo.py:24`, `furatena/catalog/static_export.py:193`, `furatena/catalog/static_export.py:326`, `furatena/catalog/static_export.py:331`, `furatena/cli/commands/export.py:26`, `furatena/cli/commands/pdf.py:26`, `furatena/cli/commands/serve.py:51` |
 | `FURA_BUILD_GIT_SHA` | read | '', None | `furatena/catalog/build_identity.py:65`, `furatena/catalog/content_deployment.py:313`, `furatena/catalog/content_deployment.py:566`, `furatena/catalog/content_deployment.py:678`, `furatena/catalog/content_refresh.py:515`, `furatena/catalog/operational_status.py:170`, `furatena/catalog/preview_security.py:141` |
 | `FURA_CHANNEL` | read, write | 'latest', None | `furatena/catalog/versions.py:39`, `furatena/cli/commands/serve.py:49` |

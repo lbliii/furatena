@@ -136,13 +136,8 @@ def _run_serve(args: argparse.Namespace) -> None:
 
     port = args.port or int(os.environ.get("FURA_PORT", "8001"))
     url = f"http://{host}:{port}/"
-    from furatena.catalog.dev_banner import compose_serve_preflight
-
-    startup = compose_serve_preflight(
-        docs.app,
-        docs.serve,
-        page_count=len(docs.catalog.nodes),
-        mount_count=len(docs.catalog.mounts),
+    startup = _compose_serve_preflight(
+        docs,
         configured_url=url,
         run_contract_checks=(run_contract_checks and docs.serve.mode != ServeMode.PREVIEW),
     )
@@ -154,6 +149,26 @@ def _run_serve(args: argparse.Namespace) -> None:
     if not startup.ok:
         raise SystemExit(int(ExitCode.VALIDATION_ERROR))
     docs.run_serve(port=port, host=host)
+
+
+def _compose_serve_preflight(
+    docs: Any,
+    *,
+    configured_url: str,
+    run_contract_checks: bool,
+) -> ServeStartupResult:
+    """Compose descriptor-only serve preflight before enabling remote graph loads."""
+    from furatena.catalog.dev_banner import compose_serve_preflight
+
+    with docs.catalog._defer_remote_materialization():
+        return compose_serve_preflight(
+            docs.app,
+            docs.serve,
+            page_count=docs.catalog._serve_preflight_page_count(),
+            mount_count=len(docs.catalog.mounts),
+            configured_url=configured_url,
+            run_contract_checks=run_contract_checks,
+        )
 
 
 def _startup_command_result(

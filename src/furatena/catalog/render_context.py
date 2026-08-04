@@ -180,11 +180,27 @@ class RenderContextService:
         context.update(self.view_chrome_context(view_name, node, context))
         return context
 
-    def shell_context(self, *, query: str = "", request: Any | None = None) -> dict[str, Any]:
+    def shell_context(
+        self,
+        *,
+        query: str = "",
+        request: Any | None = None,
+        local_only: bool = False,
+    ) -> dict[str, Any]:
         self.catalog.refresh_if_stale()
         page_lang = self.request_language(request)
+        nav_items = (
+            self.catalog._local_nav_tree(lang=page_lang)
+            if local_only
+            else self.catalog.nav_tree(lang=page_lang)
+        )
+        page_nodes = (
+            self.catalog._local_doc_nodes(lang=page_lang)
+            if local_only
+            else self.catalog.doc_nodes(lang=page_lang)
+        )
         return {
-            "nav_items": self.catalog.nav_tree(lang=page_lang),
+            "nav_items": nav_items,
             "chirp_docs_surface": "app",
             "breadcrumb_items": [{"label": "Search", "href": "/search"}],
             "search_query": query,
@@ -198,7 +214,7 @@ class RenderContextService:
             "search_aside_links": [],
             "search_discovery_sections": [],
             "search_result_section_links": [],
-            "page_count": len(self.catalog.doc_nodes(lang=page_lang)),
+            "page_count": len(page_nodes),
             "node": None,
             **channel_context(self.catalog.channels, self.catalog.active_channel),
             **self.site_context(),

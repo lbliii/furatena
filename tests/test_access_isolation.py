@@ -21,6 +21,7 @@ from furatena.catalog.semantic import semantic_index_json
 from furatena.cli.main import main
 
 _TEAM_CANARY = "alpha-orchid-team-canary"
+_PROTECTED_CANARY = "cobalt-gate-protected-canary"
 _ADMIN_CANARY = "velvet-cipher-admin-canary"
 
 
@@ -42,6 +43,16 @@ def isolated_app(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Path:
         "  teams: [alpha]\n"
         "---\n\n"
         f"{_TEAM_CANARY}\n",
+        encoding="utf-8",
+    )
+    (docs / "protected-alpha.md").write_text(
+        "---\n"
+        "title: Protected Alpha handbook\n"
+        "visibility: internal\n"
+        "access:\n"
+        "  teams: [alpha]\n"
+        "---\n\n"
+        f"{_PROTECTED_CANARY}\n",
         encoding="utf-8",
     )
     (docs / "admin.md").write_text(
@@ -114,6 +125,51 @@ def _surface_texts(docs: DocsApp, subject: AccessSubject) -> dict[str, str]:
         "mcp_graph": mcp_graph,
         "mcp_search": mcp_search,
     }
+
+
+def test_search_snapshot_uses_request_subject_without_registry_private_bypass(
+    isolated_app: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from furatena.catalog.search_experience import build_search_catalog_snapshot
+
+    alpha = _subject("reader", team="alpha")
+    docs = _docs(isolated_app, _subject("admin"))
+    observed: list[tuple[AccessSubject | None, bool]] = []
+
+    def remote_counts(
+        *, subject: AccessSubject | None = None, include_private: bool = False
+    ) -> dict[str, int]:
+        observed.append((subject, include_private))
+        return {"remote-protected": 1} if subject == alpha and not include_private else {}
+
+    monkeypatch.setattr(docs.catalog, "_remote_search_mount_counts", remote_counts)
+    assert docs.catalog.include_private is True
+
+    authorized = build_search_catalog_snapshot(
+        docs.catalog,
+        subject=alpha,
+        include_private=False,
+    )
+    authorized_titles = {node.title for node in authorized.nodes}
+
+    assert "Protected Alpha handbook" in authorized_titles
+    assert "Team Alpha runbook" in authorized_titles
+    assert "Admin runbook" not in authorized_titles
+    assert authorized.remote_mount_counts == {"remote-protected": 1}
+    assert observed == [(alpha, False)]
+
+    anonymous = build_search_catalog_snapshot(
+        docs.catalog,
+        subject=AccessSubject.anonymous(),
+        include_private=False,
+    )
+    anonymous_titles = {node.title for node in anonymous.nodes}
+
+    assert "Protected Alpha handbook" not in anonymous_titles
+    assert "Team Alpha runbook" not in anonymous_titles
+    assert "Admin runbook" not in anonymous_titles
+    assert anonymous.remote_mount_counts == {}
 
 
 def test_role_and_team_canaries_are_isolated_across_export_and_mcp(
