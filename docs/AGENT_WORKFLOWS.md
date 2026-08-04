@@ -94,6 +94,11 @@ caller deliberately sets `include_eol` to true.
 
 Versioned public and trusted-author contract fixtures live under `tests/fixtures/agent-contracts/`. Run `fura agent-diff OLD.json NEW.json --json` to review semantic contract changes without treating keyed-array reordering as drift. Breaking removals, type/version changes, and URL or URI changes require an explicit `--decision` describing the major-version or migration policy.
 
+The [MCP Apps contract](MCP_APPS_CONTRACT.md) defines opt-in capability negotiation,
+versioned `ui://` identity, tool links, deny-by-default browser metadata, access and
+redaction policy, deterministic gateway rewriting, and structured non-App fallback.
+The contract does not enable WebMCP or bypass existing MCP authorization and audit paths.
+
 Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, validation-error repair, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the validation repair and publish round-trip cases perform confirmed writes against a private fixture and restore the original source before finishing.
 
 ## Versioned known-answer corpus
@@ -168,7 +173,7 @@ MCP tools return both text content and `structuredContent` payloads:
 - Existing-source writes require the `source_revision` returned by
   `author_read_source`; conflicts include the current revision and require a
   reread/merge/retry cycle.
-- `author_inspect_publication_impact` — return lifecycle status, validation, and stale impact before a publication change.
+- `author_inspect_publication_impact` — return lifecycle status, validation, stale impact, and the exact read-only public projection for a publish, unpublish, or archive plan.
 
 CI and local automation can use `fura impact --json` for the same stale-impact contract without opening MCP. The report includes affected chunks, graph context, changed graph edges touching each DCP node, provenance, output channels, recommended remediation, and GitHub-issue-ready repair task markdown.
 
