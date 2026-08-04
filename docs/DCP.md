@@ -6,7 +6,8 @@ without requiring consumers to know the source authoring format.
 
 See also [DUAL_IR.md](DUAL_IR.md) for how Content IR and Presentation IR align at
 runtime, and [EDITIONS.md](EDITIONS.md) for immutable release shards, edition identity,
-and lifecycle-aware composition.
+and lifecycle-aware composition. [FEDERATION_SHARDS.md](FEDERATION_SHARDS.md) defines
+the accepted published-shard and remote hub extension.
 
 ## Design principles
 
@@ -41,6 +42,12 @@ compatibility fixtures or external sample exports:
 fura check --content-only --dcp-fixtures
 fura check --content-only --dcp-file path/to/catalog.json
 ```
+
+Published artifact schema v1 preserves this proven v2/v3 reader window and requires
+Content IR v3. It is an additive transport around DCP v3, so it does not trigger DCP
+v4. Artifact and hub contracts version independently; DCP v4 remains reserved for a
+breaking page, edge, namespace, or identity semantic change. See the federation RFC
+for the staged #360/#361 migration plan and fail-closed reader algorithm.
 
 Bundled compatibility fixtures live under `furatena.catalog/fixtures/dcp/`. Every
 supported version covers edges, Content IR, inventories, and namespaces. DCP v3
