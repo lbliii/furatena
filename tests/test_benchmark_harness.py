@@ -13,6 +13,9 @@ from furatena.catalog.benchmarks import (
     benchmark_corpus,
     generate_synthetic_corpus,
 )
+from furatena.catalog.link_reconciliation_benchmarks import (
+    run_link_reconciliation_benchmark,
+)
 
 
 def test_harness_explains_gil_enabled_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -56,3 +59,13 @@ def test_benchmark_corpus_reports_all_operations(tmp_path: Path) -> None:
         isinstance(measurement, dict) and measurement["median"] >= 0
         for measurement in timings.values()
     )
+
+
+def test_link_reconciliation_benchmark_reports_measured_delta() -> None:
+    report = run_link_reconciliation_benchmark(mounts=4, pages_per_shard=4)
+
+    assert report["workload"]["nodes"] == 16
+    assert report["delta"]["changed_shards"] == 1
+    assert report["delta"]["untouched_shards"] == 3
+    assert report["delta"]["neighborhood_edges"] < report["workload"]["edges"]
+    assert report["delta"]["state_record_bytes"] > 0

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import importlib.util
 import json
+import os
 import shutil
+import subprocess
 from pathlib import Path
 
+import yaml
 from chirp.testing.client import TestClient
 
 from furatena.catalog.config import load_docs_config
@@ -35,6 +39,7 @@ def test_composer_spec_has_private_image_volume_secrets_and_gates() -> None:
     assert failures == []
     template = payload["template"]
     assert template["hidden_registry_credentials"]
+    assert template["public_networking"]
     assert template["volume"] == {
         "name": "furatena-data",
         "mount_path": "/data/furatena",
@@ -42,6 +47,8 @@ def test_composer_spec_has_private_image_volume_secrets_and_gates() -> None:
     }
     assert template["replicas"] == 1
     variables = {item["name"]: item for item in payload["variables"]}
+    assert all(item["description"].strip() for item in variables.values())
+    assert variables["FURA_BASE_URL"]["default"] == "https://${{RAILWAY_PUBLIC_DOMAIN}}"
     assert variables["RAILWAY_RUN_UID"] == {
         "name": "RAILWAY_RUN_UID",
         "required": True,
@@ -52,6 +59,50 @@ def test_composer_spec_has_private_image_volume_secrets_and_gates() -> None:
             "to uid/gid 65532"
         ),
     }
+
+
+def test_composer_spec_fails_closed_on_variable_and_network_metadata_drift() -> None:
+    payload = json.loads((ROOT / "config" / "railway-template-spec.json").read_text())
+    validator = _validator()
+
+    missing_description = copy.deepcopy(payload)
+    missing_description["variables"][0]["description"] = " "
+
+    missing_optional_default = copy.deepcopy(payload)
+    content_ref = next(
+        item for item in missing_optional_default["variables"] if item["name"] == "FURA_CONTENT_REF"
+    )
+    content_ref.pop("default")
+
+    literal_secret = copy.deepcopy(payload)
+    refresh_token = next(
+        item for item in literal_secret["variables"] if item["name"] == "FURA_CONTENT_REFRESH_TOKEN"
+    )
+    refresh_token["default"] = "committed-value"
+
+    disabled_network = copy.deepcopy(payload)
+    disabled_network["template"]["public_networking"] = False
+
+    detached_base_url = copy.deepcopy(payload)
+    base_url = next(
+        item for item in detached_base_url["variables"] if item["name"] == "FURA_BASE_URL"
+    )
+    base_url["default"] = "invalid"
+
+    for changed, expected in (
+        (missing_description, "template variable FURA_CONTENT_REPOSITORY must have a description"),
+        (
+            missing_optional_default,
+            "optional template variable FURA_CONTENT_REF must have a safe default",
+        ),
+        (
+            literal_secret,
+            "FURA_CONTENT_REFRESH_TOKEN must use a generated secret of at least 32 characters",
+        ),
+        (disabled_network, "public networking must be enabled"),
+        (detached_base_url, "FURA_BASE_URL must derive from RAILWAY_PUBLIC_DOMAIN"),
+    ):
+        assert expected in validator.validate_template_spec(changed)
 
 
 def test_public_content_starter_has_no_proprietary_package_dependency() -> None:
@@ -94,6 +145,17 @@ def test_public_content_starter_has_realistic_owned_content_and_operations_guida
         "image digest",
     ):
         assert required in readme
+    publish_heading = "## publish content"
+    assert readme.count(publish_heading) == 1
+    publish_section = " ".join(readme.split(publish_heading, 1)[1].split("\n## ", 1)[0].split())
+    for required in (
+        "authenticated refresh",
+        "versioned request",
+        "exact pushed commit",
+        "idempotency key",
+    ):
+        assert required in publish_section
+    assert "the current empty-body request" not in readme
 
 
 def test_public_content_starter_uses_packaged_presentation_and_owned_branding() -> None:
@@ -278,16 +340,146 @@ def test_clean_account_workflow_proves_lifecycle_and_always_deletes_project() ->
         "@railway/cli@${RAILWAY_CLI_VERSION}",
         "deploy --template",
         "check_live_slo.py",
+        "Reject unauthenticated content refresh without changing generations",
+        "content-auth-denied.json",
+        "content-after-auth-denial.json",
         "refs/heads/furatena-conformance-missing",
         "content-after-bad-ref.json",
         "redeploy",
         "/_fura/content/rollback",
         "rollback_hold",
         "verify-live-artifacts.py",
-        "if: always() && steps.project.outputs.project_id != ''",
+        "Delete the disposable project with bounded retries",
+        "if: always()",
+        "for attempt in 1 2 3",
+        "timeout 120s",
+        "conformance-evidence/cleanup.json",
         "delete",
     ):
         assert required in source
     assert "RAILWAY_CLI_VERSION: 5.25.0" in source
     assert "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0" in source
     assert "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f" in source
+
+
+def test_clean_account_workflow_proves_refresh_auth_denial_without_mutation() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+    denial = source.split(
+        "      - name: Reject unauthenticated content refresh without changing generations\n",
+        1,
+    )[1].split("\n      - name:", 1)[0]
+
+    assert "--request POST" in denial
+    assert 'test "$status" = 401' in denial
+    assert "content operation authorization failed" in denial
+    assert "Authorization:" not in denial
+    assert "content-after-auth-denial.json" in denial
+    assert "active_generation" in denial
+
+
+def test_clean_account_evidence_excludes_raw_control_plane_identifiers() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+    upload = source.split("      - name: Upload conformance evidence\n", 1)[1]
+
+    assert "conformance-evidence/railway-terminal.json" in upload
+    assert "conformance-evidence/cleanup.json" in upload
+    for raw_control_plane_file in (
+        "project.json",
+        "domains.json",
+        "domain-created.json",
+        "deployments-initial.json",
+        "final-deployments.json",
+        "final-status.json",
+    ):
+        assert raw_control_plane_file not in upload
+    assert "path: conformance-evidence/" not in upload
+    assert "latest_deployment_status" in source
+    assert "deployment_statuses" in source
+    assert 'rm -f "${RUNNER_TEMP}/furatena-final-deployments.json"' in source
+
+
+def test_clean_account_masks_generated_session_secret_before_use() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+
+    generated = source.index("session_secret=$(openssl rand -hex 32)")
+    masked = source.index('echo "::add-mask::$session_secret"')
+    deployed = source.index("FURA_SESSION_SECRET=$session_secret")
+
+    assert generated < masked < deployed
+
+
+def test_clean_account_persists_name_fallback_before_project_init() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+
+    name = source.index('project_name="furatena-conformance-${GITHUB_RUN_ID}"')
+    persisted = source.index(
+        'printf \'%s\\n\' "$project_name" > "${RUNNER_TEMP}/furatena-project-name"'
+    )
+    initialized = source.index('npx --yes "@railway/cli@${RAILWAY_CLI_VERSION}" init')
+
+    assert name < persisted < initialized
+
+
+def test_clean_account_removes_disposable_origin_from_uploaded_slo() -> None:
+    source = (ROOT / ".github" / "workflows" / "railway-template-conformance.yml").read_text()
+    activation = source.split(
+        "      - name: Prove first activation and private-image identity\n", 1
+    )[1].split("      - name: Inject an unreachable ref", 1)[0]
+    upload = source.split("      - name: Upload conformance evidence\n", 1)[1]
+
+    assert 'raw_slo="${RUNNER_TEMP}/furatena-initial-slo.json"' in activation
+    assert "jq 'del(.origin)' \"$raw_slo\" > conformance-evidence/initial-slo.json" in activation
+    assert "trap 'rm -f \"$raw_slo\"' EXIT" in activation
+    assert "conformance-evidence/initial-slo.json" in upload
+    assert "furatena-initial-slo.json" not in upload
+
+
+def test_clean_account_cleanup_uses_local_id_and_name_fallbacks(tmp_path: Path) -> None:
+    workflow_path = ROOT / ".github" / "workflows" / "railway-template-conformance.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    cleanup = next(
+        step["run"]
+        for step in workflow["jobs"]["clean-account"]["steps"]
+        if step.get("name") == "Delete the disposable project with bounded retries"
+    )
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_npx = fake_bin / "npx"
+    fake_npx.write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$CALL_LOG"\n',
+        encoding="utf-8",
+    )
+    fake_npx.chmod(0o755)
+
+    for fallback_file, project_target in (
+        ("furatena-project-id", "project-id-fallback"),
+        ("furatena-project-name", "furatena-conformance-name-fallback"),
+    ):
+        case_root = tmp_path / fallback_file
+        runner_temp = case_root / "runner-temp"
+        runner_temp.mkdir(parents=True)
+        (runner_temp / fallback_file).write_text(project_target + "\n", encoding="utf-8")
+        call_log = case_root / "calls.log"
+        completed = subprocess.run(
+            ["bash", "-c", cleanup],
+            cwd=case_root,
+            env={
+                **os.environ,
+                "CALL_LOG": str(call_log),
+                "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                "PROJECT_ID": "",
+                "RAILWAY_CLI_VERSION": "5.25.0",
+                "RUNNER_TEMP": str(runner_temp),
+            },
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        assert completed.returncode == 0, completed.stderr
+        assert f"--project {project_target} --yes --json" in call_log.read_text(encoding="utf-8")
+        receipt = json.loads(
+            (case_root / "conformance-evidence" / "cleanup.json").read_text(encoding="utf-8")
+        )
+        assert receipt == {"schema_version": 1, "cleanup": {"status": "deleted", "attempts": 1}}
+        assert not (runner_temp / fallback_file).exists()

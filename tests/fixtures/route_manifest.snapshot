@@ -1,5 +1,5 @@
 # Generated pre-refactor route contract. Update intentionally with route changes.
-# handler-origins-sha256: 5842d3ff5479cdfef2483484b24911884b4cb7e4100d7d8fa6b01e8d2788f901
+# handler-origins-sha256: f04e6f9d6ff17c3a629506f419b93f902c178ad2bbedbac055aaf30f509f2e18
 GET|/|-|furatena|home|html-document|dynamic:view-kind|-
 GET|/_fura/content/operations/{operation_id}|-|application|content_refresh_operation|html-document|-|-
 POST|/_fura/content/refresh|-|application|content_refresh|html-document|-|-
@@ -43,6 +43,7 @@ GET|/inventories.json|-|application|inventories_json_route|json|-|-
 GET|/inventories/{inventory_id}/objects.inv|-|application|inventory_inv|binary|-|-
 GET|/llms-full.txt|-|application|llms_full|text|-|-
 GET|/llms.txt|-|application|llms_txt|text|-|-
+GET|/llms/{mount_file}|-|application|mount_llms_txt|text|-|-
 GET|/meta.json|-|application|meta_json_route|json|-|-
 GET|/migration.md|-|furatena|default_migration|markdown|dynamic:view-kind|-
 GET|/migration/|-|furatena|default_migration|html-document|dynamic:view-kind|-
@@ -71,6 +72,7 @@ GET|/shared.md|-|shared|mount_shared|markdown|dynamic:view-kind|-
 GET|/shared/|-|shared|mount_shared|html-document|dynamic:view-kind|-
 GET|/shared/{slug:path}|-|shared|mount_shared|html-document|dynamic:view-kind|-
 GET|/sitemap.xml|-|application|sitemap|xml|-|-
+GET|/sitemaps/{mount_file}|-|application|mount_sitemap|xml|-|-
 GET|/structure.json|-|application|structure_json_route|json|-|-
 GET|/surface.json|-|application|surface_json_route|json|-|-
 GET|/tools.json|-|application|tools_json|json|-|-

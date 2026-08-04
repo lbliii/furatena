@@ -115,16 +115,19 @@ def test_exact_digest_smoke_proves_unprivileged_volume_lifecycle() -> None:
 
 def test_pull_request_image_conformance_does_not_publish_to_ghcr() -> None:
     workflow = (REPO / ".github/workflows/private-image.yml").read_text(encoding="utf-8")
-    candidate = workflow.split("  candidate:\n", 1)[1].split("\n  smoke:\n", 1)[0]
+    pull_request = workflow.split("  pull-request:\n", 1)[1].split("\n  candidate:\n", 1)[0]
     smoke = workflow.split("  smoke:\n", 1)[1].split("\n  lifecycle:\n", 1)[0]
 
-    assert "push: ${{ github.event_name != 'pull_request' }}" in candidate
-    assert "load: ${{ github.event_name == 'pull_request' }}" in candidate
-    assert "Verify the pull-request runtime without publishing" in candidate
-    assert "Prove pull-request managed-content diagnostics" in candidate
-    assert "Prove pull-request unprivileged managed-content lifecycle" in candidate
-    assert 'scripts/verify-unprivileged-image.sh "$SUBJECT"' in candidate
-    assert "runtime-evidence/" in candidate
+    assert "permissions:\n      contents: read" in pull_request
+    assert "docker/login-action" not in pull_request
+    assert "actions/attest" not in pull_request
+    assert "push: false" in pull_request
+    assert "load: true" in pull_request
+    assert "Verify the pull-request runtime" in pull_request
+    assert "Prove pull-request managed-content diagnostics" in pull_request
+    assert "Prove pull-request unprivileged managed-content lifecycle" in pull_request
+    assert 'scripts/verify-unprivileged-image.sh "$SUBJECT"' in pull_request
+    assert "runtime-evidence/" in pull_request
     assert "if: github.event_name != 'pull_request'" in smoke
 
 

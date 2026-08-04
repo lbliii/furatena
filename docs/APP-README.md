@@ -30,7 +30,11 @@ The docs app uses **three reload layers** — no static rebuild, no Lunr regen.
 | Markdown in `content/chirp/` | Current page updates in place (htmx OOB: body, TOC, sidebar) | ~2–3s |
 | Theme CSS (`theme/…`) | Stylesheets hot-swap in the browser | ~0.5s |
 | Theme HTML / Kida templates | Full browser refresh | ~0.5s |
-| Python (`catalog/…`, optional `src/chirp/`) | Dev server process restart | ~3–5s |
+| Python (`src/furatena/`) | Dev server process restart when `FURA_RELOAD_SRC=1` | ~3–5s |
+
+Content and theme changes use the normal Chirp browser/content SSE path and do not
+restart the Pounce process. Python process restart is opt-in: `FURA_RELOAD_SRC=1`
+enables watching only when the checkout contains a validated `src/furatena/` directory.
 
 **Serve modes** (auto-selected unless you pass a flag):
 
@@ -46,7 +50,7 @@ fura serve --hybrid                 # frozen baseline + live overlay
 fura serve --author                 # always live index (slowest boot, always fresh)
 fura serve --preview                # no live reload
 
-# Optional: also restart on edits under src/chirp/ (framework co-dev)
+# Optional: also restart on edits under src/furatena/ (framework co-dev)
 FURA_RELOAD_SRC=1 ./app/run
 ```
 
@@ -87,7 +91,8 @@ repo venv from `make install` does.
 - **Boosted nav** — htmx swaps `#main` (~7KB fragments, ~10ms server time)
 - **Shell OOB updates** — sidebar active state, breadcrumbs, and title update per navigation
 - **Runtime search** — query the catalog, no prebuilt Lunr index
-- **`/llms.txt`** — machine-readable index generated on request, with API operation hints when available
+- **`/llms.txt`** — link-only hub over per-mount **`/llms/{mount_file}`** indexes (`.txt`)
+- **`/sitemap.xml`** — sitemap index over per-mount **`/sitemaps/{mount_file}`** maps (`.xml`)
 
 ## Limitations (spike)
 

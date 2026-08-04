@@ -10,12 +10,15 @@ from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 
 from furatena.catalog.exceptions import CatalogError
+from furatena.catalog.federated_search import build_federated_search_index
 from furatena.catalog.federation_artifacts import (
+    MAX_PRESENTATION_BYTES,
     MAX_PUBLISHED_INVENTORY_ENTRIES,
     MAX_PUBLISHED_OBJECT_BYTES,
     inventory_digest,
     published_artifact_fingerprint,
     published_manifest_digest,
+    validate_inert_presentation_html,
     validate_published_shard_manifest,
 )
 
@@ -137,7 +140,7 @@ def publish_shard(options: PublishShardOptions, backend: ObjectBackend) -> Publi
                 backend.put(
                     key,
                     source,
-                    media_type="application/json",
+                    media_type=str(item["media_type"]),
                     sha256=expected_sha,
                     create_only=True,
                 )
@@ -212,31 +215,58 @@ def build_published_shard(options: PublishShardOptions) -> tuple[Path, dict[str,
         (page for page in pages if isinstance(page, dict)),
         key=lambda value: str(value.get("node_id") or ""),
     )
+    expected_presentations: set[Path] = set()
     for page in page_records:
         node_id = str(page.get("node_id") or "")
         digest = hashlib.sha256(node_id.encode()).hexdigest()
+        slug = str(page.get("slug") or "index")
         objects.append(
             _write_object(
                 artifact_root,
                 f"fragments/nodes/{digest}.json",
                 "fragment",
                 page,
+                node_id=node_id,
                 max_bytes=_MAX_FRAGMENT_BYTES,
             )
         )
-    search = {
-        "schema_version": 1,
-        "mount": mount,
-        "edition": edition,
-        "documents": [
-            {
-                "node_id": str(page.get("node_id") or ""),
-                "title": str(page.get("title") or ""),
-                "text": _page_text(page),
-            }
-            for page in page_records
-        ],
+        presentation_path = _safe_presentation_path(source / "pages", slug)
+        expected_presentations.add(presentation_path)
+        presentation = _read_presentation(presentation_path)
+        presentation_errors = validate_inert_presentation_html(presentation)
+        if presentation_errors:
+            raise ShardPublishError(
+                f"The frozen presentation for {node_id} is not inert: "
+                + "; ".join(presentation_errors[:4])
+                + ".",
+                path=presentation_path,
+                operation="publish_shard_presentation",
+            )
+        objects.append(
+            _write_bytes_object(
+                artifact_root,
+                f"presentations/nodes/{digest}.html",
+                "presentation",
+                presentation,
+                extension="html",
+                media_type="text/html; charset=utf-8",
+                node_id=node_id,
+                max_bytes=MAX_PRESENTATION_BYTES,
+            )
+        )
+    actual_presentations = {
+        path.resolve() for path in (source / "pages").rglob("*.html") if path.is_file()
     }
+    if actual_presentations != expected_presentations:
+        missing = sorted(str(path) for path in expected_presentations - actual_presentations)
+        extra = sorted(str(path) for path in actual_presentations - expected_presentations)
+        raise ShardPublishError(
+            f"The frozen presentation node set differs from the public catalog "
+            f"(missing={missing}, extra={extra}).",
+            path=source / "pages",
+            operation="publish_shard_presentation",
+        )
+    search = build_federated_search_index(page_records, mount=mount, edition=edition)
     semantic = {
         "schema_version": 1,
         "mount": mount,
@@ -309,9 +339,11 @@ def build_published_shard(options: PublishShardOptions) -> tuple[Path, dict[str,
             "manifest_path": "manifest.json",
             "object_prefix": "objects/sha256/",
             "fragment_prefix": "fragments/",
+            "presentation_prefix": "presentations/",
             "lookup": "node-id-map",
             "max_object_bytes": MAX_PUBLISHED_OBJECT_BYTES,
             "max_fragment_bytes": _MAX_FRAGMENT_BYTES,
+            "max_presentation_bytes": MAX_PRESENTATION_BYTES,
             "max_inventory_entries": MAX_PUBLISHED_INVENTORY_ENTRIES,
         },
         "compression": {
@@ -323,6 +355,7 @@ def build_published_shard(options: PublishShardOptions) -> tuple[Path, dict[str,
         "totals": {
             "object_count": len(objects),
             "fragment_count": len(page_records),
+            "presentation_count": len(page_records),
             "uncompressed_bytes": sum(int(item["uncompressed_size"]) for item in objects),
             "encoded_bytes": sum(int(item["encoded_size"]) for item in objects),
         },
@@ -396,9 +429,33 @@ def _write_object(
     role: str,
     payload: dict[str, Any],
     *,
+    node_id: str | None = None,
     max_bytes: int = MAX_PUBLISHED_OBJECT_BYTES,
 ) -> dict[str, Any]:
     decoded = _canonical_json(payload)
+    return _write_bytes_object(
+        root,
+        logical_path,
+        role,
+        decoded,
+        extension="json",
+        media_type="application/json",
+        node_id=node_id,
+        max_bytes=max_bytes,
+    )
+
+
+def _write_bytes_object(
+    root: Path,
+    logical_path: str,
+    role: str,
+    decoded: bytes,
+    *,
+    extension: str,
+    media_type: str,
+    node_id: str | None = None,
+    max_bytes: int = MAX_PUBLISHED_OBJECT_BYTES,
+) -> dict[str, Any]:
     if len(decoded) > max_bytes:
         raise ShardPublishError(
             f"{logical_path} exceeds the v1 object size limit",
@@ -407,23 +464,23 @@ def _write_object(
     decoded_sha = hashlib.sha256(decoded).hexdigest()
     encoded = decoded
     encoding = "identity"
-    suffix = ".json"
+    suffix = f".{extension}"
     if len(decoded) >= _COMPRESSION_THRESHOLD:
         from compression import zstd
 
         encoded = zstd.compress(decoded)
         encoding = "zstd"
-        suffix = ".json.zst"
+        suffix = f".{extension}.zst"
     encoded_sha = hashlib.sha256(encoded).hexdigest()
     object_url = f"objects/sha256/{encoded_sha}{suffix}"
     target = root / object_url
     if not target.exists():
         target.write_bytes(encoded)
-    return {
+    record = {
         "logical_path": logical_path,
         "role": role,
         "object_url": object_url,
-        "media_type": "application/json",
+        "media_type": media_type,
         "content_encoding": encoding,
         "uncompressed_size": len(decoded),
         "encoded_size": len(encoded),
@@ -431,6 +488,44 @@ def _write_object(
         "encoded_sha256": encoded_sha,
         "required": True,
     }
+    if node_id is not None:
+        record["node_id"] = node_id
+    return record
+
+
+def _safe_presentation_path(root: Path, slug: str) -> Path:
+    target = (root / f"{slug}.html").resolve()
+    if not target.is_relative_to(root.resolve()):
+        raise ShardPublishError(
+            f"The catalog contains an unsafe presentation slug that escapes its root: {slug!r}.",
+            path=target,
+            operation="publish_shard_presentation",
+        )
+    return target
+
+
+def _read_presentation(path: Path) -> bytes:
+    if not path.is_file():
+        raise ShardPublishError(
+            "The public catalog node is missing its frozen presentation HTML file.",
+            path=path,
+            operation="publish_shard_presentation",
+        )
+    if path.stat().st_size > MAX_PRESENTATION_BYTES:
+        raise ShardPublishError(
+            "The frozen presentation exceeds the 16 MiB decoded presentation limit.",
+            path=path,
+            operation="publish_shard_presentation",
+        )
+    with path.open("rb") as stream:
+        value = stream.read(MAX_PRESENTATION_BYTES + 1)
+    if len(value) > MAX_PRESENTATION_BYTES:
+        raise ShardPublishError(
+            "The frozen presentation grew beyond the 16 MiB limit during its bounded read.",
+            path=path,
+            operation="publish_shard_presentation",
+        )
+    return value
 
 
 def _verification_records(value: Any, fingerprint: str) -> list[dict[str, Any]]:
@@ -519,16 +614,6 @@ def _read_json(path: Path) -> dict[str, Any]:
             "required JSON must contain an object", path=path, operation="publish_shard_package"
         )
     return value
-
-
-def _page_text(page: dict[str, Any]) -> str:
-    parts = [str(page.get("title") or "")]
-    sections = page.get("sections")
-    if isinstance(sections, list):
-        parts.extend(
-            str(section.get("text") or "") for section in sections if isinstance(section, dict)
-        )
-    return " ".join(part for part in parts if part).strip()
 
 
 def _canonical_json(payload: Any) -> bytes:

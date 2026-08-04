@@ -14,7 +14,7 @@ from furatena.cli.commands._shared import (
     _finish_result,
     _json_output,
 )
-from furatena.cli.contracts import CommandResult, command_name
+from furatena.cli.contracts import CommandResult, Diagnostic, ExitCode, command_name
 
 
 def _run_theme_list(args: argparse.Namespace) -> None:
@@ -216,7 +216,12 @@ def _run_theme_init(args: argparse.Namespace) -> None:
     target = Path(args.directory)
     if not target.is_absolute():
         target = _app_root(args) / target
-    written = init_theme_pack(target, force=args.force)
+    written = init_theme_pack(
+        target,
+        force=args.force,
+        kind=args.pack_type,
+        identity=args.identity,
+    )
     if not written:
         if _json_output(args):
             _finish_result(
@@ -236,7 +241,7 @@ def _run_theme_init(args: argparse.Namespace) -> None:
             CommandResult(
                 command=command_name(args),
                 ok=True,
-                summary=f"initialized skin scaffold at {target}",
+                summary=f"initialized {args.pack_type} scaffold at {target}",
                 data={
                     "target": target,
                     "written": [path.relative_to(target) for path in written],
@@ -247,9 +252,144 @@ def _run_theme_init(args: argparse.Namespace) -> None:
             json_output=True,
         )
         return
-    print(f"initialized skin scaffold at {target} ({len(written)} files)")
+    print(f"initialized {args.pack_type} scaffold at {target} ({len(written)} files)")
     for path in written:
         print(f"  {path.relative_to(target)}")
+
+
+def _pack_root(args: argparse.Namespace) -> Path:
+    root = Path(args.directory)
+    return root.resolve() if root.is_absolute() else (_app_root(args) / root).resolve()
+
+
+def _tooling_diagnostics(items: list[dict[str, str]]) -> tuple[Diagnostic, ...]:
+    return tuple(
+        Diagnostic(
+            severity=item["severity"],
+            rule_id=item["code"],
+            message=f"{item['surface']}: {item['message']}",
+            next_action=item["recovery"],
+        )
+        for item in items
+    )
+
+
+def _run_theme_check(args: argparse.Namespace) -> CommandResult:
+    from furatena.catalog.presentation_tooling import check_presentation_pack
+
+    result = check_presentation_pack(_pack_root(args))
+    payload = result.to_dict()
+    diagnostics = _tooling_diagnostics(payload["diagnostics"])
+    error_count = sum(item.severity == "error" for item in diagnostics)
+    warning_count = len(diagnostics) - error_count
+    return CommandResult(
+        command=command_name(args),
+        ok=result.ok,
+        exit_code=ExitCode.SUCCESS if result.ok else ExitCode.VALIDATION_ERROR,
+        summary=(
+            f"presentation pack passed with {warning_count} warning(s)"
+            if result.ok
+            else f"presentation pack failed with {error_count} error(s)"
+        ),
+        diagnostics=diagnostics,
+        data=payload,
+        terminal_lines=tuple(
+            line
+            for item in diagnostics
+            for line in (
+                f"{'warning' if item.severity == 'warning' else 'error'} "
+                f"[{item.rule_id}] {item.message}",
+                f"  recovery: {item.next_action}",
+            )
+        ),
+    )
+
+
+def _generated_result(args: argparse.Namespace, *, conformance: bool) -> CommandResult:
+    from furatena.catalog.exceptions import CatalogError
+    from furatena.catalog.presentation_pack import PresentationPackError
+    from furatena.catalog.presentation_tooling import (
+        generate_reference_preview,
+        run_presentation_conformance,
+    )
+
+    root = _pack_root(args)
+    output = Path(args.output)
+    if not output.is_absolute():
+        output = root / output
+    try:
+        result = (
+            run_presentation_conformance(root, output, check=args.check)
+            if conformance
+            else generate_reference_preview(root, output, check=args.check)
+        )
+    except (CatalogError, OSError, PresentationPackError, ValueError) as exc:
+        surface = "conformance" if conformance else "reference preview"
+        diagnostic = Diagnostic(
+            severity="error",
+            rule_id=(
+                "fura.presentation.conformance"
+                if conformance
+                else "fura.presentation.reference_preview"
+            ),
+            message=f"{surface} failed: {exc}",
+            next_action="Run `fura theme check PACK`, fix every reported contract, and retry.",
+        )
+        return CommandResult(
+            command=command_name(args),
+            ok=False,
+            exit_code=ExitCode.VALIDATION_ERROR,
+            summary=f"{surface} failed",
+            diagnostics=(diagnostic,),
+            data={"output": output, "pack_root": root},
+            terminal_lines=(f"error [{diagnostic.rule_id}] {diagnostic.message}",),
+        )
+    diagnostics: tuple[Diagnostic, ...] = ()
+    if result.drift:
+        diagnostics = (
+            Diagnostic(
+                severity="error",
+                rule_id="fura.presentation.generated_drift",
+                message="generated presentation artifacts drifted: " + ", ".join(result.drift),
+                next_action=(
+                    f"Run `fura theme {'conformance' if conformance else 'preview'} "
+                    f"{root} --output {output}` and commit the generated result."
+                ),
+            ),
+        )
+    elif not result.report.get("ok", False):
+        diagnostics = (
+            Diagnostic(
+                severity="error",
+                rule_id="fura.presentation.conformance",
+                message="one or more presentation conformance checks failed",
+                next_action="Inspect the report checks, repair the named surface, and rerun.",
+            ),
+        )
+    action = "verified" if args.check else "wrote"
+    label = "conformance report" if conformance else "reference preview"
+    return CommandResult(
+        command=command_name(args),
+        ok=result.ok,
+        exit_code=ExitCode.SUCCESS if result.ok else ExitCode.VALIDATION_ERROR,
+        summary=f"{action} {label} at {result.output}" if result.ok else f"{label} failed",
+        diagnostics=diagnostics,
+        data={
+            "output": result.output,
+            "files": result.files,
+            "drift": result.drift,
+            "report": result.report,
+        },
+        terminal_lines=tuple(f"  {path}" for path in result.files),
+    )
+
+
+def _run_theme_preview(args: argparse.Namespace) -> CommandResult:
+    return _generated_result(args, conformance=False)
+
+
+def _run_theme_conformance(args: argparse.Namespace) -> CommandResult:
+    return _generated_result(args, conformance=True)
 
 
 def configure(sub: Any) -> None:
@@ -300,9 +440,68 @@ def configure(sub: Any) -> None:
         "--force", action="store_true", help="Overwrite existing scaffold files"
     )
     theme_init.add_argument(
+        "--type",
+        dest="pack_type",
+        choices=("layout", "skin", "override"),
+        default="skin",
+        help="Presentation pack type (default: skin)",
+    )
+    theme_init.add_argument(
+        "--id",
+        dest="identity",
+        default=None,
+        help="Manifest identity (default: normalized directory name)",
+    )
+    theme_init.add_argument(
         "--json", action="store_true", help="Emit the standard command result JSON"
     )
     theme_init.set_defaults(handler=_run_theme_init)
+    theme_check = theme_sub.add_parser(
+        "check", help="Validate a presentation pack and its owned surfaces"
+    )
+    theme_check.add_argument(
+        "directory", nargs="?", default=".", help="Pack directory relative to the app root"
+    )
+    theme_check.add_argument(
+        "--json", action="store_true", help="Emit the standard command result JSON"
+    )
+    theme_check.set_defaults(handler=_run_theme_check)
+    theme_preview = theme_sub.add_parser(
+        "preview", help="Render deterministic presentation reference fixtures"
+    )
+    theme_preview.add_argument(
+        "directory", nargs="?", default=".", help="Pack directory relative to the app root"
+    )
+    theme_preview.add_argument(
+        "--output",
+        default=".fura-preview",
+        help="Generated output directory (default: PACK/.fura-preview)",
+    )
+    theme_preview.add_argument(
+        "--check", action="store_true", help="Fail without writing if generated output drifted"
+    )
+    theme_preview.add_argument(
+        "--json", action="store_true", help="Emit the standard command result JSON"
+    )
+    theme_preview.set_defaults(handler=_run_theme_preview)
+    theme_conformance = theme_sub.add_parser(
+        "conformance", help="Exercise cross-surface presentation contracts"
+    )
+    theme_conformance.add_argument(
+        "directory", nargs="?", default=".", help="Pack directory relative to the app root"
+    )
+    theme_conformance.add_argument(
+        "--output",
+        default=".fura-conformance",
+        help="Generated report directory (default: PACK/.fura-conformance)",
+    )
+    theme_conformance.add_argument(
+        "--check", action="store_true", help="Fail without writing if the report drifted"
+    )
+    theme_conformance.add_argument(
+        "--json", action="store_true", help="Emit the standard command result JSON"
+    )
+    theme_conformance.set_defaults(handler=_run_theme_conformance)
 
 
 COMMAND = CommandModule("theme", configure)

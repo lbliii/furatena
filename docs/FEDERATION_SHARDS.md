@@ -4,14 +4,16 @@ Status: accepted executable contract for artifact schema v1 and hub schema v1.
 
 This RFC extends DCP delivery without changing DCP page identity or Content IR.
 A publisher turns one immutable local edition shard plus its derived search,
-semantic, and fragment indexes into a public content-addressed object set. A hub
-can then discover, verify, and compose that shard without indexing its source.
+semantic, Content IR fragment, and presentation HTML objects into a public
+content-addressed object set. A hub can then discover, verify, and compose that
+shard without indexing its source or re-rendering it.
 
 The normative schemas are:
 
 - `schemas/federation/v1/published-shard.schema.json`
 - `schemas/federation/v1/hub-manifest.schema.json`
 - `schemas/federation/v1/channels-extension.schema.json`
+- `schemas/federation/v1/search-index.schema.json`
 
 `furatena.catalog.federation_artifacts` is the reference validator. The golden
 pair under `tests/fixtures/federation/v1/` is the compatibility oracle.
@@ -20,10 +22,11 @@ pair under `tests/fixtures/federation/v1/` is the compatibility oracle.
 
 The multi-mount pilot in #346 measured representative edition contexts and
 showed that bounded, independently fetched objects were practical. The contract
-uses conservative caps: 64 MiB per encoded or decoded object, 4 MiB per
-fragment, 100,000 inventory entries, 4 MiB per hub manifest, and 10,000 shard
-identities per hub. These are validation limits, not memory allocation targets:
-readers process one object at a time.
+uses conservative caps: 64 MiB per encoded or general decoded object, 4 MiB per
+Content IR fragment, 16 MiB per decoded presentation, 100,000 inventory entries,
+4 MiB per hub manifest, and 10,000 shard identities per hub. For `N` public
+nodes, the object inventory is exactly `2N + 3`. These are validation limits,
+not memory allocation targets: readers process one object at a time.
 
 ## Published object set
 
@@ -35,13 +38,16 @@ shards/sha256/<published-fingerprint>/
   objects/sha256/<encoded-sha256>.json
   objects/sha256/<encoded-sha256>.json.gz
   objects/sha256/<encoded-sha256>.json.zst
+  objects/sha256/<encoded-sha256>.html
+  objects/sha256/<encoded-sha256>.html.zst
 ```
 
 `manifest.json` maps logical paths to content-addressed objects. It requires
-exactly one DCP catalog, search index, and semantic index, plus one or more
-Content IR fragments. Separate objects permit range-friendly storage, lazy
-fetch, cache reuse, and independent integrity checks; a reader never needs to
-download or decompress the whole shard.
+exactly one DCP catalog, search index, and semantic index, plus exactly one
+Content IR fragment and one presentation HTML object for every public catalog
+node. Separate objects permit range-friendly storage, lazy fetch, cache reuse,
+and independent integrity checks; a reader never needs to download or
+decompress the whole shard.
 
 The published fingerprint is SHA-256 over canonical JSON containing:
 
@@ -57,10 +63,17 @@ storage address.
 
 Every inventory entry records `logical_path`, semantic `role`, relative
 `object_url`, media type, content encoding, encoded and decoded byte sizes, and
-SHA-256 for both encoded and decoded bytes. The inventory is complete, sorted,
-and duplicate-free. Unlisted objects, missing objects, digest mismatch,
-decompression past the declared bound, malformed JSON, DCP schema failure, or
-mount/edition/node identity mismatch rejects the artifact.
+SHA-256 for both encoded and decoded bytes. Fragment and presentation entries
+also carry their exact `node_id`; singleton catalog/search/semantic entries are
+forbidden from carrying one. Their O(1) logical paths are respectively
+`fragments/nodes/<sha256(node_id)>.json` and
+`presentations/nodes/<sha256(node_id)>.html`. The inventory is complete, sorted,
+and duplicate-free by logical path and node mapping. Byte-identical logical
+objects may share one content-addressed `object_url`; this preserves the 1:1
+node mapping while deduplicating physical storage. Unlisted objects, missing
+objects, digest mismatch, decompression past the declared bound, malformed
+JSON, DCP schema failure, or mount/edition/node identity mismatch rejects the
+artifact.
 
 The object filename is the encoded-byte SHA-256 and its suffix must agree with
 the declared encoding. Logical paths and source paths are non-empty relative
@@ -69,6 +82,27 @@ invalid. Catalog, fragment, search, and semantic node inventories must close
 over the same public node-id set. That closure prevents an otherwise valid
 index object from smuggling a private, protected, draft, or archived record
 that is absent from the public catalog.
+
+Presentation HTML is render output, not semantic input. Its node-id set must
+equal both the fragment and public catalog node-id sets, but its text, element
+tree, and styling never enter graph, search, MCP, DCP, or agent semantics. This
+is the dual-IR exception for a surface that requires faithful browser
+presentation: Content IR remains the semantic source of truth, while the
+published HTML IR is an inert, replaceable render artifact.
+
+The reference validator decodes presentation bytes through the 16 MiB bound,
+requires UTF-8, and parses the complete body with an HTML parser. It rejects
+executable, document-head, form, active media/frame, and stylesheet-loading elements;
+active SVG elements such as `foreignObject`, animation, external image, and
+`use`; style, event, source-set, submission, autoplay, Alpine, htmx, Vue,
+Turbo, and known host-action attributes; and scheme-relative URLs. URI-bearing
+attributes use an allowlist: relative references, HTTP(S), `mailto`, and
+base64 raster data images whose decoded signature matches their declared PNG,
+JPEG, GIF, WebP, or AVIF media type. Control characters and entities cannot
+hide a scheme, and the validator never case-normalizes the case-sensitive
+base64 payload. These checks are parser-based rather than regex security
+filtering. A consumer still inserts presentation only into the designated
+inert body boundary; it never executes or reinterprets it as source.
 
 Objects at or above the declared threshold use deterministic zstd by default.
 Identity encoding remains valid for small JSON, while gzip is an explicit
@@ -109,10 +143,11 @@ anchors the canonical shard-manifest digest and byte bound.
 The hub has its own canonical payload digest over contracts, shard records,
 channels, and discovery policy. Its detached signature subject is that digest.
 The reference validator proves shapes, digests, inventory closure, and subject
-binding; #360/#361 must add cryptographic verification against configured
-issuer and workload identities before making a remote shard readable. Missing,
-expired, malformed, untrusted, or mismatched verification material fails
-closed and preserves only a previously verified last-known-good generation.
+binding. The remote reader additionally requires an injected cryptographic
+verifier to approve configured issuer and workload identities before making a
+shard readable. Missing, expired, malformed, untrusted, or mismatched
+verification material fails closed and preserves only a previously verified
+last-known-good generation.
 
 ## Hub manifest and channels discovery
 
@@ -139,29 +174,35 @@ and remote authority for the same `mount:edition` identity.
 
 ## Residency, eviction, and derived global state
 
-The contract resolves the local-edition RFC's residency questions without
-selecting the later routing or ranking implementation:
+The remote reader implements three explicit immutable tiers:
 
 - **Cold** means only the immutable origin object set and signed manifests are
   authoritative. Cold objects are fetched by content address.
-- **Warm** means verified encoded objects are present in a disk cache keyed by
-  encoded digest. Cache eviction is LRU within an operator budget and is not
-  artifact garbage collection; it cannot remove origin retention pins.
-- **Hot** means a verified hub generation, shard manifest, catalog identity
-  map, and the explicitly selected per-shard indexes are active. Readers decode
-  at most one bounded object at a time and do not hold a complete shard archive
-  merely because its manifest is hot.
+- **Warm** means a verified catalog is present in the local content-addressed
+  object cache. Cold promotion writes a thread-private temporary file and uses
+  an atomic replace only after integrity checks pass. Corrupt warm bytes are
+  rejected and replaced from the immutable origin.
+- **Hot** means the decoded immutable catalog mapping or composed `DocCatalog`
+  graph is in its bounded LRU. `RemoteShardMountRegistry` defaults to 32 decoded
+  mappings and 128 MiB; `CatalogRegistry` defaults to 32 composed graphs and
+  256 MiB. Operators can lower the entry and byte bounds with
+  `resident_shard_entries` / `resident_shard_bytes` and
+  `remote_resident_shard_entries` / `remote_resident_shard_bytes`.
 
 Eviction never discards the selected last-known-good manifest, verification
 receipt, or rollback pin. The 64 MiB object and 4 MiB fragment limits are hard
-reader bounds; deployment-specific cache and aggregate-memory budgets may be
-lower and must fail one shard closed rather than evicting unrelated active
-identities.
+reader bounds; deployment-specific budgets may be lower. Admission accounting
+includes Python container and `DocNode` overhead, is cycle-safe, de-duplicates
+shared objects by identity, and runs once on promotion rather than on hot
+lookup. An item larger than the byte budget is served to its current caller but
+is not retained. Eviction removes only cache ownership, so a request that
+already captured an immutable generation can finish safely.
 
 Search and semantic indexes are complete shard-local objects. They contain
 only the catalog's public node-id set and are fingerprinted with the artifact.
-Cross-shard rank merging and global IDF refresh are derived hub state owned by
-later work; neither can rewrite an upstream artifact. Likewise, outbound DCP
+Cross-shard rank merging is ephemeral reader state, while an optional global
+IDF refresh remains replaceable derived hub state; neither can rewrite an
+upstream artifact. Likewise, outbound DCP
 edges remain in their publishing shard. Cross-shard reconciliation and global
 sitemap or `llms.txt` indexes are replaceable derived indexes, never additions
 to the signed object inventory.
@@ -173,7 +214,7 @@ Readers perform this bounded sequence:
 1. Fetch `channels.json`, then the hub manifest within the 4 MiB limit.
 2. Validate schema, canonical payload digest, signature, channel closure, and
    supported contract window before exposing any new identity.
-3. Resolve `mount:edition` directly in `shards`.
+3. Resolve `mount:edition` directly in `shards` before touching its catalog.
 4. Fetch the shard manifest within its advertised bound; verify its canonical
    digest against the hub, then validate its signature and attestation.
 5. Validate the full inventory and published fingerprint.
@@ -183,10 +224,163 @@ Readers perform this bounded sequence:
 7. Atomically promote the verified generation. A failed shard is unavailable
    or stays on its previously verified generation; unrelated shards continue.
 
-Catalog identity maps and per-node fragment maps provide O(1) lookup. Search
-rank merging, global IDF refresh, cross-shard link reconciliation, and global
-sitemap/LLM indexes belong to the later #362+ routing, search, and reconciliation
-work and cannot bypass these verification steps.
+Catalog identity maps and paired per-node fragment/presentation maps provide
+O(1) semantic and browser lookup. Federated search uses the same verified
+object reader and cannot bypass these steps. Global IDF refresh, cross-shard
+link reconciliation, and global sitemap/LLM indexes remain replaceable derived
+work rather than additions to the signed shard.
+
+## Mounting a verified remote corpus
+
+A hub application declares remote authority explicitly. Its `content_root` is
+only a configuration placeholder and need not exist; the `remote-shard`
+provider fails closed if any source scanner, adapter, or local indexer tries to
+use it:
+
+```yaml
+mounts:
+  - id: product
+    label: Product documentation
+    url_prefix: /product
+    default: true
+    content_root: corpus-does-not-exist
+    source:
+      provider: remote-shard
+```
+
+The host constructs `RemoteShardMountRegistry` with a `StrictHTTPSFetcher` and
+an application-owned `RemoteCryptographicVerifier`, refreshes it, and injects
+it through `DocsApp.from_paths(..., remote_shards=registry)`. Trust policy is
+not inferred from manifest claims. The verifier must enforce the configured
+issuer, workload identity, signature, attestation, and expiration policy for
+both the hub and every shard before returning receipt evidence.
+
+Activation stores immutable verified generations and receipts beneath the
+registry state root, then atomically selects one last-known-good generation per
+mount. `DocsApp.refresh_remote_shards()` refreshes those selections and
+publishes the composed catalog plus derived graph caches as one lock-owned
+generation. A failed mount retains only its own previous verified generation;
+it does not block unrelated mounts. `rollback(mount, fingerprint)` pins a
+retained generation until `unpin(mount)` explicitly resumes hub updates.
+Mount generation identity includes only that mount's channel projection and
+verified shard manifests. The enclosing hub digest remains receipt evidence,
+so an unrelated mount update neither rotates the generation nor discards its
+warm presentation cache.
+
+Signed hub and manifest descriptors are eager; catalog graphs, presentation
+HTML, search indexes, and semantic indexes remain lazy. A node-id route splits its mount and
+edition and performs direct dictionary lookup before catalog access. Global
+operations may deliberately enumerate shards; incremental cross-shard
+reconciliation remains separately owned.
+
+Concurrent first reads of the same catalog, presentation, or search index
+coalesce behind a temporary per-identity flight,
+while reads for different nodes and mounts remain independent. Each in-flight
+request owns the immutable generation from which it resolved the node, so an
+upstream refresh cannot mix an old catalog record with new presentation bytes.
+Read-only browser, search, DCP, export, and MCP requests pin one composed
+catalog generation for their complete read. Each generation's presentation LRU
+is bounded to 256 entries and 64 MiB of
+decoded sanitized HTML. The two caps bound both metadata-heavy small pages and
+large bodies while holding at most four maximum-size v1 presentations.
+Least-recently-used entries are evicted until both limits hold. A body larger
+than the byte budget is still verified and served but is not cached; failed
+fetches are never cached, and per-node flight records are removed on success or
+failure.
+
+## Federated keyword and TF-IDF search
+
+The publisher writes search index v2 inside the artifact-v1 `search` object.
+It contains a sorted public document table, an inverted keyword index,
+shard-local document frequencies and IDF weights, and normalized TF-IDF
+postings. The validator recomputes IDF and normalized vectors from keyword term
+counts; a malformed posting, an extra field, or posting/IDF drift rejects the
+object before cache promotion. Index v1 (`node_id`, title, and text documents)
+remains readable as a keyword-only rolling-upgrade fallback, but new publishers
+always emit v2.
+
+The hub never builds a whole-corpus index. It first selects mounts and the exact
+edition/channel alias, then applies lifecycle policy from the verified manifest.
+Current, legacy, and deprecated shards are eligible by default; preview is
+opt-in and end-of-life shards are skipped unless `include_eol` is explicit. The
+artifact-v1 search object is public-only, and results are intersected with the
+already-authorized active catalog generation before merge. A mount with no
+authorized candidate nodes does not fan out. Thus private, protected, draft,
+archived, wrong-edition, and EOL identities cannot become fetch or merge
+candidates merely because their text matches.
+
+Each selected shard computes normalized keyword and cosine TF-IDF scores in the
+range 0–1. The hub combines them with fixed 60/40 weights and rank-merges by
+score, keyword evidence, mount, edition, case-folded title, and node id. The
+complete tie key makes browser, catalog/CLI, and MCP/agent search ordering
+deterministic. Per-shard IDF intentionally favors terms that are discriminating
+within their publishing shard; a term common in one shard and rare in another
+can therefore have different weight. Operators that need corpus-wide
+calibration may periodically aggregate the signed document-frequency summaries
+into a replaceable global-IDF view. That optimization must retain shard
+provenance and must not rewrite or become authority over the published indexes.
+
+Fan-out is capped at 256 selected shards and uses at most 16 workers. Larger
+queries fail with a recovery instruction to scope by mount. Under
+`PYTHON_GIL=0`, each worker owns its fetch, decompression, validation, parsed
+index, and query stack. The mount-generation snapshot is immutable; only the
+decoded-index LRU is shared, protected by its own lock, and bounded to 256
+entries and 64 MiB of measured resident Python objects. A deep resident-size
+walk runs once after validation and parse, outside query hot paths; wire-small
+indexes whose object graphs exceed the byte budget are served but not admitted.
+Concurrent cold requests for the same
+fingerprint coalesce through a temporary future; different shards remain
+independent, and the flight record is removed on success or failure. Readers
+collect worker-local results before
+one deterministic merge; a selected shard failure is reported rather than
+silently returning an incomplete result. ANN search and
+`ExternalEmbeddingProvider` integration remain out of scope; the existing
+provider seam is the future path for those indexes.
+
+`CatalogRegistry.remote_residency_status()` and the `remote_residency` member of
+`source_health()` report current tier, resident entries and bytes, configured
+bounds, in-flight loads, hits, cold and warm loads, evictions, coalescing, and
+failures. Counters have process-lifetime scope and remain monotonic across a
+refresh; refresh prunes stale identity residency. Metric names are aggregate
+and bounded-cardinality, while the per-identity list is an on-demand status
+snapshot.
+
+## Incremental links and sharded discovery
+
+Cross-shard link state is a replaceable hub index, not a reason to compose the
+whole catalog. The hub persists normalized Content-IR nodes and outbound links
+per `mount:edition` fingerprint. Replacing one shard removes and adds only that
+shard's outbound records, then re-evaluates targets in its old/new URL set and
+the existing inbound edges to those URLs. `/catalog/source-health.json` reports
+the measured changed-shard, scanned-node, affected-target, and edge-neighborhood
+counts, plus at most 100 deterministic broken cross-shard link records per
+mount. The complete count and a truncation flag remain available when the
+bounded record list is exceeded.
+
+The index is written as per-shard atomic, fsync-backed JSON under the
+identity-scoped catalog state directory, so persistence cost follows the
+changed shard rather than the full graph. An unreadable record is reported as a repairable
+load error and rebuilt from subsequent verified shard reconciliations. State
+updates and readers are synchronized explicitly for GIL-disabled Python.
+Unchanged remote fingerprints reuse persisted link state without loading DCP
+catalog objects; a missing first-boot index remains pending until that shard is
+requested or changed, preserving cold residency.
+
+Discovery is independently sharded:
+
+- `/sitemap.xml` is a deterministic sitemap index whose children are
+  `/sitemaps/{mount_file}` (canonical files end in `.xml`).
+- `/llms.txt` is a link-only hub index whose children are
+  `/llms/{mount_file}` (canonical files end in `.txt`); `/llms-full.txt`
+  retains the compatibility whole-corpus representation.
+- live, frozen, edition, and static exports use the same visibility filter and
+  child-file contract. Generating a child materializes at most its selected
+  mount.
+
+Existing path-safe mount IDs remain unchanged in those URLs. Legacy IDs that
+cannot form one safe path segment use a canonical `~`-prefixed base64url token;
+non-canonical aliases are rejected and never change the underlying mount
+identity.
 
 ## Compatibility and DCP migration plan
 
@@ -234,7 +428,8 @@ the upstream fingerprint.
 
 `fura publish-shard` is the CI entry point for one immutable release edition.
 It runs the normal freeze, derives the catalog, search, semantic, and per-node
-fragment objects, validates the complete local v1 artifact, uploads only
+fragment objects, pairs each fragment with its verified frozen presentation
+HTML, validates the complete local v1 artifact, uploads only
 missing content addresses, and reads every remote object back through a
 bounded stream. It creates `manifest.json` last with a create-only write. An
 identical manifest is an idempotent no-op; different bytes at an immutable key
@@ -242,6 +437,19 @@ are a conflict. Authentication, partial-upload, and conflict failures use the
 stable diagnostic rule IDs `fura.publish_shard.auth`,
 `fura.publish_shard.partial`, and `fura.publish_shard.conflict` and return a
 nonzero exit.
+
+The presentation producer deliberately freezes `CatalogShard.resolve_body_html`
+as the portable body fragment. That contract contains renderer-owned body
+structure and directive markup, but never claims to be a complete browser
+document: page shell, head metadata, theme assets, CSS, and runtime behavior
+remain consumer concerns. Markup outside the inert v1 subset fails freeze with
+the node identity instead of silently widening the remote execution boundary.
+
+Under free-threaded Python, one freeze operation owns each node render through
+validation and converts it to immutable bytes before atomic promotion. The
+publisher performs bounded reads into per-object byte values. Neither stage
+shares a mutable presentation buffer, parser, or writer between workers, so
+correctness does not depend on the GIL.
 
 The verification input contains detached material produced by the repository's
 trusted CI signing and provenance steps. `publish-shard` binds each record to
