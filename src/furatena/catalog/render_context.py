@@ -24,7 +24,7 @@ from furatena.catalog.seo import (
     json_ld_script,
     og_image_url,
 )
-from furatena.catalog.versions import channel_context
+from furatena.catalog.versions import channel_context, edition_banner_context
 
 
 def markdown_page_url(base: str, page_url: str) -> str:
@@ -164,6 +164,7 @@ class RenderContextService:
                 catalog=self.catalog,
                 node=node,
             ),
+            **edition_banner_context(self.catalog, node),
             **self.locale_context(request=request, node=node, locale_match=locale_match),
             **self.locale_service.fallback_context(locale_match),
             **self.theme_effects_context(),

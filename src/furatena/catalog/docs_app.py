@@ -787,18 +787,28 @@ class DocsApp:
             return mismatch
         params = request.query
         with self.catalog.use_edition(route.edition):
-            payload = query_catalog_graph(
-                self.catalog,
-                mount=params.get("mount"),
-                edition=route.edition,
-                tag=params.get("tag"),
-                format=params.get("format"),
-                owner=params.get("owner") or params.get("team"),
-                locale=params.get("locale") or params.get("lang"),
-                subject=self._output_access_subject(request),
-                limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
-                offset=int(params.get("offset") or 0),
-            )
+            try:
+                payload = query_catalog_graph(
+                    self.catalog,
+                    mount=params.get("mount"),
+                    edition=route.edition,
+                    status=params.get("status"),
+                    include_preview=_query_bool(request, "include_preview", default=False),
+                    include_eol=_query_bool(request, "include_eol", default=False),
+                    tag=params.get("tag"),
+                    format=params.get("format"),
+                    owner=params.get("owner") or params.get("team"),
+                    locale=params.get("locale") or params.get("lang"),
+                    subject=self._output_access_subject(request),
+                    limit=int(params.get("limit") or DEFAULT_GRAPH_QUERY_LIMIT),
+                    offset=int(params.get("offset") or 0),
+                )
+            except ValueError as exc:
+                return Response(
+                    json.dumps({"error": "invalid lifecycle filter", "detail": str(exc)}),
+                    status=400,
+                    content_type="application/json; charset=utf-8",
+                )
         return Response(
             json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"
         )
@@ -826,6 +836,9 @@ class DocsApp:
                     edition=route.edition,
                     tag=(request.query.get("tag") or "").strip() or None,
                     subject=self._output_access_subject(request),
+                    status=(request.query.get("status") or "").strip() or None,
+                    include_preview=_query_bool(request, "include_preview", default=False),
+                    include_eol=_query_bool(request, "include_eol", default=False),
                 )
         return Response(
             json.dumps(payload, indent=2), content_type="application/json; charset=utf-8"

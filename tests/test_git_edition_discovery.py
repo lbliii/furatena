@@ -110,9 +110,17 @@ def test_new_tag_ages_out_oldest_without_deleting_retained_snapshot(tmp_path: Pa
         mount_id="docs",
         app_root=app_root,
         edition_policy=policy,
+        previous_editions=first.editions,
     )
 
-    assert [edition.id for edition in second.editions] == ["latest", "1.2.0", "1.1.0"]
+    assert [edition.id for edition in second.editions] == [
+        "latest",
+        "1.2.0",
+        "1.1.0",
+        "1.0.0",
+    ]
+    assert second.editions[-1].status == "eol"
+    assert second.editions[-1].resolved_ref == first.editions[-1].resolved_ref
     retained = second.content_root.parent.parent / "editions" / ".retained" / "1.0.0"
     assert retained.joinpath("docs", "guide.md").read_text() == "# 1.0.0\n"
 

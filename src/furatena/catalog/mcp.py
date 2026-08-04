@@ -6,8 +6,10 @@ import json
 import sys
 import time
 from collections.abc import Mapping
+from contextlib import nullcontext
 from dataclasses import asdict, dataclass, field, is_dataclass
 from pathlib import Path
+from threading import RLock
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote, unquote
 
@@ -31,6 +33,7 @@ from furatena.catalog.content_ir_diff import (
     ContentIRDiffError,
     diff_content_ir,
 )
+from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
@@ -180,6 +183,8 @@ class FuraMCPServer:
         self.docs_app = docs_app
         self.catalog = docs_app.catalog
         self.embedding_index = docs_app.embedding_index
+        self._edition_embedding_indexes: dict[str, Any] = {}
+        self._edition_embedding_lock = RLock()
         self.base_url = base_url.rstrip("/")
         self.policy = policy or MCPAccessPolicy(allow_private=include_private)
         self.include_private = include_private and self.policy.allow_private
@@ -320,6 +325,13 @@ class FuraMCPServer:
                         "url_prefix": _string_schema(
                             "Optional URL prefix used to scope search results."
                         ),
+                        "status": _string_schema(
+                            "Optional lifecycle status; exact preview or eol is an explicit opt-in."
+                        ),
+                        "include_preview": _boolean_schema(
+                            "Include preview editions in retrieval."
+                        ),
+                        "include_eol": _boolean_schema("Include end-of-life editions."),
                     },
                     "required": ["query"],
                 },
@@ -332,6 +344,9 @@ class FuraMCPServer:
                     "type": "object",
                     "properties": {
                         "node_id": _string_schema("Stable catalog node id to retrieve."),
+                        "include_eol": _boolean_schema(
+                            "Allow explicit retrieval of an end-of-life node."
+                        ),
                     },
                     "required": ["node_id"],
                 },
@@ -346,6 +361,14 @@ class FuraMCPServer:
                         "mount": _string_schema(
                             "Optional mount id used to scope graph source pages."
                         ),
+                        "edition": _string_schema(
+                            "Optional edition id used to scope graph source pages."
+                        ),
+                        "status": _string_schema(
+                            "Optional edition lifecycle status used to scope graph pages."
+                        ),
+                        "include_preview": _boolean_schema("Include preview edition pages."),
+                        "include_eol": _boolean_schema("Include end-of-life edition pages."),
                         "tag": _string_schema(
                             "Optional page tag used to scope graph source pages."
                         ),
@@ -1223,18 +1246,24 @@ class FuraMCPServer:
         if not query:
             raise MCPError(-32602, "semantic_search requires query")
         limit = _bounded_int(arguments.get("limit"), default=12, low=1, high=50)
-        result = hybrid_search(
-            self.catalog,
-            self.embedding_index,
-            query,
-            limit=limit,
-            mount=_optional_str(arguments.get("mount")),
-            edition=_optional_str(arguments.get("edition")),
-            tag=_optional_str(arguments.get("tag")),
-            url_prefix=_optional_str(arguments.get("url_prefix")),
-            include_private=False,
-            subject=self.access_subject,
-        )
+        edition = _optional_str(arguments.get("edition"))
+        edition_scope = self.catalog.use_edition(edition) if edition else nullcontext()
+        with edition_scope:
+            result = hybrid_search(
+                self.catalog,
+                self._embedding_index_for(edition),
+                query,
+                limit=limit,
+                mount=_optional_str(arguments.get("mount")),
+                edition=edition,
+                tag=_optional_str(arguments.get("tag")),
+                url_prefix=_optional_str(arguments.get("url_prefix")),
+                include_private=False,
+                subject=self.access_subject,
+                status=_optional_str(arguments.get("status")),
+                include_preview=bool(arguments.get("include_preview")),
+                include_eol=bool(arguments.get("include_eol")),
+            )
         hits = [
             {
                 "node_id": hit.node.node_id,
@@ -1247,6 +1276,7 @@ class FuraMCPServer:
                 "chunk_id": hit.chunk_id,
                 "mount": hit.node.mount,
                 "edition": hit.node.edition,
+                "edition_status": self.catalog.edition_status_for(hit.node.mount, hit.node.edition),
                 "tags": sorted(hit.node.tags),
                 "provenance": provenance_record(self.catalog, hit.node),
             }
@@ -1263,6 +1293,9 @@ class FuraMCPServer:
                 "tag": _optional_str(arguments.get("tag")),
                 "url_prefix": _optional_str(arguments.get("url_prefix")),
                 "include_private": self.include_private,
+                "status": _optional_str(arguments.get("status")),
+                "include_preview": bool(arguments.get("include_preview")),
+                "include_eol": bool(arguments.get("include_eol")),
             },
             "count": len(hits),
             "results": hits,
@@ -1280,61 +1313,97 @@ class FuraMCPServer:
         node_id = str(arguments.get("node_id") or "").strip()
         if not node_id:
             raise MCPError(-32602, "retrieve_node requires node_id")
-        payload = self._node_payload(node_id)
+        payload = self._node_payload(node_id, include_eol=bool(arguments.get("include_eol")))
         return payload
 
     def _query_graph(self, arguments: dict[str, Any]) -> dict[str, Any]:
-        return cast(
-            dict[str, Any],
-            query_catalog_graph(
+        edition = _optional_str(arguments.get("edition"))
+        edition_scope = self.catalog.use_edition(edition) if edition else nullcontext()
+        with edition_scope:
+            return cast(
+                dict[str, Any],
+                query_catalog_graph(
+                    self.catalog,
+                    mount=_optional_str(arguments.get("mount")),
+                    edition=edition,
+                    status=_optional_str(arguments.get("status")),
+                    include_preview=bool(arguments.get("include_preview")),
+                    include_eol=bool(arguments.get("include_eol")),
+                    tag=_optional_str(arguments.get("tag")),
+                    format=_optional_str(arguments.get("format")),
+                    owner=_optional_str(arguments.get("owner"))
+                    or _optional_str(arguments.get("team")),
+                    locale=_optional_str(arguments.get("locale"))
+                    or _optional_str(arguments.get("lang")),
+                    edge_kind=(
+                        _optional_str(arguments.get("edge_kind"))
+                        or _optional_str(arguments.get("edge"))
+                        or _optional_str(arguments.get("kind"))
+                        or _optional_str(arguments.get("link_edge"))
+                    ),
+                    source=(
+                        _optional_str(arguments.get("source"))
+                        or _optional_str(arguments.get("from"))
+                        or _optional_str(arguments.get("linked_from"))
+                    ),
+                    target=(
+                        _optional_str(arguments.get("target"))
+                        or _optional_str(arguments.get("to"))
+                        or _optional_str(arguments.get("linked_to"))
+                    ),
+                    include_private=False,
+                    subject=self.access_subject,
+                    limit=_bounded_int(
+                        arguments.get("limit"),
+                        default=DEFAULT_GRAPH_QUERY_LIMIT,
+                        low=1,
+                        high=MAX_GRAPH_QUERY_LIMIT,
+                    ),
+                    offset=_bounded_int(arguments.get("offset"), default=0, low=0, high=1_000_000),
+                ),
+            )
+
+    def _node_payload(self, node_id: str, *, include_eol: bool = False) -> dict[str, Any]:
+        try:
+            mount, edition, _slug = node_id.split(":", 2)
+        except ValueError as exc:
+            raise MCPError(-32602, f"unknown node_id: {node_id}") from exc
+        if not self.catalog.has_edition(mount, edition):
+            raise MCPError(-32602, f"unknown node_id: {node_id}")
+        with self.catalog.use_edition(edition):
+            if self._get_by_node_id(node_id) is None:
+                raise MCPError(-32602, f"unknown node_id: {node_id}")
+            payload = retrieve_node(
                 self.catalog,
-                mount=_optional_str(arguments.get("mount")),
-                tag=_optional_str(arguments.get("tag")),
-                format=_optional_str(arguments.get("format")),
-                owner=_optional_str(arguments.get("owner")) or _optional_str(arguments.get("team")),
-                locale=_optional_str(arguments.get("locale"))
-                or _optional_str(arguments.get("lang")),
-                edge_kind=(
-                    _optional_str(arguments.get("edge_kind"))
-                    or _optional_str(arguments.get("edge"))
-                    or _optional_str(arguments.get("kind"))
-                    or _optional_str(arguments.get("link_edge"))
-                ),
-                source=(
-                    _optional_str(arguments.get("source"))
-                    or _optional_str(arguments.get("from"))
-                    or _optional_str(arguments.get("linked_from"))
-                ),
-                target=(
-                    _optional_str(arguments.get("target"))
-                    or _optional_str(arguments.get("to"))
-                    or _optional_str(arguments.get("linked_to"))
-                ),
+                self._embedding_index_for(edition),
+                node_id,
                 include_private=False,
                 subject=self.access_subject,
-                limit=_bounded_int(
-                    arguments.get("limit"),
-                    default=DEFAULT_GRAPH_QUERY_LIMIT,
-                    low=1,
-                    high=MAX_GRAPH_QUERY_LIMIT,
-                ),
-                offset=_bounded_int(arguments.get("offset"), default=0, low=0, high=1_000_000),
-            ),
-        )
-
-    def _node_payload(self, node_id: str) -> dict[str, Any]:
-        if self._get_by_node_id(node_id) is None:
-            raise MCPError(-32602, f"unknown node_id: {node_id}")
-        payload = retrieve_node(
-            self.catalog,
-            self.embedding_index,
-            node_id,
-            include_private=False,
-            subject=self.access_subject,
-        )
+                include_eol=include_eol,
+            )
         if payload is None:
             raise MCPError(-32602, f"unknown node_id: {node_id}")
         return payload
+
+    def _embedding_index_for(self, edition: str | None):
+        """Return a free-threading-safe index built from exactly one edition shard."""
+        edition_id = (edition or "latest").strip() or "latest"
+        if edition_id == "latest":
+            return self.embedding_index
+        docs_resolver = getattr(self.docs_app, "_edition_embedding_index", None)
+        if callable(docs_resolver):
+            return docs_resolver(edition_id)
+        with self._edition_embedding_lock:
+            cached = self._edition_embedding_indexes.get(edition_id)
+            if cached is not None:
+                return cached
+            with self.catalog.use_edition(edition_id):
+                index = build_embedding_index(
+                    list(self.catalog.nodes),
+                    documents=self.catalog.ast_documents(),
+                )
+            self._edition_embedding_indexes[edition_id] = index
+            return index
 
     def _traverse_graph(self, arguments: dict[str, Any]) -> dict[str, Any]:
         node = self._resolve_node(arguments)
@@ -1548,6 +1617,9 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
         edition: str = "",
         tag: str = "",
         url_prefix: str = "",
+        status: str = "",
+        include_preview: bool = False,
+        include_eol: bool = False,
     ) -> dict:
         return _milo_tool_payload(
             server,
@@ -1559,6 +1631,9 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
                 "edition": edition,
                 "tag": tag,
                 "url_prefix": url_prefix,
+                "status": status,
+                "include_preview": include_preview,
+                "include_eol": include_eol,
             },
         )
 
@@ -1567,8 +1642,10 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
         description="Retrieve a catalog node with chunks, backlinks, and similar pages.",
         annotations={"readOnlyHint": True},
     )
-    def retrieve_node_tool(node_id: str) -> dict:
-        return _milo_tool_payload(server, "retrieve_node", {"node_id": node_id})
+    def retrieve_node_tool(node_id: str, include_eol: bool = False) -> dict:
+        return _milo_tool_payload(
+            server, "retrieve_node", {"node_id": node_id, "include_eol": include_eol}
+        )
 
     @cli.command(
         "query_graph",
@@ -1577,6 +1654,10 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
     )
     def query_graph(
         mount: str = "",
+        edition: str = "",
+        status: str = "",
+        include_preview: bool = False,
+        include_eol: bool = False,
         tag: str = "",
         format: str = "",
         owner: str = "",
@@ -1600,6 +1681,10 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
             "query_graph",
             {
                 "mount": mount,
+                "edition": edition,
+                "status": status,
+                "include_preview": include_preview,
+                "include_eol": include_eol,
                 "tag": tag,
                 "format": format,
                 "owner": owner,

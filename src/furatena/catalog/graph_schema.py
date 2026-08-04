@@ -407,7 +407,11 @@ def edge_record(edge: GraphEdge) -> EdgeRecord:
     }
 
 
-def graph_node_records(edges: list[EdgeRecord]) -> list[GraphNodeRecord]:
+def graph_node_records(
+    edges: list[EdgeRecord],
+    *,
+    edition_statuses: dict[tuple[str, str], str] | None = None,
+) -> list[GraphNodeRecord]:
     """Project external edge endpoints into typed graph node records."""
     records: dict[tuple[str, str, str], GraphNodeRecord] = {}
     for edge in edges:
@@ -421,15 +425,18 @@ def graph_node_records(edges: list[EdgeRecord]) -> list[GraphNodeRecord]:
         mount = str(edge.get("mount") or "")
         edition = str(edge.get("edition") or "")
         key = (target, mount, edition)
+        record: GraphNodeRecord = {
+            "id": target,
+            "kind": kind,
+            "label": label,
+            "mount": mount,
+            "edition": edition,
+        }
+        if edition_statuses is not None:
+            record["edition_status"] = edition_statuses.get((mount, edition), "current")
         records.setdefault(
             key,
-            {
-                "id": target,
-                "kind": kind,
-                "label": label,
-                "mount": mount,
-                "edition": edition,
-            },
+            record,
         )
     return sorted(
         records.values(),
@@ -446,13 +453,24 @@ def namespace_record(
     tenant: str | None = None,
     workspace: str | None = None,
     site: str | None = None,
+    edition_status: str = "current",
+    release_date: str | None = None,
+    end_of_life: str | None = None,
+    banner: str | None = None,
 ) -> NamespaceRecord:
     record: NamespaceRecord = {
         "mount": mount_id,
         "edition": edition,
         "label": label,
         "page_count": page_count,
+        "edition_status": edition_status,
     }
+    if release_date:
+        record["release_date"] = release_date
+    if end_of_life:
+        record["end_of_life"] = end_of_life
+    if banner:
+        record["banner"] = banner
     if tenant:
         record["tenant"] = tenant
     if workspace:

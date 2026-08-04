@@ -94,8 +94,8 @@ def test_catalog_and_search_serialization_match_golden_bytes() -> None:
     search_bytes = _stable_bytes(search_json(catalog, base_url="https://docs.example.com"))
 
     assert hashlib.sha256(catalog_bytes).hexdigest() == (
-        "a92e35731157d69a6be08b058b9f3951d8132bd74cfbc73d3a720bc9d9b26591"
+        "33ffbef4ae33ae642d12c1961ce4934f0302c51d9cc1ee487c0df617638d0af1"
     )
     assert hashlib.sha256(search_bytes).hexdigest() == (
-        "77e8ccbde81eeda5fa9b4d9fbf1792461f4d7c01726c0605d15f436e56fd3d03"
+        "308e9c65e1a92e3d76b959a73c48d6b7f94018da21d3e658b3b897043dc47887"
     )

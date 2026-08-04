@@ -332,6 +332,9 @@ def _source_fingerprints(
                         "status": edition.status,
                         "prerelease": edition.prerelease,
                         "discovered_at": edition.discovered_at,
+                        "release_date": edition.release_date,
+                        "end_of_life": edition.end_of_life,
+                        "banner": edition.banner,
                     }
                     for edition in editions
                 ],

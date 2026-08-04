@@ -60,6 +60,11 @@ class GitEditionOverride:
             )
         release_date = _optional_date(raw.get("release_date"), mount_id, edition_id, "release_date")
         end_of_life = _optional_date(raw.get("end_of_life"), mount_id, edition_id, "end_of_life")
+        if release_date and end_of_life and end_of_life < release_date:
+            raise ValueError(
+                f"mount {mount_id!r} edition override {edition_id!r} end_of_life "
+                "must not precede release_date."
+            )
         return cls(
             status=status,
             release_date=release_date,
@@ -172,6 +177,14 @@ class GitEditionPolicy:
                 mount_id=mount_id,
                 edition_id=edition_id,
             )
+        stable_target = aliases.get("stable")
+        if stable_target not in (None, "latest"):
+            stable_status = overrides.get(stable_target, GitEditionOverride()).status
+            if stable_status not in {"legacy"}:
+                raise ValueError(
+                    f"mount {mount_id!r} edition alias 'stable' cannot target "
+                    f"{stable_status!r} edition {stable_target!r}; target latest or a legacy edition."
+                )
         return cls(
             source=source,
             count=count_raw,
@@ -210,6 +223,9 @@ class GitEditionSnapshot:
     status: str
     prerelease: bool
     discovered_at: str
+    release_date: str | None = None
+    end_of_life: str | None = None
+    banner: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -220,6 +236,9 @@ class GitEditionSnapshot:
             "status": self.status,
             "prerelease": self.prerelease,
             "discovered_at": self.discovered_at,
+            "release_date": self.release_date,
+            "end_of_life": self.end_of_life,
+            "banner": self.banner,
         }
 
     @classmethod
@@ -232,6 +251,9 @@ class GitEditionSnapshot:
             status=str(raw["status"]),
             prerelease=bool(raw.get("prerelease")),
             discovered_at=str(raw["discovered_at"]),
+            release_date=str(raw.get("release_date") or "") or None,
+            end_of_life=str(raw.get("end_of_life") or "") or None,
+            banner=str(raw.get("banner") or "") or None,
         )
 
 

@@ -65,6 +65,7 @@ def sync_git_source(
     cache_namespace: str = "",
     validate: Callable[[Path], None] | None = None,
     edition_policy: GitEditionPolicy | None = None,
+    previous_editions: tuple[GitEditionSnapshot, ...] = (),
 ) -> GitSyncResult:
     """Clone/fetch a git source and return the local content root."""
     base = _sync_base(config, app_root)
@@ -85,6 +86,7 @@ def sync_git_source(
             cache_namespace=cache_namespace,
             validate=validate,
             edition_policy=edition_policy,
+            previous_editions=previous_editions,
         )
 
 
@@ -96,6 +98,7 @@ def _sync_git_source_locked(
     cache_namespace: str,
     validate: Callable[[Path], None] | None,
     edition_policy: GitEditionPolicy | None,
+    previous_editions: tuple[GitEditionSnapshot, ...],
 ) -> GitSyncResult:
     base = _sync_base(config, app_root)
     if cache_namespace:
@@ -226,6 +229,42 @@ def _sync_git_source_locked(
                         ),
                         prerelease=candidate.prerelease,
                         discovered_at=discovered_at,
+                        release_date=override.release_date if override is not None else None,
+                        end_of_life=override.end_of_life if override is not None else None,
+                        banner=override.banner if override is not None else None,
+                    )
+                )
+            active_ids = {candidate.id for candidate in candidates}
+            for previous in previous_editions:
+                if (
+                    previous.id == "latest"
+                    or previous.id in active_ids
+                    or not previous.resolved_ref
+                ):
+                    continue
+                retained_root = editions_root / ".retained" / previous.id
+                retained_content = (
+                    (retained_root / config.path).resolve() if config.path else retained_root
+                )
+                if not retained_content.is_dir():
+                    continue
+                override = edition_policy.overrides.get(previous.id)
+                snapshots.append(
+                    GitEditionSnapshot(
+                        id=previous.id,
+                        ref=previous.ref,
+                        resolved_ref=previous.resolved_ref,
+                        content_root=retained_content,
+                        status="eol",
+                        prerelease=previous.prerelease,
+                        discovered_at=previous.discovered_at,
+                        release_date=(
+                            override.release_date if override is not None else previous.release_date
+                        ),
+                        end_of_life=(
+                            override.end_of_life if override is not None else previous.end_of_life
+                        ),
+                        banner=override.banner if override is not None else previous.banner,
                     )
                 )
     finally:
@@ -318,8 +357,8 @@ def _discover_editions(
     selected = list(candidates[: policy.count])
     selected_ids = {candidate.id for candidate in selected}
     by_id = {candidate.id: candidate for candidate in candidates}
-    for edition_id, override in sorted(policy.overrides.items()):
-        if override.status == "eol" or edition_id in selected_ids:
+    for edition_id, _override in sorted(policy.overrides.items()):
+        if edition_id in selected_ids:
             continue
         candidate = by_id.get(edition_id)
         if candidate is None:

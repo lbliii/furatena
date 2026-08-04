@@ -10,9 +10,13 @@ from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 from chirp.testing.client import TestClient
+from pypdf import PdfReader
 
 from furatena.catalog.docs_app import DocsApp
+from furatena.catalog.mcp import FuraMCPServer, MCPError
+from furatena.catalog.pdf_export import PDFExportOptions, export_pdfs
 from furatena.catalog.route_manifest import route_manifest_entries
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from furatena.catalog.static_export import StaticExportOptions, export_static_site
@@ -71,6 +75,7 @@ def _docs(
     app_root.mkdir()
     copy_app_theme(app_root, APP_ROOT)
     write_minimal_docs_yaml(app_root / "docs.yaml")
+    stable_target = "1.0.0" if historical_status == "legacy" else "latest"
     (app_root / "mounts.yaml").write_text(
         "mounts:\n"
         "  - id: docs\n"
@@ -86,7 +91,7 @@ def _docs(
         "      count: 1\n"
         "      aliases:\n"
         "        latest: latest\n"
-        "        stable: 1.0.0\n"
+        f"        stable: {stable_target}\n"
         "      overrides:\n"
         "        1.0.0:\n"
         f"          status: {historical_status}\n",
@@ -119,10 +124,18 @@ def test_live_routes_scope_pages_metadata_nav_and_agent_surfaces(tmp_path: Path)
         assert latest.status == 200 and "Latest guide" in latest.text
         assert historical.status == 200 and "Old guide" in historical.text
         assert "/v1.0.0/guide/" in historical.text
+        assert 'data-edition-status="legacy"' in historical.text
+        assert 'href="/guide/"' in historical.text
         historical_without_switcher = re.sub(
             r'<div class="version-selector">.*?</div>',
             "",
             historical.text,
+            flags=re.DOTALL,
+        )
+        historical_without_switcher = re.sub(
+            r'<div class="version-banner.*?</div>\s*</div>',
+            "",
+            historical_without_switcher,
             flags=re.DOTALL,
         )
         assert "/guide/" not in historical_without_switcher.replace("/v1.0.0/guide/", "")
@@ -159,6 +172,8 @@ def test_static_export_mirrors_historical_edition_layout(tmp_path: Path) -> None
     historical = output / "v1.0.0" / "guide" / "index.html"
     assert historical.is_file()
     assert "Old guide" in historical.read_text(encoding="utf-8")
+    assert 'data-edition-status="legacy"' in historical.read_text(encoding="utf-8")
+    assert 'href="/guide/"' in historical.read_text(encoding="utf-8")
     assert (output / "v1.0.0" / "guide.md").is_file()
     assert (output / "v1.0.0" / "llms.txt").is_file()
     assert (output / "v1.0.0" / "sitemap.xml").is_file()
@@ -169,7 +184,11 @@ def test_static_export_mirrors_historical_edition_layout(tmp_path: Path) -> None
         StaticExportOptions(output_dir=based_output, base_path="/project"),
     )
     latest = (based_output / "guide" / "index.html").read_text(encoding="utf-8")
+    based_historical = (based_output / "v1.0.0" / "guide" / "index.html").read_text(
+        encoding="utf-8"
+    )
     assert 'href="/project/v1.0.0/guide/"' in latest
+    assert 'href="/project/guide/"' in based_historical
     assert "window.location.assign(target.href)" in latest
 
 
@@ -206,6 +225,109 @@ def test_switcher_omits_eol_sibling_edition(tmp_path: Path) -> None:
         assert 'class="version-selector"' not in response.text
 
     asyncio.run(exercise())
+
+
+def test_eol_query_and_mcp_require_explicit_lifecycle_selection_without_bypassing_access(
+    tmp_path: Path,
+) -> None:
+    docs = _docs(
+        tmp_path,
+        historical_status="eol",
+        historical_guide_visibility="private",
+    )
+    client = TestClient(docs.create_app())
+
+    async def exercise() -> tuple[dict, dict, dict, int]:
+        async with client:
+            default = await client.get("/v1.0.0/catalog/query.json")
+            exact = await client.get("/v1.0.0/catalog/query.json?status=eol")
+            broad = await client.get("/v1.0.0/catalog/query.json?include_eol=true")
+            invalid = await client.get("/v1.0.0/catalog/query.json?status=unknown")
+        return (
+            json.loads(default.text),
+            json.loads(exact.text),
+            json.loads(broad.text),
+            invalid.status,
+        )
+
+    default, exact, broad, invalid_status = asyncio.run(exercise())
+    assert default["pages"] == []
+    assert exact["pages"]
+    assert broad["pages"]
+    assert {page["edition_status"] for page in exact["pages"]} == {"eol"}
+    assert all(page["slug"] != "guide" for page in exact["pages"])
+    assert invalid_status == 400
+
+    server = FuraMCPServer(docs)
+    graph = server.call_tool(
+        "query_graph",
+        {"edition": "1.0.0", "status": "eol"},
+    )["structuredContent"]
+    assert graph["pages"]
+    assert {page["edition_status"] for page in graph["pages"]} == {"eol"}
+    with docs.catalog.use_edition("1.0.0"):
+        topic = docs.catalog.get_by_slug("topic", mount="docs")
+        assert topic is not None
+        topic_id = topic.node_id
+    with pytest.raises(MCPError, match="unknown node_id"):
+        server.call_tool("retrieve_node", {"node_id": topic_id})
+    allowed = server.call_tool("retrieve_node", {"node_id": topic_id, "include_eol": True})
+    assert allowed["isError"] is False
+    assert allowed["structuredContent"]["edition_status"] == "eol"
+
+    historical = server.call_tool(
+        "semantic_search",
+        {
+            "query": "Topic landing",
+            "edition": "1.0.0",
+            "status": "eol",
+        },
+    )["structuredContent"]
+    private_probe = server.call_tool(
+        "semantic_search",
+        {
+            "query": "Old release",
+            "edition": "1.0.0",
+            "status": "eol",
+        },
+    )["structuredContent"]
+    assert historical["results"]
+    assert {item["edition"] for item in historical["results"]} == {"1.0.0"}
+    assert all(item["node_id"] != "docs:1.0.0:guide" for item in private_probe["results"])
+
+
+def test_preview_exact_status_and_include_flag_are_both_opt_in_forms(tmp_path: Path) -> None:
+    docs = _docs(tmp_path, historical_status="preview")
+    client = TestClient(docs.create_app())
+
+    async def exercise() -> tuple[dict, dict, dict]:
+        async with client:
+            default = await client.get("/v1.0.0/catalog/query.json")
+            exact = await client.get("/v1.0.0/catalog/query.json?status=preview")
+            broad = await client.get("/v1.0.0/catalog/query.json?include_preview=true")
+        return json.loads(default.text), json.loads(exact.text), json.loads(broad.text)
+
+    default, exact, broad = asyncio.run(exercise())
+    assert default["pages"] == []
+    assert exact["pages"] and broad["pages"]
+    assert {page["edition_status"] for page in exact["pages"]} == {"preview"}
+
+
+def test_pdf_uses_shared_lifecycle_banner_and_current_target(tmp_path: Path) -> None:
+    docs = _docs(tmp_path)
+    with docs.catalog.use_edition("1.0.0"):
+        result = export_pdfs(
+            docs.catalog,
+            options=PDFExportOptions(
+                output_dir=tmp_path / "pdf",
+                page="guide",
+                base_url="https://docs.example.com",
+                update_channel_manifest=False,
+            ),
+        )
+    text = "\n".join(page.extract_text() or "" for page in PdfReader(result.paths[0]).pages)
+    assert "This page documents a legacy edition." in text
+    assert "View the current documentation" in text
 
 
 def test_switcher_does_not_expose_inaccessible_sibling_page(tmp_path: Path) -> None:
