@@ -166,6 +166,8 @@ ci-fast: format-check hygiene
 		src/furatena/catalog/publication_state.py \
 		src/furatena/catalog/publication_workflow_store.py \
 		src/furatena/catalog/publication_workflow.py \
+		src/furatena/catalog/publication_conformance.py \
+		src/furatena/catalog/public_projection.py \
 		src/furatena/catalog/preview_contracts.py \
 		src/furatena/catalog/preview_security.py \
 		src/furatena/catalog/railway_preview.py \
@@ -218,6 +220,8 @@ ci-fast: format-check hygiene
 		tests/test_publication_state.py \
 		tests/test_publication_workflow_store.py \
 		tests/test_publication_workflow_service.py \
+		tests/test_publication_adversarial_conformance.py \
+		tests/test_public_projection_schemas.py \
 		tests/test_publication_workflow_schemas.py \
 		tests/test_publication_schemas.py \
 		tests/test_publication_fixtures.py \
@@ -263,6 +267,7 @@ ci-contract:
 	$(PYTEST) \
 		tests/test_author_authorization.py \
 		tests/test_author_truth.py \
+		tests/test_public_projection.py \
 		tests/test_docs_quality.py \
 		tests/test_integrator_operations_reference.py \
 		tests/test_chirp_docs_content_lint.py \

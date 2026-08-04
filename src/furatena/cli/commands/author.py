@@ -10,6 +10,7 @@ from typing import Any
 from furatena.cli.commands._shared import (
     CommandModule,
     _app_root,
+    _autodoc_config,
     _docs_yaml,
     _ensure_pythonpath,
     _finish_result,
@@ -31,6 +32,149 @@ def _author_diagnostics(result) -> tuple[Diagnostic, ...]:
         )
         for diagnostic in result.diagnostics
     )
+
+
+def _run_public_inspection(
+    args: argparse.Namespace,
+    *,
+    app_root,
+    repo,
+    config,
+    mounts,
+    subject,
+    store,
+) -> None:
+    from furatena.catalog.docs_app import DocsApp
+    from furatena.catalog.public_projection import inspect_public_transition
+    from furatena.catalog.runtime import ServeConfig, ServeMode
+    from furatena.cli.authoring import author_status, author_transition
+
+    status = author_status(
+        args.target,
+        mounts=mounts,
+        subject=subject,
+        mount_id=args.mount,
+        store=store,
+    )
+    if not status.ok:
+        _finish_result(
+            CommandResult(
+                command=command_name(args),
+                ok=False,
+                exit_code=ExitCode.CONFIG_ERROR,
+                summary="author inspect-public could not resolve the source target",
+                diagnostics=_author_diagnostics(status),
+                data=status.to_dict(),
+            ),
+            json_output=_json_output(args),
+        )
+        return
+    transition = author_transition(
+        args.operation,
+        args.target,
+        mounts=mounts,
+        subject=subject,
+        expected_revision=status.source_revision,
+        mount_id=args.mount,
+        dry_run=True,
+        confirmed=False,
+        store=store,
+    )
+    if not transition.ok:
+        _finish_result(
+            CommandResult(
+                command=command_name(args),
+                ok=False,
+                exit_code=ExitCode.VALIDATION_ERROR,
+                summary="author inspect-public rejected the lifecycle transition",
+                diagnostics=_author_diagnostics(transition),
+                data=transition.to_dict(),
+            ),
+            json_output=_json_output(args),
+        )
+        return
+    docs_app = DocsApp(
+        config,
+        repo_root=repo,
+        autodoc=not args.no_autodoc,
+        autodoc_config=_autodoc_config(args, repo),
+        serve=ServeConfig(ServeMode.AUTHOR, None, False, False),
+        author_subject=subject,
+        author_store=store,
+    )
+    registry = docs_app.catalog
+    node = registry.get_by_slug(args.target.strip().strip("/"))
+    if node is None and status.target_path is not None:
+        target_path = status.target_path.resolve()
+        content_roots = {mount.id: mount.content_root for mount in registry.mounts}
+        node = next(
+            (
+                item
+                for item in registry.nodes
+                if (content_roots[item.mount] / item.source_path).resolve() == target_path
+            ),
+            None,
+        )
+    if node is None:
+        diagnostic = Diagnostic(
+            severity="error",
+            message="author inspect-public could not match the source to a catalog node",
+            rule_id="fura.public_projection.node_missing",
+            next_action="Refresh the catalog and retry with the canonical page slug.",
+        )
+        _finish_result(
+            CommandResult(
+                command=command_name(args),
+                ok=False,
+                exit_code=ExitCode.CONFIG_ERROR,
+                summary="author inspect-public could not load the catalog node",
+                diagnostics=(diagnostic,),
+                data=status.to_dict(),
+            ),
+            json_output=_json_output(args),
+        )
+        return
+    payload = inspect_public_transition(
+        registry,
+        node,
+        transition,
+        current_source_revision=str(status.source_revision or ""),
+        config=config,
+        docs_app=docs_app,
+        transport="cli",
+    )
+    diagnostics = tuple(
+        Diagnostic(
+            severity=str(item.get("severity") or "error"),
+            message=str(item.get("message") or "Public projection failed."),
+            rule_id=str(item.get("rule_id") or "fura.public_projection"),
+            next_action=str(item.get("next_action") or "Create a fresh projection plan."),
+        )
+        for item in payload.get("diagnostics", ())
+        if isinstance(item, dict)
+    )
+    result = CommandResult(
+        command=command_name(args),
+        ok=bool(payload.get("ok")),
+        exit_code=ExitCode.SUCCESS if payload.get("ok") else ExitCode.VALIDATION_ERROR,
+        summary=(
+            f"projected {args.operation} across {len(payload.get('surfaces', ()))} public surfaces"
+            if payload.get("ok")
+            else "public projection failed closed"
+        ),
+        diagnostics=diagnostics,
+        data=payload,
+    )
+    if _json_output(args):
+        _finish_result(result, json_output=True)
+        return
+    print(result.summary)
+    print(f"plan: {payload['plan']['plan_id']} ({payload['plan']['plan_digest']})")
+    for surface in payload.get("surfaces", ()):
+        if isinstance(surface, dict):
+            print(f"{surface['change']}: {surface['id']}")
+    if not result.ok:
+        raise SystemExit(int(result.exit_code))
 
 
 def _run_author(args: argparse.Namespace) -> None:
@@ -59,6 +203,18 @@ def _run_author(args: argparse.Namespace) -> None:
         roles=["admin"],
     )
     store = FilesystemAuthorMutationStore()
+
+    if command == "inspect-public":
+        _run_public_inspection(
+            args,
+            app_root=app_root,
+            repo=repo,
+            config=config,
+            mounts=mounts,
+            subject=subject,
+            store=store,
+        )
+        return
 
     if command == "status":
         result = author_status(
@@ -196,6 +352,26 @@ def configure(sub: Any) -> None:
         "--json", action="store_true", help="Emit the standard command result JSON"
     )
     author_validate_cmd.set_defaults(handler=_run_author)
+
+    author_inspect_cmd = author_sub.add_parser(
+        "inspect-public",
+        help="Simulate every anonymous public output for an exact source transition",
+    )
+    author_inspect_cmd.add_argument("target", help="Source path or page slug")
+    author_inspect_cmd.add_argument(
+        "--operation",
+        choices=("publish", "unpublish", "archive"),
+        default="publish",
+        help="Lifecycle transition to project without applying it",
+    )
+    author_inspect_cmd.add_argument("--mount", default=None, help="Mount id from mounts.yaml")
+    author_inspect_cmd.add_argument(
+        "--no-autodoc", action="store_true", help="Skip Python autodoc while projecting"
+    )
+    author_inspect_cmd.add_argument(
+        "--json", action="store_true", help="Emit the standard command result JSON"
+    )
+    author_inspect_cmd.set_defaults(handler=_run_author)
 
     author_edit_cmd = author_sub.add_parser(
         "edit", help="Apply an exact-text edit to a source page"
