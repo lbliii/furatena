@@ -407,7 +407,7 @@ def register_public_routes(docs: Any, app: App) -> None:
                 if not isinstance(raw, dict) or set(raw) - {"reason"}:
                     raise ValueError("The content rollback request body may contain only reason.")
                 reason = str(raw.get("reason") or "").strip()
-            receipt = store.rollback(actor=actor.actor, reason=reason)
+            receipt = ContentRefreshService(store).rollback(actor=actor.actor, reason=reason)
         except (json.JSONDecodeError, ValueError) as exc:
             return _content_json(
                 {"error": {"code": "invalid_rollback_request", "message": str(exc)}},

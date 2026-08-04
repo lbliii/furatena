@@ -64,7 +64,7 @@ def _run_content(args: argparse.Namespace) -> None:
                 )
             result = receipt.to_dict()
         elif args.content_command == "rollback":
-            result = store.rollback(actor=actor.actor, reason=args.reason)
+            result = service.rollback(actor=actor.actor, reason=args.reason)
         elif args.content_command == "reconcile":
             result = store.reconcile()
             reconciled = service.reconcile_startup()
