@@ -11,7 +11,10 @@ import secrets
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from furatena.catalog.remote_shards import RemoteRefreshReport, RemoteShardMountRegistry
 
 import yaml
 from chirp import (
@@ -98,10 +101,12 @@ from furatena.catalog.incremental import is_partial_reload
 from furatena.catalog.lifecycle import visibility_state
 from furatena.catalog.links import boost_internal_links, shell_link_attrs
 from furatena.catalog.observability import OperationalEventEmitter
+from furatena.catalog.preview_grant_runtime import PreviewGrantRuntime
 from furatena.catalog.preview_security import (
     PreviewAccessCredentials,
     PreviewConfigurationError,
     PreviewEnvironment,
+    PreviewGrantSecurityMiddleware,
     PreviewSecurityMiddleware,
 )
 from furatena.catalog.registry import CatalogRegistry
@@ -129,6 +134,23 @@ from furatena.catalog.workers import resolve_workers
 from furatena.cli.authoring import (
     author_read_source,
 )
+
+
+class _CatalogReadSnapshotMiddleware:
+    """Pin one composed catalog generation across every read-only HTTP request."""
+
+    __slots__ = ("_catalog",)
+
+    def __init__(self, catalog: CatalogRegistry) -> None:
+        self._catalog = catalog
+
+    async def __call__(self, request: Any, next: Any) -> Any:
+        if request.method not in {"GET", "HEAD", "QUERY"}:
+            return await next(request)
+        self._catalog.refresh_if_stale()
+        with self._catalog.read_snapshot():
+            return await next(request)
+
 
 _IMMUTABLE_CACHE = "public, max-age=31536000, immutable"
 
@@ -345,8 +367,13 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
+        preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> None:
         self.config = config
+        from furatena.catalog.public_projection import PublicProjectionInspectionCache
+
+        self._public_projection_inspection_cache = PublicProjectionInspectionCache()
         self.roots = ApplicationRoots.from_environment(config.root)
         if self.roots.managed:
             self.roots.ensure_writable_roots()
@@ -363,11 +390,22 @@ class DocsApp:
         self.repo_root = repo_root
         self.serve = serve or ServeConfig(ServeMode.AUTHOR, None, False, True)
         self.preview_environment = PreviewEnvironment.from_environment()
+        self.preview_grant_runtime = preview_grant_runtime
+        if self.preview_grant_runtime is not None and self.preview_environment is None:
+            raise PreviewConfigurationError(
+                "Hosted preview authorization requires an explicit pull-request preview identity."
+            )
         if self.preview_environment is not None and (
             self.serve.mode != ServeMode.PREVIEW or self.serve.auto_reload
         ):
             raise PreviewConfigurationError(
                 "a pull-request preview requires frozen preview mode with auto-reload disabled"
+            )
+        if self.preview_environment is not None and self.preview_grant_runtime is not None:
+            self.preview_grant_runtime.assert_environment(
+                pull_request_number=self.preview_environment.pull_request_number,
+                head_sha=self.preview_environment.head_sha,
+                origin=self.preview_environment.origin,
             )
         self.author_subject = author_subject or (
             AccessSubject.from_values(actor="local-author", roles=[AccessRole.ADMIN])
@@ -408,9 +446,12 @@ class DocsApp:
             site_mark=config.site.mark,
             catalog_identity=config.identity.to_meta(),
             state_root=self.roots.state / "source-sync-state",
+            remote_shards=remote_shards,
         )
         if self.roots.managed:
             for mount in self.catalog.mounts:
+                if mount.source.provider == "remote-shard":
+                    continue
                 self.roots.require_site_path(
                     mount.content_root,
                     label=f"content root for mount {mount.id!r}",
@@ -443,8 +484,6 @@ class DocsApp:
         )
         self._edition_embedding_indexes: dict[str, EmbeddingSearchIndex] = {}
         self._edition_embedding_lock = RLock()
-        if self.serve.warn_stale_freeze:
-            print("Note: content is newer than frozen/ — run `fura freeze` for a fresh export.")
         self.app = self._build_app()
 
     def _validation_template_env(self):
@@ -485,8 +524,13 @@ class DocsApp:
         app = App(app_config)
         use_chirp_ui(app)
         if self.preview_environment is not None:
+            preview_security = (
+                PreviewGrantSecurityMiddleware(self.preview_grant_runtime)
+                if self.preview_grant_runtime is not None
+                else PreviewSecurityMiddleware(PreviewAccessCredentials.from_environment())
+            )
             app.add_middleware(
-                PreviewSecurityMiddleware(PreviewAccessCredentials.from_environment()),
+                preview_security,
                 priority=-100,
             )
         security_middleware = secure_stack(
@@ -557,6 +601,7 @@ class DocsApp:
             )
         app.add_middleware(GoogleFontsCSPMiddleware())
         app.add_middleware(ConditionalResponseMiddleware(self._response_last_modified))
+        app.add_middleware(_CatalogReadSnapshotMiddleware(self.catalog))
         self._register_contract_refs(app)
         self._register_routes(app)
         return app
@@ -677,6 +722,18 @@ class DocsApp:
         return match
 
     def _render_catalog_page(
+        self,
+        request: Request,
+        *,
+        requested_lang: str | None = None,
+    ):
+        with self.catalog.read_snapshot():
+            return self._render_catalog_page_in_generation(
+                request,
+                requested_lang=requested_lang,
+            )
+
+    def _render_catalog_page_in_generation(
         self,
         request: Request,
         *,
@@ -1925,6 +1982,8 @@ class DocsApp:
         author_truth_provider: AuthorTruthProvider | None = None,
         retrieval_feedback: RetrievalFeedbackCollector | None = None,
         observability: OperationalEventEmitter | None = None,
+        remote_shards: RemoteShardMountRegistry | None = None,
+        preview_grant_runtime: PreviewGrantRuntime | None = None,
     ) -> DocsApp:
         config = load_docs_config(docs_yaml)
         if autodoc is None:
@@ -1943,7 +2002,13 @@ class DocsApp:
             author_truth_provider=author_truth_provider,
             retrieval_feedback=retrieval_feedback,
             observability=observability,
+            remote_shards=remote_shards,
+            preview_grant_runtime=preview_grant_runtime,
         )
+
+    def refresh_remote_shards(self) -> RemoteRefreshReport:
+        """Refresh and atomically publish all configured remote shard mounts."""
+        return self.catalog.refresh_remote_shards()
 
     def create_app(self) -> App:
         return self.app

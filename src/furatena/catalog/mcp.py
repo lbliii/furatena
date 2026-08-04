@@ -37,6 +37,8 @@ from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
+from furatena.catalog.mcp_apps import negotiated_server_extensions
+from furatena.catalog.public_projection import inspect_public_transition
 from furatena.catalog.query import (
     DEFAULT_GRAPH_QUERY_LIMIT,
     MAX_GRAPH_QUERY_LIMIT,
@@ -88,6 +90,19 @@ _MCP_AUTHOR_OPERATIONS = {
     "author_archive": "archive",
     "author_inspect_publication_impact": "inspect_publication_impact",
 }
+_READ_ONLY_TOOLS = frozenset(
+    {
+        "semantic_search",
+        "retrieve_node",
+        "query_graph",
+        "traverse_graph",
+        "diff_content_ir",
+        "inspect_source_health",
+        "run_checks",
+        "explain_stale_impact",
+        "author_inspect_publication_impact",
+    }
+)
 
 
 def _author_operation(command: str) -> str:
@@ -236,6 +251,10 @@ class FuraMCPServer:
             return self._error_response(request_id, -32603, str(exc))
 
     def list_resources(self) -> list[dict[str, Any]]:
+        with self._catalog_read_snapshot():
+            return self._list_resources()
+
+    def _list_resources(self) -> list[dict[str, Any]]:
         resources = [
             _resource("fura://catalog/nodes", "Catalog nodes", "All catalog page nodes."),
             _resource(
@@ -295,12 +314,13 @@ class FuraMCPServer:
         return resources
 
     def read_resource(self, uri: str) -> MCPResourceContentRecord:
-        payload = self._resource_payload(uri)
-        return {
-            "uri": uri,
-            "mimeType": "application/json",
-            "text": _dumps(payload),
-        }
+        with self._catalog_read_snapshot():
+            payload = self._resource_payload(uri)
+            return {
+                "uri": uri,
+                "mimeType": "application/json",
+                "text": _dumps(payload),
+            }
 
     def list_tools(self) -> list[dict[str, Any]]:
         return [
@@ -643,18 +663,35 @@ class FuraMCPServer:
                         "mount": _string_schema(
                             "Optional mount id used to disambiguate the target."
                         ),
+                        "operation": {
+                            "type": "string",
+                            "enum": ["publish", "unpublish", "archive"],
+                            "default": "publish",
+                            "description": "Lifecycle transition to project without applying it.",
+                        },
                         "actor": _string_schema("Optional actor id stored in the audit payload."),
                         "privileged_token": _privileged_token_schema(),
                     },
                     "required": ["target"],
                 },
                 "outputSchema": _object_schema(
-                    "ok", "status", "validation", "stale_impact", "audit"
+                    "ok",
+                    "status",
+                    "validation",
+                    "stale_impact",
+                    "public_projection",
+                    "audit",
                 ),
             },
         ]
 
     def call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResultRecord:
+        if name in _READ_ONLY_TOOLS:
+            with self._catalog_read_snapshot():
+                return self._call_tool(name, arguments)
+        return self._call_tool(name, arguments)
+
+    def _call_tool(self, name: str, arguments: dict[str, Any]) -> MCPToolResultRecord:
         arguments = dict(arguments)
         started = time.monotonic()
         self._apply_rate_limit(name, arguments)
@@ -738,6 +775,10 @@ class FuraMCPServer:
                 duration_ms=_duration_ms(started),
             )
             raise
+
+    def _catalog_read_snapshot(self):
+        snapshot = getattr(self.catalog, "read_snapshot", None)
+        return snapshot() if callable(snapshot) else nullcontext()
 
     def source_health(self, *, mount: Any | None = None) -> dict[str, Any]:
         mount_filter = str(mount).strip() if mount else None
@@ -1053,6 +1094,23 @@ class FuraMCPServer:
         )
         if not status.ok:
             return status_payload, True
+        operation = str(arguments.get("operation") or "publish").strip().lower()
+        if operation not in {"publish", "unpublish", "archive"}:
+            payload = {
+                "schema_version": 1,
+                "ok": False,
+                "diagnostics": [
+                    {
+                        "severity": "error",
+                        "message": (
+                            "Public inspection operation must be publish, unpublish, or archive."
+                        ),
+                        "rule_id": "fura.public_projection.operation",
+                        "next_action": "Retry with publish, unpublish, or archive.",
+                    }
+                ],
+            }
+            return payload, True
         report = self.validation_report()
         validation_result = author_validate(
             str(arguments.get("target") or ""),
@@ -1070,12 +1128,51 @@ class FuraMCPServer:
         )
         _attach_author_validation_fields(validation, validation_result)
         stale = self.stale_impact_report(slug=_optional_str(arguments.get("target")))
+        node = self.docs_app.catalog.get_by_slug(str(arguments.get("target") or ""))
+        if node is None:
+            return status_payload, True
+        transition = author_transition(
+            operation,
+            str(arguments.get("target") or ""),
+            mounts=self._author_mounts(),
+            subject=self.policy.subject,
+            expected_revision=status.source_revision,
+            mount_id=_optional_str(arguments.get("mount")),
+            dry_run=True,
+            confirmed=False,
+            store=self.docs_app.author_store,
+        )
+        if not transition.ok:
+            return self._author_payload(
+                transition,
+                "author_inspect_publication_impact",
+                arguments,
+            ), True
+        publication = (
+            self.docs_app.author_truth_provider.snapshot(
+                node,
+                source_revision=status.source_revision,
+            )
+            if self.docs_app.author_truth_provider is not None
+            else None
+        )
+        public_projection = inspect_public_transition(
+            self.docs_app.catalog,
+            node,
+            transition,
+            current_source_revision=str(status.source_revision or ""),
+            config=self.docs_app.config,
+            docs_app=self.docs_app,
+            publication=publication,
+            transport="mcp",
+        )
         payload = {
             "schema_version": 1,
-            "ok": bool(validation_result.ok),
+            "ok": bool(validation_result.ok and public_projection.get("ok")),
             "status": status_payload,
             "validation": validation,
             "stale_impact": stale,
+            "public_projection": public_projection,
             "audit": self._audit_record(
                 "author_inspect_publication_impact",
                 arguments,
@@ -1196,12 +1293,16 @@ class FuraMCPServer:
 
     def _initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         client_version = params.get("protocolVersion")
+        capabilities: dict[str, Any] = {
+            "resources": {},
+            "tools": {},
+        }
+        extensions = negotiated_server_extensions(params)
+        if extensions:
+            capabilities["extensions"] = extensions
         return {
             "protocolVersion": client_version or MCP_PROTOCOL_VERSION,
-            "capabilities": {
-                "resources": {},
-                "tools": {},
-            },
+            "capabilities": capabilities,
             "serverInfo": {
                 "name": SERVER_NAME,
                 "version": _package_version(),
@@ -2000,6 +2101,7 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
     def author_inspect_publication_impact(
         target: str,
         mount: str = "",
+        operation: str = "publish",
         actor: str = "",
         privileged_token: str = "",
     ) -> dict:
@@ -2009,6 +2111,7 @@ def build_milo_cli(server: FuraMCPServer) -> CLI:
             {
                 "target": target,
                 "mount": mount,
+                "operation": operation,
                 "actor": actor,
                 "privileged_token": privileged_token,
             },

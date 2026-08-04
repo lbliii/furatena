@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import gzip
 import hashlib
 import io
 import json
 from collections.abc import Mapping
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -20,7 +23,51 @@ SUPPORTED_ARTIFACT_VERSIONS = (1,)
 SUPPORTED_REMOTE_DCP_VERSIONS = (2, 3)
 SUPPORTED_REMOTE_CONTENT_IR_VERSIONS = (3,)
 MAX_PUBLISHED_OBJECT_BYTES = 64 * 1024 * 1024
+MAX_PRESENTATION_BYTES = 16 * 1024 * 1024
 MAX_PUBLISHED_INVENTORY_ENTRIES = 100_000
+
+_INERT_FORBIDDEN_TAGS = frozenset(
+    {
+        "animate",
+        "animatemotion",
+        "animatetransform",
+        "audio",
+        "base",
+        "discard",
+        "embed",
+        "feimage",
+        "fencedframe",
+        "foreignobject",
+        "form",
+        "frame",
+        "frameset",
+        "iframe",
+        "image",
+        "link",
+        "meta",
+        "mpath",
+        "object",
+        "portal",
+        "script",
+        "set",
+        "source",
+        "style",
+        "track",
+        "use",
+        "video",
+    }
+)
+_URL_ATTRIBUTES = frozenset(
+    {"href", "src", "xlink:href", "poster", "cite", "background", "longdesc", "usemap"}
+)
+_SAFE_URL_SCHEMES = frozenset({"http", "https", "mailto"})
+_SAFE_DATA_IMAGE_PREFIXES = {
+    "data:image/avif;base64,": "avif",
+    "data:image/gif;base64,": "gif",
+    "data:image/jpeg;base64,": "jpeg",
+    "data:image/png;base64,": "png",
+    "data:image/webp;base64,": "webp",
+}
 
 
 def load_published_shard_schema() -> dict[str, Any]:
@@ -110,25 +157,62 @@ def validate_published_shard_manifest(
 
     inventory = payload["inventory"]
     logical_paths = [item["logical_path"] for item in inventory]
-    object_urls = [item["object_url"] for item in inventory]
     if logical_paths != sorted(logical_paths):
         errors.append("inventory: entries must be sorted by logical_path")
     if len(set(logical_paths)) != len(logical_paths):
         errors.append("inventory: logical_path values must be unique")
-    if len(set(object_urls)) != len(object_urls):
-        errors.append("inventory: object_url values must be unique")
     roles = [item["role"] for item in inventory]
     for required in ("catalog", "search", "semantic"):
         if roles.count(required) != 1:
             errors.append(f"inventory: exactly one {required!r} object is required")
-    if "fragment" not in roles:
+    fragment_count = roles.count("fragment")
+    presentation_count = roles.count("presentation")
+    if fragment_count < 1:
         errors.append("inventory: at least one fragment object is required")
+    if presentation_count < 1:
+        errors.append("inventory: at least one presentation object is required")
+    if presentation_count != fragment_count:
+        errors.append("inventory: fragment and presentation counts must match exactly")
+    if fragment_count * 2 + 3 > payload["layout"]["max_inventory_entries"]:
+        errors.append("inventory: 2N+3 node object accounting exceeds max_inventory_entries")
     if len(inventory) > payload["layout"]["max_inventory_entries"]:
         errors.append("inventory: exceeds layout.max_inventory_entries")
-    encoding_suffixes = {"identity": ".json", "gzip": ".json.gz", "zstd": ".json.zst"}
+    per_node_ids: dict[str, list[str]] = {"fragment": [], "presentation": []}
     for item in inventory:
+        role = item["role"]
         if _unsafe_relative_path(item["logical_path"]):
             errors.append(f"inventory.{item['logical_path']}: unsafe logical_path")
+        node_id = item.get("node_id")
+        if role in per_node_ids:
+            if not isinstance(node_id, str) or not node_id.startswith(
+                f"{identity['mount']}:{identity['edition']}:"
+            ):
+                errors.append(f"inventory.{item['logical_path']}: invalid node_id identity")
+            else:
+                per_node_ids[role].append(node_id)
+                node_digest = hashlib.sha256(node_id.encode()).hexdigest()
+                prefix = "fragments" if role == "fragment" else "presentations"
+                extension = "json" if role == "fragment" else "html"
+                expected_logical = f"{prefix}/nodes/{node_digest}.{extension}"
+                if item["logical_path"] != expected_logical:
+                    errors.append(
+                        f"inventory.{item['logical_path']}: logical_path must be {expected_logical!r}"
+                    )
+        elif node_id is not None:
+            errors.append(f"inventory.{item['logical_path']}: node_id is forbidden for {role}")
+        expected_media_type = (
+            "text/html; charset=utf-8" if role == "presentation" else "application/json"
+        )
+        if item["media_type"] != expected_media_type:
+            errors.append(
+                f"inventory.{item['logical_path']}: media_type must be {expected_media_type!r}"
+            )
+        extension = ".html" if role == "presentation" else ".json"
+        encoding_suffixes = {
+            "identity": extension,
+            "gzip": f"{extension}.gz",
+            "zstd": f"{extension}.zst",
+        }
         expected_url = (
             f"objects/sha256/{item['encoded_sha256']}{encoding_suffixes[item['content_encoding']]}"
         )
@@ -144,10 +228,15 @@ def validate_published_shard_manifest(
         if item["uncompressed_size"] > payload["layout"]["max_object_bytes"]:
             errors.append(f"inventory.{item['logical_path']}: exceeds max_object_bytes")
         if (
-            item["role"] == "fragment"
+            role == "fragment"
             and item["uncompressed_size"] > payload["layout"]["max_fragment_bytes"]
         ):
             errors.append(f"inventory.{item['logical_path']}: exceeds max_fragment_bytes")
+        if (
+            role == "presentation"
+            and item["uncompressed_size"] > payload["layout"]["max_presentation_bytes"]
+        ):
+            errors.append(f"inventory.{item['logical_path']}: exceeds max_presentation_bytes")
         if (
             item["uncompressed_size"] >= payload["compression"]["threshold_bytes"]
             and item["content_encoding"] == "identity"
@@ -155,11 +244,17 @@ def validate_published_shard_manifest(
             errors.append(
                 f"inventory.{item['logical_path']}: identity encoding exceeds compression threshold"
             )
+    for role, node_ids in per_node_ids.items():
+        if len(set(node_ids)) != len(node_ids):
+            errors.append(f"inventory: duplicate {role} node_id values are forbidden")
+    if set(per_node_ids["fragment"]) != set(per_node_ids["presentation"]):
+        errors.append("inventory: fragment and presentation node_id sets must match exactly")
 
     totals = payload["totals"]
     expected_totals = {
         "object_count": len(inventory),
-        "fragment_count": roles.count("fragment"),
+        "fragment_count": fragment_count,
+        "presentation_count": presentation_count,
         "uncompressed_bytes": sum(item["uncompressed_size"] for item in inventory),
         "encoded_bytes": sum(item["encoded_size"] for item in inventory),
     }
@@ -359,11 +454,16 @@ def _validate_local_objects(payload: dict[str, Any], artifact_root: Path) -> lis
             errors.append(f"inventory.{item['logical_path']}: encoded_size mismatch")
         if _digest_bytes(raw) != item["encoded_sha256"]:
             errors.append(f"inventory.{item['logical_path']}: encoded_sha256 mismatch")
+        decoded_limit = (
+            payload["layout"]["max_presentation_bytes"]
+            if item["role"] == "presentation"
+            else max_bytes
+        )
         try:
             decoded = _decode_object(
                 raw,
                 item["content_encoding"],
-                max_bytes=max_bytes,
+                max_bytes=decoded_limit,
             )
         except (OSError, ValueError) as exc:
             errors.append(f"inventory.{item['logical_path']}: decode failed: {exc}")
@@ -386,6 +486,8 @@ def _validate_local_objects(payload: dict[str, Any], artifact_root: Path) -> lis
 def _validate_role_payload(
     manifest: dict[str, Any], item: dict[str, Any], decoded: bytes
 ) -> list[str]:
+    if item["role"] == "presentation":
+        return _validate_inert_presentation(item["logical_path"], decoded)
     try:
         value = json.loads(decoded)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -415,11 +517,9 @@ def _validate_role_payload(
             ):
                 errors.append(f"inventory.{item['logical_path']}: namespace identity mismatch")
         return errors
-    if item["role"] == "fragment" and not str(value.get("node_id") or "").startswith(
-        f"{identity['mount']}:{identity['edition']}:"
-    ):
-        errors.append(f"inventory.{item['logical_path']}: node identity mismatch")
     if item["role"] == "fragment":
+        if value.get("node_id") != item.get("node_id"):
+            errors.append(f"inventory.{item['logical_path']}: node identity mismatch")
         fragment_catalog = {
             "schema_version": manifest["contracts"]["dcp"],
             "channel": identity["edition"],
@@ -487,10 +587,9 @@ def _validate_object_set_closure(
         if isinstance(page, dict) and page.get("node_id")
     }
     sets = {
-        "fragment": {
-            str(value.get("node_id"))
-            for value in role_values.get("fragment", [])
-            if value.get("node_id")
+        "fragment": {str(item.get("node_id")) for item in inventory if item["role"] == "fragment"},
+        "presentation": {
+            str(item.get("node_id")) for item in inventory if item["role"] == "presentation"
         },
         "search": {
             str(record.get("node_id"))
@@ -510,6 +609,126 @@ def _validate_object_set_closure(
         for role, node_ids in sets.items()
         if node_ids != catalog_ids
     ]
+
+
+class _InertPresentationParser(HTMLParser):
+    """Parse one HTML body and collect active-content contract violations."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.errors: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        normalized_tag = tag.casefold()
+        normalized_attrs = [(name.casefold(), value or "") for name, value in attrs]
+        if normalized_tag in _INERT_FORBIDDEN_TAGS:
+            self.errors.append(f"forbidden active element <{normalized_tag}>")
+        if normalized_tag == "meta" and any(
+            name == "http-equiv" and value.strip().casefold() == "refresh"
+            for name, value in normalized_attrs
+        ):
+            self.errors.append("meta refresh is forbidden")
+        for name, value in normalized_attrs:
+            if name.startswith("on"):
+                self.errors.append(f"event-handler attribute {name!r} is forbidden")
+            if name in {
+                "action",
+                "autofocus",
+                "autoplay",
+                "formaction",
+                "ping",
+                "srcdoc",
+                "srcset",
+                "style",
+            }:
+                self.errors.append(f"active attribute {name!r} is forbidden")
+            if (
+                name.startswith(("hx-", "data-hx-", "x-", "v-", "data-turbo-"))
+                or name.startswith(("@", ":"))
+                or name in {"data-action", "data-controller", "data-fura-copy-code"}
+            ):
+                self.errors.append(f"active framework attribute {name!r} is forbidden")
+            if name in _URL_ATTRIBUTES:
+                error = _inert_url_error(value)
+                if error is not None:
+                    self.errors.append(f"{name} {error}")
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self.handle_starttag(tag, attrs)
+
+
+def _validate_inert_presentation(logical_path: str, decoded: bytes) -> list[str]:
+    return [
+        f"inventory.{logical_path}: inert HTML {error}"
+        for error in validate_inert_presentation_html(decoded)
+    ]
+
+
+def validate_inert_presentation_html(value: bytes | str) -> list[str]:
+    """Validate one bounded UTF-8 HTML body as inert presentation output."""
+    decoded = value.encode("utf-8") if isinstance(value, str) else value
+    if len(decoded) > MAX_PRESENTATION_BYTES:
+        return [f"decoded presentation exceeds {MAX_PRESENTATION_BYTES} bytes"]
+    try:
+        text = decoded.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        return [f"presentation is not valid UTF-8: {exc}"]
+    parser = _InertPresentationParser()
+    try:
+        parser.feed(text)
+        parser.close()
+    except Exception as exc:  # HTMLParser subclasses may reject malformed declarations.
+        return [f"presentation HTML parse failed: {exc}"]
+    return parser.errors
+
+
+def validate_published_object_payload(
+    manifest: dict[str, Any], item: dict[str, Any], decoded: bytes
+) -> list[str]:
+    """Validate one decoded inventory object through its role-specific v1 contract."""
+    return _validate_role_payload(manifest, item, decoded)
+
+
+def _inert_url_error(value: str) -> str | None:
+    trimmed = value.strip()
+    probe = "".join(
+        character for character in trimmed if ord(character) > 32 and not character.isspace()
+    )
+    if probe.startswith("//"):
+        return "scheme-relative network URL is forbidden"
+    scheme = urlsplit(probe).scheme.casefold()
+    if not scheme:
+        return None
+    if scheme in _SAFE_URL_SCHEMES:
+        return None
+    if scheme != "data":
+        return f"URL scheme {scheme!r} is forbidden"
+    folded = trimmed.casefold()
+    prefix = next((item for item in _SAFE_DATA_IMAGE_PREFIXES if folded.startswith(item)), None)
+    if prefix is None:
+        return "unsafe data URL is forbidden"
+    encoded = trimmed[len(prefix) :]
+    try:
+        decoded = base64.b64decode(encoded, validate=True)
+    except binascii.Error, ValueError:
+        return "malformed data URL is forbidden"
+    if not _matches_raster_signature(_SAFE_DATA_IMAGE_PREFIXES[prefix], decoded):
+        return "data URL payload does not match its declared raster media type"
+    return None
+
+
+def _matches_raster_signature(kind: str, value: bytes) -> bool:
+    if kind == "png":
+        return value.startswith(b"\x89PNG\r\n\x1a\n")
+    if kind == "jpeg":
+        return value.startswith(b"\xff\xd8\xff")
+    if kind == "gif":
+        return value.startswith((b"GIF87a", b"GIF89a"))
+    if kind == "webp":
+        return len(value) >= 12 and value.startswith(b"RIFF") and value[8:12] == b"WEBP"
+    if kind == "avif":
+        return len(value) >= 12 and value[4:8] == b"ftyp" and value[8:12] in {b"avif", b"avis"}
+    return False
 
 
 def _decode_object(raw: bytes, encoding: str, *, max_bytes: int) -> bytes:

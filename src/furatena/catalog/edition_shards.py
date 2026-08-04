@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from furatena.catalog.atomic_directory import AtomicDirectoryTransaction
 from furatena.catalog.exceptions import ExportError
 from furatena.catalog.export import catalog_graph
+from furatena.catalog.federation_artifacts import validate_inert_presentation_html
 
 if TYPE_CHECKING:
     from furatena.catalog.record_types import EdgeRecord, NamespaceRecord
@@ -22,6 +23,7 @@ EDITION_SHARD_MANIFEST_VERSION = 1
 EDITION_DCP_SCHEMA_VERSION = 3
 EDITION_CONTENT_IR_SCHEMA_VERSION = 3
 EDITION_ADAPTER_CONTRACT_VERSION = 1
+EDITION_PRESENTATION_CONTRACT_VERSION = 1
 
 _VOLATILE_KEYS = frozenset(
     {
@@ -100,6 +102,7 @@ def freeze_edition_shards(
     dcp_schema_version: int = EDITION_DCP_SCHEMA_VERSION,
     content_ir_schema_version: int = EDITION_CONTENT_IR_SCHEMA_VERSION,
     adapter_contract_version: int = EDITION_ADAPTER_CONTRACT_VERSION,
+    presentation_contract_version: int = EDITION_PRESENTATION_CONTRACT_VERSION,
 ) -> tuple[EditionShardStatus, ...]:
     """Freeze or verify every discovered immutable release edition."""
     outcomes: list[EditionShardStatus] = []
@@ -116,6 +119,7 @@ def freeze_edition_shards(
                     dcp_schema_version=dcp_schema_version,
                     content_ir_schema_version=content_ir_schema_version,
                     adapter_contract_version=adapter_contract_version,
+                    presentation_contract_version=presentation_contract_version,
                 )
             )
     return tuple(outcomes)
@@ -130,6 +134,7 @@ def freeze_edition_shard(
     dcp_schema_version: int = EDITION_DCP_SCHEMA_VERSION,
     content_ir_schema_version: int = EDITION_CONTENT_IR_SCHEMA_VERSION,
     adapter_contract_version: int = EDITION_ADAPTER_CONTRACT_VERSION,
+    presentation_contract_version: int = EDITION_PRESENTATION_CONTRACT_VERSION,
 ) -> EditionShardStatus:
     """Freeze one release snapshot, or reuse it after full integrity verification."""
     target = out_dir / "mounts" / mount.id / snapshot.id
@@ -140,6 +145,7 @@ def freeze_edition_shard(
         dcp_schema_version=dcp_schema_version,
         content_ir_schema_version=content_ir_schema_version,
         adapter_contract_version=adapter_contract_version,
+        presentation_contract_version=presentation_contract_version,
     )
     input_fingerprint = _digest_json(input_payload)
     existing = _read_manifest(target)
@@ -171,6 +177,7 @@ def freeze_edition_shard(
             dcp_schema_version=dcp_schema_version,
             content_ir_schema_version=content_ir_schema_version,
             adapter_contract_version=adapter_contract_version,
+            presentation_contract_version=presentation_contract_version,
         )
         transaction.commit()
     finally:
@@ -186,6 +193,7 @@ def _input_payload(
     dcp_schema_version: int,
     content_ir_schema_version: int,
     adapter_contract_version: int,
+    presentation_contract_version: int,
 ) -> dict[str, Any]:
     git = mount.source.git
     autodoc_digest = None
@@ -217,6 +225,7 @@ def _input_payload(
             "dcp": dcp_schema_version,
             "content_ir": content_ir_schema_version,
             "adapter": adapter_contract_version,
+            "presentation": presentation_contract_version,
         },
     }
 
@@ -232,6 +241,7 @@ def _build_shard(
     dcp_schema_version: int,
     content_ir_schema_version: int,
     adapter_contract_version: int,
+    presentation_contract_version: int,
 ) -> dict[str, Any]:
     git = mount.source.git
     source = mount.source.with_git_sync_state(
@@ -268,7 +278,30 @@ def _build_shard(
         content_path = _safe_record_path(target / "content", slug)
         _write_json(content_path, page)
         node = nodes_by_id.get(str(page.get("node_id") or ""))
-        if node is not None and node.ast_json:
+        if node is None:
+            raise ExportError(
+                f"edition presentation node is missing for {mount.id}:{snapshot.id}:{slug}",
+                path=target / "pages" / f"{slug}.html",
+                mount=mount.id,
+                operation="freeze_edition_presentation",
+            )
+        # The owning freeze call renders and validates one node at a time. The
+        # resulting bytes are immutable before atomic promotion; no worker or
+        # GIL-dependent shared presentation buffer exists.
+        presentation = shard.resolve_body_html(node).rstrip() + "\n"
+        presentation_errors = validate_inert_presentation_html(presentation)
+        if presentation_errors:
+            raise ExportError(
+                f"edition presentation {mount.id}:{snapshot.id}:{slug} is not inert: "
+                + "; ".join(presentation_errors[:4]),
+                path=target / "pages" / f"{slug}.html",
+                mount=mount.id,
+                operation="freeze_edition_presentation",
+            )
+        presentation_path = _safe_record_path(target / "pages", slug, extension="html")
+        presentation_path.parent.mkdir(parents=True, exist_ok=True)
+        presentation_path.write_text(presentation, encoding="utf-8")
+        if node.ast_json:
             ast_path = _safe_record_path(target / "ast", slug)
             ast_path.parent.mkdir(parents=True, exist_ok=True)
             ast_path.write_text(node.ast_json.rstrip() + "\n", encoding="utf-8")
@@ -286,6 +319,7 @@ def _build_shard(
             "dcp": dcp_schema_version,
             "content_ir": content_ir_schema_version,
             "adapter": adapter_contract_version,
+            "presentation": presentation_contract_version,
         },
         "input_fingerprint": input_fingerprint,
         "fingerprint": result_fingerprint,
@@ -359,8 +393,8 @@ def _artifact_digests(root: Path) -> dict[str, str]:
     }
 
 
-def _safe_record_path(root: Path, slug: str) -> Path:
-    target = (root / f"{slug}.json").resolve()
+def _safe_record_path(root: Path, slug: str, *, extension: str = "json") -> Path:
+    target = (root / f"{slug}.{extension}").resolve()
     resolved_root = root.resolve()
     if not target.is_relative_to(resolved_root):
         raise ExportError(

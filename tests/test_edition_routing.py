@@ -202,6 +202,9 @@ def test_switcher_resolves_same_slug_fallbacks_and_htmx_targets(tmp_path: Path) 
             ancestor = await client.get("/topic/new/")
 
         assert 'value="/v1.0.0/guide/"' in direct.text
+        assert 'class="version-selector__select"' in direct.text
+        assert 'class="version-selector__label visually-hidden"' in direct.text
+        assert ">Documentation version</label>" in direct.text
         assert 'data-resolution="direct"' in direct.text
         assert 'data-docs-version-target="1.0.0"' in direct.text
         assert 'hx-boost="true"' in direct.text

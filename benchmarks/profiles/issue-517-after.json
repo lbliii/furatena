@@ -1,0 +1,41 @@
+{
+  "environment": {
+    "free_threaded": true,
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "methodology": {
+    "bearer_iterations": 10000,
+    "clock": "time.perf_counter_ns",
+    "concurrent_session_iterations_per_worker": 2000,
+    "concurrent_session_workers": 8,
+    "grant_algorithm": "Ed25519",
+    "session_iterations": 20000,
+    "statistic": "per-operation median and p95",
+    "warmup": "one successful local read per operation"
+  },
+  "operations": {
+    "concurrent_local_session_auth": {
+      "iterations": 16000,
+      "median_us": 35.375,
+      "p95_us": 297.208
+    },
+    "local_session_auth": {
+      "iterations": 20000,
+      "median_us": 26.25,
+      "p95_us": 26.834
+    },
+    "warm_known_key_bearer_auth": {
+      "iterations": 10000,
+      "median_us": 379.583,
+      "p95_us": 394.042
+    }
+  },
+  "steady_state_external_calls": {
+    "broker_exchange_delta": 0,
+    "broker_fetch_delta": 0,
+    "jwks_refresh_delta": 0
+  }
+}

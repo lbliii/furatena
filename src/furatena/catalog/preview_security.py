@@ -2,19 +2,29 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import dataclasses
+import html
+import json
 import os
 import re
 import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from http.cookies import CookieError, SimpleCookie
 from urllib.parse import urlsplit
 
 from chirp.http.request import Request
 from chirp.http.response import Response, SSEResponse
 from chirp.middleware.protocol import AnyResponse, Next
+
+from furatena.catalog.preview_grant_runtime import (
+    PREVIEW_CALLBACK_PATH,
+    PreviewGrantRuntime,
+    PreviewGrantRuntimeError,
+)
 
 _SHA_RE = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
 _TRUE_VALUES = frozenset({"1", "true", "yes"})
@@ -22,6 +32,34 @@ _PROBE_PATHS = frozenset({"/healthz", "/readyz"})
 _ROBOTS_POLICY = "noindex, nofollow, noarchive, nosnippet"
 _PRIVATE_CACHE = "private, no-store"
 _AUTH_REALM = 'Basic realm="Furatena pull-request preview", charset="UTF-8"'
+_GRANT_AUTH_REALM = 'Bearer realm="Furatena hosted preview", error="invalid_token"'
+_MACHINE_SUFFIXES = (
+    ".css",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".js",
+    ".json",
+    ".md",
+    ".png",
+    ".svg",
+    ".txt",
+    ".webmanifest",
+    ".xml",
+)
+_MACHINE_PREFIXES = (
+    "/_fura/",
+    "/api/",
+    "/catalog",
+    "/cli",
+    "/dcp/",
+    "/graph/",
+    "/llms",
+    "/mcp/",
+    "/metadata",
+    "/query",
+)
 
 
 class PreviewConfigurationError(ValueError):
@@ -190,7 +228,12 @@ def _header_value(response: AnyResponse, name: str) -> str | None:
     )
 
 
-def _secure_response(response: AnyResponse, *, protected: bool) -> AnyResponse:
+def _secure_response(
+    response: AnyResponse,
+    *,
+    protected: bool,
+    vary_cookie: bool = False,
+) -> AnyResponse:
     if isinstance(response, SSEResponse):
         return response
     response = _replace_header(response, "X-Robots-Tag", _ROBOTS_POLICY)
@@ -200,7 +243,89 @@ def _secure_response(response: AnyResponse, *, protected: bool) -> AnyResponse:
     existing_vary = _header_value(response, "Vary") or ""
     vary = {item.strip() for item in existing_vary.split(",") if item.strip()}
     vary.add("Authorization")
+    if vary_cookie:
+        vary.add("Cookie")
     return _replace_header(response, "Vary", ", ".join(sorted(vary)))
+
+
+def _cookie_value(request: Request, name: str) -> str | None:
+    raw = request.headers.get("cookie")
+    if not raw or len(raw) > 8192:
+        return None
+    cookies = SimpleCookie()
+    try:
+        cookies.load(raw)
+    except CookieError:
+        return None
+    morsel = cookies.get(name)
+    return morsel.value if morsel is not None else None
+
+
+def _bearer_grant(request: Request) -> str | None:
+    authorization = request.headers.get("authorization")
+    if not authorization:
+        return None
+    scheme, separator, credential = authorization.partition(" ")
+    if not separator or scheme.lower() != "bearer":
+        return None
+    value = credential.strip()
+    return value if value else None
+
+
+def _browser_navigation(request: Request) -> bool:
+    if request.method not in {"GET", "HEAD"} or request.headers.get("authorization"):
+        return False
+    path = request.path.lower()
+    if path.startswith(_MACHINE_PREFIXES) or path.endswith(_MACHINE_SUFFIXES):
+        return False
+    accept = (request.headers.get("accept") or "").lower()
+    if not accept:
+        return True
+    return "text/html" in accept or "application/xhtml+xml" in accept
+
+
+def _grant_denial(error: PreviewGrantRuntimeError | None = None) -> Response:
+    retryable = error is not None and error.retryable
+    status = 503 if retryable or (error is not None and error.status >= 500) else 401
+    payload = {
+        "error": error.code if error is not None else "authentication_required",
+        "message": (
+            str(error) if error is not None else "A valid hosted preview Bearer grant is required."
+        ),
+        "remediation": (
+            "Retry authorization later."
+            if status == 503
+            else "Obtain a current grant for this exact preview revision and retry."
+        ),
+        "retryable": status == 503,
+    }
+    return Response(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        status=status,
+        content_type="application/problem+json; charset=utf-8",
+    ).with_header("WWW-Authenticate", _GRANT_AUTH_REALM)
+
+
+def _browser_failure(error: PreviewGrantRuntimeError) -> Response:
+    status = 503 if error.retryable or error.status >= 500 else 401
+    title = "Preview sign-in unavailable" if status == 503 else "Preview sign-in failed"
+    body = (
+        '<!doctype html><html><head><meta name="robots" '
+        'content="noindex,nofollow,noarchive,nosnippet"><title>'
+        f"{title}</title></head><body><main><h1>{title}</h1>"
+        f"<p>{html.escape(str(error))}</p>"
+        "<p>Return to the preview and restart authorization.</p>"
+        "</main></body></html>"
+    )
+    return Response(body, status=status, content_type="text/html; charset=utf-8")
+
+
+def _session_cookie(name: str, token: str, max_age: int) -> str:
+    return f"{name}={token}; Path=/; Max-Age={max_age}; Secure; HttpOnly; SameSite=Lax"
+
+
+def _expired_session_cookie(name: str) -> str:
+    return f"{name}=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax"
 
 
 def _basic_token(value: str) -> str | None:
@@ -247,3 +372,90 @@ class PreviewSecurityMiddleware:
             return _secure_response(response, protected=True)
 
         return _secure_response(await next(request), protected=True)
+
+
+class PreviewGrantSecurityMiddleware:
+    """Authenticate hosted previews with local grants and SHA-bound sessions."""
+
+    __slots__ = ("_runtime",)
+
+    def __init__(self, runtime: PreviewGrantRuntime) -> None:
+        self._runtime = runtime
+
+    async def __call__(self, request: Request, next: Next) -> AnyResponse:
+        if request.path in _PROBE_PATHS:
+            return _secure_response(await next(request), protected=False)
+
+        if request.path == PREVIEW_CALLBACK_PATH:
+            return await self._callback(request)
+
+        bearer = _bearer_grant(request)
+        if bearer is not None:
+            try:
+                await asyncio.to_thread(self._runtime.authenticate_bearer, bearer)
+            except PreviewGrantRuntimeError as error:
+                self._runtime.record_denial()
+                return _secure_response(
+                    _grant_denial(error),
+                    protected=True,
+                    vary_cookie=True,
+                )
+            return _secure_response(await next(request), protected=True, vary_cookie=True)
+
+        cookie_name = self._runtime.config.cookie_name
+        session_token = _cookie_value(request, cookie_name)
+        if (
+            session_token is not None
+            and self._runtime.authenticate_session(session_token) is not None
+        ):
+            return _secure_response(await next(request), protected=True, vary_cookie=True)
+
+        self._runtime.record_denial()
+        if not _browser_navigation(request):
+            return _secure_response(_grant_denial(), protected=True, vary_cookie=True)
+
+        try:
+            login = await asyncio.to_thread(self._runtime.start_browser_login, request.path)
+        except PreviewGrantRuntimeError as error:
+            return _secure_response(_browser_failure(error), protected=True, vary_cookie=True)
+        response = Response("", status=302).with_header("Location", login.location)
+        if session_token is not None:
+            response = response.with_header("Set-Cookie", _expired_session_cookie(cookie_name))
+        return _secure_response(response, protected=True, vary_cookie=True)
+
+    async def _callback(self, request: Request) -> AnyResponse:
+        if request.method != "GET":
+            error = PreviewGrantRuntimeError(
+                "The preview authorization callback requires GET.",
+                code="invalid_callback",
+            )
+            return _secure_response(_browser_failure(error), protected=True, vary_cookie=True)
+        code = request.query.get("code")
+        state = request.query.get("state")
+        if set(request.query) != {"code", "state"} or not code or not state:
+            error = PreviewGrantRuntimeError(
+                "The preview authorization callback is incomplete or denied.",
+                code="invalid_callback",
+            )
+            return _secure_response(_browser_failure(error), protected=True, vary_cookie=True)
+        try:
+            established = await asyncio.to_thread(
+                self._runtime.complete_browser_login,
+                code=code,
+                state=state,
+            )
+        except PreviewGrantRuntimeError as error:
+            self._runtime.record_denial()
+            return _secure_response(_browser_failure(error), protected=True, vary_cookie=True)
+        cookie = _session_cookie(
+            self._runtime.config.cookie_name,
+            established.token,
+            established.max_age_seconds,
+        )
+        return _secure_response(
+            Response("", status=303)
+            .with_header("Location", established.return_path)
+            .with_header("Set-Cookie", cookie),
+            protected=True,
+            vary_cookie=True,
+        )

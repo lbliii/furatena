@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import re
+from collections import OrderedDict
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import suppress
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
+from threading import Event, Lock
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -17,6 +20,7 @@ from furatena.catalog.autodoc import generate_autodoc_nodes
 from furatena.catalog.catalog_nav import CatalogNavConfig, resolve_doc_sections, section_index_slug
 from furatena.catalog.content_ir import content_ir_from_record
 from furatena.catalog.context import NodeStub
+from furatena.catalog.exceptions import CatalogError
 from furatena.catalog.graph import build_backlinks
 from furatena.catalog.graph_schema import infer_section_root
 from furatena.catalog.i18n import (
@@ -54,6 +58,133 @@ from furatena.catalog.workers import resolve_workers
 
 _MD_LINK_RE = re.compile(r"\]\((/[^)#]+)\)")
 _FULL_AUTHOR_RELOAD_HINTS = ("page-root", "toc-panel", "head-meta", "docs-sidebar")
+_REMOTE_PRESENTATION_CACHE_ENTRIES = 256
+_REMOTE_PRESENTATION_CACHE_BYTES = 64 * 1024 * 1024
+
+
+@dataclass(slots=True)
+class _PresentationFlight:
+    completed: Event
+    coalesced: Event
+    value: str | None = None
+    error: _PresentationFailure | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class _PresentationFailure:
+    error_type: type[BaseException]
+    args: tuple[str | int | float | bool | None, ...]
+    summary: str
+    catalog_context: tuple[tuple[str, str], ...] = ()
+
+    @classmethod
+    def capture(cls, error: BaseException) -> _PresentationFailure:
+        context = error.context if isinstance(error, CatalogError) else {}
+        return cls(
+            error_type=type(error),
+            args=tuple(
+                value if isinstance(value, str | int | float | bool | None) else repr(value)
+                for value in error.args
+            ),
+            summary=str(error),
+            catalog_context=tuple(sorted(context.items())),
+        )
+
+    def recreate(self) -> tuple[BaseException, BaseException | None]:
+        try:
+            if issubclass(self.error_type, CatalogError):
+                return (
+                    self.error_type(self.summary, **dict(self.catalog_context)),
+                    None,
+                )
+            return self.error_type(*self.args), None
+        except Exception:
+            from furatena.catalog.remote_shards import RemoteShardFetchError
+
+            return (
+                RemoteShardFetchError(
+                    f"A coalesced remote presentation fetch failed: {self.summary}.",
+                    operation="remote_shard_fetch",
+                ),
+                RuntimeError(self.summary),
+            )
+
+
+class _RemotePresentationCache:
+    """Bounded generation LRU with independent, temporary per-node flights."""
+
+    def __init__(
+        self,
+        loader: Callable[[str], bytes],
+        *,
+        max_entries: int = _REMOTE_PRESENTATION_CACHE_ENTRIES,
+        max_bytes: int = _REMOTE_PRESENTATION_CACHE_BYTES,
+    ) -> None:
+        if max_entries <= 0 or max_bytes <= 0:
+            raise ValueError("Remote presentation cache bounds must both be positive integers.")
+        self._loader = loader
+        self._max_entries = max_entries
+        self._max_bytes = max_bytes
+        self._cache: OrderedDict[str, tuple[str, int]] = OrderedDict()
+        self._cache_bytes = 0
+        self._flights: dict[str, _PresentationFlight] = {}
+        self._lock = Lock()
+
+    def __call__(self, node_id: str) -> str:
+        with self._lock:
+            cached = self._cache.get(node_id)
+            if cached is not None:
+                self._cache.move_to_end(node_id)
+                return cached[0]
+            flight = self._flights.get(node_id)
+            owner = flight is None
+            if flight is None:
+                flight = _PresentationFlight(Event(), Event())
+                self._flights[node_id] = flight
+            else:
+                flight.coalesced.set()
+        if not owner:
+            flight.completed.wait()
+            if flight.error is not None:
+                error, cause = flight.error.recreate()
+                if cause is not None:
+                    raise error from cause
+                raise error
+            assert flight.value is not None
+            return flight.value
+        try:
+            html = sanitize_rendered_html(self._loader(node_id).decode("utf-8").strip())
+        except BaseException as exc:
+            with self._lock:
+                flight.error = _PresentationFailure.capture(exc)
+                self._flights.pop(node_id, None)
+                flight.completed.set()
+            raise
+        size = len(html.encode("utf-8"))
+        with self._lock:
+            flight.value = html
+            if size <= self._max_bytes:
+                while self._cache and (
+                    len(self._cache) >= self._max_entries
+                    or self._cache_bytes + size > self._max_bytes
+                ):
+                    _evicted_key, (_evicted_html, evicted_size) = self._cache.popitem(last=False)
+                    self._cache_bytes -= evicted_size
+                self._cache[node_id] = (html, size)
+                self._cache_bytes += size
+            self._flights.pop(node_id, None)
+            flight.completed.set()
+        return html
+
+    def stats(self) -> dict[str, int]:
+        with self._lock:
+            return {
+                "entries": len(self._cache),
+                "bytes": self._cache_bytes,
+                "flights": len(self._flights),
+                "max_entries": self._max_entries,
+                "max_bytes": self._max_bytes,
+            }
 
 
 def _catalog_page_slug(slug_prefix: str, page_slug: str) -> str:
@@ -164,6 +295,8 @@ class DocCatalog:
         self._frozen_pages_dir: Path | None = None
         self._frozen_shard_dir: Path | None = None
         self._frozen_edges: list[EdgeRecord] | None = None
+        self._remote_presentation_cache: _RemotePresentationCache | None = None
+        self._remote_generation_id: str | None = None
         self._html_cache: dict[str, str] = {}
         self._nodes: list[DocNode] = []
         self._nodes_by_url: dict[str, DocNode] = {}
@@ -684,6 +817,8 @@ class DocCatalog:
     def resolve_body_html(self, node: DocNode) -> str:
         if node.body_html:
             return node.body_html
+        if self._remote_presentation_cache is not None:
+            return self._remote_presentation_cache(node.node_id)
         cached = self._html_cache.get(node.node_id)
         if cached is not None:
             return cached
@@ -1184,6 +1319,8 @@ class DocCatalog:
         catalog._frozen_edges = cast(
             list[EdgeRecord], [edge for edge in raw.get("edges", []) if isinstance(edge, dict)]
         )
+        catalog._remote_presentation_cache = None
+        catalog._remote_generation_id = None
         catalog._html_cache = {}
         catalog._nodes = []
         catalog._nodes_by_url = {}
@@ -1342,5 +1479,185 @@ class DocCatalog:
             page["url"]: page.get("backlinks") or []
             for page in raw.get("pages", [])
             if isinstance(page, dict) and page.get("url")
+        }
+        return catalog
+
+    @classmethod
+    def from_remote(
+        cls,
+        raw: Mapping[str, Any],
+        *,
+        mount: str,
+        edition: str,
+        presentation_loader: Callable[[str], bytes],
+        content_root: Path,
+        catalog_nav: CatalogNavConfig | None = None,
+        presentation_cache_entries: int = _REMOTE_PRESENTATION_CACHE_ENTRIES,
+        presentation_cache_bytes: int = _REMOTE_PRESENTATION_CACHE_BYTES,
+    ) -> DocCatalog:
+        """Compose a verified published catalog without indexing local source."""
+        catalog = cls.__new__(cls)
+        catalog.content_root = content_root
+        catalog.auto_reload = False
+        catalog.autodoc_config = None
+        catalog.repo_root = content_root
+        catalog.autodoc_enabled = False
+        catalog.mount = mount
+        catalog.url_prefix = "" if edition == "latest" else f"/{edition}"
+        catalog.lazy_html = True
+        catalog.active_channel = edition
+        catalog.channels = (DocChannel(id=edition, label=edition, default=True),)
+        catalog._frozen_pages_dir = None
+        catalog._frozen_shard_dir = None
+        catalog._frozen_edges = cast(
+            list[EdgeRecord], [edge for edge in raw.get("edges", []) if isinstance(edge, dict)]
+        )
+        catalog._remote_presentation_cache = _RemotePresentationCache(
+            presentation_loader,
+            max_entries=presentation_cache_entries,
+            max_bytes=presentation_cache_bytes,
+        )
+        catalog._remote_generation_id = None
+        catalog._html_cache = {}
+        catalog._nodes = []
+        catalog._nodes_by_url = {}
+        catalog._nodes_by_slug = {}
+        catalog._doc_nodes = None
+        catalog._nav_cache = {}
+        catalog._backlinks = {}
+        catalog._source_mtimes = {}
+        catalog._raw_pages = []
+        catalog._stubs = {}
+        catalog._slug_to_url = {}
+        catalog._renderer = DocsRenderer()
+        catalog._ast_documents = {}
+        catalog._body_by_slug = {}
+        catalog._last_invalidations = {}
+        catalog._last_invalidation_regions = {}
+        catalog.i18n_config = DocsI18nConfig()
+        catalog.catalog_nav = catalog_nav
+        catalog.include_private = False
+        catalog.identity_meta = {}
+        catalog._doc_nodes_lang = None
+        catalog._workers = 1
+        catalog.source_config = MountSourceConfig(provider="remote-shard")
+        catalog._source_provider = source_provider_for_config(catalog.source_config)
+        catalog._scanner = None
+        catalog._federated_slug_urls = {}
+        catalog._watcher = None
+        catalog._cached_autodoc_nodes = None
+
+        for page in raw.get("pages", []):
+            if not isinstance(page, Mapping):
+                continue
+            slug = str(page.get("slug") or "")
+            toc = tuple(
+                TocEntry(
+                    anchor=str(item["anchor"]), text=str(item["text"]), depth=int(item["depth"])
+                )
+                for item in (page.get("toc") or [])
+                if isinstance(item, Mapping)
+                and all(key in item for key in ("anchor", "text", "depth"))
+            )
+            sections = tuple(
+                SectionChunk(
+                    id=str(item.get("id") or ""),
+                    heading=str(item.get("heading") or ""),
+                    depth=int(item.get("depth") or 0),
+                    text=str(item.get("text") or ""),
+                )
+                for item in (page.get("sections") or [])
+                if isinstance(item, Mapping) and item.get("text")
+            )
+            meta: dict[str, Any] = {
+                "source": page.get("source") or "remote-shard",
+                "doc_version": page.get("doc_version"),
+                "lang": page.get("lang"),
+                "translation_key": page.get("translation_key"),
+            }
+            for key in (
+                "available_in",
+                "breaks",
+                "explains",
+                "generated_from",
+                "implements",
+                "last_indexed_at",
+                "owner",
+                "provider",
+                "repo",
+                "requires",
+                "site",
+                "source_provider",
+                "source_url",
+                "source_ref",
+                "source_repo",
+                "supersedes",
+                "team",
+                "tenant",
+                "validates",
+                "workspace",
+            ):
+                value = page.get(key)
+                if value not in (None, ""):
+                    meta[key] = value
+            provenance = page.get("provenance")
+            if isinstance(provenance, Mapping):
+                for source_key, target_key in (
+                    ("provider", "source_provider"),
+                    ("repo", "source_repo"),
+                    ("ref", "source_ref"),
+                    ("source_url", "source_url"),
+                    ("generated_from", "generated_from"),
+                    ("owner", "owner"),
+                    ("team", "team"),
+                    ("tenant", "tenant"),
+                    ("workspace", "workspace"),
+                    ("site", "site"),
+                    ("last_indexed_at", "last_indexed_at"),
+                ):
+                    value = provenance.get(source_key)
+                    if value not in (None, ""):
+                        meta[target_key] = value
+            for key in ("api_operation", "api_try_it"):
+                value = page.get(key)
+                if isinstance(value, Mapping):
+                    meta[key] = dict(value)
+            page_url = str(page["url"])
+            if edition != "latest":
+                from furatena.catalog.edition_routing import edition_path
+
+                page_url = edition_path(page_url, edition)
+            node = DocNode(
+                url=page_url,
+                slug=slug,
+                title=str(page.get("title") or ""),
+                description=str(page.get("description") or ""),
+                layout="doc",
+                weight=int(page.get("weight") or 100),
+                section=str(page.get("section") or ""),
+                tags=frozenset(page.get("tags") or ()),
+                body_md="",
+                body_html="",
+                toc=toc,
+                source_path=str(page.get("source_path") or ""),
+                meta=meta,
+                mount=mount,
+                edition=str(page.get("edition") or edition),
+                lang=str(page.get("lang") or "en"),
+                translation_key=page.get("translation_key"),
+                section_root=bool(page.get("section_root")),
+                html_path=None,
+                content_ir=content_ir_from_record(page.get("content")),
+                ast_json=None,
+                content_format=str(page.get("content_format") or "patitas-markdown"),
+                body_text=str(page.get("body_text") or ""),
+                sections=sections,
+            )
+            catalog._register_node(node)
+
+        catalog._backlinks = {
+            str(page["url"]): list(page.get("backlinks") or [])
+            for page in raw.get("pages", [])
+            if isinstance(page, Mapping) and page.get("url")
         }
         return catalog

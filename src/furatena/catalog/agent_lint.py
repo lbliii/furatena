@@ -3,9 +3,22 @@
 from __future__ import annotations
 
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import unquote, urlsplit
+
+from furatena.catalog.mcp_apps import (
+    FURATENA_APP_META_KEY,
+    MCP_APP_MIME_TYPE,
+    MCP_APPS_CONTRACT_VERSION,
+    MCP_APPS_SPEC_VERSION,
+    MCPAppContractError,
+    rewrite_mcp_app_uri,
+    validate_canonical_app_uri,
+)
+
+_MCP_APP_HOST_LABEL_RE = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\Z")
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,9 +70,109 @@ def check_agent_contracts(server: Any) -> tuple[list[AgentLintFinding], list[Age
         errors.extend(tool_errors)
         warnings.extend(tool_warnings)
 
+    app_errors, app_warnings = check_mcp_app_contracts(
+        resources,
+        tools,
+        allow_trusted_author=bool(getattr(server, "include_private", False)),
+    )
+    errors.extend(app_errors)
+    warnings.extend(app_warnings)
+
     warnings.extend(_lint_llms_descriptions(server.catalog))
     errors.extend(_lint_milo_surface(server, resources, tools))
     errors.extend(check_agent_manifest_alignment(server))
+    return sorted(errors, key=_finding_key), sorted(warnings, key=_finding_key)
+
+
+def check_mcp_app_contracts(
+    resources: list[dict[str, Any]],
+    tools: list[dict[str, Any]],
+    *,
+    allow_trusted_author: bool = False,
+) -> tuple[list[AgentLintFinding], list[AgentLintFinding]]:
+    """Validate versioned MCP Apps resources, links, and security metadata."""
+    errors: list[AgentLintFinding] = []
+    warnings: list[AgentLintFinding] = []
+    app_resources: dict[str, dict[str, Any]] = {}
+    linked_uris: set[str] = set()
+
+    for resource in resources:
+        uri = str(resource.get("uri") or "")
+        meta = resource.get("_meta")
+        ui_meta = meta.get("ui") if isinstance(meta, dict) else None
+        has_app_meta = isinstance(meta, dict) and (
+            ui_meta is not None or FURATENA_APP_META_KEY in meta
+        )
+        if not uri.startswith("ui://") and not has_app_meta:
+            continue
+        if not uri.startswith("ui://"):
+            errors.append(
+                _mcp_app_finding(
+                    "unsafe_metadata",
+                    f"MCP App metadata is attached to non-ui resource {uri or '<missing-uri>'}",
+                    uri or "<missing-uri>",
+                    "Move App metadata to a versioned ui:// resource.",
+                )
+            )
+            continue
+        if uri in app_resources:
+            errors.append(
+                _mcp_app_finding(
+                    "unsafe_metadata",
+                    f"MCP App resource URI {uri} is declared more than once",
+                    uri,
+                    "Assign every App resource one unique, versioned canonical URI.",
+                )
+            )
+        app_resources[uri] = resource
+        errors.extend(
+            _lint_mcp_app_resource(
+                resource,
+                allow_trusted_author=allow_trusted_author,
+            )
+        )
+
+    for tool in tools:
+        name = str(tool.get("name") or "<missing-name>")
+        meta = tool.get("_meta")
+        if not isinstance(meta, dict):
+            continue
+        if "ui/resourceUri" in meta:
+            errors.append(
+                _mcp_app_finding(
+                    "stale_contract",
+                    f"MCP App tool {name} uses deprecated _meta['ui/resourceUri'] metadata",
+                    f"tool:{name}",
+                    "Use the stable nested _meta.ui.resourceUri field.",
+                )
+            )
+        ui_meta = meta.get("ui")
+        if not isinstance(ui_meta, dict) or "resourceUri" not in ui_meta:
+            continue
+        uri = str(ui_meta.get("resourceUri") or "")
+        linked_uris.add(uri)
+        errors.extend(_lint_mcp_app_tool_link(name, uri, ui_meta))
+        if uri not in app_resources:
+            errors.append(
+                _mcp_app_finding(
+                    "unreachable_resource",
+                    f"MCP App tool {name} links to unavailable resource {uri or '<missing-uri>'}",
+                    f"tool:{name}",
+                    "Register the linked UI resource or remove the stale tool link.",
+                )
+            )
+
+    for uri in sorted(set(app_resources) - linked_uris):
+        warnings.append(
+            _mcp_app_finding(
+                "unreachable_resource",
+                f"MCP App resource {uri} is not linked from any tool",
+                uri,
+                "Link the resource from a fallback-capable tool or remove the unreachable resource.",
+                severity="warning",
+            )
+        )
+
     return sorted(errors, key=_finding_key), sorted(warnings, key=_finding_key)
 
 
@@ -438,6 +551,300 @@ def _lint_resource(resource: dict[str, Any]) -> list[AgentLintFinding]:
             )
         )
     return findings
+
+
+def _lint_mcp_app_resource(
+    resource: dict[str, Any],
+    *,
+    allow_trusted_author: bool,
+) -> list[AgentLintFinding]:
+    findings: list[AgentLintFinding] = []
+    uri = str(resource.get("uri") or "<missing-uri>")
+    meta = resource.get("_meta")
+    if not isinstance(meta, dict):
+        return [
+            _mcp_app_finding(
+                "missing_metadata",
+                f"MCP App resource {uri} is missing _meta",
+                uri,
+                "Declare standard UI security metadata and the Furatena access contract.",
+            )
+        ]
+
+    ui_meta = meta.get("ui")
+    if not isinstance(ui_meta, dict):
+        findings.append(
+            _mcp_app_finding(
+                "missing_metadata",
+                f"MCP App resource {uri} is missing _meta.ui security metadata",
+                uri,
+                "Declare explicit CSP domains and sandbox permissions under _meta.ui.",
+            )
+        )
+    else:
+        findings.extend(_lint_mcp_app_security(uri, ui_meta))
+
+    contract_meta = meta.get(FURATENA_APP_META_KEY)
+    if not isinstance(contract_meta, dict):
+        findings.append(
+            _mcp_app_finding(
+                "missing_metadata",
+                f"MCP App resource {uri} is missing _meta['{FURATENA_APP_META_KEY}']",
+                uri,
+                "Declare contract version, canonical URI, audience, redaction, and fallback metadata.",
+            )
+        )
+        return findings
+
+    version = contract_meta.get("contractVersion")
+    spec_version = contract_meta.get("specVersion")
+    canonical_uri = str(contract_meta.get("canonicalUri") or "")
+    audience = contract_meta.get("audience")
+    redaction = contract_meta.get("redaction")
+    fallback = contract_meta.get("fallback")
+
+    required = {
+        "contractVersion": version,
+        "specVersion": spec_version,
+        "canonicalUri": canonical_uri,
+        "audience": audience,
+        "redaction": redaction,
+        "fallback": fallback,
+    }
+    for field, value in required.items():
+        if value in (None, ""):
+            findings.append(
+                _mcp_app_finding(
+                    "missing_metadata",
+                    f"MCP App resource {uri} is missing {FURATENA_APP_META_KEY}.{field}",
+                    uri,
+                    "Complete the versioned Furatena MCP Apps metadata block.",
+                )
+            )
+
+    if version not in (None, MCP_APPS_CONTRACT_VERSION):
+        findings.append(
+            _mcp_app_finding(
+                "stale_contract",
+                f"MCP App resource {uri} declares unsupported contract version {version!r}",
+                uri,
+                f"Migrate the resource and tool links to contract v{MCP_APPS_CONTRACT_VERSION}.",
+            )
+        )
+    if spec_version not in (None, MCP_APPS_SPEC_VERSION):
+        findings.append(
+            _mcp_app_finding(
+                "stale_contract",
+                f"MCP App resource {uri} declares unsupported Apps spec {spec_version!r}",
+                uri,
+                f"Review and declare MCP Apps spec {MCP_APPS_SPEC_VERSION}.",
+            )
+        )
+
+    if canonical_uri:
+        try:
+            validate_canonical_app_uri(canonical_uri)
+        except (MCPAppContractError, ValueError) as exc:
+            findings.append(
+                _mcp_app_finding(
+                    "unsafe_metadata",
+                    f"MCP App resource {uri} has invalid canonical URI: {exc}",
+                    uri,
+                    "Use a stable versioned canonical ui:// URI without credentials or selectors.",
+                )
+            )
+        if canonical_uri != uri:
+            gateway = contract_meta.get("gateway")
+            expected = ""
+            if isinstance(gateway, dict):
+                with suppress(MCPAppContractError, ValueError):
+                    expected = rewrite_mcp_app_uri(
+                        canonical_uri,
+                        gateway_authority=str(gateway.get("authority") or ""),
+                        namespace=str(gateway.get("namespace") or ""),
+                    )
+            if expected != uri:
+                findings.append(
+                    _mcp_app_finding(
+                        "unsafe_metadata",
+                        f"MCP App resource {uri} is not a valid rewrite of {canonical_uri}",
+                        uri,
+                        "Rewrite the resource and every tool link with one collision-free gateway namespace.",
+                    )
+                )
+
+    valid_redaction = {
+        "public": "public-only",
+        "trusted-author": "session-authorized",
+    }
+    if audience not in (None, *valid_redaction):
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"MCP App resource {uri} has unknown audience {audience!r}",
+                uri,
+                "Use the public or trusted-author audience.",
+            )
+        )
+    elif audience in valid_redaction and redaction not in (None, valid_redaction[audience]):
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"MCP App resource {uri} has redaction {redaction!r} for {audience} audience",
+                uri,
+                f"Use redaction={valid_redaction[audience]!r} for this audience.",
+            )
+        )
+    if audience == "trusted-author" and not allow_trusted_author:
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"Trusted-author MCP App resource {uri} is exposed by a public session",
+                uri,
+                "Filter trusted-author App resources before public resource discovery.",
+            )
+        )
+    if fallback not in (None, "structured-content"):
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"MCP App resource {uri} declares unsupported fallback {fallback!r}",
+                uri,
+                "Use the ordinary structured-content tool result as the non-App fallback.",
+            )
+        )
+    if resource.get("mimeType") != MCP_APP_MIME_TYPE:
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"MCP App resource {uri} must use MIME type {MCP_APP_MIME_TYPE}",
+                uri,
+                "Serve bundled HTML with the stable MCP Apps MIME profile.",
+            )
+        )
+    return findings
+
+
+def _lint_mcp_app_security(uri: str, ui_meta: dict[str, Any]) -> list[AgentLintFinding]:
+    findings: list[AgentLintFinding] = []
+    csp = ui_meta.get("csp")
+    if not isinstance(csp, dict):
+        return [
+            _mcp_app_finding(
+                "missing_metadata",
+                f"MCP App resource {uri} is missing explicit _meta.ui.csp",
+                uri,
+                "Declare all four CSP domain arrays; use empty arrays for deny-by-default.",
+            )
+        ]
+    domain_fields = {
+        "connectDomains": {"https", "wss"},
+        "resourceDomains": {"https"},
+        "frameDomains": {"https"},
+        "baseUriDomains": {"https"},
+    }
+    for field, schemes in domain_fields.items():
+        origins = csp.get(field)
+        if not isinstance(origins, list):
+            findings.append(
+                _mcp_app_finding(
+                    "missing_metadata",
+                    f"MCP App resource {uri} CSP is missing array {field}",
+                    uri,
+                    "Declare explicit CSP arrays; use an empty array to deny that capability.",
+                )
+            )
+            continue
+        for origin in origins:
+            if not _safe_mcp_app_origin(origin, schemes=schemes):
+                findings.append(
+                    _mcp_app_finding(
+                        "unsafe_metadata",
+                        f"MCP App resource {uri} has unsafe CSP origin {origin!r} in {field}",
+                        uri,
+                        "Use exact secure origins without credentials, paths, queries, or fragments.",
+                    )
+                )
+    permissions = ui_meta.get("permissions", {})
+    allowed_permissions = {"camera", "microphone", "geolocation", "clipboardWrite"}
+    if not isinstance(permissions, dict) or any(
+        permission not in allowed_permissions or value != {}
+        for permission, value in permissions.items()
+    ):
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"MCP App resource {uri} declares invalid sandbox permissions",
+                uri,
+                "Request only standard MCP Apps permissions with empty-object values.",
+            )
+        )
+    domain = ui_meta.get("domain")
+    if domain is not None and not _safe_mcp_app_origin(domain, schemes={"https"}):
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"MCP App resource {uri} has unsafe dedicated domain {domain!r}",
+                uri,
+                "Use an exact HTTPS origin for a dedicated App domain.",
+            )
+        )
+    return findings
+
+
+def _lint_mcp_app_tool_link(
+    name: str,
+    uri: str,
+    ui_meta: dict[str, Any],
+) -> list[AgentLintFinding]:
+    findings: list[AgentLintFinding] = []
+    if not uri.startswith("ui://"):
+        findings.append(
+            _mcp_app_finding(
+                "unsafe_metadata",
+                f"MCP App tool {name} links to non-ui resource {uri or '<missing-uri>'}",
+                f"tool:{name}",
+                "Link the tool to a versioned ui:// resource.",
+            )
+        )
+    visibility = ui_meta.get("visibility")
+    if (
+        not isinstance(visibility, list)
+        or not all(isinstance(item, str) for item in visibility)
+        or set(visibility) != {"model", "app"}
+    ):
+        findings.append(
+            _mcp_app_finding(
+                "missing_metadata",
+                f"MCP App tool {name} must explicitly allow model and app visibility",
+                f"tool:{name}",
+                "Set _meta.ui.visibility to ['model', 'app'] so fallback and App calls share one tool.",
+            )
+        )
+    return findings
+
+
+def _safe_mcp_app_origin(value: Any, *, schemes: set[str]) -> bool:
+    if not isinstance(value, str) or value == "*":
+        return False
+    wildcard = any(value.startswith(f"{scheme}://*.") for scheme in schemes)
+    if "*" in value and (not wildcard or value.count("*") != 1):
+        return False
+    candidate = value.replace("://*.", "://wildcard.", 1)
+    parsed = urlsplit(candidate)
+    if parsed.scheme not in schemes or not parsed.hostname or parsed.username or parsed.password:
+        return False
+    try:
+        port = parsed.port
+    except ValueError:
+        return False
+    hostname = parsed.hostname
+    labels = hostname.split(".")
+    if port is not None and not 1 <= port <= 65535:
+        return False
+    if any(not _MCP_APP_HOST_LABEL_RE.fullmatch(label) for label in labels):
+        return False
+    return parsed.path in ("", "/") and not parsed.query and not parsed.fragment
 
 
 def _lint_tool(tool: dict[str, Any]) -> tuple[list[AgentLintFinding], list[AgentLintFinding]]:
@@ -850,6 +1257,23 @@ def _manifest_finding(message: str, target: str, next_action: str) -> AgentLintF
     return _finding(
         "error",
         "fura.agent.manifest_alignment",
+        message,
+        target,
+        next_action,
+    )
+
+
+def _mcp_app_finding(
+    kind: str,
+    message: str,
+    target: str,
+    next_action: str,
+    *,
+    severity: str = "error",
+) -> AgentLintFinding:
+    return _finding(
+        severity,
+        f"fura.agent.mcp_app.{kind}",
         message,
         target,
         next_action,
