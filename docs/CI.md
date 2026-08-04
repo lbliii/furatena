@@ -167,6 +167,9 @@ proof 6.9%.
 `.github/workflows/preview-report.yml`, then restore the prior `docs/CI.md`
 event-brake section. No product runtime or schema migrations are involved.
 
+The P0 public-safety source-to-output map lives in
+[ci-public-safety-map.md](ci-public-safety-map.md).
+
 ## Repository hygiene
 
 `make hygiene` validates Towncrier fragment names and content, requires
