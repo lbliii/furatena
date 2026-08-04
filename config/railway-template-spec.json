@@ -33,25 +33,29 @@
       "name": "FURA_CONTENT_REF",
       "required": false,
       "secret": false,
-      "default": "main"
+      "default": "main",
+      "description": "Git branch, tag, or exact commit allowed by the content policy; defaults to main"
     },
     {
       "name": "FURA_CONTENT_SUBDIRECTORY",
       "required": false,
       "secret": false,
-      "default": "app"
+      "default": "app",
+      "description": "Repository-relative directory containing docs.yaml; defaults to app"
     },
     {
       "name": "FURA_CONTENT_ALLOWED_HOSTS",
       "required": false,
       "secret": false,
-      "default": "github.com"
+      "default": "github.com",
+      "description": "Comma-separated allowlist for credential-free content repository hosts"
     },
     {
       "name": "FURA_CONTENT_STATE_ROOT",
       "required": false,
       "secret": false,
-      "default": "/data/furatena"
+      "default": "/data/furatena",
+      "description": "Persistent volume root for content generations, receipts, and last-known-good state"
     },
     {
       "name": "RAILWAY_RUN_UID",
@@ -64,50 +68,58 @@
       "name": "FURA_CONTENT_REFRESH_TOKEN",
       "required": true,
       "secret": true,
-      "default": "${{secret(48)}}"
+      "default": "${{secret(48)}}",
+      "description": "Generated bearer used only for content refresh and rollback requests"
     },
     {
       "name": "FURA_SESSION_SECRET",
       "required": true,
       "secret": true,
-      "default": "${{secret(48)}}"
+      "default": "${{secret(48)}}",
+      "description": "Generated secret for runtime session integrity"
     },
     {
       "name": "FURA_BASE_URL",
       "required": true,
       "secret": false,
-      "default": "https://${{RAILWAY_PUBLIC_DOMAIN}}"
+      "default": "https://${{RAILWAY_PUBLIC_DOMAIN}}",
+      "description": "Canonical public HTTPS origin derived from the Railway service or customer domain"
     },
     {
       "name": "FURA_IMAGE_VERSION",
       "required": true,
       "secret": false,
-      "release_bound": true
+      "release_bound": true,
+      "description": "Promoted runtime release version supplied with the private image"
     },
     {
       "name": "FURA_IMAGE_CHANNEL",
       "required": true,
       "secret": false,
       "default": "stable",
-      "release_bound": true
+      "release_bound": true,
+      "description": "Promoted runtime release channel; production deployments use stable"
     },
     {
       "name": "FURA_IMAGE_DIGEST",
       "required": true,
       "secret": false,
-      "release_bound": true
+      "release_bound": true,
+      "description": "Exact promoted sha256 image digest used for runtime identity and rollback"
     },
     {
       "name": "FURA_ENV",
       "required": false,
       "secret": false,
-      "default": "production"
+      "default": "production",
+      "description": "Runtime environment profile; the official template defaults to production"
     },
     {
       "name": "FURA_STRUCTURED_LOGS",
       "required": false,
       "secret": false,
-      "default": "1"
+      "default": "1",
+      "description": "Emit structured operational logs for Railway log collection when set to 1"
     }
   ],
   "publication_gates": [

@@ -56,7 +56,7 @@ namespaces such as `.docs-cache`, `frozen`, `public`, and `dist` fail closed.
 Local applications may continue to use explicit external mounts; an external
 `--config` may not disagree with `--app-root`.
 
-## Required variables
+## Template variables
 
 | Variable | Purpose |
 | --- | --- |
@@ -83,6 +83,31 @@ development leaves it unset so Pounce may size its serving pool automatically.
 Optional bounds and behavior are documented in the architecture configuration
 table. Never place the GHCR registry credential in a normal application
 variable. Configure it only through Railway's private image credentials.
+
+Every composer-visible variable has a purpose description. Optional variables
+carry safe defaults, release-bound image identity is supplied by the promoted
+release, and secrets use Railway's generated-secret function rather than a
+committed value.
+
+### Public domains and canonical base URL
+
+The template enables public networking and derives `FURA_BASE_URL` from
+`https://${{RAILWAY_PUBLIC_DOMAIN}}`. Railway defines that variable as the
+service's public or customer domain, so the template does not commit a hostname.
+
+For a custom domain, attach the domain to the Furatena service and add the DNS
+ownership and routing records supplied by Railway. Wait until Railway reports
+both domain verification and certificate readiness before making it canonical.
+Confirm that `RAILWAY_PUBLIC_DOMAIN` resolves to the intended hostname; if the
+service has multiple public domains, set `FURA_BASE_URL` to the one canonical
+HTTPS origin and redeploy so generated URLs use the same origin.
+
+Probe `/readyz`, representative reader and search routes, `/catalog.json`, and
+`/llms.txt` through the custom origin. Keep the Railway-provided origin available
+for comparison during DNS or certificate recovery, but do not change the image
+or content generation when only the custom-domain path is unhealthy. Follow
+Railway's [domain setup and verification guide](https://docs.railway.com/networking/domains/working-with-domains)
+for the current DNS record requirements.
 
 Railway mounts volumes as root, so a non-root image needs the platform's
 `RAILWAY_RUN_UID=0` compatibility setting. Furatena uses that authority only to

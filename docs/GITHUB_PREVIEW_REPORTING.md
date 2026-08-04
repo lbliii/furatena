@@ -32,6 +32,8 @@ cannot bless a superseded URL.
 
 Before success, `scripts/preview_report.py` verifies:
 
+- the requested preview origin, manifest response, redirects, and every
+  advertised surface retain one exact HTTPS origin before a credential is sent;
 - `/readyz` returns ready;
 - `/preview-manifest.json` reports the current PR head and matching artifact SHA;
 - HTML and `Accept: text/markdown` representations;
