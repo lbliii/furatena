@@ -1,0 +1,90 @@
+# Isolated public pilot configuration. Production app/mounts.yaml does not include
+# these sources. Keep remotes canonical so sync provenance never depends on a
+# developer's checkout layout.
+mounts:
+  - id: bengal
+    label: Bengal
+    default: true
+    url_prefix: /bengal
+    source:
+      provider: git
+      repo: https://github.com/lbliii/bengal.git
+      ref: main
+      path: site/content
+    editions: &pilot_editions
+      source: tags
+      count: 3
+      pattern: "v*"
+      strip_prefix: "v"
+      sort: semver-desc
+      include_prereleases: false
+
+  - id: chirp
+    label: Chirp
+    url_prefix: /chirp
+    source:
+      provider: git
+      repo: https://github.com/lbliii/chirp.git
+      ref: main
+      path: site/content
+    editions: *pilot_editions
+
+  - id: chirp-ui
+    label: Chirp UI
+    url_prefix: /chirp-ui
+    source:
+      provider: git
+      repo: https://github.com/lbliii/chirp-ui.git
+      ref: main
+      path: site/content
+    editions: *pilot_editions
+
+  - id: kida
+    label: Kida
+    url_prefix: /kida
+    source:
+      provider: git
+      repo: https://github.com/lbliii/kida.git
+      ref: main
+      path: site/content
+    editions: *pilot_editions
+
+  - id: patitas
+    label: Patitas
+    url_prefix: /patitas
+    source:
+      provider: git
+      repo: https://github.com/lbliii/patitas.git
+      ref: main
+      path: site/content
+    editions: *pilot_editions
+
+  - id: pounce
+    label: Pounce
+    url_prefix: /pounce
+    source:
+      provider: git
+      repo: https://github.com/lbliii/pounce.git
+      ref: main
+      path: site/content
+    editions: *pilot_editions
+
+  - id: rosettes
+    label: Rosettes
+    url_prefix: /rosettes
+    source:
+      provider: git
+      repo: https://github.com/lbliii/rosettes.git
+      ref: main
+      path: site/content
+    editions: *pilot_editions
+
+  - id: zoomies
+    label: Zoomies
+    url_prefix: /zoomies
+    source:
+      provider: git
+      repo: https://github.com/lbliii/zoomies.git
+      ref: main
+      path: site/content
+    editions: *pilot_editions
