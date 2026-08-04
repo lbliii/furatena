@@ -4,8 +4,9 @@ Status: accepted executable contract for artifact schema v1 and hub schema v1.
 
 This RFC extends DCP delivery without changing DCP page identity or Content IR.
 A publisher turns one immutable local edition shard plus its derived search,
-semantic, and fragment indexes into a public content-addressed object set. A hub
-can then discover, verify, and compose that shard without indexing its source.
+semantic, Content IR fragment, and presentation HTML objects into a public
+content-addressed object set. A hub can then discover, verify, and compose that
+shard without indexing its source or re-rendering it.
 
 The normative schemas are:
 
@@ -20,10 +21,11 @@ pair under `tests/fixtures/federation/v1/` is the compatibility oracle.
 
 The multi-mount pilot in #346 measured representative edition contexts and
 showed that bounded, independently fetched objects were practical. The contract
-uses conservative caps: 64 MiB per encoded or decoded object, 4 MiB per
-fragment, 100,000 inventory entries, 4 MiB per hub manifest, and 10,000 shard
-identities per hub. These are validation limits, not memory allocation targets:
-readers process one object at a time.
+uses conservative caps: 64 MiB per encoded or general decoded object, 4 MiB per
+Content IR fragment, 16 MiB per decoded presentation, 100,000 inventory entries,
+4 MiB per hub manifest, and 10,000 shard identities per hub. For `N` public
+nodes, the object inventory is exactly `2N + 3`. These are validation limits,
+not memory allocation targets: readers process one object at a time.
 
 ## Published object set
 
@@ -35,13 +37,16 @@ shards/sha256/<published-fingerprint>/
   objects/sha256/<encoded-sha256>.json
   objects/sha256/<encoded-sha256>.json.gz
   objects/sha256/<encoded-sha256>.json.zst
+  objects/sha256/<encoded-sha256>.html
+  objects/sha256/<encoded-sha256>.html.zst
 ```
 
 `manifest.json` maps logical paths to content-addressed objects. It requires
-exactly one DCP catalog, search index, and semantic index, plus one or more
-Content IR fragments. Separate objects permit range-friendly storage, lazy
-fetch, cache reuse, and independent integrity checks; a reader never needs to
-download or decompress the whole shard.
+exactly one DCP catalog, search index, and semantic index, plus exactly one
+Content IR fragment and one presentation HTML object for every public catalog
+node. Separate objects permit range-friendly storage, lazy fetch, cache reuse,
+and independent integrity checks; a reader never needs to download or
+decompress the whole shard.
 
 The published fingerprint is SHA-256 over canonical JSON containing:
 
@@ -57,10 +62,17 @@ storage address.
 
 Every inventory entry records `logical_path`, semantic `role`, relative
 `object_url`, media type, content encoding, encoded and decoded byte sizes, and
-SHA-256 for both encoded and decoded bytes. The inventory is complete, sorted,
-and duplicate-free. Unlisted objects, missing objects, digest mismatch,
-decompression past the declared bound, malformed JSON, DCP schema failure, or
-mount/edition/node identity mismatch rejects the artifact.
+SHA-256 for both encoded and decoded bytes. Fragment and presentation entries
+also carry their exact `node_id`; singleton catalog/search/semantic entries are
+forbidden from carrying one. Their O(1) logical paths are respectively
+`fragments/nodes/<sha256(node_id)>.json` and
+`presentations/nodes/<sha256(node_id)>.html`. The inventory is complete, sorted,
+and duplicate-free by logical path and node mapping. Byte-identical logical
+objects may share one content-addressed `object_url`; this preserves the 1:1
+node mapping while deduplicating physical storage. Unlisted objects, missing
+objects, digest mismatch, decompression past the declared bound, malformed
+JSON, DCP schema failure, or mount/edition/node identity mismatch rejects the
+artifact.
 
 The object filename is the encoded-byte SHA-256 and its suffix must agree with
 the declared encoding. Logical paths and source paths are non-empty relative
@@ -69,6 +81,27 @@ invalid. Catalog, fragment, search, and semantic node inventories must close
 over the same public node-id set. That closure prevents an otherwise valid
 index object from smuggling a private, protected, draft, or archived record
 that is absent from the public catalog.
+
+Presentation HTML is render output, not semantic input. Its node-id set must
+equal both the fragment and public catalog node-id sets, but its text, element
+tree, and styling never enter graph, search, MCP, DCP, or agent semantics. This
+is the dual-IR exception for a surface that requires faithful browser
+presentation: Content IR remains the semantic source of truth, while the
+published HTML IR is an inert, replaceable render artifact.
+
+The reference validator decodes presentation bytes through the 16 MiB bound,
+requires UTF-8, and parses the complete body with an HTML parser. It rejects
+executable, document-head, form, active media/frame, and stylesheet-loading elements;
+active SVG elements such as `foreignObject`, animation, external image, and
+`use`; style, event, source-set, submission, autoplay, Alpine, htmx, Vue,
+Turbo, and known host-action attributes; and scheme-relative URLs. URI-bearing
+attributes use an allowlist: relative references, HTTP(S), `mailto`, and
+base64 raster data images whose decoded signature matches their declared PNG,
+JPEG, GIF, WebP, or AVIF media type. Control characters and entities cannot
+hide a scheme, and the validator never case-normalizes the case-sensitive
+base64 payload. These checks are parser-based rather than regex security
+filtering. A consumer still inserts presentation only into the designated
+inert body boundary; it never executes or reinterprets it as source.
 
 Objects at or above the declared threshold use deterministic zstd by default.
 Identity encoding remains valid for small JSON, while gzip is an explicit
@@ -149,8 +182,8 @@ selecting the later routing or ranking implementation:
   artifact garbage collection; it cannot remove origin retention pins.
 - **Hot** means a verified hub generation, shard manifest, catalog identity
   map, and the explicitly selected per-shard indexes are active. Readers decode
-  at most one bounded object at a time and do not hold a complete shard archive
-  merely because its manifest is hot.
+  at most one bounded semantic or presentation object at a time and do not hold
+  a complete shard archive merely because its manifest is hot.
 
 Eviction never discards the selected last-known-good manifest, verification
 receipt, or rollback pin. The 64 MiB object and 4 MiB fragment limits are hard
@@ -183,7 +216,8 @@ Readers perform this bounded sequence:
 7. Atomically promote the verified generation. A failed shard is unavailable
    or stays on its previously verified generation; unrelated shards continue.
 
-Catalog identity maps and per-node fragment maps provide O(1) lookup. Search
+Catalog identity maps and paired per-node fragment/presentation maps provide
+O(1) semantic and browser lookup. Search
 rank merging, global IDF refresh, cross-shard link reconciliation, and global
 sitemap/LLM indexes belong to the later #362+ routing, search, and reconciliation
 work and cannot bypass these verification steps.
@@ -234,7 +268,8 @@ the upstream fingerprint.
 
 `fura publish-shard` is the CI entry point for one immutable release edition.
 It runs the normal freeze, derives the catalog, search, semantic, and per-node
-fragment objects, validates the complete local v1 artifact, uploads only
+fragment objects, pairs each fragment with its verified frozen presentation
+HTML, validates the complete local v1 artifact, uploads only
 missing content addresses, and reads every remote object back through a
 bounded stream. It creates `manifest.json` last with a create-only write. An
 identical manifest is an idempotent no-op; different bytes at an immutable key
@@ -242,6 +277,19 @@ are a conflict. Authentication, partial-upload, and conflict failures use the
 stable diagnostic rule IDs `fura.publish_shard.auth`,
 `fura.publish_shard.partial`, and `fura.publish_shard.conflict` and return a
 nonzero exit.
+
+The presentation producer deliberately freezes `CatalogShard.resolve_body_html`
+as the portable body fragment. That contract contains renderer-owned body
+structure and directive markup, but never claims to be a complete browser
+document: page shell, head metadata, theme assets, CSS, and runtime behavior
+remain consumer concerns. Markup outside the inert v1 subset fails freeze with
+the node identity instead of silently widening the remote execution boundary.
+
+Under free-threaded Python, one freeze operation owns each node render through
+validation and converts it to immutable bytes before atomic promotion. The
+publisher performs bounded reads into per-object byte values. Neither stage
+shares a mutable presentation buffer, parser, or writer between workers, so
+correctness does not depend on the GIL.
 
 The verification input contains detached material produced by the repository's
 trusted CI signing and provenance steps. `publish-shard` binds each record to
