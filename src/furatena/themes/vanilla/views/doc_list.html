@@ -1,0 +1,6 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+{% include "partials/article.html" %}
+{% if child_page_count %}<p>{{ child_page_count }} pages are available in this section. Use the documentation navigation to continue.</p>{% else %}<p>This section has no child pages yet.</p>{% end %}
+{% include "partials/toc.html" %}
+{% end %}

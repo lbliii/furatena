@@ -1,0 +1,79 @@
+{# target: body #}
+{# outlet: main #}
+{#
+  Furatena root shell — composed from chirp-ui primitives, not app_shell_layout.
+
+  L1: minimal #main outlet + boost contract (Page.mounted → #page-root)
+  L3: page chrome lives in views (docs layout, site nav, hero) inside #page-root
+#}
+{% extends "layouts/fura_shell.html" %}
+{% from "chirpui/shell_frame.html" import shell_runtime_script, shell_outlet_attrs %}
+{% from "chirpui/toast.html" import toast_container %}
+
+{% block lang %}{{ html_lang | default('en') }}{% end %}
+
+{% block title %}{% if error_title is defined %}{{ error_title }}{% elif node is defined and node %}{{ node.title }}{% else %}{{ site_name | default('Furatena') }}{% end %}{% end %}
+
+{% block head %}
+{% if pr_preview | default(false) %}
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<style nonce="{{ csp_nonce() }}">
+.fura-pr-preview-banner{position:sticky;inset-block-start:0;z-index:1000;display:flex;justify-content:center;gap:.5rem;padding:.55rem 1rem;background:#6b4300;color:#fff;font:600 .875rem/1.4 system-ui,sans-serif;text-align:center}.fura-pr-preview-banner a{color:inherit;text-decoration:underline;text-underline-offset:.15em}.fura-pr-preview-banner code{color:inherit}
+</style>
+{% end %}
+{% if fura_form_proof() %}
+<meta name="csrf-token" content="{{ fura_form_proof() }}">
+{% end %}
+<link rel="stylesheet" href="/static/chirpui.css">
+<link rel="stylesheet" href="/static/chirpui-transitions.css">
+<script nonce="{{ csp_nonce() }}">
+(function(){var T=["system","light","dark","oled"];var t=localStorage.getItem("chirpui-theme");if(T.indexOf(t)<0){t="system";}var s=localStorage.getItem("chirpui-style")||"default";var root=document.documentElement;root.setAttribute("data-theme",t);root.setAttribute("data-style",s);root.setAttribute("data-fura-effects-code","{{ fura_effects_code | default('flat') }}");root.setAttribute("data-fura-effects-cards","{{ fura_effects_cards | default('flat') }}");root.setAttribute("data-fura-effects-hero","{{ fura_effects_hero | default('wash') }}");})();
+</script>
+{% block head_extra %}
+{% include "partials/docs_head_assets.html" %}
+{% end %}
+{% end %}
+
+{% block shell %}
+<script nonce="{{ csp_nonce() }}">
+document.body.classList.add("chirp-theme-shell", "fura-root", "fura-surface--{{ chirp_docs_surface | default('app') }}");
+{% if rendering_head | default(false) %}
+document.body.setAttribute("data-fura-rendering-head", "{{ rendering_head.id }}");
+{% endif %}
+{% if resolved_theme | default(false) %}
+document.body.setAttribute("data-fura-theme-id", "{{ resolved_theme.theme_id }}");
+{% if resolved_theme.theme_use %}
+document.body.setAttribute("data-fura-theme-use", "{{ resolved_theme.theme_use }}");
+{% endif %}
+{% endif %}
+{% if node is defined and node %}
+document.body.setAttribute("data-fura-slug", "{{ node.slug }}");
+{% endif %}
+{% if chirp_docs_surface | default('app') == 'catalog' %}
+document.body.classList.add("chirp-theme-shell--rail-only");
+{% endif %}
+</script>
+{% if pr_preview | default(false) %}
+<aside class="fura-pr-preview-banner" role="status" data-fura-pr-preview="{{ pr_preview.pull_request_number }}" data-fura-preview-sha="{{ pr_preview.head_sha }}">
+  Reviewing <a href="{{ pr_preview.review_url }}">pull request #{{ pr_preview.pull_request_number }}</a>
+  at commit <code>{{ pr_preview.short_sha }}</code>. This environment is temporary and cannot publish.
+</aside>
+{% end %}
+{% include "partials/search_modal.html" %}
+<main id="main" class="fura-main"
+      data-chirp-scroll="auto" tabindex="-1"
+      {{ shell_outlet_attrs(select="#page-root") }}>
+  {% block content %}
+  {% block page_root %}{% end %}
+  {% end %}
+</main>
+<script nonce="{{ csp_nonce() }}">
+document.body.addEventListener("htmx:configRequest", function(event) {
+  var meta = document.querySelector('meta[name="csrf-token"]');
+  if (meta) { event.detail.headers["X-CSRF-Token"] = meta.content; }
+});
+</script>
+{{ shell_runtime_script() }}
+{{ toast_container() }}
+{% include "partials/docs_runtime_scripts.html" %}
+{% end %}

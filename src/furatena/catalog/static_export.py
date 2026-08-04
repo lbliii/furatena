@@ -700,16 +700,16 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
     docs_root = docs_app.config.root
     renderer_fp = read_renderer_fingerprint(frozen_dir) if frozen_dir else None
     if renderer_fp is None:
-        from furatena.catalog.theme_pack import load_theme_pack
-
-        skin_pack_root = (
-            load_theme_pack(docs_app.config.theme.use).root if docs_app.config.theme.use else None
-        )
         renderer_fp = renderer_fingerprint(
             docs_root,
             theme_id=docs_app.config.theme.id,
-            skin_pack_root=skin_pack_root,
+            skin_pack_root=(
+                docs_app.theme.presentation.skin.root
+                if docs_app.theme.presentation.skin is not None
+                else None
+            ),
             platform_root=docs_app.roots.platform,
+            presentation_digest=docs_app.theme.presentation.content_digest,
         )
     route_fps: dict[str, str] = {}
     sidecar_routes = (
@@ -993,6 +993,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
                         "structure.json",
                     ],
                     "paths": artifact_paths,
+                    "presentation": docs_app.theme.presentation.to_dict(),
                 },
             ),
         )

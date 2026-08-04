@@ -52,9 +52,12 @@ def renderer_fingerprint(
     theme_id: str = "chirp",
     skin_pack_root: Path | None = None,
     platform_root: Path | None = None,
+    presentation_digest: str | None = None,
 ) -> str:
     """Hash renderer templates, handlers, skin pack, docs-core, and app theme."""
     parts: list[str] = [_packaged_theme_sig(theme_id, docs_root)]
+    if presentation_digest:
+        parts.append(f"presentation:{presentation_digest}")
     core = load_docs_core(theme_id)
     if core is not None:
         parts.extend(_tree_sig(core.root))
@@ -126,6 +129,7 @@ def renderer_is_stale(
     theme_id: str = "chirp",
     skin_pack_root: Path | None = None,
     platform_root: Path | None = None,
+    presentation_digest: str | None = None,
 ) -> bool:
     """True when live renderer differs from the frozen export."""
     stored = read_renderer_fingerprint(frozen_dir)
@@ -136,4 +140,5 @@ def renderer_is_stale(
         theme_id=theme_id,
         skin_pack_root=skin_pack_root,
         platform_root=platform_root,
+        presentation_digest=presentation_digest,
     )

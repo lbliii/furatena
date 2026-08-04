@@ -1,0 +1,31 @@
+{% extends "layouts/fura_shell.html" %}
+
+{% block title %}{% if node %}{{ node.title }} · {% end %}{{ site_name }}{% end %}
+
+{% block head %}
+{% if canonical_url | default('') %}<link rel="canonical" href="{{ canonical_url }}">{% end %}
+{% for href in docs_stylesheets() %}
+<link rel="stylesheet" href="{{ href }}">
+{% endfor %}
+{% end %}
+
+{# Vanilla is fully usable without client scripts. #}
+{% block scripts %}{% end %}
+
+{% block shell %}
+<a class="vanilla-skip" href="#vanilla-content">Skip to content</a>
+<header class="vanilla-header">
+  <a class="vanilla-brand" href="/">{{ site_name }}</a>
+  <form action="/search" method="get" role="search">
+    <label for="vanilla-search">Search documentation</label>
+    <input id="vanilla-search" name="q" type="search" value="{{ search_query | default('') }}">
+    <button type="submit">Search</button>
+  </form>
+</header>
+<main id="main">
+  {% block page_root %}{% end %}
+</main>
+<footer class="vanilla-footer">
+  <p>{{ site_name }} · <a href="/llms.txt">Plain-text catalog</a></p>
+</footer>
+{% end %}
