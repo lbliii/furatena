@@ -117,6 +117,8 @@ def test_live_routes_scope_pages_metadata_nav_and_agent_surfaces(tmp_path: Path)
             latest_alias = await client.get("/latest/guide/")
             sitemap = await client.get("/v1.0.0/sitemap.xml")
             llms = await client.get("/v1.0.0/llms.txt")
+            mount_sitemap = await client.get("/v1.0.0/sitemaps/docs.xml")
+            mount_llms = await client.get("/v1.0.0/llms/docs.txt")
             query = await client.get("/catalog/query.json?edition=1.0.0")
             semantic = await client.get("/search/semantic?q=old&edition=1.0.0")
             mismatch = await client.get("/v1.0.0/catalog/query.json?edition=latest")
@@ -143,8 +145,10 @@ def test_live_routes_scope_pages_metadata_nav_and_agent_surfaces(tmp_path: Path)
         assert dict(alias.headers)["location"] == "/v1.0.0/guide/"
         assert latest_alias.status == 301
         assert dict(latest_alias.headers)["location"] == "/guide/"
-        assert "/v1.0.0/guide/</loc>" in sitemap.text
-        assert "[Old guide](/v1.0.0/guide.md)" in llms.text
+        assert "/v1.0.0/sitemaps/docs.xml</loc>" in sitemap.text
+        assert "[Docs](/v1.0.0/llms/docs.txt)" in llms.text
+        assert "/v1.0.0/guide/</loc>" in mount_sitemap.text
+        assert "[Old guide](/v1.0.0/guide.md)" in mount_llms.text
         query_payload = json.loads(query.text)
         assert query_payload["edition"] == "1.0.0"
         assert {page["edition"] for page in query_payload["pages"]} == {"1.0.0"}

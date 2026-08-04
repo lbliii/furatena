@@ -231,7 +231,11 @@ class TestMiniStaticExport:
         llms = (out / "llms.txt").read_text(encoding="utf-8")
         assert "\n> " in llms
         assert "\n## " in llms
-        assert "](/docs/hello.md)" in llms
+        assert "](/llms/chirp.txt)" in llms
+        assert "](/docs/hello.md)" in (out / "llms/chirp.txt").read_text(encoding="utf-8")
+        sitemap = (out / "sitemap.xml").read_text(encoding="utf-8")
+        assert "/sitemaps/chirp.xml</loc>" in sitemap
+        assert "/docs/hello/</loc>" in (out / "sitemaps/chirp.xml").read_text(encoding="utf-8")
         assert (out / "robots.txt").is_file()
         assert (out / ".nojekyll").is_file()
         profiles = json.loads((out / "deployment-profiles.json").read_text(encoding="utf-8"))

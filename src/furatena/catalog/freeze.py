@@ -63,6 +63,13 @@ from furatena.catalog.renderer_fingerprint import (
     write_renderer_fingerprint,
 )
 from furatena.catalog.seo import docs_base_url
+from furatena.catalog.shard_discovery import (
+    discovery_mount_token,
+    discovery_mounts,
+    llms_hub_txt,
+    sitemap_index_xml,
+)
+from furatena.catalog.sitemap import sitemap_xml
 from furatena.catalog.structure_index import build_structure_index
 from furatena.catalog.vendor_paths import VENDOR_FILES, vendor_dir
 from furatena.catalog.version_artifacts import (
@@ -536,6 +543,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         "search.json",
         "tools.json",
         "catalog/api-operations.json",
+        "sitemap.xml",
         "llms.txt",
         "llms-full.txt",
         "meta.json",
@@ -547,12 +555,42 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         *((EDITION_PROJECTION_FILENAME,) if has_edition_projection else ()),
         "channels.json",
     )
+    visible_discovery_mounts = discovery_mounts(registry)
+    visible_discovery_tokens = {
+        discovery_mount_token(mount.id) for mount in visible_discovery_mounts
+    }
+    sitemap_hub = sitemap_index_xml(registry, base_url=base)
+    llms_hub = llms_hub_txt(
+        registry,
+        site_name=docs_config.site.name,
+        site_description=docs_config.site.description,
+    )
+    expected_sitemaps = {f"{token}.xml" for token in visible_discovery_tokens}
+    expected_llms = {f"{token}.txt" for token in visible_discovery_tokens}
+    current_sitemaps = {
+        path.name for path in (out_dir / "sitemaps").glob("*.xml") if path.is_file()
+    }
+    current_llms = {path.name for path in (out_dir / "llms").glob("*.txt") if path.is_file()}
+    discovery_changed = (
+        not (out_dir / "sitemap.xml").is_file()
+        or (out_dir / "sitemap.xml").read_text(encoding="utf-8") != sitemap_hub
+        or not (out_dir / "llms.txt").is_file()
+        or (out_dir / "llms.txt").read_text(encoding="utf-8") != llms_hub
+        or current_sitemaps != expected_sitemaps
+        or current_llms != expected_llms
+    )
     if not failed_mounts and (
         mounts_to_freeze
         or frozen_editions
         or versions_changed
+        or discovery_changed
         or edition_projection_changed
         or any(not (out_dir / path).is_file() for path in required_agent_sidecars)
+        or any(
+            not (out_dir / "sitemaps" / f"{discovery_mount_token(mount.id)}.xml").is_file()
+            or not (out_dir / "llms" / f"{discovery_mount_token(mount.id)}.txt").is_file()
+            for mount in visible_discovery_mounts
+        )
     ):
         merged_graph = catalog_graph(registry)
         from furatena.catalog.dcp_validate import validate_catalog_payload
@@ -591,13 +629,44 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             _compact_json(build_structure_index(registry)),
             encoding="utf-8",
         )
-        (out_dir / "llms.txt").write_text(
-            llms_txt(
-                registry,
-                site_name=docs_config.site.name,
-                site_description=docs_config.site.description,
-            ),
+        (out_dir / "sitemap.xml").write_text(
+            sitemap_hub,
             encoding="utf-8",
+        )
+        (out_dir / "llms.txt").write_text(
+            llms_hub,
+            encoding="utf-8",
+        )
+        mount_discovery_paths: list[str] = []
+        for mount in visible_discovery_mounts:
+            token = discovery_mount_token(mount.id)
+            sitemap_path = Path("sitemaps") / f"{token}.xml"
+            llms_path = Path("llms") / f"{token}.txt"
+            (out_dir / sitemap_path).parent.mkdir(parents=True, exist_ok=True)
+            (out_dir / llms_path).parent.mkdir(parents=True, exist_ok=True)
+            (out_dir / sitemap_path).write_text(
+                sitemap_xml(registry, base_url=base, mount=mount.id),
+                encoding="utf-8",
+            )
+            (out_dir / llms_path).write_text(
+                llms_txt(
+                    registry,
+                    site_name=docs_config.site.name,
+                    site_description=docs_config.site.description,
+                    mount=mount.id,
+                ),
+                encoding="utf-8",
+            )
+            mount_discovery_paths.extend((sitemap_path.as_posix(), llms_path.as_posix()))
+        prune_stale_files(
+            out_dir / "sitemaps",
+            {Path(name) for name in expected_sitemaps},
+            suffixes=(".xml",),
+        )
+        prune_stale_files(
+            out_dir / "llms",
+            {Path(name) for name in expected_llms},
+            suffixes=(".txt",),
         )
         (out_dir / "llms-full.txt").write_text(
             llms_full_txt(registry, site_name=docs_config.site.name),
@@ -628,7 +697,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
             encoding="utf-8",
         )
         _freeze_inventories(registry, out_dir)
-        artifact_paths = [*required_agent_sidecars[:-1]]
+        artifact_paths = [*required_agent_sidecars[:-1], *mount_discovery_paths]
         artifact_paths.extend(version_artifact_paths)
         artifact_paths.extend(
             route_path.as_posix()

@@ -252,6 +252,10 @@ def test_frozen_preview_rehydrates_editions_for_routes_and_switcher(
     app_root, frozen = _frozen_versioned_app(tmp_path)
     frozen_hub = json.loads((frozen / "versions.json").read_text(encoding="utf-8"))
     frozen_mount = json.loads((frozen / "versions/mounts/docs.json").read_text(encoding="utf-8"))
+    assert "/sitemaps/docs.xml</loc>" in (frozen / "sitemap.xml").read_text(encoding="utf-8")
+    assert "[Docs](/llms/docs.txt)" in (frozen / "llms.txt").read_text(encoding="utf-8")
+    assert "/docs/</loc>" in (frozen / "sitemaps/docs.xml").read_text(encoding="utf-8")
+    assert "[Docs 0.8.2](/docs.md)" in (frozen / "llms/docs.txt").read_text(encoding="utf-8")
     preview = DocsApp.from_paths(
         app_root / "docs.yaml",
         repo_root=tmp_path,

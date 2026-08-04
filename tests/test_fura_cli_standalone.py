@@ -1390,6 +1390,7 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
     )
     node = docs.catalog.get_path("/docs/secret/")
     assert node is not None
+    mount_id = docs.catalog.default_mount.id
     client = TestClient(docs.create_app())
 
     def json_body(text: str):
@@ -1401,8 +1402,8 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
         catalog_private = await client.get("/catalog.json?include_private=1")
         search_public = await client.get("/search.json?q=private%20launch")
         search_private = await client.get("/search.json?q=private%20launch&include_private=1")
-        llms_public = await client.get("/llms.txt")
-        llms_private = await client.get("/llms.txt?include_private=1")
+        llms_public = await client.get(f"/llms/{mount_id}.txt")
+        llms_private = await client.get(f"/llms/{mount_id}.txt?include_private=1")
         llms_full_public = await client.get("/llms-full.txt")
         llms_full_private = await client.get("/llms-full.txt?include_private=1")
         tools_public = await client.get("/tools.json")
@@ -1411,8 +1412,8 @@ def test_author_mode_indexes_drafts_with_public_output_filtering(tmp_path: Path)
         semantic_private = await client.get("/semantic.json?include_private=1")
         structure_public = await client.get("/structure.json")
         structure_private = await client.get("/structure.json?include_private=1")
-        sitemap_public = await client.get("/sitemap.xml")
-        sitemap_private = await client.get("/sitemap.xml?include_private=1")
+        sitemap_public = await client.get(f"/sitemaps/{mount_id}.xml")
+        sitemap_private = await client.get(f"/sitemaps/{mount_id}.xml?include_private=1")
         meta_public = await client.get("/meta.json")
         meta_private = await client.get("/meta.json?include_private=1")
         retrieve_public = await client.get(f"/catalog/retrieve?id={node.node_id}")
@@ -2137,7 +2138,14 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert inspect_data["read_only"] is True
     assert inspect_data["complete"] is True
     assert inspect_data["plan"]["source_revision"] == status_data["source_revision"]
-    assert {surface["change"] for surface in inspect_data["surfaces"]} == {"added"}
+    surface_changes = {surface["id"]: surface["change"] for surface in inspect_data["surfaces"]}
+    assert {
+        change
+        for surface_id, change in surface_changes.items()
+        if surface_id not in {"sitemap", "llms_txt"}
+    } == {"added"}
+    assert surface_changes["sitemap"] == "unchanged"
+    assert surface_changes["llms_txt"] == "unchanged"
     assert inspect_data["privacy"]["status"] == "pass"
     assert target.read_bytes() == source_before_inspection
 

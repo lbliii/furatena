@@ -504,12 +504,13 @@ def llms_txt(
     site_description: str = "",
     include_private: bool = False,
     subject: AccessSubject | None = None,
+    mount: str | None = None,
 ) -> str:
     """Compact llmstxt.org page index with grouped API operation hints."""
     summary = " ".join(site_description.split()) or f"Documentation index for {site_name}."
     active_status = "current"
     lifecycle_for = getattr(catalog, "edition_lifecycle_for", None)
-    default_mount = getattr(getattr(catalog, "default_mount", None), "id", "")
+    default_mount = mount or getattr(getattr(catalog, "default_mount", None), "id", "")
     if callable(lifecycle_for) and default_mount:
         active_status = lifecycle_for(default_mount, catalog.active_channel).status
     lines = [
@@ -519,9 +520,15 @@ def llms_txt(
         f"> Edition: {catalog.active_channel} ({active_status})",
         "",
     ]
+    active_shard = getattr(catalog, "_active_shard", None)
+    if mount is not None and callable(active_shard):
+        shard = active_shard(mount)
+        raw_nodes = shard.doc_nodes() if shard is not None else ()
+    else:
+        raw_nodes = catalog.doc_nodes()
     nodes = accessible_nodes(
         catalog,
-        catalog.doc_nodes(),
+        raw_nodes,
         subject=subject,
         permission=AccessPermission.EXPORT,
         include_private=include_private,
