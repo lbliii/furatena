@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/public-projection/v1/inspection.schema.json",
+  "title": "Furatena public projection inspection v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "ok",
+    "complete",
+    "read_only",
+    "plan",
+    "identities",
+    "surfaces",
+    "privacy",
+    "diagnostics"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "kind": {"const": "public_projection_inspection"},
+    "ok": {"type": "boolean"},
+    "complete": {"type": "boolean"},
+    "read_only": {"type": "boolean"},
+    "plan": {"$ref": "#/$defs/plan"},
+    "identities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "frozen_artifact", "deployed_artifact"],
+      "properties": {
+        "source": {"$ref": "#/$defs/identity"},
+        "frozen_artifact": {"$ref": "#/$defs/identity"},
+        "deployed_artifact": {"$ref": "#/$defs/identity"}
+      }
+    },
+    "surfaces": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 19,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/surface"}
+    },
+    "privacy": {"$ref": "#/$defs/privacy"},
+    "diagnostics": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/diagnostic"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"ok": {"const": true}},
+        "required": ["ok"]
+      },
+      "then": {
+        "properties": {
+          "complete": {"const": true},
+          "read_only": {"const": true},
+          "surfaces": {
+            "minItems": 19,
+            "maxItems": 19,
+            "allOf": [
+              {"contains": {"properties": {"id": {"const": "anonymous_html"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "route_availability"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "navigation"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "sidebar"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "breadcrumbs"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "search"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "suggestions"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "dcp_catalog"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "dcp_structure"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "channels"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "static_export"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "sitemap"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "pdf"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "page_text"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "page_markdown"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "llms_txt"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "llms_full_txt"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "tools"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1},
+              {"contains": {"properties": {"id": {"const": "mcp_public_resources"}}, "required": ["id"]}, "minContains": 1, "maxContains": 1}
+            ]
+          },
+          "privacy": {
+            "properties": {"status": {"const": "pass"}},
+            "required": ["status"]
+          },
+          "diagnostics": {"maxItems": 0}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "nonEmptyString": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "nullableDigest": {
+      "oneOf": [
+        {"$ref": "#/$defs/digest"},
+        {"type": "null"}
+      ]
+    },
+    "nullableString": {
+      "oneOf": [
+        {"$ref": "#/$defs/nonEmptyString"},
+        {"type": "null"}
+      ]
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_id",
+        "plan_digest",
+        "source_revision",
+        "change_digest",
+        "node_id",
+        "operation",
+        "previous_visibility",
+        "resulting_visibility",
+        "kind"
+      ],
+      "properties": {
+        "plan_id": {"$ref": "#/$defs/nonEmptyString"},
+        "plan_digest": {"$ref": "#/$defs/digest"},
+        "source_revision": {"$ref": "#/$defs/digest"},
+        "change_digest": {"$ref": "#/$defs/digest"},
+        "node_id": {"$ref": "#/$defs/nonEmptyString"},
+        "operation": {"enum": ["publish", "unpublish", "archive"]},
+        "previous_visibility": {"$ref": "#/$defs/nonEmptyString"},
+        "resulting_visibility": {"enum": ["public", "draft", "archived"]},
+        "kind": {"enum": ["workflow", "local_transition"]}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plane", "identity", "state", "freshness", "drift"],
+      "properties": {
+        "plane": {"enum": ["source", "frozen_artifact", "deployed_artifact"]},
+        "identity": {"$ref": "#/$defs/nullableString"},
+        "state": {"$ref": "#/$defs/nonEmptyString"},
+        "freshness": {"enum": ["current", "stale", "unknown"]},
+        "drift": {"type": "boolean"}
+      }
+    },
+    "surface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "route",
+        "previous_present",
+        "resulting_present",
+        "previous_digest",
+        "resulting_digest",
+        "change",
+        "affected",
+        "preview"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "anonymous_html",
+            "route_availability",
+            "navigation",
+            "sidebar",
+            "breadcrumbs",
+            "search",
+            "suggestions",
+            "dcp_catalog",
+            "dcp_structure",
+            "channels",
+            "static_export",
+            "sitemap",
+            "pdf",
+            "page_text",
+            "page_markdown",
+            "llms_txt",
+            "llms_full_txt",
+            "tools",
+            "mcp_public_resources"
+          ]
+        },
+        "route": {"$ref": "#/$defs/nullableString"},
+        "previous_present": {"type": "boolean"},
+        "resulting_present": {"type": "boolean"},
+        "previous_digest": {"$ref": "#/$defs/nullableDigest"},
+        "resulting_digest": {"$ref": "#/$defs/nullableDigest"},
+        "change": {"enum": ["added", "removed", "changed", "unchanged"]},
+        "affected": {"type": "boolean"},
+        "preview": true
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "canary_count", "matches"],
+      "properties": {
+        "status": {"enum": ["pass", "fail", "not_run"]},
+        "protected_node_count": {"type": "integer", "minimum": 0},
+        "canary_count": {"type": "integer", "minimum": 0},
+        "scanned_artifacts": {"type": "integer", "minimum": 0},
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["source_path", "artifact", "token_digest"],
+            "properties": {
+              "source_path": {"$ref": "#/$defs/nonEmptyString"},
+              "artifact": {"$ref": "#/$defs/nonEmptyString"},
+              "token_digest": {"$ref": "#/$defs/digest"}
+            }
+          }
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_id", "severity", "message", "next_action"],
+      "properties": {
+        "rule_id": {"pattern": "^fura\\.public_projection(?:\\.[a-z_]+)?$"},
+        "severity": {"enum": ["error", "warning", "info"]},
+        "message": {"$ref": "#/$defs/nonEmptyString"},
+        "next_action": {"$ref": "#/$defs/nonEmptyString"}
+      }
+    }
+  }
+}

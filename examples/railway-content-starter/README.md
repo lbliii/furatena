@@ -81,10 +81,11 @@ Configure these GitHub Actions secrets:
 - `FURATENA_REFRESH_URL`: the deployment's `/_fura/content/refresh` URL;
 - `FURATENA_REFRESH_TOKEN`: the independently generated content refresh bearer.
 
-The included workflow sends the reviewed `github.sha`, the currently active
-commit, and a run-scoped idempotency key after a push to `main`, or when a
-maintainer starts it manually. Furatena proves that exact commit is reachable
-under the configured `FURA_CONTENT_REF`, validates and freezes a complete
+The included workflow sends an authenticated refresh as a versioned request
+containing the exact pushed commit (`github.sha`), the currently active commit,
+and a run-scoped idempotency key after a push to `main`, or when a maintainer
+starts it manually. Furatena proves that exact commit is reachable under the
+configured `FURA_CONTENT_REF`, validates and freezes a complete
 generation, and switches generations atomically. The accepting process restarts
 to load the new generation; the application image and deployment identity do not
 change.
