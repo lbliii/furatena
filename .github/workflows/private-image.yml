@@ -15,6 +15,7 @@ on:
       - pyproject.toml
       - scripts/private_image_promotion_evidence.py
       - scripts/private_image_release.py
+      - scripts/private_image_stable_target.py
       - scripts/railway-start.sh
       - scripts/verify-content-diagnostics.sh
       - scripts/verify-unprivileged-image.sh
@@ -36,7 +37,7 @@ on:
         required: false
         type: string
       digest:
-        description: Existing sha256 digest (required for promote or revoke)
+        description: Existing sha256 digest (required for promote, deprecate, or revoke)
         required: false
         type: string
       commit:
@@ -55,8 +56,16 @@ on:
         description: Optional known-good replacement for a deprecated or revoked digest
         required: false
         type: string
+      replacement_version:
+        description: Stable version owning replacement_digest
+        required: false
+        type: string
       rollback_digest:
         description: Prior known-good sha256 digest required for promotion
+        required: false
+        type: string
+      rollback_version:
+        description: Stable version owning rollback_digest (required for promotion)
         required: false
         type: string
       compatibility:
@@ -423,6 +432,29 @@ jobs:
       - name: Check out lifecycle tooling
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
+      - name: Validate canonical lifecycle digest inputs
+        env:
+          OPERATION: ${{ inputs.operation }}
+          DIGEST: ${{ inputs.digest }}
+          REPLACEMENT_DIGEST: ${{ inputs.replacement_digest }}
+          ROLLBACK_DIGEST: ${{ inputs.rollback_digest }}
+        run: |
+          validate_digest() {
+            name="$1"
+            value="$2"
+            if [[ ! "$value" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "$name must be an exact lowercase sha256:<64 hex> value." >&2
+              exit 1
+            fi
+          }
+          validate_digest digest "$DIGEST"
+          if [ "$OPERATION" = promote ]; then
+            validate_digest rollback_digest "$ROLLBACK_DIGEST"
+          fi
+          if [ -n "$REPLACEMENT_DIGEST" ]; then
+            validate_digest replacement_digest "$REPLACEMENT_DIGEST"
+          fi
+
       - name: Sign in to the private registry
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
@@ -450,10 +482,18 @@ jobs:
               -f tag="$tag" \
               --jq '.data.repository.release.tagName // ""'
           )"
-          if [ "$revoked_tag" = "$tag" ]; then
-            echo "Digest $DIGEST is revoked and cannot be promoted." >&2
-            exit 1
-          fi
+          case "$revoked_tag" in
+            "$tag")
+              echo "Digest $DIGEST is revoked and cannot be promoted." >&2
+              exit 1
+              ;;
+            "")
+              ;;
+            *)
+              echo "Revocation lookup returned an unexpected release identity; retry the lifecycle operation." >&2
+              exit 1
+              ;;
+          esac
 
       - name: Require the exact registry subject
         if: inputs.operation != 'revoke'
@@ -510,6 +550,69 @@ jobs:
             --commit "$COMMIT" \
             --repository "$GITHUB_REPOSITORY" \
             --run-id "$CANDIDATE_RUN_ID"
+
+      - name: Resolve and verify durable stable target ownership
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OPERATION: ${{ inputs.operation }}
+          VERSION: ${{ inputs.version }}
+          DIGEST: ${{ inputs.digest }}
+          REPLACEMENT_DIGEST: ${{ inputs.replacement_digest }}
+          REPLACEMENT_VERSION: ${{ inputs.replacement_version }}
+          ROLLBACK_DIGEST: ${{ inputs.rollback_digest }}
+          ROLLBACK_VERSION: ${{ inputs.rollback_version }}
+        run: |
+          mkdir -p release/stable-records
+
+          verify_stable_target() {
+            role="$1"
+            version="$2"
+            digest="$3"
+            association_mode="${4:-full}"
+            destination="release/stable-records/$role"
+            mkdir -p "$destination"
+            gh release download "image-v${version}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern image-record.json \
+              --dir "$destination"
+            arguments=(
+              --record "$destination/image-record.json"
+              --image "$IMAGE_NAME"
+              --digest "$digest"
+              --version "$version"
+              --repository "$GITHUB_REPOSITORY"
+              --role "$role"
+            )
+            if [ "$association_mode" = association-only ]; then
+              arguments+=(--association-only)
+            fi
+            python scripts/private_image_stable_target.py "${arguments[@]}"
+          }
+
+          if [ "$OPERATION" = promote ]; then
+            if [ -z "$ROLLBACK_VERSION" ]; then
+              echo "Promotion requires rollback_version for exact stable-record lookup." >&2
+              exit 1
+            fi
+            verify_stable_target rollback "$ROLLBACK_VERSION" "$ROLLBACK_DIGEST"
+          fi
+
+          if [ "$OPERATION" = deprecate ]; then
+            verify_stable_target deprecation "$VERSION" "$DIGEST"
+          elif [ "$OPERATION" = revoke ]; then
+            verify_stable_target revocation "$VERSION" "$DIGEST" association-only
+          fi
+
+          if [ -n "$REPLACEMENT_DIGEST" ]; then
+            if [ -z "$REPLACEMENT_VERSION" ]; then
+              echo "replacement_digest requires replacement_version for exact stable-record lookup." >&2
+              exit 1
+            fi
+            verify_stable_target replacement "$REPLACEMENT_VERSION" "$REPLACEMENT_DIGEST"
+          elif [ -n "$REPLACEMENT_VERSION" ]; then
+            echo "replacement_version requires replacement_digest." >&2
+            exit 1
+          fi
 
       - name: Create lifecycle record
         env:

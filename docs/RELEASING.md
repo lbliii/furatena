@@ -101,6 +101,7 @@ Run **Publish proprietary image** manually with:
 - the candidate's forty-character source `commit`;
 - the successful candidate workflow's numeric `candidate_run_id`;
 - the prior known-good `rollback_digest`;
+- the `rollback_version` whose durable stable record owns that digest;
 - a concrete `compatibility` statement; and
 - `migration_notes`, including an explicit no-migration statement when no
   adopter action is required.
@@ -113,12 +114,17 @@ submitted source commit on `main`. It then downloads the exact run's promotion
 receipt and compares that receipt with current GitHub Actions run metadata.
 Missing artifacts, incomplete, failed, cancelled, or non-successful runs,
 evidence older than seven days, and any digest, commit, repository, workflow,
-ref, run, attempt, or timestamp mismatch fail closed. Only then does it write a
-stable record and create
-`image-v<version>` with that record as an asset. It does not invoke Docker build.
-Never reuse a commercial version or move its release tag to a different commit.
-A failed or unavailable revocation lookup, attestation check, or promotion
-receipt check blocks promotion rather than treating the digest as eligible.
+ref, run, attempt, or timestamp mismatch fail closed. It also downloads
+`image-record.json` from the exact `image-v<rollback_version>` release and
+requires that canonical stable record to own the same image, version, and
+`rollback_digest`. The rollback digest must not be revoked, must still exist in
+GHCR, and must carry the same workflow-, commit-, main-ref-, and runner-bound
+provenance. Only then does the job write a stable record and create
+`image-v<version>` with that record as an asset. It does not invoke Docker
+build. Never reuse a commercial version or move its release tag to a different
+commit. A failed or unavailable revocation lookup or attestation check blocks
+promotion rather than treating the digest as eligible; an invalid, missing, or
+stale promotion receipt does the same.
 
 The stable record includes the exact image and rollback subjects, compatibility
 statement, supported content/config contract version and source-revision URLs,
@@ -161,18 +167,27 @@ attestation, SBOM, and scan evidence joinable.
 
 Run the workflow with `operation=deprecate`, the affected stable `version` and
 `digest`, a specific `reason`, an ISO-8601 `support_ends_at`, and the preferred
-`replacement_digest` when available. The resulting public feed record keeps the
-digest available, identifies the bounded support window, and gives an exact
-replacement subject. Deprecation does not silently move an adopter service.
+`replacement_digest` plus its owning `replacement_version` when available.
+Before publishing, the job requires the exact `image-v<version>` stable record
+to own the affected image and digest. Both the affected digest and any
+replacement must be non-revoked, present in GHCR, and backed by repository
+provenance; the replacement must also be owned by its exact stable record. The
+resulting public feed record keeps the digest available, identifies the bounded
+support window, and gives an exact replacement subject. Deprecation does not
+silently move an adopter service.
 
 ## Revoke a digest
 
 Run the workflow with `operation=revoke`, the affected `digest`, its commercial
-`version`, a specific `reason`, and, when known, a `replacement_digest`. A
-revocation does not require the compromised registry subject to remain
-available. The protected lifecycle job publishes an immutable digest-named
-revocation entry with affected digests and remediation. A later promotion of
-that digest is blocked even if a mutable registry tag points to it.
+`version`, a specific `reason`, and, when known, a `replacement_digest` and its
+owning `replacement_version`. The exact `image-v<version>` stable record must
+still provide the durable image/version/digest association. Emergency
+revocation does not require the affected, potentially compromised registry
+subject to remain available or attestable, but a replacement remains subject
+to the full non-revoked, available, attested stable-target checks. The protected
+lifecycle job publishes an immutable digest-named revocation entry with
+affected digests and remediation. A later promotion of that digest is blocked
+even if a mutable registry tag points to it.
 
 Then:
 

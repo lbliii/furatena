@@ -12,15 +12,116 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from private_image_release import create_record
+from private_image_stable_target import TargetError, verify_stable_target
+
 SCRIPT = ROOT / "scripts" / "private_image_release.py"
 EVIDENCE_SCRIPT = ROOT / "scripts" / "private_image_promotion_evidence.py"
 EVIDENCE_SCHEMA = ROOT / ".github" / "schemas" / "private-image-promotion-evidence-v1.schema.json"
+TARGET_SCRIPT = ROOT / "scripts" / "private_image_stable_target.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "private-image.yml"
+IMAGE = "ghcr.io/lbliii/furatena"
+REPOSITORY_SLUG = "lbliii/furatena"
 DIGEST = f"sha256:{'a' * 64}"
 REPLACEMENT = f"sha256:{'b' * 64}"
+ALTERNATE = f"sha256:{'d' * 64}"
 COMMIT = "c" * 40
 REPOSITORY = "https://github.com/lbliii/furatena"
 SCHEMAS = ROOT / "src" / "furatena" / "catalog" / "schemas" / "private-image" / "v1"
+
+
+def _stable_record(
+    *,
+    image: str = IMAGE,
+    digest: str = DIGEST,
+    version: str = "1.2.3",
+) -> dict[str, object]:
+    return create_record(
+        "promote",
+        image=image,
+        digest=digest,
+        commit=COMMIT,
+        version=version,
+        rollback_digest=REPLACEMENT if digest != REPLACEMENT else ALTERNATE,
+        compatibility="Compatible with the v1 content and configuration contracts.",
+        migration_notes="No adopter configuration migration is required.",
+        source_repository=REPOSITORY,
+        recorded_at="2026-07-14T12:00:00+00:00",
+    )
+
+
+def _target_runner(
+    *,
+    revoked: bool = False,
+    revocation_api_error: bool = False,
+    unexpected_revocation: bool = False,
+    available: bool = True,
+    attested: bool = True,
+    observed_commands: list[tuple[str, ...]] | None = None,
+):
+    tag = f"image-revoked-{DIGEST.removeprefix('sha256:')}"
+    query = (
+        "query($owner: String!, $repository: String!, $tag: String!) { "
+        "repository(owner: $owner, name: $repository) { release(tagName: $tag) { tagName } } }"
+    )
+    revocation_command = (
+        "gh",
+        "api",
+        "graphql",
+        "-f",
+        f"query={query}",
+        "-f",
+        "owner=lbliii",
+        "-f",
+        "repository=furatena",
+        "-f",
+        f"tag={tag}",
+        "--jq",
+        '.data.repository.release.tagName // ""',
+    )
+    inspect_command = (
+        "docker",
+        "buildx",
+        "imagetools",
+        "inspect",
+        f"{IMAGE}@{DIGEST}",
+    )
+    attestation_command = (
+        "gh",
+        "attestation",
+        "verify",
+        f"oci://{IMAGE}@{DIGEST}",
+        "--repo",
+        REPOSITORY_SLUG,
+        "--signer-workflow",
+        "github.com/lbliii/furatena/.github/workflows/private-image.yml",
+        "--source-digest",
+        COMMIT,
+        "--source-ref",
+        "refs/heads/main",
+        "--deny-self-hosted-runners",
+    )
+
+    def run(command):
+        command = tuple(command)
+        if observed_commands is not None:
+            observed_commands.append(command)
+        if command == revocation_command:
+            if revocation_api_error:
+                return subprocess.CompletedProcess(command, 1, "", "api unavailable")
+            output = "image-revoked-unexpected\n" if unexpected_revocation else ""
+            if revoked:
+                output = f"{tag}\n"
+            return subprocess.CompletedProcess(command, 0, output, "")
+        if command == inspect_command:
+            return subprocess.CompletedProcess(command, 0 if available else 1, "", "unavailable")
+        if command == attestation_command:
+            return subprocess.CompletedProcess(command, 0 if attested else 1, "", "unattested")
+        raise AssertionError(f"unexpected target verification command: {command}")
+
+    return run
 
 
 def _run_record(tmp_path: Path, operation: str, *arguments: str):
@@ -218,6 +319,259 @@ def test_promotion_keeps_the_candidate_digest(tmp_path: Path) -> None:
         forbidden not in json.dumps(record).lower()
         for forbidden in ("credential", "password", "token", "secret")
     )
+
+
+def test_stable_lifecycle_target_requires_canonical_usable_owned_record() -> None:
+    record = _stable_record()
+
+    verify_stable_target(
+        record,
+        expected_image=IMAGE,
+        expected_digest=DIGEST,
+        expected_version="1.2.3",
+        repository=REPOSITORY_SLUG,
+        role="rollback",
+        command_runner=_target_runner(),
+    )
+    _validate_record(record, feed_entry=True)
+
+
+def test_stable_lifecycle_target_uses_exact_revocation_and_attestation_identity() -> None:
+    observed: list[tuple[str, ...]] = []
+
+    verify_stable_target(
+        _stable_record(),
+        expected_image=IMAGE,
+        expected_digest=DIGEST,
+        expected_version="1.2.3",
+        repository=REPOSITORY_SLUG,
+        role="rollback",
+        command_runner=_target_runner(observed_commands=observed),
+    )
+
+    tag = f"image-revoked-{'a' * 64}"
+    assert observed == [
+        (
+            "gh",
+            "api",
+            "graphql",
+            "-f",
+            "query=query($owner: String!, $repository: String!, $tag: String!) { "
+            "repository(owner: $owner, name: $repository) { release(tagName: $tag) { tagName } } }",
+            "-f",
+            "owner=lbliii",
+            "-f",
+            "repository=furatena",
+            "-f",
+            f"tag={tag}",
+            "--jq",
+            '.data.repository.release.tagName // ""',
+        ),
+        ("docker", "buildx", "imagetools", "inspect", f"{IMAGE}@{DIGEST}"),
+        (
+            "gh",
+            "attestation",
+            "verify",
+            f"oci://{IMAGE}@{DIGEST}",
+            "--repo",
+            REPOSITORY_SLUG,
+            "--signer-workflow",
+            "github.com/lbliii/furatena/.github/workflows/private-image.yml",
+            "--source-digest",
+            COMMIT,
+            "--source-ref",
+            "refs/heads/main",
+            "--deny-self-hosted-runners",
+        ),
+    ]
+
+
+@pytest.mark.parametrize("digest", (DIGEST.upper(), f" {DIGEST}", f"{DIGEST}\n"))
+def test_stable_lifecycle_target_rejects_noncanonical_digest_before_use(digest: str) -> None:
+    def unexpected_runner(command):
+        raise AssertionError(f"noncanonical digest reached an external command: {command}")
+
+    with pytest.raises(TargetError, match="exact lowercase sha256"):
+        verify_stable_target(
+            _stable_record(),
+            expected_image=IMAGE,
+            expected_digest=digest,
+            expected_version="1.2.3",
+            repository=REPOSITORY_SLUG,
+            role="replacement",
+            command_runner=unexpected_runner,
+        )
+
+
+def test_full_stable_target_rejects_wrong_canonical_record_digest_before_use() -> None:
+    def unexpected_runner(command):
+        raise AssertionError(f"wrong stable record reached an external command: {command}")
+
+    with pytest.raises(TargetError, match="does not own the requested image, version, and digest"):
+        verify_stable_target(
+            _stable_record(digest=REPLACEMENT),
+            expected_image=IMAGE,
+            expected_digest=DIGEST,
+            expected_version="1.2.3",
+            repository=REPOSITORY_SLUG,
+            role="rollback",
+            command_runner=unexpected_runner,
+        )
+
+
+@pytest.mark.parametrize(
+    ("expected_image", "expected_version", "mutation", "message"),
+    (
+        ("ghcr.io/lbliii/other", "1.2.3", None, "requested image, version, and digest"),
+        ("ghcr.io/lbliii/furatena", "2.0.0", None, "requested image, version, and digest"),
+        (
+            "ghcr.io/lbliii/furatena",
+            "1.2.3",
+            lambda record: record.pop("compatibility"),
+            "schema-valid promotion record",
+        ),
+    ),
+)
+def test_stable_lifecycle_target_rejects_wrong_or_malformed_record(
+    expected_image: str,
+    expected_version: str,
+    mutation,
+    message: str,
+) -> None:
+    record = _stable_record()
+    if mutation is not None:
+        mutation(record)
+
+    with pytest.raises(TargetError, match=message):
+        verify_stable_target(
+            record,
+            expected_image=expected_image,
+            expected_digest=DIGEST,
+            expected_version=expected_version,
+            repository=REPOSITORY_SLUG,
+            role="replacement",
+            command_runner=_target_runner(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("runner", "message"),
+    (
+        (_target_runner(revoked=True), "target digest is revoked"),
+        (_target_runner(revocation_api_error=True), "could not verify.*revocation status"),
+        (_target_runner(unexpected_revocation=True), "unexpected release identity"),
+        (_target_runner(available=False), "target is unavailable"),
+        (_target_runner(attested=False), "target provenance did not verify"),
+    ),
+)
+def test_stable_lifecycle_target_rejects_revoked_unavailable_or_unattested(
+    runner,
+    message: str,
+) -> None:
+    with pytest.raises(TargetError, match=message):
+        verify_stable_target(
+            _stable_record(),
+            expected_image=IMAGE,
+            expected_digest=DIGEST,
+            expected_version="1.2.3",
+            repository=REPOSITORY_SLUG,
+            role="replacement",
+            command_runner=runner,
+        )
+
+
+def test_unknown_stable_lifecycle_target_fails_closed(tmp_path: Path) -> None:
+    missing = tmp_path / "unknown-image-record.json"
+    completed = subprocess.run(
+        (
+            sys.executable,
+            str(TARGET_SCRIPT),
+            "--record",
+            str(missing),
+            "--image",
+            "ghcr.io/lbliii/furatena",
+            "--digest",
+            DIGEST,
+            "--version",
+            "1.2.3",
+            "--repository",
+            "lbliii/furatena",
+            "--role",
+            "revocation",
+            "--association-only",
+        ),
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    assert completed.returncode != 0
+    assert "durable stable record is missing" in completed.stderr
+
+
+def test_emergency_revocation_retains_ownership_without_requiring_availability() -> None:
+    def unexpected_runner(command):
+        raise AssertionError(
+            f"emergency association check must not run external command: {command}"
+        )
+
+    verify_stable_target(
+        _stable_record(),
+        expected_image="ghcr.io/lbliii/furatena",
+        expected_digest=DIGEST,
+        expected_version="1.2.3",
+        repository="lbliii/furatena",
+        role="revocation",
+        association_only=True,
+        command_runner=unexpected_runner,
+    )
+
+    with pytest.raises(TargetError, match="restricted to the affected revocation digest"):
+        verify_stable_target(
+            _stable_record(),
+            expected_image="ghcr.io/lbliii/furatena",
+            expected_digest=DIGEST,
+            expected_version="1.2.3",
+            repository="lbliii/furatena",
+            role="rollback",
+            association_only=True,
+            command_runner=unexpected_runner,
+        )
+
+
+@pytest.mark.parametrize(
+    ("record_image", "record_digest", "record_version"),
+    (
+        (IMAGE, REPLACEMENT, "1.2.3"),
+        ("ghcr.io/lbliii/other", DIGEST, "1.2.3"),
+        (IMAGE, DIGEST, "2.0.0"),
+    ),
+)
+def test_emergency_revocation_rejects_wrong_canonical_record_before_external_use(
+    record_image: str,
+    record_digest: str,
+    record_version: str,
+) -> None:
+    def unexpected_runner(command):
+        raise AssertionError(f"wrong revocation record reached an external command: {command}")
+
+    with pytest.raises(TargetError, match="does not own the requested image, version, and digest"):
+        verify_stable_target(
+            _stable_record(
+                image=record_image,
+                digest=record_digest,
+                version=record_version,
+            ),
+            expected_image=IMAGE,
+            expected_digest=DIGEST,
+            expected_version="1.2.3",
+            repository=REPOSITORY_SLUG,
+            role="revocation",
+            association_only=True,
+            command_runner=unexpected_runner,
+        )
 
 
 def test_deprecation_names_support_window_and_replacement(tmp_path: Path) -> None:
@@ -546,6 +900,7 @@ def test_private_image_workflow_has_separate_candidate_and_lifecycle_authority()
         "pyproject.toml",
         "scripts/private_image_promotion_evidence.py",
         "scripts/private_image_release.py",
+        "scripts/private_image_stable_target.py",
         "scripts/railway-start.sh",
         "scripts/verify-content-diagnostics.sh",
         "scripts/verify-unprivileged-image.sh",
@@ -586,6 +941,8 @@ def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() 
     assert "private-image-production" in source
     assert "options: [candidate, promote, deprecate, revoke]" in source
     assert "rollback_digest:" in source
+    assert "rollback_version:" in source
+    assert "replacement_version:" in source
     assert "compatibility:" in source
     assert "migration_notes:" in source
     assert "support_ends_at:" in source
@@ -642,6 +999,71 @@ def test_promotion_requires_successful_exact_candidate_and_smoke_receipt() -> No
     assert "private_image_promotion_evidence.py verify" in gate
     assert '--digest "$DIGEST"' in gate
     assert '--commit "$COMMIT"' in gate
+
+    evidence_index = lifecycle.index("Require successful exact candidate and smoke evidence")
+    target_index = lifecycle.index("Resolve and verify durable stable target ownership")
+    record_index = lifecycle.index("Create lifecycle record")
+    assert evidence_index < target_index < record_index
+
+
+def test_private_image_workflow_resolves_exact_stable_target_records() -> None:
+    source = WORKFLOW.read_text(encoding="utf-8")
+    verification = source.split(
+        "      - name: Resolve and verify durable stable target ownership\n", 1
+    )[1].split("\n      - name: Create lifecycle record\n", 1)[0]
+
+    assert 'gh release download "image-v${version}"' in verification
+    assert "scripts/private_image_stable_target.py" in verification
+    assert 'verify_stable_target rollback "$ROLLBACK_VERSION" "$ROLLBACK_DIGEST"' in verification
+    assert 'verify_stable_target deprecation "$VERSION" "$DIGEST"' in verification
+    assert 'verify_stable_target revocation "$VERSION" "$DIGEST" association-only' in verification
+    assert (
+        'verify_stable_target replacement "$REPLACEMENT_VERSION" "$REPLACEMENT_DIGEST"'
+        in verification
+    )
+    assert "Promotion requires rollback_version" in verification
+    assert "replacement_digest requires replacement_version" in verification
+    assert "gh release list" not in verification
+
+
+def test_private_image_promotion_revocation_lookup_is_three_way_fail_closed() -> None:
+    source = WORKFLOW.read_text(encoding="utf-8")
+    lookup = source.split("      - name: Block promotion of a revoked digest\n", 1)[1].split(
+        "\n      - name: Require the exact registry subject\n", 1
+    )[0]
+
+    assert "gh api graphql" in lookup
+    assert "release(tagName: $tag)" in lookup
+    assert 'case "$revoked_tag" in' in lookup
+    assert '"$tag")' in lookup
+    assert '"")' in lookup
+    assert "*)" in lookup
+    assert "Digest $DIGEST is revoked and cannot be promoted." in lookup
+    assert "Revocation lookup returned an unexpected release identity" in lookup
+    assert lookup.count("exit 1") == 2
+    assert "gh release list" not in lookup
+
+
+def test_private_image_workflow_validates_digests_before_deriving_release_tags() -> None:
+    source = WORKFLOW.read_text(encoding="utf-8")
+    lifecycle = source.split("  lifecycle:\n", 1)[1]
+    validation = lifecycle.split("      - name: Validate canonical lifecycle digest inputs\n", 1)[
+        1
+    ].split("\n      - name: Sign in to the private registry\n", 1)[0]
+
+    assert '[[ ! "$value" =~ ^sha256:[0-9a-f]{64}$ ]]' in validation
+    assert 'validate_digest digest "$DIGEST"' in validation
+    assert 'validate_digest rollback_digest "$ROLLBACK_DIGEST"' in validation
+    assert 'validate_digest replacement_digest "$REPLACEMENT_DIGEST"' in validation
+    validation_index = lifecycle.index("Validate canonical lifecycle digest inputs")
+    for later_step in (
+        "Block promotion of a revoked digest",
+        "Require the exact registry subject",
+        "Verify exact candidate provenance before promotion",
+        "Verify existing provenance before deprecation",
+    ):
+        assert validation_index < lifecycle.index(later_step)
+    assert lifecycle.count('tag="image-revoked-${DIGEST#sha256:}"') == 2
 
 
 def test_private_image_smokes_reader_search_catalog_and_agent_surfaces() -> None:
