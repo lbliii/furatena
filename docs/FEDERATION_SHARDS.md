@@ -173,24 +173,29 @@ and remote authority for the same `mount:edition` identity.
 
 ## Residency, eviction, and derived global state
 
-The contract resolves the local-edition RFC's residency questions without
-selecting the later routing or ranking implementation:
+The remote reader implements three explicit immutable tiers:
 
 - **Cold** means only the immutable origin object set and signed manifests are
   authoritative. Cold objects are fetched by content address.
-- **Warm** means verified encoded objects are present in a disk cache keyed by
-  encoded digest. Cache eviction is LRU within an operator budget and is not
-  artifact garbage collection; it cannot remove origin retention pins.
-- **Hot** means a verified hub generation, shard manifest, catalog identity
-  map, and the explicitly selected per-shard indexes are active. Readers decode
-  at most one bounded semantic or presentation object at a time and do not hold
-  a complete shard archive merely because its manifest is hot.
+- **Warm** means a verified catalog is present in the local content-addressed
+  object cache. Cold promotion writes a thread-private temporary file and uses
+  an atomic replace only after integrity checks pass. Corrupt warm bytes are
+  rejected and replaced from the immutable origin.
+- **Hot** means the decoded immutable catalog mapping or composed `DocCatalog`
+  graph is in its bounded LRU. `RemoteShardMountRegistry` defaults to 32 decoded
+  mappings and 128 MiB; `CatalogRegistry` defaults to 32 composed graphs and
+  256 MiB. Operators can lower the entry and byte bounds with
+  `resident_shard_entries` / `resident_shard_bytes` and
+  `remote_resident_shard_entries` / `remote_resident_shard_bytes`.
 
 Eviction never discards the selected last-known-good manifest, verification
 receipt, or rollback pin. The 64 MiB object and 4 MiB fragment limits are hard
-reader bounds; deployment-specific cache and aggregate-memory budgets may be
-lower and must fail one shard closed rather than evicting unrelated active
-identities.
+reader bounds; deployment-specific budgets may be lower. Admission accounting
+includes Python container and `DocNode` overhead, is cycle-safe, de-duplicates
+shared objects by identity, and runs once on promotion rather than on hot
+lookup. An item larger than the byte budget is served to its current caller but
+is not retained. Eviction removes only cache ownership, so a request that
+already captured an immutable generation can finish safely.
 
 Search and semantic indexes are complete shard-local objects. They contain
 only the catalog's public node-id set and are fingerprinted with the artifact.
@@ -207,7 +212,7 @@ Readers perform this bounded sequence:
 1. Fetch `channels.json`, then the hub manifest within the 4 MiB limit.
 2. Validate schema, canonical payload digest, signature, channel closure, and
    supported contract window before exposing any new identity.
-3. Resolve `mount:edition` directly in `shards`.
+3. Resolve `mount:edition` directly in `shards` before touching its catalog.
 4. Fetch the shard manifest within its advertised bound; verify its canonical
    digest against the hub, then validate its signature and attestation.
 5. Validate the full inventory and published fingerprint.
@@ -220,7 +225,7 @@ Readers perform this bounded sequence:
 Catalog identity maps and paired per-node fragment/presentation maps provide
 O(1) semantic and browser lookup. Search
 rank merging, global IDF refresh, cross-shard link reconciliation, and global
-sitemap/LLM indexes belong to the later #362+ routing, search, and reconciliation
+sitemap/LLM indexes belong to the later #363+ search and reconciliation
 work and cannot bypass these verification steps.
 
 ## Mounting a verified remote corpus
@@ -260,9 +265,14 @@ verified shard manifests. The enclosing hub digest remains receipt evidence,
 so an unrelated mount update neither rotates the generation nor discards its
 warm presentation cache.
 
-Catalog metadata is eager so routes, DCP, and navigation remain O(1) by node
-identity. Presentation HTML and semantic indexes remain lazy. Concurrent first
-reads of the same presentation coalesce behind a temporary per-node flight,
+Signed hub and manifest descriptors are eager; catalog graphs, presentation
+HTML, and semantic indexes remain lazy. A node-id route splits its mount and
+edition and performs direct dictionary lookup before catalog access. Global
+operations may deliberately enumerate shards; federated search and incremental
+cross-shard reconciliation remain owned by #363 and #364 respectively.
+
+Concurrent first reads of the same catalog or presentation coalesce behind a
+temporary per-identity flight,
 while reads for different nodes and mounts remain independent. Each in-flight
 request owns the immutable generation from which it resolved the node, so an
 upstream refresh cannot mix an old catalog record with new presentation bytes.
@@ -275,6 +285,14 @@ Least-recently-used entries are evicted until both limits hold. A body larger
 than the byte budget is still verified and served but is not cached; failed
 fetches are never cached, and per-node flight records are removed on success or
 failure.
+
+`CatalogRegistry.remote_residency_status()` and the `remote_residency` member of
+`source_health()` report current tier, resident entries and bytes, configured
+bounds, in-flight loads, hits, cold and warm loads, evictions, coalescing, and
+failures. Counters have process-lifetime scope and remain monotonic across a
+refresh; refresh prunes stale identity residency. Metric names are aggregate
+and bounded-cardinality, while the per-identity list is an on-demand status
+snapshot.
 
 ## Compatibility and DCP migration plan
 

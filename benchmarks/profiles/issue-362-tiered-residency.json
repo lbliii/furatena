@@ -1,0 +1,45 @@
+{
+  "corpus": {
+    "editions_per_mount": 4,
+    "logical_pages": 120000,
+    "mounts": 100,
+    "pages_per_shard": 300,
+    "total_shards": 400
+  },
+  "correctness": {
+    "irrelevant_shards_not_materialized": 399,
+    "loaded_identities": [
+      "m050:e3"
+    ],
+    "materialized_pages_after_first_route": 300,
+    "materialized_shards_after_first_route": 1,
+    "resident_bytes_within_bound": true,
+    "resident_entries_within_bound": true
+  },
+  "environment": {
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "measurements": {
+    "accounted_resident_bytes": 392730,
+    "admission_accounting_ms": 31.435875,
+    "after_cold_current_bytes": 1243899,
+    "after_cold_peak_bytes": 1543066,
+    "cold_first_route_ms": 58.064333,
+    "descriptor_current_bytes": 444404,
+    "descriptor_peak_bytes": 535798,
+    "descriptor_setup_ms": 4.705209,
+    "hot_route_ms": 0.045292
+  },
+  "methodology": {
+    "clock": "time.perf_counter_ns",
+    "memory": "tracemalloc Python allocations plus cycle-safe sys.getsizeof admission accounting",
+    "origin": "deterministic in-process immutable object-store stand-in; network excluded",
+    "resident_byte_limit": 67108864,
+    "resident_shard_limit": 8,
+    "route": "edition stripping plus O(1) mount-prefix lookup before catalog mapping access"
+  },
+  "schema_version": 1
+}

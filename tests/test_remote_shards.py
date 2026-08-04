@@ -311,6 +311,11 @@ mounts: mounts.yaml
     )
 
 
+def _object_url(manifest: dict[str, Any], role: str) -> str:
+    item = next(item for item in manifest["inventory"] if item["role"] == role)
+    return str(manifest["artifact_base_url"]) + str(item["object_url"])
+
+
 def test_strict_fetcher_rejects_cross_origin_privileged_and_unbounded_urls() -> None:
     transport = MemoryTransport({f"{ORIGIN}/ok": b"ok"})
     fetcher = StrictHTTPSFetcher(HUB_URL, transport=transport)
@@ -410,6 +415,317 @@ def test_zero_local_registry_activates_catalog_then_fetches_node_and_semantic_la
 
     restarted = _registry(tmp_path, MemoryTransport(objects), RecordingVerifier())
     assert restarted.generation("alpha").generation_id == generation.generation_id
+
+
+def test_tiered_catalog_residency_routes_before_load_and_reports_churn(tmp_path: Path) -> None:
+    alpha, alpha_objects = _artifact(tmp_path, "alpha", "v1")
+    beta, beta_objects = _artifact(tmp_path, "beta", "v1")
+    transport = MemoryTransport(alpha_objects | beta_objects)
+    _install_hub(transport, _hub([alpha, beta]))
+    registry = RemoteShardMountRegistry(
+        hub_url=HUB_URL,
+        state_root=tmp_path / "remote-state",
+        fetcher=StrictHTTPSFetcher(HUB_URL, transport=transport),
+        verifier=RecordingVerifier(),
+        resident_shard_entries=1,
+        resident_shard_bytes=8 * 1024 * 1024,
+    )
+    registry.refresh()
+    alpha_catalog = _object_url(alpha, "catalog")
+    beta_catalog = _object_url(beta, "catalog")
+
+    assert alpha_catalog not in transport.calls
+    assert beta_catalog not in transport.calls
+    assert registry.shard("alpha").catalog["page_count"] == 1
+    first = registry.residency_status()
+
+    assert alpha_catalog in transport.calls
+    assert beta_catalog not in transport.calls
+    assert {item["identity"]: item["tier"] for item in first["shards"]} == {
+        "alpha:latest": "hot",
+        "beta:latest": "cold",
+    }
+    assert first["resident_entries"] == 1
+    assert first["resident_bytes"] <= first["max_resident_bytes"]
+
+    assert registry.shard("beta").catalog["page_count"] == 1
+    second = registry.residency_status()
+    assert second["evictions"] == 1
+    assert {item["identity"]: item["tier"] for item in second["shards"]} == {
+        "alpha:latest": "warm",
+        "beta:latest": "hot",
+    }
+
+    transport.calls.clear()
+    assert registry.shard("alpha").catalog["page_count"] == 1
+    third = registry.residency_status()
+    assert alpha_catalog not in transport.calls
+    assert third["warm_loads"] == 1
+    assert third["evictions"] == 2
+
+
+def test_catalog_first_load_coalesces_without_blocking_unrelated_shards(tmp_path: Path) -> None:
+    alpha, alpha_objects = _artifact(tmp_path, "alpha", "v1")
+    beta, beta_objects = _artifact(tmp_path, "beta", "v1")
+    transport = MemoryTransport(alpha_objects | beta_objects)
+    _install_hub(transport, _hub([alpha, beta]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    alpha_catalog = _object_url(alpha, "catalog")
+    beta_catalog = _object_url(beta, "catalog")
+    started = threading.Event()
+    release = threading.Event()
+    transport.blockers[alpha_catalog] = (started, release)
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        alpha_owner = pool.submit(lambda: registry.shard("alpha").catalog["page_count"])
+        assert started.wait(timeout=10)
+        alpha_waiter = pool.submit(lambda: registry.shard("alpha").catalog["page_count"])
+        beta_result = pool.submit(lambda: registry.shard("beta").catalog["page_count"])
+        assert beta_result.result(timeout=10) == 1
+        release.set()
+        assert alpha_owner.result(timeout=10) == 1
+        assert alpha_waiter.result(timeout=10) == 1
+
+    status = registry.residency_status()
+    assert transport.calls.count(alpha_catalog) == 1
+    assert transport.calls.count(beta_catalog) == 1
+    assert status["coalesced_loads"] == 1
+    assert status["in_flight"] == 0
+
+
+def test_failed_catalog_flight_wakes_waiters_is_removed_and_can_retry(tmp_path: Path) -> None:
+    manifest, objects = _artifact(tmp_path, "alpha", "v1")
+    transport = MemoryTransport(objects)
+    _install_hub(transport, _hub([manifest]))
+    registry = _registry(tmp_path, transport, RecordingVerifier())
+    registry.refresh()
+    catalog_url = _object_url(manifest, "catalog")
+    original = transport.objects[catalog_url]
+    started = threading.Event()
+    release = threading.Event()
+    transport.blockers[catalog_url] = (started, release)
+
+    def load() -> int:
+        return int(registry.shard("alpha").catalog["page_count"])
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        owner = pool.submit(load)
+        assert started.wait(timeout=10)
+        waiter = pool.submit(load)
+        for _ in range(1_000):
+            if registry.residency_status()["coalesced_loads"] == 1:
+                break
+            threading.Event().wait(0.001)
+        assert registry.residency_status()["coalesced_loads"] == 1
+        transport.objects.pop(catalog_url)
+        release.set()
+        with pytest.raises(RemoteShardFetchError, match="Remote HTTPS fetch failed"):
+            owner.result(timeout=10)
+        with pytest.raises(RemoteShardFetchError, match="Remote HTTPS fetch failed"):
+            waiter.result(timeout=10)
+
+    failed = registry.residency_status()
+    assert failed["in_flight"] == 0
+    assert failed["load_failures"] == 1
+    transport.blockers.pop(catalog_url)
+    transport.objects[catalog_url] = original
+    assert load() == 1
+    assert registry.residency_status()["cold_loads"] == 1
+
+
+def test_evicted_generation_remains_safe_and_corrupt_warm_catalog_refetches(
+    tmp_path: Path,
+) -> None:
+    from furatena.catalog.registry import CatalogRegistry, MountConfig
+    from furatena.catalog.sources.types import MountSourceConfig
+
+    alpha, alpha_objects = _artifact(tmp_path, "alpha", "v1")
+    beta, beta_objects = _artifact(tmp_path, "beta", "v1")
+    transport = MemoryTransport(alpha_objects | beta_objects)
+    _install_hub(transport, _hub([alpha, beta]))
+    remote = RemoteShardMountRegistry(
+        hub_url=HUB_URL,
+        state_root=tmp_path / "remote-state",
+        fetcher=StrictHTTPSFetcher(HUB_URL, transport=transport),
+        verifier=RecordingVerifier(),
+        resident_shard_entries=1,
+        resident_shard_bytes=8 * 1024 * 1024,
+    )
+    remote.refresh()
+    mounts = tuple(
+        MountConfig(
+            id=mount,
+            label=mount.title(),
+            content_root=tmp_path / f"missing-{mount}",
+            url_prefix=f"/{mount}",
+            default=mount == "alpha",
+            source=MountSourceConfig(provider="remote-shard"),
+        )
+        for mount in ("alpha", "beta")
+    )
+    catalog = CatalogRegistry(
+        mounts,
+        repo_root=tmp_path,
+        app_root=tmp_path,
+        autodoc=False,
+        remote_shards=remote,
+        remote_resident_shard_entries=1,
+        remote_resident_shard_bytes=8 * 1024 * 1024,
+    )
+    alpha_shard = catalog._active_shard("alpha")
+    assert alpha_shard is not None
+    alpha_node = alpha_shard.get("/alpha/guide/")
+    assert alpha_node is not None
+    assert catalog._active_shard("beta") is not None
+
+    # LRU eviction drops only the cache's reference. A request that already
+    # captured the immutable composed generation can safely finish.
+    assert alpha_shard.get("/alpha/guide/") is alpha_node
+
+    catalog_item = next(item for item in alpha["inventory"] if item["role"] == "catalog")
+    warm = tmp_path / "remote-state" / "object-cache" / "sha256" / f"{catalog_item['sha256']}.json"
+    warm.write_bytes(b"corrupt")
+    alpha_catalog_url = _object_url(alpha, "catalog")
+    before_calls = transport.calls.count(alpha_catalog_url)
+
+    # Loading beta evicted alpha from both bounded tiers. The corrupt warm
+    # candidate is rejected and atomically replaced from the immutable origin.
+    assert remote.shard("alpha").catalog["page_count"] == 1
+    assert transport.calls.count(alpha_catalog_url) == before_calls + 1
+    assert hashlib.sha256(warm.read_bytes()).hexdigest() == catalog_item["sha256"]
+
+
+def test_refresh_during_cold_compose_serves_captured_generation_without_recaching_it(
+    tmp_path: Path,
+) -> None:
+    from furatena.catalog.registry import CatalogRegistry, MountConfig
+    from furatena.catalog.sources.types import MountSourceConfig
+
+    first, first_objects = _artifact(tmp_path, "alpha", "v1")
+    transport = MemoryTransport(first_objects)
+    _install_hub(transport, _hub([first]))
+    remote = _registry(tmp_path, transport, RecordingVerifier())
+    remote.refresh()
+    catalog = CatalogRegistry(
+        (
+            MountConfig(
+                id="alpha",
+                label="Alpha",
+                content_root=tmp_path / "missing-alpha",
+                url_prefix="/alpha",
+                default=True,
+                source=MountSourceConfig(provider="remote-shard"),
+            ),
+        ),
+        repo_root=tmp_path,
+        app_root=tmp_path,
+        autodoc=False,
+        remote_shards=remote,
+    )
+    first_catalog_url = _object_url(first, "catalog")
+    started = threading.Event()
+    release = threading.Event()
+    transport.blockers[first_catalog_url] = (started, release)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        loading = pool.submit(catalog._active_shard, "alpha")
+        assert started.wait(timeout=10)
+        second, second_objects = _artifact(tmp_path, "alpha", "v2")
+        transport.objects.update(second_objects)
+        _install_hub(transport, _hub([second]))
+        refreshed = pool.submit(catalog.refresh_remote_shards)
+        refreshed.result(timeout=10)
+        release.set()
+        captured = loading.result(timeout=10)
+
+    assert captured is not None
+    captured_node = captured.get("/alpha/guide/")
+    assert captured_node is not None
+    assert captured_node.title == "Guide v1"
+    after_old = catalog.remote_residency_status()
+    assert after_old["composed"]["resident_entries"] == 0
+
+    current = catalog._active_shard("alpha")
+    assert current is not None
+    current_node = current.get("/alpha/guide/")
+    assert current_node is not None
+    assert current_node.title == "Guide v2"
+    assert catalog.remote_residency_status()["composed"]["resident_entries"] == 1
+
+
+def test_refresh_prunes_stale_identity_but_keeps_process_lifetime_counters(tmp_path: Path) -> None:
+    first, first_objects = _artifact(tmp_path, "alpha", "v1")
+    transport = MemoryTransport(first_objects)
+    _install_hub(transport, _hub([first]))
+    remote = _registry(tmp_path, transport, RecordingVerifier())
+    remote.refresh()
+    assert remote.shard("alpha").catalog["page_count"] == 1
+
+    second, second_objects = _artifact(tmp_path, "alpha", "v2")
+    transport.objects.update(second_objects)
+    _install_hub(transport, _hub([second]))
+    remote.refresh()
+    status = remote.residency_status()
+
+    assert status["cold_loads"] == 1
+    assert status["resident_entries"] == 0
+    assert status["shards"] == [{"identity": "alpha:latest", "mount": "alpha", "tier": "cold"}]
+
+
+def test_catalog_registry_materializes_only_the_routed_remote_mount(tmp_path: Path) -> None:
+    from furatena.catalog.registry import CatalogRegistry, MountConfig
+    from furatena.catalog.sources.types import MountSourceConfig
+
+    alpha, alpha_objects = _artifact(tmp_path, "alpha", "v1")
+    beta, beta_objects = _artifact(tmp_path, "beta", "v1")
+    transport = MemoryTransport(alpha_objects | beta_objects)
+    _install_hub(transport, _hub([alpha, beta]))
+    remote = _registry(tmp_path, transport, RecordingVerifier())
+    remote.refresh()
+    mounts = tuple(
+        MountConfig(
+            id=mount,
+            label=mount.title(),
+            content_root=tmp_path / f"missing-{mount}",
+            url_prefix=f"/{mount}",
+            default=mount == "alpha",
+            source=MountSourceConfig(provider="remote-shard"),
+        )
+        for mount in ("alpha", "beta")
+    )
+    catalog = CatalogRegistry(
+        mounts,
+        repo_root=tmp_path,
+        app_root=tmp_path,
+        autodoc=False,
+        remote_shards=remote,
+        remote_resident_shard_entries=1,
+        remote_resident_shard_bytes=8 * 1024 * 1024,
+    )
+    alpha_catalog = _object_url(alpha, "catalog")
+    beta_catalog = _object_url(beta, "catalog")
+
+    assert alpha_catalog not in transport.calls
+    assert beta_catalog not in transport.calls
+    node = catalog.get("/alpha/guide/")
+
+    assert node is not None
+    assert node.node_id == "alpha:latest:guide"
+    assert alpha_catalog in transport.calls
+    assert beta_catalog not in transport.calls
+    status = catalog.remote_residency_status()
+    assert status["composed"]["resident_entries"] == 1
+    assert status["composed"]["resident_bytes"] <= status["composed"]["max_resident_bytes"]
+    health = catalog.source_health(mount="alpha")
+    assert health["mount_count"] == 1
+    assert health["mounts"][0]["status"] == "healthy"
+    assert {item["mount"] for item in health["remote_residency"]["objects"]["shards"]} == {"alpha"}
+    catalog.refresh_remote_shards()
+    refreshed = catalog.remote_residency_status()
+    assert refreshed["counter_scope"] == "process_lifetime"
+    assert refreshed["composed"]["loads"] == 1
+    assert refreshed["composed"]["resident_entries"] == 0
 
 
 def test_broken_publish_is_mount_local_and_previous_generation_can_be_pinned(
