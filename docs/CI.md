@@ -66,7 +66,11 @@ semantic changes and regenerate line-number-derived references before review.
 ## Branch gates and artifacts
 
 Pull requests always run the `fast` and `contract` jobs for early lint, unit,
-hypermedia, and diagnostic feedback. The fast job classifies the complete
+hypermedia, and diagnostic feedback. Draft pull requests stop there: coverage,
+browser, release, private-image, PDF, and Railway preview-controller work do
+not start until the pull request leaves draft state. Converting a pull request
+to draft publishes a removed preview report and skips queued preview work.
+The fast job classifies the complete
 base-to-head path diff and adds `coverage` for Python/test/coverage-policy
 changes, browser smoke for content/render/theme/browser changes, and `release`
 for source or packaging changes. Marking a draft ready for review forces all

@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   workflow_dispatch:
 
 permissions:
@@ -75,7 +75,9 @@ jobs:
   coverage:
     name: Core coverage ratchets
     needs: fast
-    if: needs.fast.outputs.coverage-required == 'true'
+    if: >-
+      needs.fast.outputs.coverage-required == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
@@ -114,7 +116,9 @@ jobs:
   browser:
     name: Author browser flows
     needs: fast
-    if: needs.fast.outputs.browser-required == 'true'
+    if: >-
+      needs.fast.outputs.browser-required == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -166,7 +170,9 @@ jobs:
   release:
     name: Package and CLI smoke
     needs: fast
-    if: needs.fast.outputs.release-required == 'true'
+    if: >-
+      needs.fast.outputs.release-required == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7.0.0
