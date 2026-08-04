@@ -41,6 +41,7 @@ from furatena.catalog.packaging import (
     prune_stale_files,
     validate_packaging_lifecycle,
 )
+from furatena.catalog.version_artifacts import public_versioned_mounts, versions_mount_url
 
 
 @dataclass(frozen=True, slots=True)
@@ -276,6 +277,17 @@ def _catalog_shard_routes(docs_app: DocsApp) -> tuple[str, ...]:
         if (route := catalog_shard_url(str(mount.id))) is not None
     }
     return tuple(sorted(routes))
+
+
+def _versions_mount_routes(docs_app: DocsApp) -> tuple[str, ...]:
+    """Return public Mike-array routes for each versioned mount."""
+    return tuple(
+        sorted(
+            route
+            for mount in public_versioned_mounts(docs_app.catalog)
+            if (route := versions_mount_url(str(mount.id))) is not None
+        )
+    )
 
 
 def _catalog_shard_fingerprint(
@@ -543,6 +555,7 @@ def _sidecar_routes() -> tuple[str, ...]:
         "/meta.json",
         "/surface.json",
         "/channels.json",
+        "/versions.json",
         "/deployment-profiles.json",
         "/inventories.json",
         "/routes.json",
@@ -716,6 +729,7 @@ async def _export_async(docs_app: DocsApp, options: StaticExportOptions) -> Stat
         *_sidecar_routes(),
         *_edition_sidecar_routes(docs_app),
         *_catalog_shard_routes(docs_app),
+        *_versions_mount_routes(docs_app),
     )
     try:
         client = _ExportClient(docs_app.create_app())

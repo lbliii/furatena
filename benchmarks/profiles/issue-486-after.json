@@ -1,0 +1,319 @@
+{
+  "corpus": {
+    "kind": "synthetic",
+    "mount_count": 1,
+    "page_count": 12,
+    "source_file_count": 12
+  },
+  "elapsed_seconds": 5.541068,
+  "environment": {
+    "cpu_count": 11,
+    "dependencies": {
+      "bengal-chirp": "0.9.0",
+      "chirp-ui": "0.11.0",
+      "furatena": "0.1.1",
+      "kida-templates": "0.11.0",
+      "milo-cli": "0.4.1",
+      "patitas": "0.4.0"
+    },
+    "free_threaded": true,
+    "gil_enabled": false,
+    "implementation": "CPython",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.14.2"
+  },
+  "methodology": {
+    "autodoc": false,
+    "clock": "time.perf_counter",
+    "cold_definition": "first operation on fresh state",
+    "repeats": 1,
+    "statistic": "median",
+    "wall_clock_policy": "informational across machines",
+    "warm_definition": "same operation repeated after one completed sample",
+    "workers": 1
+  },
+  "operations": {
+    "author_page_request": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 75.362541,
+          "samples": [
+            75.362541
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 22.497042,
+          "samples": [
+            22.497042
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "author_page_status": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 6.689292,
+          "samples": [
+            6.689292
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 6.705625,
+          "samples": [
+            6.705625
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "author_page_validation": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 110.82225,
+          "samples": [
+            110.82225
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 57.55275,
+          "samples": [
+            57.55275
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "docs_app_construction": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 198.716125,
+          "samples": [
+            198.716125
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "docs_validation": {
+      "profiled_phases_ms": {
+        "ast_roundtrip": 4.0625,
+        "body_link_boost": 0.503083,
+        "broken_internal_links": 0.479833,
+        "content_lint": 2.686916,
+        "cross_edition_links": 0.469541,
+        "dcp_schema": 14.709334,
+        "delivery_config": 0.011041,
+        "directive_manifest": 0.5525,
+        "directive_template_hrefs": 0.694458,
+        "front_matter": 0.025458,
+        "lifecycle": 11.38,
+        "rendering_heads": 0.04425,
+        "theme_assets": 44.399167,
+        "unresolved_references": 0.022333,
+        "view_config": 0.007958,
+        "view_templates": 846.676667
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 345.659541,
+          "samples": [
+            345.659541
+          ],
+          "unit": "ms"
+        }
+      }
+    },
+    "startup_contract_checks": {
+      "cold": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 1,
+            "samples": [
+              1
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 2925.61125,
+          "samples": [
+            2925.61125
+          ],
+          "unit": "ms"
+        }
+      },
+      "warm": {
+        "call_counts": {
+          "full_validation_calls": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          },
+          "secondary_docs_app_constructions": {
+            "median": 0,
+            "samples": [
+              0
+            ],
+            "unit": "calls"
+          }
+        },
+        "timing_ms": {
+          "median": 598.784958,
+          "samples": [
+            598.784958
+          ],
+          "unit": "ms"
+        }
+      }
+    }
+  },
+  "profile": "author-runtime",
+  "schema_version": 1
+}

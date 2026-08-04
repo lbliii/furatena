@@ -41,6 +41,7 @@ default to `anonymous`, apply actor, tenant, burst, and sensitive-tool limits pl
 | `retrieve_node` | `node_id` | `node_id` | `node_id`, `chunks`, `backlinks`, `api_operation` | Retrieve one accessible catalog node and its context. |
 | `query_graph` | none | `edge`, `edge_kind`, `format`, `from`, `include_private`, `kind`, `lang`, `limit`, `link_edge`, `linked_from`, `linked_to`, `locale`, `mount`, `offset`, `owner`, `source`, `tag`, `target`, `team`, `to` | `query`, `page_count`, `edge_count`, `total`, `edge_total`, `limit`, `offset`, `next_offset`, `pages`, `edges`, `graph_nodes` | Filter and paginate pages plus their DCP edges; private inclusion is bounded by session policy. |
 | `traverse_graph` | none | `direction`, `limit`, `node_id`, `url` | `node`, `direction`, `results` | Traverse `neighbors`, `backlinks`, `children`, or `outbound`; limit is 1–100. |
+| `diff_content_ir` | `from_edition`, `to_edition` | `from_edition`, `include_eol`, `limit`, `mount`, `offset`, `slug`, `to_edition` | `schema_version`, `ok`, `kind`, `mount`, `from`, `to`, `query`, `summary`, `total`, `limit`, `offset`, `next_offset`, `page`, `changes`, `pages` | Compare normalized Content IR for one logical page or a mount rollup across two explicit editions; rendered HTML is excluded. |
 | `inspect_source_health` | none | `mount` | `mount_count`, `mounts` | Return source sync, index, file, page, and channel health per mount. |
 | `run_checks` | none | none | `ok`, `errors`, `warnings` | Run content, link, schema, theme, and view checks. |
 | `explain_stale_impact` | none | `slug` | `stale_count`, `entries`, `impact`, `repair_tasks`, `task_markdown` | Explain stale graph/search/export impact and produce repair tasks. |
@@ -142,6 +143,7 @@ preserve room for additional pages without changing the public prefix.
 |---|---|---|
 | `/catalog.json` | `json` | Catalog/DCP graph with schema version, pages, edges, and graph nodes. |
 | `/catalog/api-operations.json` | `json` | `schema_version`, operation count, and API `operations`. |
+| `/catalog/diff` | `json` | Paginated structural Content IR page diff or mount rollup across two explicit editions. |
 | `/catalog/artifacts.json` | `json` | Freeze/export presence, manifest validity, generation time, age, upstream freshness, counts, and paths. |
 | `/catalog/freshness.json` | `json` | Source, index, freeze, and export freshness signals plus remediation. |
 | `/catalog/mounts/{mount_id}` | `json` | One mount-scoped catalog shard for live HTTP and static export consumers. |
@@ -172,6 +174,8 @@ preserve room for additional pages without changing the public prefix.
 | `/structure.json` | `json` | Content-IR heading/directive structure keyed by public node. |
 | `/surface.json` | `json` | Product-surface manifest and linked machine-readable URLs. |
 | `/tools.json` | `json` | Agent tool descriptors, schemas, and API-operation discovery metadata. |
+| `/versions.json` | `json` | Mount-keyed edition discovery hub for version-aware consumers. |
+| `/versions/mounts/{mount_id}` | `json` | Mike-compatible edition array for one public versioned mount. |
 
 The mount-shard contract is inventoried as both
 `route:GET /catalog/mounts/{mount_id}` and
@@ -283,9 +287,9 @@ requires admin regardless of lifecycle state. Request arguments cannot choose
 their effective actor, roles, or teams.
 
 Anonymous export permission is applied consistently to browser/static routes,
-`/catalog.json`, `/catalog/api-operations.json`, `/search.json`, `/tools.json`,
-`/meta.json`, `/structure.json`, `/llms.txt`, `/llms-full.txt`, `/sitemap.xml`,
-`/index.txt`, MCP resources, retrieval, graph traversal, and semantic search.
+`/catalog.json`, `/catalog/api-operations.json`, `/catalog/diff`, `/search.json`, `/tools.json`,
+`/meta.json`, `/structure.json`, `/versions.json`, `/llms.txt`, `/llms-full.txt`,
+`/sitemap.xml`, `/index.txt`, MCP resources, retrieval, graph traversal, and semantic search.
 `include_private=true` is an author inspection capability, never a public export
 setting. GitHub Pages and unauthenticated sessions always fail closed.
 

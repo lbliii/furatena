@@ -6,6 +6,6 @@
   "expires_at": "2035-01-01T00:00:00Z",
   "output": {"kind": "repository_change", "target": "product-docs", "environment": "review"},
   "decisions": [{"decision": "approve", "actor": "reviewer@example.com", "reason": "Protected branch review passed."}],
-  "transitions": ["validating", "reviewable", "awaiting_approval", "approved", "executing", "applied"],
+  "transitions": ["validating", "reviewable", "awaiting_approval", "approved", "executing", "reviewable", "approved", "executing", "applied"],
   "expected_state": "applied"
 }

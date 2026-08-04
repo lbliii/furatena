@@ -22,6 +22,15 @@ class DocChannel:
     default: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class DocChannelTarget:
+    """Resolved switch target for one edition of the current mount."""
+
+    href: str
+    resolution: str
+    resolved_slug: str
+
+
 def active_channel_id() -> str:
     """Active channel from ``FURA_CHANNEL`` (default ``latest``)."""
     return os.environ.get("FURA_CHANNEL", "latest").strip() or "latest"
@@ -91,20 +100,126 @@ def channel_href(channel_id: str) -> str:
     return edition_path("/docs/", channel_id)
 
 
+def _channel_status(catalog: Any, mount_id: str, channel_id: str) -> str:
+    if channel_id == "latest":
+        return "current"
+    discovered = getattr(catalog, "discovered_editions_for", None)
+    if not callable(discovered):
+        return ""
+    snapshot = next(
+        (item for item in discovered(mount_id) if getattr(item, "id", "") == channel_id),
+        None,
+    )
+    return str(getattr(snapshot, "status", "") or "")
+
+
+def _public_candidate(catalog: Any, node: Any) -> bool:
+    can_access = getattr(catalog, "can_access_node", None)
+    return not callable(can_access) or bool(can_access(node))
+
+
+def _scoped_node_url(catalog: Any, node: Any) -> str:
+    scoped_url = getattr(catalog, "scoped_url", None)
+    return scoped_url(node.url) if callable(scoped_url) else str(node.url)
+
+
+def _mount_landing_path(catalog: Any, mount_id: str, channel_id: str) -> str | None:
+    from furatena.catalog.edition_routing import edition_path
+
+    mount = next(
+        (item for item in getattr(catalog, "mounts", ()) if getattr(item, "id", "") == mount_id),
+        None,
+    )
+    if mount is None:
+        return None
+    return edition_path(str(getattr(mount, "url_prefix", "") or "/"), channel_id)
+
+
+def resolve_channel_target(
+    catalog: Any,
+    node: Any,
+    channel_id: str,
+) -> DocChannelTarget | None:
+    """Resolve a page within a sibling edition without crossing mount boundaries."""
+    mount_id = str(node.mount)
+    if (
+        channel_id != catalog.active_channel
+        and _channel_status(catalog, mount_id, channel_id) == "eol"
+    ):
+        return None
+
+    if channel_id == catalog.active_channel:
+        return DocChannelTarget(
+            href=_scoped_node_url(catalog, node),
+            resolution="direct",
+            resolved_slug=str(node.slug),
+        )
+
+    with catalog.use_edition(channel_id):
+        candidate = catalog.get_by_slug(node.slug, mount=mount_id)
+        if candidate is not None and _public_candidate(catalog, candidate):
+            return DocChannelTarget(
+                href=_scoped_node_url(catalog, candidate),
+                resolution="direct",
+                resolved_slug=str(candidate.slug),
+            )
+
+        parts = [part for part in str(node.slug).strip("/").split("/") if part]
+        for end in range(len(parts) - 1, 0, -1):
+            ancestor_slug = "/".join(parts[:end])
+            candidate = catalog.get_by_slug(ancestor_slug, mount=mount_id)
+            if candidate is not None and _public_candidate(catalog, candidate):
+                return DocChannelTarget(
+                    href=_scoped_node_url(catalog, candidate),
+                    resolution="ancestor",
+                    resolved_slug=str(candidate.slug),
+                )
+
+        landing_path = _mount_landing_path(catalog, mount_id, channel_id)
+        if landing_path is None:
+            return None
+        candidate = catalog.get_path(landing_path)
+        if candidate is None or not _public_candidate(catalog, candidate):
+            return None
+        return DocChannelTarget(
+            href=_scoped_node_url(catalog, candidate),
+            resolution="landing",
+            resolved_slug=str(candidate.slug),
+        )
+
+
 def channel_context(
     channels: tuple[DocChannel, ...],
     active_id: str,
+    *,
+    catalog: Any | None = None,
+    node: Any | None = None,
 ) -> dict[str, Any]:
     """Template context for a version switcher."""
-    return {
-        "doc_channels": [
+    channel_records: list[dict[str, Any]] = []
+    for channel in channels:
+        target = (
+            resolve_channel_target(catalog, node, channel.id)
+            if catalog is not None and node is not None
+            else DocChannelTarget(
+                href=channel_href(channel.id),
+                resolution="landing",
+                resolved_slug="",
+            )
+        )
+        if target is None:
+            continue
+        channel_records.append(
             {
-                "id": ch.id,
-                "label": ch.label,
-                "active": ch.id == active_id,
-                "href": channel_href(ch.id),
+                "id": channel.id,
+                "label": channel.label,
+                "active": channel.id == active_id,
+                "href": target.href,
+                "resolution": target.resolution,
+                "resolved_slug": target.resolved_slug,
             }
-            for ch in channels
-        ],
+        )
+    return {
+        "doc_channels": channel_records,
         "active_channel": active_id,
     }

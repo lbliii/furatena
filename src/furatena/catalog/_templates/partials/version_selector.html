@@ -9,10 +9,19 @@
     {% for ch in doc_channels %}
     <option value="{{ ch.href }}"
             data-channel="{{ ch.id }}"
+            data-resolution="{{ ch.resolution }}"
+            data-resolved-slug="{{ ch.resolved_slug }}"
             {% if ch.active %}selected{% end %}>
       {{ ch.label }}{% if ch.id == 'latest' %} (Latest){% end %}
     </option>
     {% endfor %}
   </select>
+  {% for ch in doc_channels %}
+  <a href="{{ ch.href }}"
+     data-docs-version-target="{{ ch.id }}"
+     hidden
+     aria-hidden="true"
+     tabindex="-1"{{ route_link_attrs(ch.href) | html_attrs }}></a>
+  {% endfor %}
 </div>
 {% end %}

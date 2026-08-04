@@ -226,6 +226,16 @@ for Docker-image templates, the service exposes its image version/channel in
 operational metadata and maintainers publish update notices through the template
 support channel and public release feed. Adopters explicitly apply a new digest.
 
+The public feed is `https://github.com/lbliii/furatena/releases.atom`. Each
+stable `image-v<version>` entry attaches a schema-validated
+`image-record.json`; digest-named deprecation assets and immutable
+`image-revoked-<digest>` entries carry support windows and emergency
+remediation. Promotion checks the revocation entries before accepting a digest.
+The record pins a distinct last-known-good rollback digest and links the exact
+source revision's compatibility, content/config contract, changelog, migration,
+and support statements. The release tag remains discovery metadata, never
+deployment identity.
+
 ## Health and no-SSH operations
 
 Protected private-image services cannot rely on deployer SSH. All required

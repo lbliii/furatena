@@ -61,6 +61,12 @@ from furatena.catalog.renderer_fingerprint import (
 from furatena.catalog.seo import docs_base_url
 from furatena.catalog.structure_index import build_structure_index
 from furatena.catalog.vendor_paths import VENDOR_FILES, vendor_dir
+from furatena.catalog.version_artifacts import (
+    public_versioned_mounts,
+    versions_for_mount,
+    versions_manifest,
+    versions_mount_path,
+)
 from furatena.catalog.workers import resolve_workers
 
 
@@ -98,6 +104,44 @@ class FreezeCatalogResult:
 
 def _compact_json(payload: object) -> str:
     return json.dumps(payload, separators=(",", ":")) + "\n"
+
+
+def _write_version_artifacts(
+    out_dir: Path,
+    registry: CatalogRegistry,
+    *,
+    base_url: str,
+) -> tuple[list[str], bool]:
+    """Refresh version artifacts and report whether their public bytes changed."""
+    payloads = {"versions.json": _compact_json(versions_manifest(registry, base_url=base_url))}
+    mount_paths: list[str] = []
+    for mount in public_versioned_mounts(registry):
+        relative_path = versions_mount_path(str(mount.id))
+        if relative_path is None:
+            continue
+        relative = relative_path.as_posix()
+        payloads[relative] = _compact_json(
+            versions_for_mount(registry, mount.id, base_url=base_url)
+        )
+        mount_paths.append(relative)
+
+    versions_root = out_dir / "versions" / "mounts"
+    existing = {
+        path.relative_to(out_dir).as_posix()
+        for path in versions_root.glob("*.json")
+        if path.is_file()
+    }
+    stale = existing - payloads.keys()
+    changed = bool(stale)
+    for relative, body in payloads.items():
+        target = out_dir / relative
+        previous = target.read_text(encoding="utf-8") if target.is_file() else None
+        changed = changed or previous != body
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body, encoding="utf-8")
+    for relative in stale:
+        (out_dir / relative).unlink()
+    return mount_paths, changed
 
 
 def _write_frozen_page(
@@ -471,6 +515,12 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         edition_status=edition_status,
     )
 
+    version_artifact_paths, versions_changed = _write_version_artifacts(
+        out_dir,
+        registry,
+        base_url=base,
+    )
+
     required_agent_sidecars = (
         "catalog.json",
         "search.json",
@@ -483,11 +533,13 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         "structure.json",
         "surface.json",
         "deployment-profiles.json",
+        "versions.json",
         "channels.json",
     )
     if not failed_mounts and (
         mounts_to_freeze
         or frozen_editions
+        or versions_changed
         or any(not (out_dir / path).is_file() for path in required_agent_sidecars)
     ):
         merged_graph = catalog_graph(registry)
@@ -565,6 +617,7 @@ def _freeze_catalog_locked(options: FreezeCatalogOptions) -> FreezeCatalogResult
         )
         _freeze_inventories(registry, out_dir)
         artifact_paths = [*required_agent_sidecars[:-1]]
+        artifact_paths.extend(version_artifact_paths)
         artifact_paths.extend(
             route_path.as_posix()
             for mount in registry.mounts
