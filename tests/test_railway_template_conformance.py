@@ -94,6 +94,8 @@ def test_public_content_starter_has_realistic_owned_content_and_operations_guida
         "image digest",
     ):
         assert required in readme
+    assert readme.count("## publish content") == 1
+    assert "the current empty-body request" not in readme
 
 
 def test_public_content_starter_uses_packaged_presentation_and_owned_branding() -> None:
