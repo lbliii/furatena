@@ -115,3 +115,6 @@ schemas before acting on them.
 
 Runtime enforcement, deployment variables, authentication instructions, and
 the threat model are documented in [Pull-request preview security](PR_PREVIEW_SECURITY.md).
+The provider-neutral reviewer authorization wire protocol is specified
+separately in [Preview authorization protocol v1](PREVIEW_AUTH_V1.md); it does
+not alter the deployment-provider lifecycle records on this page.

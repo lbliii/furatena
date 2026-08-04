@@ -251,6 +251,51 @@ def test_dev_server_port_conflict_is_actionable_and_never_ready(
     assert "Ready" not in output
 
 
+@pytest.mark.parametrize(
+    ("reload_src", "expected_reload"),
+    [(None, False), ("1", True)],
+)
+def test_pounce_process_reload_is_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    reload_src: str | None,
+    expected_reload: bool,
+) -> None:
+    import chirp.server.dev
+
+    source_dir = tmp_path / "src" / "furatena"
+    source_dir.mkdir(parents=True)
+    if reload_src is None:
+        monkeypatch.delenv("FURA_RELOAD_SRC", raising=False)
+    else:
+        monkeypatch.setenv("FURA_RELOAD_SRC", reload_src)
+    app = SimpleNamespace(
+        config=SimpleNamespace(host="127.0.0.1", port=8001, debug=True),
+        _ensure_frozen=lambda: None,
+    )
+    docs = SimpleNamespace(
+        app=app,
+        config=SimpleNamespace(root=tmp_path),
+        repo_root=tmp_path,
+    )
+    observed: dict[str, object] = {}
+
+    def capture_reload(
+        _app: object,
+        _host: str,
+        _port: int,
+        **options: object,
+    ) -> None:
+        observed.update(options)
+
+    monkeypatch.setattr(chirp.server.dev, "run_dev_server", capture_reload)
+    run_docs_dev_server(cast(Any, docs))
+
+    assert observed["reload"] is expected_reload
+    assert observed["reload_include"] == ()
+    assert observed["reload_dirs"] == ((str(source_dir.resolve()),) if expected_reload else ())
+
+
 def test_interrupted_dev_startup_is_quiet(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

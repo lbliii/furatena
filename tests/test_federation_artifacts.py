@@ -14,6 +14,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from furatena.catalog.federation_artifacts import (
+    MAX_PRESENTATION_BYTES,
     federation_hub_manifest_digest,
     hub_payload_digest,
     inventory_digest,
@@ -79,6 +80,49 @@ def _replace_identity_object(
     shard["totals"]["encoded_bytes"] = sum(record["encoded_size"] for record in shard["inventory"])
     shard["integrity"]["inventory_sha256"] = inventory_digest(shard["inventory"])
     _readdress(shard)
+
+
+def _refresh_inventory(shard: dict[str, Any]) -> None:
+    roles = [item["role"] for item in shard["inventory"]]
+    shard["totals"] = {
+        "object_count": len(shard["inventory"]),
+        "fragment_count": roles.count("fragment"),
+        "presentation_count": roles.count("presentation"),
+        "uncompressed_bytes": sum(item["uncompressed_size"] for item in shard["inventory"]),
+        "encoded_bytes": sum(item["encoded_size"] for item in shard["inventory"]),
+    }
+    shard["integrity"]["inventory_sha256"] = inventory_digest(shard["inventory"])
+    _readdress(shard)
+
+
+def _replace_presentation(
+    artifact: Path,
+    shard: dict[str, Any],
+    decoded: bytes,
+    *,
+    encoding: str = "identity",
+    declared_size: int | None = None,
+) -> dict[str, Any]:
+    item = next(record for record in shard["inventory"] if record["role"] == "presentation")
+    old_path = artifact / item["object_url"]
+    encoded = zstd.compress(decoded) if encoding == "zstd" else decoded
+    digest = _digest(encoded)
+    suffix = ".html.zst" if encoding == "zstd" else ".html"
+    new_url = f"objects/sha256/{digest}{suffix}"
+    old_path.unlink()
+    (artifact / new_url).write_bytes(encoded)
+    item.update(
+        {
+            "object_url": new_url,
+            "content_encoding": encoding,
+            "uncompressed_size": len(decoded) if declared_size is None else declared_size,
+            "encoded_size": len(encoded),
+            "sha256": _digest(decoded),
+            "encoded_sha256": digest,
+        }
+    )
+    _refresh_inventory(shard)
+    return item
 
 
 def test_golden_published_shard_and_hub_pair_validate() -> None:
@@ -231,7 +275,8 @@ def test_public_object_set_rejects_restricted_records_and_index_drift(tmp_path: 
     assert any("unsafe source_path" in item for item in errors)
     assert any("unsafe page URL" in item for item in errors)
 
-    shutil.copytree(ARTIFACT_ROOT, artifact, dirs_exist_ok=True)
+    shutil.rmtree(artifact)
+    shutil.copytree(ARTIFACT_ROOT, artifact)
     shard = _json(artifact / "manifest.json")
     search = next(item for item in shard["inventory"] if item["role"] == "search")
     search_path = artifact / search["object_url"]
@@ -244,6 +289,162 @@ def test_public_object_set_rejects_restricted_records_and_index_drift(tmp_path: 
 
     errors = validate_published_shard_manifest(shard, artifact_root=artifact)
     assert any("search node set does not match" in item for item in errors)
+
+
+def test_presentations_are_required_unique_and_paired_by_node_identity() -> None:
+    shard = _json(SHARD_MANIFEST)
+
+    missing = copy.deepcopy(shard)
+    missing["inventory"] = [item for item in missing["inventory"] if item["role"] != "presentation"]
+    _refresh_inventory(missing)
+    assert any("presentation" in item for item in validate_published_shard_manifest(missing))
+
+    duplicate = copy.deepcopy(shard)
+    presentation = next(item for item in duplicate["inventory"] if item["role"] == "presentation")
+    repeated = copy.deepcopy(presentation)
+    repeated["encoded_sha256"] = "c" * 64
+    repeated["object_url"] = f"objects/sha256/{'c' * 64}.html"
+    duplicate["inventory"].append(repeated)
+    duplicate["inventory"].sort(key=lambda item: item["logical_path"])
+    _refresh_inventory(duplicate)
+    duplicate_errors = validate_published_shard_manifest(duplicate)
+    assert any("duplicate presentation node_id" in item for item in duplicate_errors)
+
+    crossed = copy.deepcopy(shard)
+    crossed_presentation = next(
+        item for item in crossed["inventory"] if item["role"] == "presentation"
+    )
+    crossed_presentation["node_id"] = "chirp:0.10.3:other"
+    _refresh_inventory(crossed)
+    crossed_errors = validate_published_shard_manifest(crossed)
+    assert any("logical_path must be" in item for item in crossed_errors)
+    assert any("node_id sets must match" in item for item in crossed_errors)
+
+
+def test_per_node_paths_media_types_and_singleton_identity_are_exact() -> None:
+    shard = _json(SHARD_MANIFEST)
+
+    wrong_path = copy.deepcopy(shard)
+    fragment = next(item for item in wrong_path["inventory"] if item["role"] == "fragment")
+    fragment["logical_path"] = "fragments/nodes/guide.json"
+    _refresh_inventory(wrong_path)
+    assert any(
+        "logical_path must be" in item for item in validate_published_shard_manifest(wrong_path)
+    )
+
+    wrong_media = copy.deepcopy(shard)
+    presentation = next(item for item in wrong_media["inventory"] if item["role"] == "presentation")
+    presentation["media_type"] = "application/json"
+    presentation["object_url"] = presentation["object_url"].replace(".html", ".json")
+    _refresh_inventory(wrong_media)
+    wrong_media_errors = validate_published_shard_manifest(wrong_media)
+    assert any("text/html" in item for item in wrong_media_errors)
+
+    singleton_identity = copy.deepcopy(shard)
+    catalog = next(item for item in singleton_identity["inventory"] if item["role"] == "catalog")
+    catalog["node_id"] = "chirp:0.10.3:guide"
+    _refresh_inventory(singleton_identity)
+    assert any("node_id" in item for item in validate_published_shard_manifest(singleton_identity))
+
+
+@pytest.mark.parametrize(
+    "markup",
+    (
+        b"<script>alert(1)</script>",
+        b"<iframe src='https://example.com'></iframe>",
+        b"<object data='/x'></object><embed src='/y'><base href='/'>",
+        b"<meta http-equiv='refresh' content='0;url=/private'>",
+        b"<p onclick='run()'>unsafe</p>",
+        b"<iframe srcdoc='<p>hidden</p>'></iframe>",
+        b"<form action='/write'><button formaction='/write'>write</button></form>",
+        b"<a hx-get='/private'>load</a><p data-hx-post='/write'>write</p>",
+        b"<div x-data='{}'><button @click='run()' :class='active'>run</button></div>",
+        b"<p data-action='click->controller#run' data-controller='controller'>run</p>",
+        b"<a href='java&#x73;cript:alert(1)'>unsafe</a>",
+        b"<a href='java&#x0a;script:alert(1)'>unsafe</a>",
+        b"<a href='java\x00script:alert(1)'>unsafe</a>",
+        b"<a href='vbscript:msgbox(1)'>unsafe</a><a href='file:///etc/passwd'>file</a>",
+        b"<a href='blob:https://example.com/id'>blob</a><a href='//example.com/x'>network</a>",
+        b"<img src='data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='>",
+        b"<img src='data:image/png;base64,aGVsbG8='>",
+        b"<p style='background:url(javascript:alert(1))'>unsafe</p>",
+        b"<link rel='stylesheet' href='/active.css'><audio autoplay src='/active.mp3'></audio>",
+        b"<svg><foreignObject><p>foreign</p></foreignObject><animate attributeName='x'/></svg>",
+    ),
+)
+def test_presentation_parser_rejects_active_markup_and_unsafe_urls(
+    tmp_path: Path, markup: bytes
+) -> None:
+    artifact = tmp_path / "artifact"
+    shutil.copytree(ARTIFACT_ROOT, artifact)
+    shard = _json(artifact / "manifest.json")
+    _replace_presentation(artifact, shard, markup)
+
+    errors = validate_published_shard_manifest(shard, artifact_root=artifact)
+    assert any("inert HTML" in item for item in errors)
+
+
+def test_presentation_requires_utf8_but_safe_data_images_remain_inert(tmp_path: Path) -> None:
+    artifact = tmp_path / "artifact"
+    shutil.copytree(ARTIFACT_ROOT, artifact)
+    shard = _json(artifact / "manifest.json")
+    _replace_presentation(artifact, shard, b"<p>\xff</p>")
+    assert any(
+        "not valid UTF-8" in item
+        for item in validate_published_shard_manifest(shard, artifact_root=artifact)
+    )
+
+    shutil.rmtree(artifact)
+    shutil.copytree(ARTIFACT_ROOT, artifact)
+    shard = _json(artifact / "manifest.json")
+    _replace_presentation(
+        artifact,
+        shard,
+        b"<article><a href='../guide'>Relative</a><a href='https://example.com/x'>HTTPS</a>"
+        b"<a href='http://example.com/x'>HTTP</a><a href='mailto:docs@example.com'>Mail</a>"
+        b"<img src='data:image/png;base64,iVBORw0KGgo='><p>Unrelated prose.</p></article>",
+    )
+    assert validate_published_shard_manifest(shard, artifact_root=artifact) == []
+
+
+def test_presentation_encoded_and_decoded_bounds_are_enforced_before_promotion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact = tmp_path / "artifact"
+    shutil.copytree(ARTIFACT_ROOT, artifact)
+    shard = _json(artifact / "manifest.json")
+    presentation = next(item for item in shard["inventory"] if item["role"] == "presentation")
+    presentation_path = artifact / presentation["object_url"]
+    with presentation_path.open("wb") as stream:
+        stream.truncate(shard["layout"]["max_object_bytes"] + 1)
+    original_open = Path.open
+
+    def guarded_open(path: Path, *args: Any, **kwargs: Any):
+        if path == presentation_path:
+            raise AssertionError("oversized presentation must be rejected before open")
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", guarded_open)
+    encoded_errors = validate_published_shard_manifest(shard, artifact_root=artifact)
+    assert any(
+        "encoded object exceeds max_object_bytes before read" in item for item in encoded_errors
+    )
+
+    monkeypatch.setattr(Path, "open", original_open)
+    shutil.copytree(ARTIFACT_ROOT, artifact, dirs_exist_ok=True)
+    shard = _json(artifact / "manifest.json")
+    bomb = b"<p>" + b"x" * MAX_PRESENTATION_BYTES + b"</p>"
+    _replace_presentation(
+        artifact,
+        shard,
+        bomb,
+        encoding="zstd",
+        declared_size=MAX_PRESENTATION_BYTES,
+    )
+    decoded_errors = validate_published_shard_manifest(shard, artifact_root=artifact)
+    assert any(
+        f"decoded object exceeds {MAX_PRESENTATION_BYTES} bytes" in item for item in decoded_errors
+    )
 
 
 def test_zstd_object_verification_is_lazy_and_memory_bounded(tmp_path: Path) -> None:
