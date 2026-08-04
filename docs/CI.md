@@ -70,7 +70,9 @@ hypermedia, and diagnostic feedback. Draft pull requests stop there: coverage,
 browser, release, private-image, PDF, and Railway preview-controller work do
 not start until the pull request leaves draft state. Converting a pull request
 to draft publishes a removed preview report and skips queued preview work.
-The fast job classifies the complete
+Each pull request uses one workflow concurrency group keyed by PR number so a
+new push cancels superseded untrusted work without touching trusted main
+publication or image lifecycle runs. The fast job classifies the complete
 base-to-head path diff and adds `coverage` for Python/test/coverage-policy
 changes, browser smoke for content/render/theme/browser changes, and `release`
 for source or packaging changes. Marking a draft ready for review forces all

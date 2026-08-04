@@ -88,8 +88,13 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
 
 concurrency:
-  group: private-image-${{ github.event_name == 'workflow_dispatch' && inputs.operation != 'candidate' && 'lifecycle' || github.sha }}
-  cancel-in-progress: false
+  group: >-
+    ${{ github.event_name == 'pull_request' &&
+    format('private-image-pr-{0}', github.event.pull_request.number) ||
+    github.event_name == 'workflow_dispatch' && inputs.operation != 'candidate' &&
+    'private-image-lifecycle' ||
+    format('private-image-{0}', github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   pull-request:

@@ -63,3 +63,29 @@ def test_preview_reporting_skips_railway_on_drafts_and_removes_on_conversion() -
     preview_state = report["env"]["PREVIEW_STATE"]
     assert "converted_to_draft" in preview_state
     assert "'removed'" in preview_state
+
+
+def test_pull_request_workflows_cancel_superseded_runs_by_pr_number() -> None:
+    pages = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "pages.yml").read_text(encoding="utf-8")
+    )
+    private_image = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "private-image.yml").read_text(encoding="utf-8")
+    )
+    pdf_proof = yaml.safe_load(
+        (REPO / ".github" / "workflows" / "pdf-proof.yml").read_text(encoding="utf-8")
+    )
+
+    for workflow, prefix in (
+        (pages, "pages-pr-"),
+        (private_image, "private-image-pr-"),
+        (pdf_proof, "pdf-proof-pr-"),
+    ):
+        concurrency = workflow["concurrency"]
+        assert "github.event.pull_request.number" in concurrency["group"]
+        assert prefix in concurrency["group"]
+        assert concurrency["cancel-in-progress"] == "${{ github.event_name == 'pull_request' }}"
+
+    lifecycle = private_image["concurrency"]
+    assert "private-image-lifecycle" in lifecycle["group"]
+    assert "github.sha" in lifecycle["group"]
