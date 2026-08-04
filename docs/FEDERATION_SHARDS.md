@@ -229,3 +229,84 @@ and independently versioned.
 No failure permits HTML fallback, re-indexing an untrusted remote source, a
 partial cache promotion, or publication of a locally repaired artifact under
 the upstream fingerprint.
+
+## Publishing a repository shard
+
+`fura publish-shard` is the CI entry point for one immutable release edition.
+It runs the normal freeze, derives the catalog, search, semantic, and per-node
+fragment objects, validates the complete local v1 artifact, uploads only
+missing content addresses, and reads every remote object back through a
+bounded stream. It creates `manifest.json` last with a create-only write. An
+identical manifest is an idempotent no-op; different bytes at an immutable key
+are a conflict. Authentication, partial-upload, and conflict failures use the
+stable diagnostic rule IDs `fura.publish_shard.auth`,
+`fura.publish_shard.partial`, and `fura.publish_shard.conflict` and return a
+nonzero exit.
+
+The verification input contains detached material produced by the repository's
+trusted CI signing and provenance steps. `publish-shard` binds each record to
+the computed fingerprint; it does not mint signing identities or credentials.
+The mount must opt into immutable tag editions so the freeze produces the
+64-character source-shard fingerprint and peeled source commit required by v1:
+
+```yaml
+# mounts.yaml
+mounts:
+  - id: docs
+    label: Product docs
+    default: true
+    source:
+      provider: git
+      repo: https://github.com/acme/docs.git
+      ref: main
+      path: docs
+    editions:
+      source: tags
+      count: 10
+```
+
+For example, `federation-verification.json` is:
+
+```json
+{
+  "signatures": [{
+    "kind": "sigstore-bundle",
+    "url": "https://artifacts.example.com/signatures/docs.sigstore.json",
+    "sha256": "<64 lowercase hex characters>",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "identity": "https://github.com/acme/docs/.github/workflows/publish.yml@refs/tags/v1.2.3"
+  }],
+  "attestations": [{
+    "predicate_type": "https://slsa.dev/provenance/v1",
+    "url": "https://artifacts.example.com/attestations/docs.slsa.json",
+    "sha256": "<64 lowercase hex characters>"
+  }]
+}
+```
+
+S3-compatible credentials use the standard `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN` environment
+variables. A tag workflow can publish and retain the exact hub `shards[key]`
+entry as follows:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0 # edition discovery needs the release tags
+- name: Publish public docs shard
+  env:
+    AWS_ACCESS_KEY_ID: ${{ secrets.SHARD_ACCESS_KEY_ID }}
+    AWS_SECRET_ACCESS_KEY: ${{ secrets.SHARD_SECRET_ACCESS_KEY }}
+  run: |
+    uv run fura publish-shard --mount docs --edition "${GITHUB_REF_NAME#v}" \
+      --public-base-url https://objects.example.com/docs/shards \
+      --verification federation-verification.json \
+      --s3-endpoint https://objects.example.com --s3-bucket docs \
+      --hub-entry-output shard-entry.json --json
+```
+
+The bucket's public route must expose the configured object prefix beneath the
+same public base URL. GitHub Release assets are not a direct-serving v1 backend:
+release assets have flat names, while v1 requires nested relative object URLs
+under `/sha256/<fingerprint>/`. A future mirror/gateway or a new artifact major
+is required before that backend can claim reader compatibility.

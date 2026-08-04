@@ -456,6 +456,32 @@ Command parser contract.
 | `--state-root` | yes | — | — | — | Private durable publication-promotion state directory |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
+### `fura publish-shard`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--mount` | yes | — | — | — | Public mount id |
+| `--edition` | yes | — | — | — | Frozen release edition id |
+| `--public-base-url` | yes | — | — | — | Public HTTPS prefix immediately above the sha256 object-set directory |
+| `--repository-url` | no | — | — | — | Optional assertion against the repository URL recorded by the freeze |
+| `--verification` | yes | — | — | — | JSON containing signature and attestation references for the shard fingerprint |
+| `--s3-endpoint` | yes | — | — | — | S3-compatible HTTPS endpoint |
+| `--s3-bucket` | yes | — | — | — | S3 bucket |
+| `--s3-prefix` | no | `shards` | — | — | Object key prefix |
+| `--s3-region` | no | `us-east-1` | — | — | SigV4 region |
+| `--frozen-dir` | no | — | — | — | Freeze output directory |
+| `--full` | no | false | — | — | Force a full freeze |
+| `--workers` | no | — | — | `int` | Parallel freeze workers |
+| `--lifecycle-status` | no | `legacy` | `legacy`, `deprecated`, `preview`, `eol` | — | Immutable release lifecycle status |
+| `--release-date` | no | — | — | — | ISO release date |
+| `--end-of-life` | no | — | — | — | ISO end-of-life date |
+| `--retention-days` | no | `365` | — | `int` | Minimum retention |
+| `--pinned-by` | no | `hub:public-docs` | — | — | Retention pin |
+| `--hub-entry-output` | no | — | — | — | Write exact hub shards[key] JSON |
+| `--json` | no | false | — | — | Emit standard command result JSON |
+
 ### `fura query`
 
 Command parser contract.
