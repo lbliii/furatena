@@ -100,16 +100,21 @@ Run **Publish proprietary image** manually with:
   adopter action is required.
 
 The protected `private-image-production` environment supplies the human gate.
-The lifecycle job first proves the subject still exists in GHCR, then writes a
-stable record and creates `image-v<version>` with that record as an asset. It
-does not invoke Docker build. Never reuse a commercial version or move its
-release tag to a different commit.
+The lifecycle job first checks the exact digest-named revocation release, then
+proves the subject still exists in GHCR. It accepts only provenance signed by
+this repository's private-image workflow on a GitHub-hosted runner, from the
+submitted source commit on `main`. It then writes a stable record and creates
+`image-v<version>` with that record as an asset. It does not invoke Docker
+build. Never reuse a commercial version or move its release tag to a different
+commit. A failed or unavailable revocation lookup or attestation check blocks
+promotion rather than treating the digest as eligible.
 
 The stable record includes the exact image and rollback subjects, compatibility
 statement, supported content/config contract version and source-revision URLs,
 changelog URL, migration notes, and support-policy URL. Promotion rejects a
 rollback digest equal to the candidate digest and rejects any digest already
-listed by an immutable revocation release.
+listed by its exact immutable revocation release; the lookup does not depend on
+a bounded recent-release listing.
 
 Verify the selected subject before changing Railway:
 

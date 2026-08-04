@@ -322,9 +322,34 @@ def test_private_image_workflow_pins_supply_chain_actions_and_verifies_digest() 
     assert "support_ends_at:" in source
     assert "Block promotion of a revoked digest" in source
     assert 'tag="image-revoked-${DIGEST#sha256:}"' in source
+    assert "gh api graphql" in source
+    assert "release(tagName: $tag)" in source
+    assert "gh release list --limit" not in source
     assert "--rollback-digest" in source
     assert "--support-ends-at" in source
     assert "--clobber" not in source
+
+
+def test_private_image_attestation_policy_is_operation_specific() -> None:
+    source = WORKFLOW.read_text(encoding="utf-8")
+    promotion = source.split(
+        "      - name: Verify exact candidate provenance before promotion\n", 1
+    )[1].split("      - name: Verify existing provenance before deprecation\n", 1)[0]
+    deprecation = source.split("      - name: Verify existing provenance before deprecation\n", 1)[
+        1
+    ].split("      - name: Create lifecycle record\n", 1)[0]
+
+    assert "if: inputs.operation == 'promote'" in promotion
+    assert "--signer-workflow" in promotion
+    assert '--source-digest "$SOURCE_COMMIT"' in promotion
+    assert "--source-ref refs/heads/main" in promotion
+    assert "--deny-self-hosted-runners" in promotion
+
+    assert "if: inputs.operation == 'deprecate'" in deprecation
+    assert "--signer-workflow" in deprecation
+    assert "--deny-self-hosted-runners" in deprecation
+    assert "--source-digest" not in deprecation
+    assert "--source-ref" not in deprecation
 
 
 def test_private_image_smokes_reader_search_catalog_and_agent_surfaces() -> None:

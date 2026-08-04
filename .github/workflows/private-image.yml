@@ -382,7 +382,7 @@ jobs:
           retention-days: 90
 
   lifecycle:
-    name: Promote or revoke an exact digest
+    name: Promote, deprecate, or revoke an exact digest
     if: github.event_name == 'workflow_dispatch' && inputs.operation != 'candidate'
     runs-on: ubuntu-latest
     environment: private-image-production
@@ -403,18 +403,56 @@ jobs:
       - name: Configure registry inspection
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
+      - name: Block promotion of a revoked digest
+        if: inputs.operation == 'promote'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DIGEST: ${{ inputs.digest }}
+        run: |
+          tag="image-revoked-${DIGEST#sha256:}"
+          owner="${GITHUB_REPOSITORY%%/*}"
+          repository="${GITHUB_REPOSITORY#*/}"
+          revoked_tag="$(
+            gh api graphql \
+              -f query='query($owner: String!, $repository: String!, $tag: String!) { repository(owner: $owner, name: $repository) { release(tagName: $tag) { tagName } } }' \
+              -f owner="$owner" \
+              -f repository="$repository" \
+              -f tag="$tag" \
+              --jq '.data.repository.release.tagName // ""'
+          )"
+          if [ "$revoked_tag" = "$tag" ]; then
+            echo "Digest $DIGEST is revoked and cannot be promoted." >&2
+            exit 1
+          fi
+
       - name: Require the exact registry subject
         if: inputs.operation != 'revoke'
         run: docker buildx imagetools inspect "${IMAGE_NAME}@${{ inputs.digest }}"
 
-      - name: Verify candidate provenance before lifecycle action
-        if: inputs.operation != 'revoke'
+      - name: Verify exact candidate provenance before promotion
+        if: inputs.operation == 'promote'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_COMMIT: ${{ inputs.commit }}
+        run: >-
+          gh attestation verify
+          "oci://${IMAGE_NAME}@${{ inputs.digest }}"
+          --repo "$GITHUB_REPOSITORY"
+          --signer-workflow "github.com/$GITHUB_REPOSITORY/.github/workflows/private-image.yml"
+          --source-digest "$SOURCE_COMMIT"
+          --source-ref refs/heads/main
+          --deny-self-hosted-runners
+
+      - name: Verify existing provenance before deprecation
+        if: inputs.operation == 'deprecate'
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh attestation verify
           "oci://${IMAGE_NAME}@${{ inputs.digest }}"
           --repo "$GITHUB_REPOSITORY"
+          --signer-workflow "github.com/$GITHUB_REPOSITORY/.github/workflows/private-image.yml"
+          --deny-self-hosted-runners
 
       - name: Create lifecycle record
         env:
@@ -443,19 +481,6 @@ jobs:
             fi
           fi
           python scripts/private_image_release.py "${arguments[@]}"
-
-      - name: Block promotion of a revoked digest
-        if: inputs.operation == 'promote'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DIGEST: ${{ inputs.digest }}
-        run: |
-          tag="image-revoked-${DIGEST#sha256:}"
-          released_tags="$(gh release list --limit 1000 --json tagName --jq '.[].tagName')"
-          if printf '%s\n' "$released_tags" | grep --fixed-strings --line-regexp --quiet -- "$tag"; then
-            echo "Digest $DIGEST is revoked and cannot be promoted." >&2
-            exit 1
-          fi
 
       - name: Publish the durable lifecycle record
         env:
