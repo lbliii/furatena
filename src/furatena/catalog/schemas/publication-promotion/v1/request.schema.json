@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://furatena.dev/schemas/publication-promotion/v1/request.schema.json",
+  "title": "Furatena publication promotion request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "record_type", "operation", "artifact", "source_environment",
+    "destination_environment", "actor", "plan", "approval_evaluation",
+    "capability_request", "capability_decision", "idempotency_key_digest",
+    "expected_destination_generation", "smoke_checks", "reason", "request_digest",
+    "operation_id", "recorded_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "record_type": {"const": "furatena.publication.promotion-request"},
+    "operation": {"enum": ["promote", "rollback"]},
+    "artifact": {"$ref": "common.schema.json#/$defs/artifact"},
+    "source_environment": {"$ref": "common.schema.json#/$defs/environment"},
+    "destination_environment": {"$ref": "common.schema.json#/$defs/deployed_environment"},
+    "actor": {"$ref": "common.schema.json#/$defs/actor"},
+    "plan": {"type": "object"},
+    "approval_evaluation": {"type": "object"},
+    "capability_request": {"type": "object"},
+    "capability_decision": {"type": "object"},
+    "idempotency_key_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "expected_destination_generation": {"type": "integer", "minimum": 0},
+    "smoke_checks": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "reason": {"type": ["string", "null"]},
+    "request_digest": {"$ref": "common.schema.json#/$defs/digest"},
+    "operation_id": {"type": "string", "pattern": "^promotion-operation-[0-9a-f]{24}$"},
+    "recorded_at": {"$ref": "common.schema.json#/$defs/timestamp"}
+  }
+}

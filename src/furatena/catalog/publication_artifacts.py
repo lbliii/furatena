@@ -500,6 +500,47 @@ class PublicationArtifactService:
             "artifact_bytes": verification["artifact_bytes"],
         }
 
+    def promotion_identity(self, artifact_id: str) -> dict[str, object]:
+        """Return the fully verified identity required by environment promotion."""
+        verification = self.verify(artifact_id, full=True)
+        manifest = _read_json(self.artifacts / artifact_id / "manifest.json")
+        if manifest is None:
+            raise PublicationArtifactError(
+                _ARTIFACT_CORRUPT,
+                "The immutable artifact manifest cannot be read for promotion.",
+            )
+        plan = manifest.get("plan")
+        policy = manifest.get("policy")
+        runtime = manifest.get("runtime_identity")
+        projection = manifest.get("public_projection")
+        fingerprints = manifest.get("fingerprints")
+        if (
+            not isinstance(plan, Mapping)
+            or not isinstance(policy, Mapping)
+            or not isinstance(runtime, Mapping)
+            or not isinstance(projection, Mapping)
+            or not isinstance(fingerprints, Mapping)
+        ):
+            raise PublicationArtifactError(
+                _ARTIFACT_CORRUPT,
+                "The immutable artifact lacks a complete promotion identity.",
+            )
+        return {
+            "schema_version": PUBLICATION_ARTIFACT_SCHEMA_VERSION,
+            "artifact_id": artifact_id,
+            "artifact_digest": verification["artifact_digest"],
+            "manifest_digest": verification["manifest_digest"],
+            "plan_id": str(plan.get("plan_id") or ""),
+            "plan_digest": str(plan.get("plan_digest") or ""),
+            "policy_version": str(policy.get("version") or ""),
+            "policy_digest": str(policy.get("digest") or ""),
+            "configuration_digest": str(manifest.get("configuration_digest") or ""),
+            "presentation_digest": str(manifest.get("presentation_digest") or ""),
+            "runtime_identity": dict(runtime),
+            "fingerprints": dict(fingerprints),
+            "public_projection_digest": sha256_digest(canonical_json_bytes(projection)),
+        }
+
     def readiness(self, artifact_id: str | None = None) -> dict[str, object]:
         """Return a fail-closed readiness projection after full artifact verification."""
         resolved_id = artifact_id

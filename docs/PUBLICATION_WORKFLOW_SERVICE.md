@@ -119,6 +119,58 @@ remediation.
 Version 1 manifest, verification, and current-pointer schemas ship under
 `furatena/catalog/schemas/publication-artifact/v1/`.
 
+## Environment promotion and rollback
+
+`PublicationPromotionService` moves one fully verified publication artifact through
+the fixed `artifact → preview → staging → production` route. Promotion resolves the
+artifact through `PublicationArtifactService.promotion_identity`, which repeats full
+inventory and manifest verification and returns the exact artifact, manifest, plan,
+policy, configuration, presentation, runtime, fingerprint, and public-projection
+digests. A provider adapter activates that same identity; no promotion step invokes a
+builder or accepts a substituted digest.
+
+Each request is bound to the trusted actor, destination scope, immutable plan,
+current approval evaluation, current capability decision, policy, destination
+generation, smoke checks, and a one-way idempotency-key digest. Only trusted
+deployment automation may call `promote` or `rollback`. Browser, CLI, and MCP
+compositions expose display-only `current`, `history`, and `status` projections that
+remove actor and idempotency identity. The CLI commands are:
+
+- `fura promotion current --environment preview|staging|production --state-root PATH`
+- `fura promotion history --environment preview|staging|production --state-root PATH`
+- `fura promotion status --operation-id ID --state-root PATH`
+
+Before activation, the service proves that durable and serving current state agree,
+that the caller's expected generation is current, and—after preview—that the source
+environment is serving the same verified artifact. The provider-neutral preflight
+selects atomic activation or a provider's safe canary primitive and must confirm
+artifact compatibility, environment policy, and current-state identity. Successful
+activation is not committed until readiness, served build identity, public-projection
+identity, privacy exclusion, and every requested smoke check pass against the exact
+artifact and manifest digests.
+
+The private JSON store persists the request, started and terminal receipts, current
+pointer, immutable history, and operation lease using create-once or atomic fsynced
+writes. A restarted operation inspects serving state: the selected artifact resumes
+verification without reactivation, the recorded prior state may retry activation,
+and any other state routes through recovery. A crash after the current-pointer write
+reuses the recorded generation, while terminal replay repairs a missing immutable
+history entry.
+
+Every failed activation or verification retains or restores the recorded
+last-known-good deployment. If restoration cannot be proven, the operation becomes
+`reconciliation_required` and no new current pointer is committed. Rollback requires
+a fresh trusted `roll_back` capability decision, current plan-bound approvals, a
+non-empty reason, an exact expected generation, and an artifact from successful
+history for that destination. Rollback uses the same activation and verification
+path and records the displaced deployment as last known good.
+
+Version 1 request, receipt, current-pointer, artifact, deployment, preflight,
+verification, restoration, and error shapes ship under
+`furatena/catalog/schemas/publication-promotion/v1/`. Provider adapters implement
+only inspect, preflight, activate, verify, and restore; provider credentials and
+provider-specific deployment handles remain behind that trusted boundary.
+
 Read APIs expose the current projection, immutable event history, and operation
 receipt status. Audit and public projections omit private paths, diffs, provider
 URLs, actor roles/teams, and operation internals.

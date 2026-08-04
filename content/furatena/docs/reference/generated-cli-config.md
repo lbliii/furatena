@@ -416,6 +416,43 @@ Command parser contract.
 | `--no-channels` | no | false | — | — | Do not refresh channels.json with generated PDF artifacts |
 | `--json` | no | false | — | — | Emit the standard command result JSON |
 
+### `fura promotion`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+
+### `fura promotion current`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--environment` | yes | — | `preview`, `staging`, `production` | — | — |
+| `--state-root` | yes | — | — | — | Private durable publication-promotion state directory |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura promotion history`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--environment` | yes | — | `preview`, `staging`, `production` | — | — |
+| `--state-root` | yes | — | — | — | Private durable publication-promotion state directory |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
+### `fura promotion status`
+
+Command parser contract.
+
+| Argument or option | Required | Default | Choices | Type | Purpose |
+|---|---:|---|---|---|---|
+| `--operation-id` | yes | — | — | — | — |
+| `--state-root` | yes | — | — | — | Private durable publication-promotion state directory |
+| `--json` | no | false | — | — | Emit the standard command result JSON |
+
 ### `fura query`
 
 Command parser contract.

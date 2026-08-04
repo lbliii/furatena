@@ -157,6 +157,9 @@ def command_name(args: Any) -> str:
     if command == "activation":
         activation_command = getattr(args, "activation_command", None)
         return f"activation {activation_command}" if activation_command else "activation"
+    if command == "promotion":
+        promotion_command = getattr(args, "promotion_command", None)
+        return f"promotion {promotion_command}" if promotion_command else "promotion"
     return command
 
 
