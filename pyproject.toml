@@ -84,6 +84,7 @@ where = ["src"]
   "fixtures/preview-auth/**/*.json",
   "eval_datasets/**/*.json",
   "eval_datasets/**/*.md",
+  "mcp_app_assets/*.html",
   "_templates/**/*.html",
   "vendor/*.js",
 ]

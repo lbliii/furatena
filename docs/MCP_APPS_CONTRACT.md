@@ -2,8 +2,9 @@
 
 Furatena MCP Apps contract version 1 follows the stable MCP Apps specification
 dated `2026-01-26`. This contract defines discovery, identity, access, gateway,
-and fallback rules. It does not ship an interactive resource; the catalog-search
-App is a separate implementation slice.
+and fallback rules. Furatena ships the public catalog-search App at
+`ui://furatena/catalog-search/v1`; trusted-author Apps and WebMCP remain outside
+this contract.
 
 ## Negotiation and compatibility
 
@@ -91,17 +92,56 @@ connection to call the tool. The linked resource must be reachable through
 `resources/read`. UI-only tools are outside v1: they would remove the ordinary
 MCP fallback and create a second authorization surface.
 
+The App also calls the existing `retrieve_node` and `query_graph` tools. They do
+not carry a `resourceUri`, so invoking either tool does not create another App
+or make it a primary rendering entry point. Under the stable specification,
+omitted `_meta.ui.visibility` defaults to `["model", "app"]`; therefore both
+tools remain model-visible and are callable by an App on the same server
+connection. Hosts must still reject cross-server App calls. Furatena relies on
+that standard default instead of attaching a misleading catalog-search resource
+link to secondary tools.
+
 Every linked tool continues to return meaningful text and
 `structuredContent`. The App is presentation only: search, retrieval, graph
 querying, validation, access checks, redaction, rate limiting, output bounds,
 and auditing remain owned by the existing MCP tool path.
 
+## Catalog-search App
+
+The bundled catalog-search document is dependency-free HTML, CSS, and
+JavaScript. It renders search ranking, active filters, bounded result cards,
+keyword and semantic scores, tags, provenance, and structured repair
+diagnostics. Result actions call the existing `retrieve_node` and `query_graph`
+tools on the same connection. The App never fetches an external URL and inserts
+tool data with DOM text nodes rather than HTML interpretation.
+
+The search form caps a request at 25 results. The renderer also caps host-sent
+results at 25 and parses at most 100,000 characters from the text fallback.
+`structuredContent` is preferred; ordinary JSON text remains usable by hosts
+that do not render Apps. The packaged HTML SHA-256 is compiled into the server,
+checked on every resource read, and recorded in Furatena contract metadata so
+content cannot drift behind the versioned URI silently.
+
+App discovery and the `semantic_search` tool link are connection-scoped. They
+appear only after the client negotiates the stable MIME type. The App resource
+and every App link are omitted entirely from include-private author sessions;
+this registration boundary is a security control, not a presentation choice.
+Search, retrieval, and graph calls still use the public access subject and
+`include_private=false`, so the App cannot observe private identities, facets,
+metadata, snippets, provenance, or counts. A future trusted-author App requires
+a separate versioned resource and security review.
+
 ## Access and redaction
 
 | Resource audience | Required redaction | Discovery |
 | --- | --- | --- |
-| `public` | `public-only` | Public and trusted-author sessions |
-| `trusted-author` | `session-authorized` | Trusted author sessions only |
+| `public` | `public-only` | Public sessions only in contract v1 |
+| `trusted-author` | `session-authorized` | Denied in contract v1 |
+
+Contract v1 uses conservative isolation: include-private trusted-author
+sessions expose no App resources or App links, including the public App. This
+keeps browser-capable and author-capable connections disjoint until a separately
+versioned trusted-author App receives a security review.
 
 Public is the default projection. A public App may not receive private node
 identities, filters, metadata, snippets, provenance, or aggregate counts. Those
@@ -124,6 +164,12 @@ arrays are the deny-by-default value. Origins must be exact HTTPS origins;
 parameters, fragments, and unrestricted `*` origins are invalid. Wildcard
 subdomains remain valid where the upstream specification permits them, but
 should be avoided when an exact origin is available.
+
+Protocol adapters may serialize four empty arrays as an empty `csp` object, as
+the stable specification defines missing domain lists and empty domain lists as
+the same deny-by-default request. Furatena's canonical descriptor and fixtures
+retain the explicit arrays for contract review; either wire representation
+authorizes no origin.
 
 `permissions` is an explicit object. Contract v1 recognizes only the upstream
 `camera`, `microphone`, `geolocation`, and `clipboardWrite` keys, each with an
@@ -166,6 +212,12 @@ these stable rule ids:
 
 The public fixture in `tests/fixtures/agent-contracts/v1/public.json` contains a
 complete deny-by-default catalog-search contract. The trusted-author fixture
-explicitly inherits public resources while exposing no trusted-only resource;
-trusted Apps remain denied until a separately reviewed implementation exists.
-WebMCP and authoring UI behavior are outside this contract.
+records inheritance of ordinary public MCP resources while exposing no App
+resource or App link; trusted Apps remain denied until a separately reviewed
+implementation exists. WebMCP and authoring UI behavior are outside this
+contract.
+
+The test suite exercises direct handler negotiation, Milo in-process hosting,
+real gateway URI rewriting and link preservation, and newline-delimited stdio
+transport reads. Non-App clients are checked separately to keep the progressive
+text and `structuredContent` fallback usable.
