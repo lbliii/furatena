@@ -13,6 +13,7 @@ from furatena.catalog.access import AccessPermission, AccessSubject, accessible_
 from furatena.catalog.catalog_shards import catalog_shard_url
 from furatena.catalog.deployment_manifest import DeploymentArtifact, DeploymentManifest
 from furatena.catalog.identity import normalize_identity
+from furatena.catalog.version_artifacts import public_versioned_mounts, versions_mount_url
 
 _JSON_OUTPUTS = (
     ("catalog", "/catalog.json", "Catalog graph", "application/json"),
@@ -29,6 +30,7 @@ _JSON_OUTPUTS = (
     ("structure", "/structure.json", "Content structure index", "application/json"),
     ("surface", "/surface.json", "Surface manifest", "application/json"),
     ("channels", "/channels.json", "Publication channel manifest", "application/json"),
+    ("versions", "/versions.json", "Edition discovery manifest", "application/json"),
     (
         "deployment-profiles",
         "/deployment-profiles.json",
@@ -185,6 +187,23 @@ def _agent_channel(
                 "mount": mount_id,
                 "fingerprint": str(source.get("fingerprint") or ""),
                 "page_count": int(source.get("page_count") or 0),
+            }
+        )
+    for mount in public_versioned_mounts(catalog):
+        href = versions_mount_url(str(mount.id))
+        if href is None:
+            continue
+        outputs.append(
+            {
+                **_output(
+                    f"versions-mount-{mount.id}",
+                    href,
+                    f"{mount.label} Mike-compatible editions",
+                    "application/json",
+                    base=base,
+                    format="json",
+                ),
+                "mount": mount.id,
             }
         )
     inventory_store = getattr(catalog, "inventory_store", None)

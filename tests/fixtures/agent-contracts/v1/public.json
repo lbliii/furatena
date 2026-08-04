@@ -16,6 +16,7 @@
       },
       "tools": [
         {"name": "semantic_search", "read_only": true},
+        {"name": "diff_content_ir", "read_only": true},
         {"name": "retrieve_node", "read_only": true}
       ]
     },
@@ -43,6 +44,7 @@
       ],
       "tools": [
         {"name": "semantic_search", "read_only": true},
+        {"name": "diff_content_ir", "read_only": true},
         {"name": "retrieve_node", "read_only": true}
       ]
     }

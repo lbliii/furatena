@@ -158,7 +158,12 @@ class RenderContextService:
                 json_ld_article(node=node, page_url=page_url, site_name=self.config.site.name)
             ),
             **self.site_context(),
-            **channel_context(self.catalog.channels_for(node.mount), self.catalog.active_channel),
+            **channel_context(
+                self.catalog.channels_for(node.mount),
+                self.catalog.active_channel,
+                catalog=self.catalog,
+                node=node,
+            ),
             **self.locale_context(request=request, node=node, locale_match=locale_match),
             **self.locale_service.fallback_context(locale_match),
             **self.theme_effects_context(),
