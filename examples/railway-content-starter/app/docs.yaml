@@ -1,24 +1,19 @@
-shell: shell.html
-
-views:
-  doc: views/doc.html
-  doc_list: views/doc_list.html
-  page: views/page.html
-  home: views/home.html
-  collection: views/collection.html
-  api_reference: views/api_reference.html
-  portal: views/portal.html
-  default: views/doc.html
-
 site:
   name: Acme Developer Platform
   tagline: Build with Acme
   description: Product guides and API reference for developers.
 
+identity:
+  tenant: acme
+  workspace: developer-platform
+  site: documentation
+
+presentation:
+  layout: docs
+  skin: lagoon
+  trusted_capabilities: [scripts]
+
 theme:
-  use: lagoon
-  id: furatena
-  templates: theme
   effects:
     code: flat
     cards: flat
