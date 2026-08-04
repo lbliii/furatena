@@ -445,6 +445,10 @@ class TestThemeHtmlContract:
         assert "chirp-theme-home" in html
         assert "chirp-theme-home__hero" in html
         assert "chirp-theme-home__metric-cards" in html
-        assert "Write docs. Preview instantly. Publish anywhere." in html
+        assert "Technical documentation, governed once" in html
+        assert (
+            "The content control plane for human- and agent-facing technical documentation" in html
+        )
+        assert "One corpus controls every documentation surface." in html
         assert "chirp-theme-home__explore" in html
         assert "/docs-assets/theme." in html
