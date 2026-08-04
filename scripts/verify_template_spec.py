@@ -11,6 +11,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DIGEST = re.compile(r"^ghcr\.io/lbliii/furatena@sha256:[0-9a-f]{64}$")
+GENERATED_SECRET = re.compile(r"^\$\{\{secret\((?P<length>[1-9][0-9]*)\)\}\}$")
+RAILWAY_BASE_URL = "https://${{RAILWAY_PUBLIC_DOMAIN}}"
 
 
 def validate_template_spec(spec: dict[str, Any], *, require_digest: bool = False) -> list[str]:
@@ -23,6 +25,8 @@ def validate_template_spec(spec: dict[str, Any], *, require_digest: bool = False
         failures.append("published template source must use an exact promoted GHCR digest")
     if not template.get("hidden_registry_credentials"):
         failures.append("hidden registry credentials must be enabled")
+    if template.get("public_networking") is not True:
+        failures.append("public networking must be enabled")
     if template.get("healthcheck_path") != "/readyz":
         failures.append("healthcheck path must be /readyz")
     if int(template.get("replicas") or 0) != 1:
@@ -44,10 +48,20 @@ def validate_template_spec(spec: dict[str, Any], *, require_digest: bool = False
     missing = sorted(required - variables.keys())
     if missing:
         failures.append(f"missing template variables: {', '.join(missing)}")
+    for name, variable in sorted(variables.items()):
+        if not str(variable.get("description") or "").strip():
+            failures.append(f"template variable {name} must have a description")
+        if not variable.get("required") and "default" not in variable:
+            failures.append(f"optional template variable {name} must have a safe default")
+        if variable.get("secret"):
+            generated = GENERATED_SECRET.fullmatch(str(variable.get("default") or ""))
+            if generated is None or int(generated.group("length")) < 32:
+                failures.append(f"{name} must use a generated secret of at least 32 characters")
     for secret in ("FURA_CONTENT_REFRESH_TOKEN", "FURA_SESSION_SECRET"):
-        variable = variables.get(secret) or {}
-        if not variable.get("secret") or "secret(" not in str(variable.get("default") or ""):
-            failures.append(f"{secret} must be a generated secret")
+        if not (variables.get(secret) or {}).get("secret"):
+            failures.append(f"{secret} must be a secret template variable")
+    if (variables.get("FURA_BASE_URL") or {}).get("default") != RAILWAY_BASE_URL:
+        failures.append("FURA_BASE_URL must derive from RAILWAY_PUBLIC_DOMAIN")
     if (variables.get("FURA_IMAGE_CHANNEL") or {}).get("default") != "stable":
         failures.append("template image channel must default to stable")
     run_uid = variables.get("RAILWAY_RUN_UID") or {}

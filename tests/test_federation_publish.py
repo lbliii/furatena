@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from contextlib import AbstractContextManager
@@ -20,6 +21,7 @@ from furatena.catalog.federation_artifacts import (
 from furatena.catalog.federation_publish import (
     PublishShardOptions,
     ShardPublishConflictError,
+    ShardPublishError,
     ShardPublishPartialError,
     StoredObject,
     build_published_shard,
@@ -36,13 +38,19 @@ def _source(tmp_path: Path) -> Path:
     golden_manifest = json.loads((GOLDEN / "manifest.json").read_text(encoding="utf-8"))
     catalog_item = next(item for item in golden_manifest["inventory"] if item["role"] == "catalog")
     (source / "catalog.json").write_bytes((GOLDEN / catalog_item["object_url"]).read_bytes())
+    presentation_item = next(
+        item for item in golden_manifest["inventory"] if item["role"] == "presentation"
+    )
+    pages = source / "pages"
+    pages.mkdir(exist_ok=True)
+    (pages / "guide.html").write_bytes((GOLDEN / presentation_item["object_url"]).read_bytes())
     (source / "fingerprint.json").write_text(
         json.dumps(
             {
                 "mount": "chirp",
                 "edition": "0.10.3",
                 "fingerprint": "b84016cc7512e8aea0435ebb5991e662c6778ae55ca3afc1662036cd809fdac3",
-                "contracts": {"dcp": 3, "content_ir": 3, "adapter": 1},
+                "contracts": {"dcp": 3, "content_ir": 3, "adapter": 1, "presentation": 1},
                 "source": {
                     "provider": "git",
                     "repo": "https://github.com/example/chirp.git",
@@ -92,6 +100,7 @@ class RecordingBackend:
         self.objects: dict[str, bytes] = {}
         self.puts: list[str] = []
         self.opens: list[str] = []
+        self.media_types: dict[str, str] = {}
         self.fail_after = fail_after
         self.metadata = metadata
 
@@ -116,6 +125,7 @@ class RecordingBackend:
         if self.fail_after is not None and len(self.puts) == self.fail_after:
             raise ShardPublishPartialError("injected partial upload")
         self.puts.append(key)
+        self.media_types[key] = media_type
         _ = media_type
         value = source.read_bytes()
         if create_only and key in self.objects:
@@ -140,6 +150,85 @@ def test_package_is_deterministic_and_validates_complete_object_set(tmp_path: Pa
     assert [item["logical_path"] for item in first["inventory"]] == sorted(
         item["logical_path"] for item in first["inventory"]
     )
+    node_count = len(
+        json.loads((_options(tmp_path, staging="count").source_shard / "catalog.json").read_text())[
+            "pages"
+        ]
+    )
+    assert first["totals"]["object_count"] == node_count * 2 + 3
+    assert first["totals"]["fragment_count"] == node_count
+    assert first["totals"]["presentation_count"] == node_count
+
+
+def test_package_requires_exact_safe_public_presentation_node_set(tmp_path: Path) -> None:
+    missing = _options(tmp_path, staging="missing")
+    (missing.source_shard / "pages" / "guide.html").unlink()
+    with pytest.raises(ShardPublishError, match="missing its frozen presentation"):
+        build_published_shard(missing)
+
+    extra = _options(tmp_path, staging="extra")
+    private = extra.source_shard / "pages" / "private.html"
+    private.write_text("<p>PRIVATE_PUBLISH_CANARY_360</p>\n", encoding="utf-8")
+    with pytest.raises(ShardPublishError, match="node set differs"):
+        build_published_shard(extra)
+    assert all(
+        b"PRIVATE_PUBLISH_CANARY_360" not in path.read_bytes()
+        for path in (extra.staging_dir / "artifact" / "objects").rglob("*")
+        if path.is_file()
+    )
+
+
+def test_package_deduplicates_byte_identical_node_presentations(tmp_path: Path) -> None:
+    options = _options(tmp_path, staging="deduplicated")
+    catalog_path = options.source_shard / "catalog.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    repeated = copy.deepcopy(catalog["pages"][0])
+    repeated.update(
+        {
+            "node_id": "chirp:0.10.3:other",
+            "slug": "other",
+            "title": "Other",
+            "url": "/chirp/0.10.3/other/",
+        }
+    )
+    catalog["pages"].append(repeated)
+    catalog["page_count"] = 2
+    catalog_path.write_text(json.dumps(catalog), encoding="utf-8")
+    presentation = options.source_shard / "pages" / "guide.html"
+    (options.source_shard / "pages" / "other.html").write_bytes(presentation.read_bytes())
+
+    artifact, manifest = build_published_shard(options)
+    presentations = [item for item in manifest["inventory"] if item["role"] == "presentation"]
+
+    assert len(presentations) == 2
+    assert len({item["node_id"] for item in presentations}) == 2
+    assert len({item["logical_path"] for item in presentations}) == 2
+    assert len({item["object_url"] for item in presentations}) == 1
+    assert validate_published_shard_manifest(manifest, artifact_root=artifact) == []
+
+
+def test_package_rejects_active_presentation_and_compresses_safe_large_html(
+    tmp_path: Path,
+) -> None:
+    unsafe = _options(tmp_path, staging="unsafe")
+    (unsafe.source_shard / "pages" / "guide.html").write_text(
+        "<script>PRIVATE_SCRIPT_CANARY_360</script>\n", encoding="utf-8"
+    )
+    with pytest.raises(ShardPublishError, match="not inert"):
+        build_published_shard(unsafe)
+
+    safe = _options(tmp_path, staging="safe")
+    (safe.source_shard / "pages" / "guide.html").write_text(
+        "<article><p>" + "safe presentation " * 256 + "</p></article>\n",
+        encoding="utf-8",
+    )
+    artifact, manifest = build_published_shard(safe)
+    presentation = next(item for item in manifest["inventory"] if item["role"] == "presentation")
+    assert presentation["node_id"] == "chirp:0.10.3:guide"
+    assert presentation["logical_path"].startswith("presentations/nodes/")
+    assert presentation["content_encoding"] == "zstd"
+    assert presentation["object_url"].endswith(".html.zst")
+    assert validate_published_shard_manifest(manifest, artifact_root=artifact) == []
 
 
 def test_manifest_commits_last_and_exact_retry_is_a_noop(tmp_path: Path) -> None:
@@ -151,6 +240,10 @@ def test_manifest_commits_last_and_exact_retry_is_a_noop(tmp_path: Path) -> None
     second = publish_shard(_restage(options, tmp_path / "retry"), backend)
 
     assert first.status == "published"
+    presentation_key = next(
+        key for key in backend.media_types if key.endswith((".html", ".html.zst"))
+    )
+    assert backend.media_types[presentation_key] == "text/html; charset=utf-8"
     assert backend.puts[-1].endswith("/manifest.json")
     assert all(not key.endswith("/manifest.json") for key in backend.puts[:-1])
     assert second.status == "up_to_date"

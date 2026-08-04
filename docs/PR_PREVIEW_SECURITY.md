@@ -99,3 +99,10 @@ to repair provider configuration.
 On close or merge, the provider adapter must delete the environment and its
 domain. A teardown is complete only after provider state confirms removal, as
 defined by the [preview lifecycle contract](PR_PREVIEW_CONTRACT.md).
+
+The separately operated successor identity boundary is specified by the
+[hosted preview broker architecture](PREVIEW_BROKER_ARCHITECTURE.md) and its
+[threat model](PREVIEW_BROKER_THREAT_MODEL.md). Those records are design gates,
+not evidence that hosted authorization is currently deployed; the shared-token
+boundary on this page remains the implemented behavior until the dependent
+runtime, broker, controller, operations, and conformance work lands.

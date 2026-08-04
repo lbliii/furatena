@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from furatena.catalog.benchmarks import assert_free_threading
+from furatena.catalog.presentation_pack import load_presentation_manifest
 from furatena.catalog.theme_init import init_theme_pack
 from furatena.cli.main import _build_parser, main
 
@@ -14,6 +15,8 @@ EXPECTED_SPARSE_SKIN_FILES = {
     "assets/branding/README.md",
     "directives.css",
     "effects.css",
+    "js/README.md",
+    "presentation-pack.json",
     "skin/chrome.css",
     "skin/error.css",
     "skin/fonts.css",
@@ -39,8 +42,10 @@ def test_sparse_skin_scaffold_is_complete_and_deterministic(tmp_path: Path) -> N
     assert {
         path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file()
     } == (EXPECTED_SPARSE_SKIN_FILES)
-    assert "theme-skin/tokens.css" in (target / "README.md").read_text(encoding="utf-8")
-    assert "furatena.themes" in (target / "README.md").read_text(encoding="utf-8")
+    assert "presentation:" in (target / "README.md").read_text(encoding="utf-8")
+    pack = load_presentation_manifest(target / "presentation-pack.json", source="local")
+    assert pack.id == "theme-skin"
+    assert pack.kind == "skin"
     assert init_theme_pack(target) == []
 
 

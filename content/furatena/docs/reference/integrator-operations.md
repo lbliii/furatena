@@ -53,7 +53,7 @@ default to `anonymous`, apply actor, tenant, burst, and sensitive-tool limits pl
 | `author_publish` | `target` | `actor`, `confirmed`, `dry_run`, `mount`, `privileged_token`, `source_revision`, `target` | `operation_id`, `ok`, `audit` | Transition draft to public with publication impact. |
 | `author_unpublish` | `target` | `actor`, `confirmed`, `dry_run`, `mount`, `privileged_token`, `source_revision`, `target` | `operation_id`, `ok`, `audit` | Transition public content back to draft. |
 | `author_archive` | `target` | `actor`, `confirmed`, `dry_run`, `mount`, `privileged_token`, `source_revision`, `target` | `operation_id`, `ok`, `audit` | Archive content and remove it from public output. |
-| `author_inspect_publication_impact` | `target` | `actor`, `mount`, `privileged_token`, `target` | `ok`, `status`, `validation`, `stale_impact`, `audit` | Read lifecycle, validation, and stale impact before transition. |
+| `author_inspect_publication_impact` | `target` | `actor`, `mount`, `operation`, `privileged_token`, `target` | `ok`, `status`, `validation`, `stale_impact`, `public_projection`, `audit` | Read lifecycle, validation, stale impact, and every exact public projection before transition. |
 
 ### Resources
 
@@ -231,16 +231,18 @@ configuration errors exit 3, and source conflicts exit 4. Pattern ids ending in
 | Family | Meaning and first response |
 |---|---|
 | `chirp.*`, `chirp.templating` | Chirp route/template/design-system contracts; fix the named upstream contract. |
-| `fura.agent.*`, `fura.agent_safety.*` | MCP/schema/description/parity or public-context safety; run `fura check --agent --json`. |
+| `fura.agent.*`, `fura.agent.mcp_app.*`, `fura.agent_safety.*` | MCP/schema/description/parity, MCP Apps metadata/reachability, or public-context safety; run `fura check --agent --json`. |
 | `fura.author.*`, `fura.lifecycle` | Authorization, CSRF, method, target, revision, or lifecycle failure; inspect diagnostics and rerun a dry run. |
 | `fura.mcp*`, `fura.evals.*` | MCP protocol/policy/rate/token or deterministic eval failure; repair policy/schema before retry. |
 | `fura.migration.*`, `fura.migrate*` | Source-format compatibility or incomplete migration; use the migration report and suggested mapping. |
+| `fura.public_projection*` | Public projection binding, completeness, mutation, or privacy failure; create a fresh plan for stale bindings and block publication until every production surface and canary check passes. |
 | `fura.content`, `fura.api`, `fura.dcp`, `fura.check` | Content, OpenAPI, graph-schema, or aggregate validation; fix the cited source. |
 | `fura.content_deployment` | Managed-content configuration or persistent-state failure; correct the named `FURA_*` setting or writable Railway volume and retry. |
 | `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial` | Federation shard validation or object-store publication failed. Repair invalid inputs; for `auth`, correct the S3 credentials or permissions; for `conflict`, inspect the immutable remote object and publish a new fingerprint instead of overwriting it; for `partial`, restore transport or storage availability and retry the same input, which remains safe because the manifest is written last. |
 | `fura.impact.stale_public_output`, `fura.visibility_leak` | Public artifact is stale or exposes protected content; rebuild or block promotion. |
 | `fura.identity.*` | Trusted gateway claims are missing, ambiguous, spoofable, or conflict with tenant/site identity; reject the request and repair the deployment-owned claim mapping. |
 | `fura.docs_quality.*`, `fura.docs_quality.exemption` | Documentation completeness or stale exemption; follow the named owner and page-type recommendation. |
+| `fura.presentation.*` | Presentation manifest, path, template, token, preview, or conformance failure; run `fura theme check PACK --json`, apply the diagnostic recovery, and regenerate references. |
 | `fura.scorecard.*` | Adoption gate is unmet; route the documented remediation to the gate owner before the next decision date. |
 
 Exact rule-id index:
@@ -248,6 +250,7 @@ Exact rule-id index:
 - `chirp.*`, `chirp.templating`
 - `fura.agent.action_boundary`, `fura.agent.breaking_change`, `fura.agent.contract_diff`, `fura.agent.description`, `fura.agent.duplicate`
 - `fura.agent.input_schema`, `fura.agent.llms_description`, `fura.agent.manifest_alignment`, `fura.agent.milo`, `fura.agent.mutation_boundary`
+- `fura.agent.mcp_app.*`
 - `fura.agent.output_schema`, `fura.agent.parameter_description`, `fura.agent.permission_note`, `fura.agent.resource_metadata`, `fura.agent.tool_description`
 - `fura.agent_safety.private_leak`, `fura.agent_safety.stale_context`
 - `fura.api`, `fura.author`, `fura.author.authorization`, `fura.author.conflict`, `fura.author.csrf`, `fura.author.method`, `fura.author.target`
@@ -257,7 +260,9 @@ Exact rule-id index:
 - `fura.identity.*`
 - `fura.migrate`, `fura.migrate.unmigrated_component`, `fura.migration.compat.mdx`, `fura.migration.compat.myst`, `fura.migration.compat.rst`, `fura.migration.remediation.manual`, `fura.migration.report`, `fura.migration.source_unavailable`
 - `fura.pdf`, `fura.recipes`, `fura.visibility_leak`
+- `fura.public_projection`, `fura.public_projection.catalog_stale`, `fura.public_projection.incomplete`, `fura.public_projection.lifecycle_stale`, `fura.public_projection.mutated`, `fura.public_projection.node_mismatch`, `fura.public_projection.node_missing`, `fura.public_projection.operation`, `fura.public_projection.privacy_canary`, `fura.public_projection.source_stale`
 - `fura.publish_shard`, `fura.publish_shard.auth`, `fura.publish_shard.conflict`, `fura.publish_shard.partial`
+- `fura.presentation.conformance`, `fura.presentation.generated_drift`, `fura.presentation.manifest`, `fura.presentation.print`, `fura.presentation.reference_preview`, `fura.presentation.template_reachability`, `fura.presentation.token_ownership`, `fura.presentation.unsafe_html`, `fura.presentation.unsafe_path`, `fura.presentation.unused_tokens`
 - `fura.scorecard.*`
 - `fura.catalog`, `fura.config`, `fura.source_sync`, `fura.content_parse`, `fura.access`, `fura.access_denied`, `fura.catalog_load`, `fura.export`
 
