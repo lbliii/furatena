@@ -5,9 +5,11 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from queue import Queue
 from typing import Any, cast
 
 import pytest
@@ -25,18 +27,21 @@ from furatena.catalog.content_deployment import (
 from furatena.catalog.content_refresh import (
     ContentRefreshActor,
     ContentRefreshConflict,
+    ContentRefreshReceipt,
     ContentRefreshRequest,
     ContentRefreshService,
     ContentRefreshState,
     authenticate_content_actor,
 )
 from furatena.catalog.docs_app import DocsApp
+from furatena.catalog.operation_lease import OperationLease
 from furatena.catalog.runtime import ServeConfig, ServeMode
 from tests.support import copy_app_theme, write_minimal_docs_yaml, write_mounts_yaml
 
 SCHEMAS = Path("src/furatena/catalog/schemas/content-refresh/v1")
 COMMIT_A = "a" * 40
 COMMIT_B = "b" * 40
+COMMIT_C = "c" * 40
 
 
 @dataclass
@@ -44,6 +49,18 @@ class _Config:
     repository: str = "https://github.com/example/docs.git"
     ref: str = "main"
     subdirectory: str = "app"
+
+
+class _SubmissionExitFailure:
+    def __init__(self, lease: OperationLease) -> None:
+        self.lease = lease
+
+    def __enter__(self) -> OperationLease:
+        return self.lease.acquire()
+
+    def __exit__(self, *_args: object) -> None:
+        self.lease.release()
+        raise RuntimeError("injected submission release failure")
 
 
 class _Store:
@@ -71,6 +88,17 @@ class _Store:
             "receipt": receipt,
         }
 
+    def _status_owned(self) -> dict[str, Any]:
+        return self.status()
+
+    def _content_refresh_lease(self) -> OperationLease:
+        return OperationLease(
+            self.leases,
+            "content-refresh",
+            resource=self.config.repository,
+            timeout_seconds=5,
+        )
+
     def resolve_requested_commit(self, requested_commit: str) -> str:
         if self.unreachable:
             raise ContentDeploymentConflict(
@@ -81,17 +109,21 @@ class _Store:
 
     def refresh(self, **values: Any) -> dict[str, Any]:
         self.refresh_calls += 1
+        completion = values.pop("completion")
+        assert values.pop("_lease_owned") is True
         expected = values.get("expected_active_commit")
         if expected != self.active_commit:
             raise ContentDeploymentConflict("stale_active_commit", "stale active commit")
         requested = cast(str, values["requested_commit"])
         self.active_commit = requested
         self.active_generation = "generation-b"
-        return {
+        result = {
             "operation": "refresh",
             "resolved_ref": requested,
             "generation": self.active_generation,
         }
+        completion(result)
+        return result
 
 
 def _actor() -> ContentRefreshActor:
@@ -106,6 +138,46 @@ def _request(
 
 def _service(store: _Store, **values: Any) -> ContentRefreshService:
     return ContentRefreshService(cast(Any, store), **values)
+
+
+def _managed_store(
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> ContentDeploymentStore:
+    config = ContentDeploymentConfig(
+        repository="https://github.com/example/docs.git",
+        ref="main",
+        subdirectory="app",
+        allowed_hosts=frozenset({"github.com"}),
+        state_root=root,
+        max_bytes=10_000,
+        max_files=100,
+    )
+
+    def freezer(app_root: Path, output: Path) -> dict[str, Any]:
+        assert (app_root / "docs.yaml").is_file()
+        output.mkdir(parents=True)
+        for name, content in {
+            "catalog.json": '{"pages": [{"id": "index"}]}',
+            "search.json": "[]",
+            "semantic.json": "[]",
+            "llms-full.txt": "# Docs\n",
+        }.items():
+            (output / name).write_text(content, encoding="utf-8")
+        return {"page_count": 1, "frozen_root": output}
+
+    store = ContentDeploymentStore(config, freezer=freezer, clock=lambda: 1_700_000_000)
+
+    def checkout(target: Path, *, requested_commit: str | None = None) -> str:
+        commit = requested_commit or COMMIT_A
+        app = target / "app"
+        app.mkdir(parents=True)
+        (app / "docs.yaml").write_text("site:\n  title: Docs\n", encoding="utf-8")
+        (app / "index.md").write_text(f"# {commit[:1]}\n", encoding="utf-8")
+        return commit
+
+    monkeypatch.setattr(store, "_checkout", checkout)
+    return store
 
 
 def test_request_is_versioned_exact_and_cannot_override_configured_scope() -> None:
@@ -160,6 +232,62 @@ def test_submit_persists_transitions_replays_and_detects_key_collision(tmp_path:
             asynchronous=False,
         )
     assert pending.value.code == "refresh_in_progress"
+
+
+@pytest.mark.parametrize("submission_kind", ["exact", "compatibility"])
+def test_submission_exit_failure_releases_transferred_refresh_lease_without_starting_worker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    submission_kind: str,
+) -> None:
+    assert_free_threading()
+    store = _Store(tmp_path)
+    service = _service(store)
+    original_submission_lease = service._submission_lease
+    original_refresh_lease = store._content_refresh_lease
+    transferred: list[OperationLease] = []
+    worker_started = threading.Event()
+
+    monkeypatch.setattr(
+        service,
+        "_submission_lease",
+        lambda: _SubmissionExitFailure(original_submission_lease()),
+    )
+
+    def capture_refresh_lease() -> OperationLease:
+        lease = original_refresh_lease()
+        release = lease.release
+
+        def noisy_release() -> None:
+            release()
+            raise OSError("injected transferred lease cleanup failure")
+
+        monkeypatch.setattr(lease, "release", noisy_release)
+        transferred.append(lease)
+        return lease
+
+    monkeypatch.setattr(store, "_content_refresh_lease", capture_refresh_lease)
+    monkeypatch.setattr(service, "_start", lambda _target: worker_started.set())
+
+    with pytest.raises(RuntimeError, match="injected submission release failure") as failure:
+        if submission_kind == "exact":
+            service.submit(_request(), actor=_actor(), asynchronous=True)
+        else:
+            service.submit_compatibility(actor=_actor(), asynchronous=True)
+
+    assert str(failure.value) == "injected submission release failure"
+    assert failure.value.__notes__ == [
+        "The provisional content-refresh lease also failed to release cleanly (OSError)."
+    ]
+    assert len(transferred) == 1
+    lease = transferred[0]
+    assert not worker_started.is_set()
+    assert not lease._acquired
+    assert lease._stop.is_set()
+    assert lease._heartbeat is not None
+    assert not lease._heartbeat.is_alive()
+    assert lease.owner() == {}
+    assert not lease.path.exists()
 
 
 def test_conflicts_are_deterministic_before_promotion(tmp_path: Path) -> None:
@@ -261,6 +389,260 @@ def test_startup_reconciliation_is_local_and_binds_generation_image_and_build(
         include_failure_message=False,
     )["failure"]
     assert public_failure == {"code": "interrupted_before_promotion"}
+
+    superseded_store = _Store(tmp_path / "superseded", active_commit=COMMIT_A)
+    superseded_service = _service(superseded_store)
+    pending = superseded_service.submit(
+        _request(expected=COMMIT_A, key="refresh-key-0009"),
+        actor=_actor(),
+        asynchronous=False,
+    )
+    assert pending.state == ContentRefreshState.ACTIVATION_PENDING_RESTART
+    superseded_store.active_commit = COMMIT_A
+    superseded_store.active_generation = "generation-a"
+
+    reconciled_superseded = superseded_service.reconcile_startup()
+
+    assert reconciled_superseded[-1].state == ContentRefreshState.FAILED
+    assert reconciled_superseded[-1].failure is not None
+    assert reconciled_superseded[-1].failure["code"] == "superseded_generation"
+    assert not superseded_service._pending_receipts()
+
+
+def test_rollback_waits_for_refresh_bookkeeping_and_terminalizes_the_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert_free_threading()
+    store = _managed_store(tmp_path, monkeypatch)
+    store.refresh(requested_commit=COMMIT_A)
+    store.refresh(requested_commit=COMMIT_B)
+
+    scheduler_entered = threading.Event()
+    scheduler_release = threading.Event()
+    rollback_started = threading.Event()
+    rollback_lease_attempted = threading.Event()
+    rollback_done = threading.Event()
+    original_lease_factory = store._content_refresh_lease
+
+    def tracked_lease(*, timeout_seconds: float | None = None) -> OperationLease:
+        lease = original_lease_factory(timeout_seconds=timeout_seconds)
+        acquire = lease.acquire
+
+        def tracked_acquire() -> OperationLease:
+            if threading.current_thread().name == "test-rollback":
+                rollback_lease_attempted.set()
+            return acquire()
+
+        monkeypatch.setattr(lease, "acquire", tracked_acquire)
+        return lease
+
+    monkeypatch.setattr(store, "_content_refresh_lease", tracked_lease)
+
+    def schedule_restart() -> bool:
+        scheduler_entered.set()
+        assert scheduler_release.wait(timeout=5)
+        return False
+
+    service = ContentRefreshService(store, restart_scheduler=schedule_restart)
+    request = _request(expected=COMMIT_B, requested=COMMIT_C, key="refresh-key-race")
+
+    def roll_back() -> dict[str, Any]:
+        rollback_started.set()
+        result = ContentRefreshService(store).rollback(actor="operator", reason="test race")
+        rollback_done.set()
+        return result
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        refresh_future = pool.submit(service.submit, request, actor=_actor(), asynchronous=False)
+        assert scheduler_entered.wait(timeout=5)
+        rollback_result: Queue[dict[str, Any]] = Queue()
+        rollback_worker = threading.Thread(
+            target=lambda: rollback_result.put(roll_back()),
+            name="test-rollback",
+        )
+        rollback_worker.start()
+        assert rollback_started.wait(timeout=5)
+        assert rollback_lease_attempted.wait(timeout=5)
+        assert not rollback_done.is_set()
+        assert store.active.resolve().name.endswith("-cccccccccccc")
+
+        scheduler_release.set()
+        refresh_receipt = refresh_future.result(timeout=5)
+        rollback_worker.join(timeout=5)
+        assert not rollback_worker.is_alive()
+        rollback_receipt = rollback_result.get_nowait()
+
+    assert refresh_receipt.state == ContentRefreshState.ACTIVATION_PENDING_RESTART
+    assert rollback_receipt["active_generation"].endswith("-bbbbbbbbbbbb")
+    assert store.active.resolve().name.endswith("-bbbbbbbbbbbb")
+    persisted = service.get(refresh_receipt.operation_id)
+    assert persisted is not None
+    assert persisted.state == ContentRefreshState.FAILED
+    assert persisted.failure is not None
+    assert persisted.failure["code"] == "superseded_by_rollback"
+    assert not service._pending_receipts()
+
+
+def test_startup_snapshot_and_rollback_receipts_share_one_ownership_window(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert_free_threading()
+    store = _managed_store(tmp_path, monkeypatch)
+    store.refresh(requested_commit=COMMIT_A)
+    store.refresh(requested_commit=COMMIT_B)
+    service = ContentRefreshService(store)
+    promoted = service.submit(
+        _request(expected=COMMIT_B, requested=COMMIT_C, key="refresh-startup-rollback"),
+        actor=_actor(),
+        asynchronous=False,
+    )
+    assert promoted.state == ContentRefreshState.ACTIVATION_PENDING_RESTART
+
+    snapshot_taken = threading.Event()
+    snapshot_release = threading.Event()
+    rollback_lease_attempted = threading.Event()
+    rollback_done = threading.Event()
+    original_status_owned = store._status_owned
+
+    def paused_status_owned(*, full_verification: bool = False) -> dict[str, Any]:
+        status = original_status_owned(full_verification=full_verification)
+        snapshot_taken.set()
+        assert snapshot_release.wait(timeout=5)
+        return status
+
+    monkeypatch.setattr(store, "_status_owned", paused_status_owned)
+    startup_results: Queue[tuple[ContentRefreshReceipt, ...]] = Queue()
+    startup_worker = threading.Thread(
+        target=lambda: startup_results.put(service.reconcile_startup()),
+        name="test-startup",
+    )
+    startup_worker.start()
+    assert snapshot_taken.wait(timeout=5)
+
+    rollback_service = ContentRefreshService(store)
+    original_submission_factory = rollback_service._submission_lease
+
+    def tracked_submission_lease() -> OperationLease:
+        lease = original_submission_factory()
+        acquire = lease.acquire
+
+        def tracked_acquire() -> OperationLease:
+            rollback_lease_attempted.set()
+            return acquire()
+
+        monkeypatch.setattr(lease, "acquire", tracked_acquire)
+        return lease
+
+    monkeypatch.setattr(rollback_service, "_submission_lease", tracked_submission_lease)
+    rollback_results: Queue[dict[str, Any]] = Queue()
+
+    def roll_back() -> None:
+        rollback_results.put(rollback_service.rollback(actor="operator", reason="startup race"))
+        rollback_done.set()
+
+    rollback_worker = threading.Thread(target=roll_back, name="test-rollback")
+    rollback_worker.start()
+    assert rollback_lease_attempted.wait(timeout=5)
+    assert not rollback_done.is_set()
+
+    snapshot_release.set()
+    startup_worker.join(timeout=5)
+    rollback_worker.join(timeout=5)
+    assert not startup_worker.is_alive()
+    assert not rollback_worker.is_alive()
+    assert startup_results.get_nowait()[-1].state == ContentRefreshState.READY
+    assert rollback_results.get_nowait()["active_generation"].endswith("-bbbbbbbbbbbb")
+
+    persisted = service.get(promoted.operation_id)
+    assert persisted is not None
+    assert persisted.state == ContentRefreshState.FAILED
+    assert persisted.failure is not None
+    assert persisted.failure["code"] == "superseded_by_rollback"
+    assert store.active.resolve().name.endswith("-bbbbbbbbbbbb")
+
+
+def test_startup_waits_for_live_queued_and_staging_refresh_handoff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert_free_threading()
+    store = _managed_store(tmp_path, monkeypatch)
+    store.refresh(requested_commit=COMMIT_A)
+    checkout = store._checkout
+    checkout_entered = threading.Event()
+    checkout_release = threading.Event()
+
+    def blocking_checkout(target: Path, *, requested_commit: str | None = None) -> str:
+        if target.name == "source":
+            checkout_entered.set()
+            assert checkout_release.wait(timeout=5)
+        return checkout(target, requested_commit=requested_commit)
+
+    monkeypatch.setattr(store, "_checkout", blocking_checkout)
+    startup_lease_attempted = threading.Event()
+    original_lease_factory = store._content_refresh_lease
+
+    def tracked_lease(*, timeout_seconds: float | None = None) -> OperationLease:
+        lease = original_lease_factory(timeout_seconds=timeout_seconds)
+        acquire = lease.acquire
+
+        def tracked_acquire() -> OperationLease:
+            if threading.current_thread().name == "test-startup":
+                startup_lease_attempted.set()
+            return acquire()
+
+        monkeypatch.setattr(lease, "acquire", tracked_acquire)
+        return lease
+
+    monkeypatch.setattr(store, "_content_refresh_lease", tracked_lease)
+    service = ContentRefreshService(store)
+    captured: list[Callable[[], object]] = []
+    monkeypatch.setattr(service, "_start", captured.append)
+
+    queued = service.submit(
+        _request(expected=COMMIT_A, requested=COMMIT_B, key="refresh-startup-live"),
+        actor=_actor(),
+        asynchronous=True,
+    )
+    assert len(captured) == 1
+    assert service.get(queued.operation_id).state == ContentRefreshState.QUEUED
+
+    startup_results: Queue[tuple[ContentRefreshReceipt, ...]] = Queue()
+    startup_done = threading.Event()
+
+    def reconcile() -> None:
+        startup_results.put(service.reconcile_startup())
+        startup_done.set()
+
+    startup_worker = threading.Thread(target=reconcile, name="test-startup")
+    startup_worker.start()
+    assert startup_lease_attempted.wait(timeout=5)
+    assert not startup_done.is_set()
+    persisted_queued = service.get(queued.operation_id)
+    assert persisted_queued is not None
+    assert persisted_queued.state == ContentRefreshState.QUEUED
+
+    refresh_worker = threading.Thread(target=captured[0], name="test-refresh")
+    refresh_worker.start()
+    assert checkout_entered.wait(timeout=5)
+    persisted_staging = service.get(queued.operation_id)
+    assert persisted_staging is not None
+    assert persisted_staging.state == ContentRefreshState.STAGING
+    assert not startup_done.is_set()
+
+    checkout_release.set()
+    refresh_worker.join(timeout=5)
+    startup_worker.join(timeout=5)
+    assert not refresh_worker.is_alive()
+    assert not startup_worker.is_alive()
+    assert startup_results.get_nowait()[-1].state == ContentRefreshState.READY
+
+    persisted = service.get(queued.operation_id)
+    assert persisted is not None
+    assert persisted.state == ContentRefreshState.READY
+    assert persisted.generation == store.active.resolve().name
 
 
 def test_actor_comes_from_bearer_transport_not_request_body() -> None:

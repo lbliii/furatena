@@ -11,6 +11,7 @@ import subprocess
 import time
 import uuid
 from collections.abc import Callable, Mapping
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -268,9 +269,17 @@ class ContentDeploymentStore:
         operation_id: str | None = None,
         semantic_digest: str | None = None,
         idempotency_key_digest: str | None = None,
+        completion: Callable[[Mapping[str, Any]], None] | None = None,
+        _lease_owned: bool = False,
     ) -> dict[str, Any]:
-        """Build and atomically activate one immutable generation."""
-        with self._content_refresh_lease():
+        """Build and atomically activate one immutable generation.
+
+        ``completion`` runs after selection while this operation still owns the
+        refresh lease. The refresh service uses it to make the durable operation
+        receipt and restart decision part of the same rollback exclusion window.
+        """
+        lease = nullcontext() if _lease_owned else self._content_refresh_lease()
+        with lease:
             self._reconcile_owned()
             current = self._active_receipt()
             current_commit = str(current.get("resolved_ref") or "") if current is not None else None
@@ -313,12 +322,15 @@ class ContentDeploymentStore:
                 ):
                     if trigger != "startup":
                         self._set_rollback_hold(False)
-                    return {
+                    result = {
                         **current,
                         "operation": "no_change",
                         "trigger": trigger,
                         "checked_at": _iso(self._clock()),
                     }
+                    if completion is not None:
+                        completion(result)
+                    return result
                 app_root = (source / self.config.subdirectory).resolve()
                 if (
                     not app_root.is_relative_to(source.resolve())
@@ -442,7 +454,10 @@ class ContentDeploymentStore:
                     self._replace_link(self.last_known_good, previous)
                 self._replace_link(self.active, generation)
                 promoted = True
-                return {**receipt, "generation_selection": selection.to_dict()}
+                result = {**receipt, "generation_selection": selection.to_dict()}
+                if completion is not None:
+                    completion(result)
+                return result
             except BaseException as exc:
                 failure = {
                     "schema_version": 1,
@@ -523,8 +538,13 @@ class ContentDeploymentStore:
         *,
         actor: str = "legacy-local",
         reason: str = "Legacy rollback request.",
+        completion: Callable[[Mapping[str, Any]], None] | None = None,
     ) -> dict[str, Any]:
-        """Atomically select last-known-good and retain the prior active generation."""
+        """Atomically select last-known-good and retain the prior active generation.
+
+        ``completion`` runs after selection while this operation still owns the
+        refresh lease so callers can durably supersede pending refresh receipts.
+        """
         with self._content_refresh_lease():
             active, active_quarantine = self._reconcile_link(self.active)
             lkg, lkg_quarantine = self._reconcile_link(self.last_known_good)
@@ -594,15 +614,35 @@ class ContentDeploymentStore:
                     "updated_at": receipt["recorded_at"],
                 },
             )
+            if completion is not None:
+                completion(receipt)
             return receipt
 
     def status(self, *, full_verification: bool = False) -> dict[str, Any]:
         try:
             with self._content_refresh_lease(timeout_seconds=_STATUS_RECONCILE_TIMEOUT_SECONDS):
-                status = self._reconcile_owned()
-                active = self._link_target(self.active)
+                return self._status_owned(full_verification=full_verification)
         except OperationLeaseTimeout:
             status, active = self._read_only_status(operation_active=True)
+            return self._status_snapshot(
+                status,
+                active,
+                full_verification=full_verification,
+            )
+
+    def _status_owned(self, *, full_verification: bool = False) -> dict[str, Any]:
+        """Return one reconciled status snapshot while the caller owns the refresh lease."""
+        status = self._reconcile_owned()
+        active = self._link_target(self.active)
+        return self._status_snapshot(status, active, full_verification=full_verification)
+
+    def _status_snapshot(
+        self,
+        status: dict[str, Any],
+        active: Path | None,
+        *,
+        full_verification: bool,
+    ) -> dict[str, Any]:
         status["repository"] = self.config.repository
         status["requested_ref"] = self.config.ref
         status["subdirectory"] = self.config.subdirectory

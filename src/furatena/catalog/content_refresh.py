@@ -359,53 +359,66 @@ class ContentRefreshService:
     ) -> ContentRefreshReceipt:
         digest = self._semantic_digest(request, actor)
         operation_id = _operation_id(request.idempotency_key)
-        with self._submission_lease():
-            existing = self._read(operation_id)
-            if existing is not None:
-                if existing.semantic_digest != digest:
+        refresh_lease: OperationLease | None = None
+        try:
+            with self._submission_lease():
+                existing = self._read(operation_id)
+                if existing is not None:
+                    if existing.semantic_digest != digest:
+                        raise ContentRefreshConflict(
+                            code="idempotency_key_collision",
+                            message="The idempotency key is already bound to a different refresh request.",
+                        )
+                    return replace(existing, replayed=True)
+                current_commit = self._active_commit()
+                if current_commit != request.expected_active_commit:
                     raise ContentRefreshConflict(
-                        code="idempotency_key_collision",
-                        message="The idempotency key is already bound to a different refresh request.",
+                        code="stale_active_commit",
+                        message="The expected active content commit no longer matches the selected generation.",
                     )
-                return replace(existing, replayed=True)
-            current_commit = self._active_commit()
-            if current_commit != request.expected_active_commit:
-                raise ContentRefreshConflict(
-                    code="stale_active_commit",
-                    message="The expected active content commit no longer matches the selected generation.",
+                if self._pending_receipts():
+                    raise ContentRefreshConflict(
+                        code="refresh_in_progress",
+                        message="Another content refresh is already pending for this single-replica service.",
+                    )
+                try:
+                    resolved = self.store.resolve_requested_commit(request.requested_commit)
+                except ContentDeploymentConflict as exc:
+                    raise ContentRefreshConflict(code=exc.code, message=str(exc)) from exc
+                except ContentDeploymentError as exc:
+                    raise ContentRefreshConflict(
+                        code="unreachable_commit",
+                        message="The exact requested commit could not be proven reachable under the configured ref policy.",
+                    ) from exc
+                if resolved != request.requested_commit:
+                    raise ContentRefreshConflict(
+                        code="unreachable_commit",
+                        message="The exact requested commit is not reachable under the configured ref policy.",
+                    )
+                receipt = self._initial_receipt(
+                    operation_id,
+                    digest,
+                    request,
+                    actor,
+                    active_commit=current_commit,
+                    compatibility_mode=False,
                 )
-            if self._pending_receipts():
-                raise ContentRefreshConflict(
-                    code="refresh_in_progress",
-                    message="Another content refresh is already pending for this single-replica service.",
-                )
-            try:
-                resolved = self.store.resolve_requested_commit(request.requested_commit)
-            except ContentDeploymentConflict as exc:
-                raise ContentRefreshConflict(code=exc.code, message=str(exc)) from exc
-            except ContentDeploymentError as exc:
-                raise ContentRefreshConflict(
-                    code="unreachable_commit",
-                    message="The exact requested commit could not be proven reachable under the configured ref policy.",
-                ) from exc
-            if resolved != request.requested_commit:
-                raise ContentRefreshConflict(
-                    code="unreachable_commit",
-                    message="The exact requested commit is not reachable under the configured ref policy.",
-                )
-            receipt = self._initial_receipt(
-                operation_id,
-                digest,
-                request,
-                actor,
-                active_commit=current_commit,
-                compatibility_mode=False,
-            )
-            self._write(receipt)
+                refresh_lease = self.store._content_refresh_lease()
+                refresh_lease.acquire()
+                self._write(receipt)
+        except BaseException as exc:
+            if refresh_lease is not None:
+                self._release_transferred_lease(refresh_lease, exc)
+            raise
+        assert refresh_lease is not None
         if asynchronous:
-            self._start(lambda: self._run(receipt, request))
+            try:
+                self._start(lambda: self._run_with_lease(receipt, request, refresh_lease))
+            except BaseException as exc:
+                self._release_transferred_lease(refresh_lease, exc)
+                raise
             return receipt
-        return self._run(receipt, request)
+        return self._run_with_lease(receipt, request, refresh_lease)
 
     def submit_compatibility(
         self,
@@ -423,26 +436,39 @@ class ContentRefreshService:
                 "actor": actor.to_dict(),
             }
         )
-        with self._submission_lease():
-            if self._pending_receipts():
-                raise ContentRefreshConflict(
-                    code="refresh_in_progress",
-                    message="Another content refresh is already pending for this single-replica service.",
+        refresh_lease: OperationLease | None = None
+        try:
+            with self._submission_lease():
+                if self._pending_receipts():
+                    raise ContentRefreshConflict(
+                        code="refresh_in_progress",
+                        message="Another content refresh is already pending for this single-replica service.",
+                    )
+                receipt = self._initial_receipt(
+                    operation_id,
+                    semantic,
+                    None,
+                    actor,
+                    active_commit=self._active_commit(),
+                    compatibility_mode=True,
+                    idempotency_key=key,
                 )
-            receipt = self._initial_receipt(
-                operation_id,
-                semantic,
-                None,
-                actor,
-                active_commit=self._active_commit(),
-                compatibility_mode=True,
-                idempotency_key=key,
-            )
-            self._write(receipt)
+                refresh_lease = self.store._content_refresh_lease()
+                refresh_lease.acquire()
+                self._write(receipt)
+        except BaseException as exc:
+            if refresh_lease is not None:
+                self._release_transferred_lease(refresh_lease, exc)
+            raise
+        assert refresh_lease is not None
         if asynchronous:
-            self._start(lambda: self._run_compatibility(receipt))
+            try:
+                self._start(lambda: self._run_compatibility_with_lease(receipt, refresh_lease))
+            except BaseException as exc:
+                self._release_transferred_lease(refresh_lease, exc)
+                raise
             return receipt
-        return self._run_compatibility(receipt)
+        return self._run_compatibility_with_lease(receipt, refresh_lease)
 
     def get(self, operation_id: str) -> ContentRefreshReceipt | None:
         if _OPERATION_PATTERN.fullmatch(operation_id) is None:
@@ -455,7 +481,14 @@ class ContentRefreshService:
 
     def reconcile_startup(self) -> tuple[ContentRefreshReceipt, ...]:
         """Locally reconcile promoted operations against the generation this process will serve."""
-        active = self.store.status()
+        with self._submission_lease(), self.store._content_refresh_lease():
+            active = self.store._status_owned()
+            return self._reconcile_startup_snapshot(active)
+
+    def _reconcile_startup_snapshot(
+        self, active: Mapping[str, Any]
+    ) -> tuple[ContentRefreshReceipt, ...]:
+        """Reconcile receipts against a selection snapshot owned by both operation leases."""
         active_generation = active.get("active_generation")
         raw_active_receipt = active.get("receipt")
         active_receipt: dict[str, Any] = (
@@ -489,11 +522,10 @@ class ContentRefreshService:
                 ContentRefreshState.RESTART_SCHEDULED,
             }:
                 continue
-            if (
-                receipt.generation == active_generation
-                and receipt.resolved_commit == active_commit
-                and identity_matches
-            ):
+            selection_matches = (
+                receipt.generation == active_generation and receipt.resolved_commit == active_commit
+            )
+            if selection_matches and identity_matches:
                 readiness = {
                     "ready": True,
                     "active_generation": active_generation,
@@ -507,14 +539,96 @@ class ContentRefreshService:
                     readiness=readiness,
                 )
                 updated.append(receipt)
+            else:
+                code = (
+                    "generation_runtime_incompatible"
+                    if selection_matches
+                    else "superseded_generation"
+                )
+                message = (
+                    "The selected generation does not match the running image or build identity."
+                    if selection_matches
+                    else "The promoted generation is no longer selected; a later rollback or promotion superseded it."
+                )
+                updated.append(
+                    self._failed(
+                        receipt,
+                        code,
+                        message,
+                    )
+                )
         return tuple(updated)
+
+    def rollback(self, *, actor: str, reason: str) -> dict[str, Any]:
+        """Roll back content and terminalize refreshes superseded by that selection."""
+
+        def supersede_selected(result: Mapping[str, Any]) -> None:
+            superseded_generation = str(result.get("last_known_good_generation") or "")
+            for receipt in self._receipts():
+                if (
+                    receipt.state
+                    not in {
+                        ContentRefreshState.PROMOTED,
+                        ContentRefreshState.ACTIVATION_PENDING_RESTART,
+                        ContentRefreshState.RESTART_SCHEDULED,
+                        ContentRefreshState.READY,
+                    }
+                    or receipt.generation != superseded_generation
+                ):
+                    continue
+                self._failed(
+                    receipt,
+                    "superseded_by_rollback",
+                    "The content refresh was superseded by an operator rollback.",
+                )
+
+        with self._submission_lease():
+            return self.store.rollback(actor=actor, reason=reason, completion=supersede_selected)
+
+    def _run_with_lease(
+        self,
+        receipt: ContentRefreshReceipt,
+        request: ContentRefreshRequest,
+        lease: OperationLease,
+    ) -> ContentRefreshReceipt:
+        try:
+            return self._run(receipt, request)
+        finally:
+            lease.release()
+
+    @staticmethod
+    def _release_transferred_lease(lease: OperationLease, original: BaseException) -> None:
+        """Release provisional ownership while preserving the triggering exception."""
+        try:
+            lease.release()
+        except BaseException as cleanup_error:
+            original.add_note(
+                "The provisional content-refresh lease also failed to release cleanly "
+                f"({cleanup_error.__class__.__name__})."
+            )
+
+    def _run_compatibility_with_lease(
+        self,
+        receipt: ContentRefreshReceipt,
+        lease: OperationLease,
+    ) -> ContentRefreshReceipt:
+        try:
+            return self._run_compatibility(receipt)
+        finally:
+            lease.release()
 
     def _run(
         self, receipt: ContentRefreshReceipt, request: ContentRefreshRequest
     ) -> ContentRefreshReceipt:
         try:
             receipt = self._transition(receipt, ContentRefreshState.STAGING)
-            result = self.store.refresh(
+            completed: ContentRefreshReceipt | None = None
+
+            def complete(result: Mapping[str, Any]) -> None:
+                nonlocal completed
+                completed = self._after_promotion(receipt, result)
+
+            self.store.refresh(
                 trigger=receipt.actor.transport,
                 expected_active_commit=request.expected_active_commit,
                 requested_commit=request.requested_commit,
@@ -522,8 +636,12 @@ class ContentRefreshService:
                 operation_id=receipt.operation_id,
                 semantic_digest=receipt.semantic_digest,
                 idempotency_key_digest=receipt.idempotency_key_digest,
+                completion=complete,
+                _lease_owned=True,
             )
-            return self._after_promotion(receipt, result)
+            if completed is None:  # pragma: no cover - store contract guard
+                raise RuntimeError("The content refresh completed without durable bookkeeping.")
+            return completed
         except ContentDeploymentConflict as exc:
             return self._failed(receipt, exc.code, str(exc))
         except ContentDeploymentError as exc:
@@ -538,14 +656,24 @@ class ContentRefreshService:
     def _run_compatibility(self, receipt: ContentRefreshReceipt) -> ContentRefreshReceipt:
         try:
             receipt = self._transition(receipt, ContentRefreshState.STAGING)
-            result = self.store.refresh(
+            completed: ContentRefreshReceipt | None = None
+
+            def complete(result: Mapping[str, Any]) -> None:
+                nonlocal completed
+                completed = self._after_promotion(receipt, result)
+
+            self.store.refresh(
                 trigger="http-empty-body-compatibility",
                 actor=receipt.actor.actor,
                 operation_id=receipt.operation_id,
                 semantic_digest=receipt.semantic_digest,
                 idempotency_key_digest=receipt.idempotency_key_digest,
+                completion=complete,
+                _lease_owned=True,
             )
-            return self._after_promotion(receipt, result)
+            if completed is None:  # pragma: no cover - store contract guard
+                raise RuntimeError("The content refresh completed without durable bookkeeping.")
+            return completed
         except Exception as exc:
             code = getattr(exc, "code", "refresh_failed")
             return self._failed(receipt, code, str(exc) or exc.__class__.__name__)
