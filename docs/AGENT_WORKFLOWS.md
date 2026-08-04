@@ -94,6 +94,11 @@ caller deliberately sets `include_eol` to true.
 
 Versioned public and trusted-author contract fixtures live under `tests/fixtures/agent-contracts/`. Run `fura agent-diff OLD.json NEW.json --json` to review semantic contract changes without treating keyed-array reordering as drift. Breaking removals, type/version changes, and URL or URI changes require an explicit `--decision` describing the major-version or migration policy.
 
+The [MCP Apps contract](MCP_APPS_CONTRACT.md) defines opt-in capability negotiation,
+versioned `ui://` identity, tool links, deny-by-default browser metadata, access and
+redaction policy, deterministic gateway rewriting, and structured non-App fallback.
+The contract does not enable WebMCP or bypass existing MCP authorization and audit paths.
+
 Run `fura evals --include-private --category author_workflows --json` to verify author drafting, publish preview, validation-error repair, failed-publish remediation, and publish/unpublish retrieval boundaries. The suite uses dry-run or intentionally unconfirmed writes for most cases; the validation repair and publish round-trip cases perform confirmed writes against a private fixture and restore the original source before finishing.
 
 ## Versioned known-answer corpus

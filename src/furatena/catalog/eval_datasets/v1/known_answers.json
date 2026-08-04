@@ -10,7 +10,7 @@
       "root": ".",
       "mount": "furatena",
       "url_prefix": "",
-      "revision": "sha256:96321fd7864b273ecc7549ec040ddffc2d440f515b02d5a976be5fed0d519591",
+      "revision": "sha256:f35d7089a9d026ee6e615b7ce57c88159afd83c143ae2e1af4da8634dfc5dd16",
       "sources": [
         {
           "path": "content/furatena/docs/get-started/installation.md",
@@ -34,7 +34,7 @@
         },
         {
           "path": "content/furatena/docs/reference/integrator-operations.md",
-          "sha256": "4f83ea9d2da5086c762a3deaf7f192775edd3209b03aece42e05fa1f4099a9da"
+          "sha256": "fe8e831c5ff45256f8250a52b69af06c2d3eefe38367dc485b187c3ea7aadf65"
         },
         {
           "path": "content/furatena/releases/_index.md",

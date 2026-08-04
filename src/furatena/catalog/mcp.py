@@ -37,6 +37,7 @@ from furatena.catalog.embedding_providers import build_embedding_index
 from furatena.catalog.export import catalog_graph, provenance_record
 from furatena.catalog.impact import stale_impact_report
 from furatena.catalog.inventories.export import inventories_json
+from furatena.catalog.mcp_apps import negotiated_server_extensions
 from furatena.catalog.public_projection import inspect_public_transition
 from furatena.catalog.query import (
     DEFAULT_GRAPH_QUERY_LIMIT,
@@ -1264,12 +1265,16 @@ class FuraMCPServer:
 
     def _initialize(self, params: dict[str, Any]) -> dict[str, Any]:
         client_version = params.get("protocolVersion")
+        capabilities: dict[str, Any] = {
+            "resources": {},
+            "tools": {},
+        }
+        extensions = negotiated_server_extensions(params)
+        if extensions:
+            capabilities["extensions"] = extensions
         return {
             "protocolVersion": client_version or MCP_PROTOCOL_VERSION,
-            "capabilities": {
-                "resources": {},
-                "tools": {},
-            },
+            "capabilities": capabilities,
             "serverInfo": {
                 "name": SERVER_NAME,
                 "version": _package_version(),
