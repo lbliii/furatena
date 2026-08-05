@@ -107,8 +107,57 @@ def test_init_scaffolds_standalone_app(tmp_path: Path) -> None:
     assert (app_root / "docs.yaml").is_file()
     assert (app_root / "mounts.yaml").is_file()
     assert (app_root / "content" / "docs" / "get-started.md").is_file()
-    assert (app_root / "theme" / "views" / "doc.html").is_file()
-    assert (app_root / "theme" / "search.html").is_file()
+    assert (app_root / "content" / "docs" / "guides" / "write-a-guide.md").is_file()
+    assert (app_root / "content" / "docs" / "reference" / "frontmatter.md").is_file()
+    assert (app_root / "theme" / "assets" / "branding" / "favicon.svg").is_file()
+    assert not (app_root / "theme" / "views" / "doc.html").exists()
+    assert not (app_root / "theme" / "shell.html").exists()
+    docs_yaml = (app_root / "docs.yaml").read_text(encoding="utf-8")
+    assert "layout: docs" in docs_yaml
+    assert "skin: lagoon" in docs_yaml
+    assert "trusted_capabilities: [scripts]" in docs_yaml
+    assert "cta_primary:" in docs_yaml
+    assert "/docs/get-started/" in docs_yaml
+    assert "/docs/guides/" in docs_yaml
+    assert "/docs/reference/" in docs_yaml
+    get_started = (app_root / "content" / "docs" / "get-started.md").read_text(encoding="utf-8")
+    assert "You already ran `fura serve`" in get_started
+    assert "```bash\nfura serve\n```" not in get_started
+    readme = (app_root / "README.md").read_text(encoding="utf-8")
+    assert "## Edit and preview" in readme
+    assert "Packaged docs layout + Lagoon" not in readme
+
+
+def test_init_skin_none_selects_vanilla_layout(tmp_path: Path) -> None:
+    app_root = tmp_path / "docs-site"
+
+    result = _run_result(["init", str(app_root), "--name", "Acme Docs", "--skin", "none", "--json"])
+
+    assert result.ok is True
+    assert result.data["skin"] == "none"
+    docs_yaml = (app_root / "docs.yaml").read_text(encoding="utf-8")
+    assert "layout: vanilla" in docs_yaml
+    assert "skin: lagoon" not in docs_yaml
+    assert "Packaged docs layout + Lagoon" in (app_root / "README.md").read_text(encoding="utf-8")
+
+
+def test_init_home_uses_packaged_docs_layout(tmp_path: Path) -> None:
+    app_root = tmp_path / "docs-site"
+    main(["init", str(app_root), "--name", "Acme Docs"])
+    main(["--app-root", str(app_root), "freeze", "--workers", "1"])
+    main(["--app-root", str(app_root), "export", "--base-path", ""])
+
+    home = (app_root / "public" / "index.html").read_text(encoding="utf-8")
+    assert "chirp-theme-home" in home
+    assert "/docs/get-started/" in home
+    for rel in (
+        "docs/get-started/index.html",
+        "docs/guides/index.html",
+        "docs/guides/write-a-guide/index.html",
+        "docs/reference/index.html",
+        "docs/reference/frontmatter/index.html",
+    ):
+        assert (app_root / "public" / rel).is_file()
 
 
 def test_deployment_security_requires_stable_session_secret(
