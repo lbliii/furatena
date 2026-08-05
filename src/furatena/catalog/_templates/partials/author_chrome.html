@@ -5,6 +5,7 @@
   id="fura-author-chrome"
   class="fura-author-chrome fura-author-truth"
   data-fura-author-chrome
+  data-fura-author-tray-open="false"
   data-fura-author-view="read"
   data-author-truth-schema="{{ author_chrome.truth.schema_version }}"
   data-fura-author-slug="{{ author_chrome.slug }}"
@@ -57,260 +58,278 @@
         class="fura-author-chrome__action fura-author-chrome__action--primary"
         data-fura-author-open-workflow
       >Workflow</button>
-      <button
-        type="button"
-        class="fura-author-chrome__action"
-        data-fura-author-back-to-page
-        hidden
-      >Back to page</button>
     </div>
   </div>
 
-  <div class="fura-author-chrome__workflow-panel" id="fura-author-workflow">
-    <header class="fura-author-truth__header">
+  <button
+    type="button"
+    class="fura-author-tray__scrim"
+    data-fura-author-close-workflow
+    aria-label="Close author workflow"
+    tabindex="-1"
+    hidden
+  ></button>
+
+  <aside
+    id="fura-author-workflow"
+    class="fura-author-tray"
+    aria-labelledby="fura-author-tray-title"
+    aria-hidden="true"
+  >
+    <header class="fura-author-tray__header">
       <div class="fura-author-chrome__heading">
         <span>Author workflow</span>
-        <strong>{{ author_chrome.title }}</strong>
+        <strong id="fura-author-tray-title">{{ author_chrome.title }}</strong>
       </div>
-      <div
-        class="fura-author-truth__connection"
-        data-author-connection-status
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <span aria-hidden="true"></span>
-        <span>{{ author_chrome.truth.connection.label }}</span>
+      <div class="fura-author-tray__header-actions">
+        <div
+          class="fura-author-truth__connection"
+          data-author-connection-status
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span aria-hidden="true"></span>
+          <span>{{ author_chrome.truth.connection.label }}</span>
+        </div>
+        <button
+          type="button"
+          class="fura-author-chrome__action"
+          data-fura-author-close-workflow
+          aria-label="Close author workflow"
+        >Close</button>
       </div>
     </header>
 
-    <section class="fura-author-truth__planes" aria-label="Independent publication state planes">
-      {% for plane in author_chrome.truth.planes %}
-      {% if author_chrome.publication_connected or plane.key == 'lifecycle' or plane.state != 'unavailable' %}
-      <article
-        class="fura-author-truth__plane"
-        data-author-plane="{{ plane.key }}"
-        data-author-plane-state="{{ plane.state }}"
-        data-author-freshness="{{ plane.freshness }}"
+    <div class="fura-author-tray__body fura-author-chrome__workflow-panel">
+      <section class="fura-author-truth__planes" aria-label="Independent publication state planes">
+        {% for plane in author_chrome.truth.planes %}
+        {% if author_chrome.publication_connected or plane.key == 'lifecycle' or plane.state != 'unavailable' %}
+        <article
+          class="fura-author-truth__plane"
+          data-author-plane="{{ plane.key }}"
+          data-author-plane-state="{{ plane.state }}"
+          data-author-freshness="{{ plane.freshness }}"
+        >
+          <header>
+            <h2>{{ plane.label }}</h2>
+            <span class="fura-author-truth__state" data-state="{{ plane.state }}">{{ plane.state | replace('_', ' ') }}</span>
+          </header>
+          <p>{{ plane.summary }}</p>
+          <dl>
+            <div>
+              <dt>{{ plane.identity_label }}</dt>
+              <dd><code title="{{ plane.identity ?? 'Not available' }}">{{ plane.identity ?? 'Not available' }}</code></dd>
+            </div>
+            <div>
+              <dt>Freshness</dt>
+              <dd>{{ plane.freshness }}</dd>
+            </div>
+          </dl>
+        </article>
+        {% end %}
+        {% end %}
+      </section>
+
+      {% if not author_chrome.publication_connected %}
+      <p class="fura-author-truth__planes-note">
+        Repository, artifact, and deployment planes appear when a publication workflow is connected.
+      </p>
+      {% end %}
+
+      {% if author_chrome.truth.blockers %}
+      <aside class="fura-author-truth__blockers" aria-labelledby="fura-author-blockers-title">
+        <h2 id="fura-author-blockers-title">Current blockers and recovery</h2>
+        <ul>
+          {% for blocker in author_chrome.truth.blockers %}
+          <li>{{ blocker }}</li>
+          {% end %}
+        </ul>
+      </aside>
+      {% end %}
+
+      {% if author_chrome.truth.feedback %}
+      <section
+        id="fura-author-feedback"
+        class="fura-author-truth__feedback"
+        data-author-feedback
+        data-author-feedback-ok="{% if author_chrome.truth.feedback.ok %}true{% else %}false{% end %}"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        tabindex="-1"
       >
         <header>
-          <h2>{{ plane.label }}</h2>
-          <span class="fura-author-truth__state" data-state="{{ plane.state }}">{{ plane.state | replace('_', ' ') }}</span>
+          <h2>{% if author_chrome.truth.feedback.dry_run %}Dry-run diff{% else %}Action result{% end %}</h2>
+          <span>{% if author_chrome.truth.feedback.ok %}Completed{% else %}Needs recovery{% end %}</span>
         </header>
-        <p>{{ plane.summary }}</p>
-        <dl>
-          <div>
-            <dt>{{ plane.identity_label }}</dt>
-            <dd><code title="{{ plane.identity ?? 'Not available' }}">{{ plane.identity ?? 'Not available' }}</code></dd>
-          </div>
-          <div>
-            <dt>Freshness</dt>
-            <dd>{{ plane.freshness }}</dd>
-          </div>
-        </dl>
-      </article>
-      {% end %}
-      {% end %}
-    </section>
-
-    {% if not author_chrome.publication_connected %}
-    <p class="fura-author-truth__planes-note">
-      Repository, artifact, and deployment planes appear when a publication workflow is connected.
-    </p>
-    {% end %}
-
-    {% if author_chrome.truth.blockers %}
-    <aside class="fura-author-truth__blockers" aria-labelledby="fura-author-blockers-title">
-      <h2 id="fura-author-blockers-title">Current blockers and recovery</h2>
-      <ul>
-        {% for blocker in author_chrome.truth.blockers %}
-        <li>{{ blocker }}</li>
+        {% if author_chrome.truth.feedback.diagnostics %}
+        <ul aria-label="Action diagnostics">
+          {% for diagnostic in author_chrome.truth.feedback.diagnostics %}
+          <li data-severity="{{ diagnostic.severity }}">
+            <strong>{{ diagnostic.message }}</strong>
+            <span>{{ diagnostic.next_action }}</span>
+          </li>
+          {% end %}
+        </ul>
         {% end %}
-      </ul>
-    </aside>
-    {% end %}
-
-    {% if author_chrome.truth.feedback %}
-    <section
-      id="fura-author-feedback"
-      class="fura-author-truth__feedback"
-      data-author-feedback
-      data-author-feedback-ok="{% if author_chrome.truth.feedback.ok %}true{% else %}false{% end %}"
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      tabindex="-1"
-    >
-      <header>
-        <h2>{% if author_chrome.truth.feedback.dry_run %}Dry-run diff{% else %}Action result{% end %}</h2>
-        <span>{% if author_chrome.truth.feedback.ok %}Completed{% else %}Needs recovery{% end %}</span>
-      </header>
-      {% if author_chrome.truth.feedback.diagnostics %}
-      <ul aria-label="Action diagnostics">
-        {% for diagnostic in author_chrome.truth.feedback.diagnostics %}
-        <li data-severity="{{ diagnostic.severity }}">
-          <strong>{{ diagnostic.message }}</strong>
-          <span>{{ diagnostic.next_action }}</span>
-        </li>
+        {% if author_chrome.truth.feedback.diff %}
+        <details class="fura-author-truth__feedback-diff">
+          <summary>Show diff</summary>
+          <pre aria-label="Source diff">{{ author_chrome.truth.feedback.diff }}</pre>
+        </details>
         {% end %}
-      </ul>
+      </section>
       {% end %}
-      {% if author_chrome.truth.feedback.diff %}
-      <details class="fura-author-truth__feedback-diff">
-        <summary>Show diff</summary>
-        <pre aria-label="Source diff">{{ author_chrome.truth.feedback.diff }}</pre>
-      </details>
-      {% end %}
-    </section>
-    {% end %}
 
-    <section class="fura-author-truth__workflow" aria-labelledby="fura-author-workflow-title">
-      <header>
-        <div>
-          <p>Exact sequence</p>
-          <h2 id="fura-author-workflow-title">State and actions</h2>
-        </div>
-        <p>{{ author_chrome.truth.approval_summary }}</p>
-      </header>
-      <ol id="fura-author-workflow-steps" class="fura-author-truth__steps">
-        {% for action in author_chrome.truth.actions %}
-        <li
-          class="fura-author-truth__step"
-          data-author-action="{{ action.key }}"
-          data-author-action-state="{{ action.state }}"
-          data-author-job-state="{{ action.job_state }}"
-        >
-          <div class="fura-author-truth__step-index" aria-hidden="true">{{ loop.index }}</div>
-          <div class="fura-author-truth__step-body">
-            <header>
-              <span>{{ action.phase }}</span>
-              <h3>{{ action.label }}</h3>
-            </header>
-            <p>{{ action.effect }}</p>
-            <details class="fura-author-truth__step-details">
-              <summary>Step details</summary>
-              <dl>
-                <div>
-                  <dt>Capability</dt>
-                  <dd>{{ action.reason }}</dd>
-                </div>
-                <div>
-                  <dt>Confirmation boundary</dt>
-                  <dd>{{ action.confirmation }}</dd>
-                </div>
-                {% if not action.enabled %}
-                <div id="fura-author-action-{{ action.key }}-recovery">
-                  <dt>Recovery</dt>
-                  <dd>{{ action.remediation }}</dd>
-                </div>
+      <section class="fura-author-truth__workflow" aria-labelledby="fura-author-workflow-title">
+        <header>
+          <div>
+            <p>Exact sequence</p>
+            <h2 id="fura-author-workflow-title">State and actions</h2>
+          </div>
+          <p>{{ author_chrome.truth.approval_summary }}</p>
+        </header>
+        <ol id="fura-author-workflow-steps" class="fura-author-truth__steps">
+          {% for action in author_chrome.truth.actions %}
+          <li
+            class="fura-author-truth__step"
+            data-author-action="{{ action.key }}"
+            data-author-action-state="{{ action.state }}"
+            data-author-job-state="{{ action.job_state }}"
+          >
+            <div class="fura-author-truth__step-index" aria-hidden="true">{{ loop.index }}</div>
+            <div class="fura-author-truth__step-body">
+              <header>
+                <span>{{ action.phase }}</span>
+                <h3>{{ action.label }}</h3>
+              </header>
+              <p>{{ action.effect }}</p>
+              <details class="fura-author-truth__step-details">
+                <summary>Step details</summary>
+                <dl>
+                  <div>
+                    <dt>Capability</dt>
+                    <dd>{{ action.reason }}</dd>
+                  </div>
+                  <div>
+                    <dt>Confirmation boundary</dt>
+                    <dd>{{ action.confirmation }}</dd>
+                  </div>
+                  {% if not action.enabled %}
+                  <div id="fura-author-action-{{ action.key }}-recovery">
+                    <dt>Recovery</dt>
+                    <dd>{{ action.remediation }}</dd>
+                  </div>
+                  {% end %}
+                </dl>
+              </details>
+              <span class="fura-author-truth__job" role="status" aria-live="polite">
+                {{ action.job_state | replace('_', ' ') }}
+              </span>
+            </div>
+            <div class="fura-author-truth__step-action">
+              {% if action.enabled and action.kind == 'get' %}
+              <a
+                class="fura-author-chrome__action{% if action.key == 'validate' %} fura-author-chrome__action--primary{% end %}"
+                href="{{ action.href }}"
+                {% if action.key == 'validate' %}
+                hx-get="{{ action.href }}"
+                hx-target="#fura-author-chrome"
+                hx-swap="outerHTML focus-scroll:false"
                 {% end %}
-              </dl>
-            </details>
-            <span class="fura-author-truth__job" role="status" aria-live="polite">
-              {{ action.job_state | replace('_', ' ') }}
-            </span>
-          </div>
-          <div class="fura-author-truth__step-action">
-            {% if action.enabled and action.kind == 'get' %}
-            <a
-              class="fura-author-chrome__action{% if action.key == 'validate' %} fura-author-chrome__action--primary{% end %}"
-              href="{{ action.href }}"
-              {% if action.key == 'validate' %}
-              hx-get="{{ action.href }}"
-              hx-target="#fura-author-chrome"
-              hx-swap="outerHTML focus-scroll:false"
+              >
+                {{ action.label }}
+              </a>
+              {% elif action.enabled and action.kind == 'dry_run' %}
+              <form
+                method="post"
+                action="{{ author_chrome.actions.transition }}"
+                hx-post="{{ author_chrome.actions.transition }}"
+                hx-target="#fura-author-chrome"
+                hx-swap="outerHTML focus-scroll:false"
+              >
+                {{ csrf_field() }}
+                <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
+                <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+                <input type="hidden" name="source_revision" value="{{ author_chrome.source_revision }}">
+                <input type="hidden" name="operation" value="{{ action.operation }}">
+                <input type="hidden" name="dry_run" value="1">
+                <button type="submit" class="fura-author-chrome__action">{{ action.label }}</button>
+              </form>
+              {% elif action.enabled and action.kind == 'transition' %}
+              <details class="fura-author-truth__confirm">
+                <summary class="fura-author-chrome__action">{{ action.label }}</summary>
+                <div class="fura-author-truth__confirm-panel">
+                  <p>{{ action.confirmation }}</p>
+                  <form
+                    method="post"
+                    action="{{ author_chrome.actions.transition }}"
+                    hx-post="{{ author_chrome.actions.transition }}"
+                    hx-target="#fura-author-chrome"
+                    hx-swap="outerHTML focus-scroll:false"
+                  >
+                    {{ csrf_field() }}
+                    <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
+                    <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
+                    <input type="hidden" name="source_revision" value="{{ author_chrome.source_revision }}">
+                    <input type="hidden" name="operation" value="{{ action.operation }}">
+                    <input type="hidden" name="dry_run" value="0">
+                    <button
+                      type="submit"
+                      name="confirmed"
+                      value="1"
+                      class="fura-author-chrome__action fura-author-chrome__action--primary"
+                      aria-label="Confirm {{ action.label }} for source revision {{ author_chrome.source_revision }}"
+                    >Confirm {{ action.label }}</button>
+                  </form>
+                </div>
+              </details>
+              {% elif action.enabled and action.href %}
+              <a class="fura-author-chrome__action" href="{{ action.href }}">{{ action.label }}</a>
+              {% else %}
+              <button
+                type="button"
+                class="fura-author-chrome__action"
+                disabled
+                aria-disabled="true"
+                aria-describedby="fura-author-action-{{ action.key }}-recovery"
+              >{{ action.label }}</button>
               {% end %}
-            >
-              {{ action.label }}
-            </a>
-            {% elif action.enabled and action.kind == 'dry_run' %}
-            <form
-              method="post"
-              action="{{ author_chrome.actions.transition }}"
-              hx-post="{{ author_chrome.actions.transition }}"
-              hx-target="#fura-author-chrome"
-              hx-swap="outerHTML focus-scroll:false"
-            >
-              {{ csrf_field() }}
-              <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
-              <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
-              <input type="hidden" name="source_revision" value="{{ author_chrome.source_revision }}">
-              <input type="hidden" name="operation" value="{{ action.operation }}">
-              <input type="hidden" name="dry_run" value="1">
-              <button type="submit" class="fura-author-chrome__action">{{ action.label }}</button>
-            </form>
-            {% elif action.enabled and action.kind == 'transition' %}
-            <details class="fura-author-truth__confirm">
-              <summary class="fura-author-chrome__action">{{ action.label }}</summary>
-              <div class="fura-author-truth__confirm-panel">
-                <p>{{ action.confirmation }}</p>
-                <form
-                  method="post"
-                  action="{{ author_chrome.actions.transition }}"
-                  hx-post="{{ author_chrome.actions.transition }}"
-                  hx-target="#fura-author-chrome"
-                  hx-swap="outerHTML focus-scroll:false"
-                >
-                  {{ csrf_field() }}
-                  <input type="hidden" name="node_id" value="{{ author_chrome.node_id }}">
-                  <input type="hidden" name="slug" value="{{ author_chrome.slug }}">
-                  <input type="hidden" name="source_revision" value="{{ author_chrome.source_revision }}">
-                  <input type="hidden" name="operation" value="{{ action.operation }}">
-                  <input type="hidden" name="dry_run" value="0">
-                  <button
-                    type="submit"
-                    name="confirmed"
-                    value="1"
-                    class="fura-author-chrome__action fura-author-chrome__action--primary"
-                    aria-label="Confirm {{ action.label }} for source revision {{ author_chrome.source_revision }}"
-                  >Confirm {{ action.label }}</button>
-                </form>
-              </div>
-            </details>
-            {% elif action.enabled and action.href %}
-            <a class="fura-author-chrome__action" href="{{ action.href }}">{{ action.label }}</a>
-            {% else %}
-            <button
-              type="button"
-              class="fura-author-chrome__action"
-              disabled
-              aria-disabled="true"
-              aria-describedby="fura-author-action-{{ action.key }}-recovery"
-            >{{ action.label }}</button>
-            {% end %}
-          </div>
-        </li>
-        {% end %}
-      </ol>
-    </section>
+            </div>
+          </li>
+          {% end %}
+        </ol>
+      </section>
 
-    <details class="fura-author-chrome__details">
-      <summary>
-        <span>Exact identities and source tools</span>
-        <span class="fura-author-chrome__details-chevron" aria-hidden="true">{{ docs_icon('caret-down', 12) }}</span>
-      </summary>
-      <div class="fura-author-chrome__details-panel">
-        <dl class="fura-author-truth__identities" aria-label="Exact publication identities">
-          <div><dt>Source revision</dt><dd><code>{{ author_chrome.truth.identities.source_revision ?? 'Not available' }}</code></dd></div>
-          <div><dt>Plan ID</dt><dd><code>{{ author_chrome.truth.identities.plan_id ?? 'Not created' }}</code></dd></div>
-          <div><dt>Plan digest</dt><dd><code>{{ author_chrome.truth.identities.plan_digest ?? 'Not created' }}</code></dd></div>
-          <div><dt>Artifact</dt><dd><code>{{ author_chrome.truth.identities.artifact_id ?? 'Not built' }}</code></dd></div>
-          <div><dt>Deployment</dt><dd><code>{{ author_chrome.truth.identities.deployment_id ?? 'Not deployed' }}</code></dd></div>
-        </dl>
-        <div class="fura-author-chrome__details-actions" aria-label="Source and workspace tools">
-          <a class="fura-author-chrome__action" href="{{ author_chrome.actions.studio }}">Studio</a>
-          <a class="fura-author-chrome__action" href="{{ author_chrome.actions.open_source }}">Open source</a>
-          <a class="fura-author-chrome__action" href="{{ author_chrome.actions.dashboard }}">Dashboard</a>
-          <button
-            class="fura-author-chrome__action"
-            type="button"
-            data-action="copy-source-path"
-            data-source-path="{{ author_chrome.source_path }}"
-          >Copy source path</button>
+      <details class="fura-author-chrome__details">
+        <summary>
+          <span>Exact identities and source tools</span>
+          <span class="fura-author-chrome__details-chevron" aria-hidden="true">{{ docs_icon('caret-down', 12) }}</span>
+        </summary>
+        <div class="fura-author-chrome__details-panel">
+          <dl class="fura-author-truth__identities" aria-label="Exact publication identities">
+            <div><dt>Source revision</dt><dd><code>{{ author_chrome.truth.identities.source_revision ?? 'Not available' }}</code></dd></div>
+            <div><dt>Plan ID</dt><dd><code>{{ author_chrome.truth.identities.plan_id ?? 'Not created' }}</code></dd></div>
+            <div><dt>Plan digest</dt><dd><code>{{ author_chrome.truth.identities.plan_digest ?? 'Not created' }}</code></dd></div>
+            <div><dt>Artifact</dt><dd><code>{{ author_chrome.truth.identities.artifact_id ?? 'Not built' }}</code></dd></div>
+            <div><dt>Deployment</dt><dd><code>{{ author_chrome.truth.identities.deployment_id ?? 'Not deployed' }}</code></dd></div>
+          </dl>
+          <div class="fura-author-chrome__details-actions" aria-label="Source and workspace tools">
+            <a class="fura-author-chrome__action" href="{{ author_chrome.actions.studio }}">Studio</a>
+            <a class="fura-author-chrome__action" href="{{ author_chrome.actions.open_source }}">Open source</a>
+            <a class="fura-author-chrome__action" href="{{ author_chrome.actions.dashboard }}">Dashboard</a>
+            <button
+              class="fura-author-chrome__action"
+              type="button"
+              data-action="copy-source-path"
+              data-source-path="{{ author_chrome.source_path }}"
+            >Copy source path</button>
+          </div>
         </div>
-      </div>
-    </details>
-  </div>
+      </details>
+    </div>
+  </aside>
 </section>
 {% end %}
 {% end %}

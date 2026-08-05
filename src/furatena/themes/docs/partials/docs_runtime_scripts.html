@@ -313,23 +313,42 @@
     function setAuthorView(view, options) {
       var chrome = document.getElementById("fura-author-chrome");
       if (!chrome) return;
-      var mode = view === "workflow" ? "workflow" : "read";
-      var layout = document.querySelector(".chirp-theme-docs-layout");
-      chrome.setAttribute("data-fura-author-view", mode);
-      if (layout) layout.setAttribute("data-fura-author-view", mode);
+      var open = view === "workflow";
+      var tray = chrome.querySelector(".fura-author-tray");
+      var scrim = chrome.querySelector(".fura-author-tray__scrim");
       var openButton = chrome.querySelector("[data-fura-author-open-workflow]");
-      var backButton = chrome.querySelector("[data-fura-author-back-to-page]");
-      if (openButton) openButton.hidden = mode === "workflow";
-      if (backButton) backButton.hidden = mode !== "workflow";
+      chrome.setAttribute("data-fura-author-tray-open", open ? "true" : "false");
+      chrome.setAttribute("data-fura-author-view", open ? "workflow" : "read");
+      if (tray) {
+        tray.setAttribute("aria-hidden", open ? "false" : "true");
+        if (open && typeof tray.inert !== "undefined") {
+          tray.inert = false;
+        } else if (!open && typeof tray.inert !== "undefined") {
+          tray.inert = true;
+        }
+      }
+      if (scrim) {
+        scrim.hidden = !open || window.matchMedia("(min-width: 72rem)").matches;
+        scrim.tabIndex = open ? 0 : -1;
+      }
+      if (openButton) {
+        openButton.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      document.body.style.overflow = open && window.matchMedia("(max-width: 71.99rem)").matches ? "hidden" : "";
       try {
-        sessionStorage.setItem(authorViewStorageKey(), mode);
+        sessionStorage.setItem(authorViewStorageKey(), open ? "workflow" : "read");
       } catch (error) {
         /* ignore */
       }
-      if (options && options.scroll && mode === "workflow") {
-        chrome.scrollIntoView({ block: "start", behavior: "smooth" });
+      if (open && options && options.focusTray) {
+        var closeButton = chrome.querySelector(".fura-author-tray [data-fura-author-close-workflow]");
+        if (closeButton && typeof closeButton.focus === "function") {
+          window.requestAnimationFrame(function () {
+            closeButton.focus({ preventScroll: true });
+          });
+        }
       }
-      if (options && options.openFeedback && mode === "workflow") {
+      if (options && options.openFeedback && open) {
         var feedbackDiff = chrome.querySelector(".fura-author-truth__feedback-diff");
         if (feedbackDiff) feedbackDiff.open = true;
         window.requestAnimationFrame(focusAuthorFeedback);
@@ -343,10 +362,10 @@
       chrome.addEventListener("click", function (event) {
         if (event.target.closest("[data-fura-author-open-workflow]")) {
           event.preventDefault();
-          setAuthorView("workflow", { scroll: true });
+          setAuthorView("workflow", { focusTray: true });
           return;
         }
-        if (event.target.closest("[data-fura-author-back-to-page]")) {
+        if (event.target.closest("[data-fura-author-close-workflow]")) {
           event.preventDefault();
           setAuthorView("read");
         }
@@ -357,7 +376,22 @@
           var link = event.target.closest("[data-fura-author-open-workflow-link]");
           if (!link) return;
           event.preventDefault();
-          setAuthorView("workflow", { scroll: true });
+          setAuthorView("workflow", { focusTray: true });
+        });
+      }
+      if (!document.body.dataset.furaAuthorTrayEscapeBound) {
+        document.body.dataset.furaAuthorTrayEscapeBound = "1";
+        document.addEventListener("keydown", function (event) {
+          var activeChrome = document.getElementById("fura-author-chrome");
+          if (!activeChrome || activeChrome.getAttribute("data-fura-author-tray-open") !== "true") return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setAuthorView("read");
+            var openButton = activeChrome.querySelector("[data-fura-author-open-workflow]");
+            if (openButton && typeof openButton.focus === "function") {
+              openButton.focus({ preventScroll: true });
+            }
+          }
         });
       }
       var pending = forcedView || window.__furaAuthorViewPending;

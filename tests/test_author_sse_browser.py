@@ -670,10 +670,10 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         article = page.locator(".chirp-theme-docs-layout__article").first
         await chrome.wait_for()
 
-        assert await chrome.get_attribute("data-fura-author-view") == "read"
+        assert await chrome.get_attribute("data-fura-author-tray-open") == "false"
         assert await article.is_visible()
         assert await chrome.locator("[data-fura-author-open-workflow]").is_visible()
-        assert await chrome.locator(".fura-author-chrome__workflow-panel").is_hidden()
+        assert await chrome.locator(".fura-author-tray").is_hidden()
 
         read_boxes = {
             "chrome": await chrome.bounding_box(),
@@ -691,20 +691,20 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
 
         await chrome.locator("[data-fura-author-open-workflow]").click()
         await page.wait_for_function(
-            "document.getElementById('fura-author-chrome')?.getAttribute('data-fura-author-view') === 'workflow'"
+            "document.getElementById('fura-author-chrome')?.getAttribute('data-fura-author-tray-open') === 'true'"
         )
 
         details = chrome.locator(".fura-author-chrome__details")
         details_panel = chrome.locator(".fura-author-chrome__details-panel")
 
-        assert await chrome.locator("[data-author-plane]").count() == 1
+        assert await chrome.locator(".fura-author-tray").is_visible()
+        assert await article.is_visible()
         assert await chrome.locator('[data-author-plane="lifecycle"]').is_visible()
         assert await chrome.locator('[data-author-plane="repository"]').count() == 0
         assert await chrome.locator("[data-author-action]").count() == 11
         assert await chrome.get_by_role("heading", name="State and actions").is_visible()
         assert await chrome.locator('button[aria-disabled="true"]').count() >= 1
         assert await details_panel.is_hidden()
-        assert await article.is_hidden()
 
         await details.locator("summary").click()
         await details_panel.wait_for(state="visible")
