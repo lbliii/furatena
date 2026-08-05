@@ -1,11 +1,15 @@
 # Upload to PyPI when a GitHub release is published.
 #
-# Authentication uses PyPI Trusted Publishing (OIDC). No API token is stored
-# in this repository. Register the publisher at
-# https://pypi.org/manage/account/publishing/ with these exact values before
-# the first release, or after creating the project on the first pending
-# publish:
+# Authentication: PyPI Trusted Publishing (OIDC). No API token in this repo.
 #
+# Free-threaded rule (shared across chirp / kida / furatena / pounce / milo-cli):
+#   - Set PYTHON_GIL=0 only on jobs that run this repo's 3.14t code
+#     (release-gate / release-build).
+#   - Never set PYTHON_GIL at workflow scope, and never on pypi-publish —
+#     pypa/gh-action-pypi-publish uses a non-free-threaded interpreter and
+#     aborts if PYTHON_GIL=0 is inherited.
+#
+# Trusted Publishing registration:
 #   PyPI project name: furatena
 #   Owner:             lbliii
 #   Repository:        furatena
@@ -14,8 +18,6 @@
 #
 # Create a GitHub Environment named `pypi` (Settings → Environments) and
 # restrict it to protected tags if releases should require review.
-#
-# Pattern shared with chirp, kida, murlocs, and milo-cli.
 
 name: Upload Python Package
 
@@ -29,8 +31,6 @@ permissions:
 jobs:
   release-gate:
     runs-on: ubuntu-latest
-    # Free-threaded gate only; do not set workflow-level PYTHON_GIL — the
-    # pypa publish container is not a free-threaded build and aborts on GIL=0.
     env:
       PYTHON_GIL: "0"
     steps:
