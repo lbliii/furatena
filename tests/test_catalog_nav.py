@@ -221,3 +221,29 @@ class TestFuratenaCatalogRail:
         for url, title in expected.items():
             active = [item["title"] for item in shard.catalog_rail_items(url) if item["active"]]
             assert active == [title]
+
+    def test_docs_section_nav_matches_active_journey(self, docs_config) -> None:
+        from furatena.catalog.registry import CatalogRegistry
+
+        registry = CatalogRegistry.from_config(
+            docs_config.mounts_path,
+            repo_root=REPO,
+            app_root=APP_ROOT,
+            rewrites_path=docs_config.rewrites_path,
+            inventories_path=docs_config.inventories_path,
+            autodoc=False,
+            catalog_nav=docs_config.catalog,
+        )
+        shard = registry._shards[next(m for m in registry.mounts if m.default).id]
+        expected = {
+            "/docs/about/philosophy/": "Adopt",
+            "/docs/authoring/markdown/": "Author",
+            "/docs/operations/deploy/": "Publish",
+            "/docs/operations/serve-and-author/": "Operate",
+            "/docs/operations/consume-agent-outputs/": "Integrate",
+            "/docs/concepts/catalog-graph/": "Integrate",
+            "/docs/reference/cli/": "Integrate",
+        }
+        for url, title in expected.items():
+            nav = shard.docs_section_nav(url)
+            assert nav and nav[0]["title"] == title, url
