@@ -1,18 +1,27 @@
 # Railway proprietary template architecture
 
-Status: Accepted for v1
-Date: 2026-07-14
+Status: **Superseded in part (2026-08-05)** — open-source + PyPI is now the
+primary distribution path; see
+[OSS_DISTRIBUTION_DECISION.md](OSS_DISTRIBUTION_DECISION.md). Retained as the
+historical ADR for the private-image + volume composer shape still used by
+optional GHCR experiments.
+Date: 2026-07-14 (supersession note 2026-08-05)
 Decision owner: Furatena maintainers
-Tracks: #451, #452, #454, #455, #436, #464–#469
+Tracks: #451, #452, #454, #455, #436, #464–#469, #471
 
 ## Decision
 
-The first Furatena Railway marketplace product is a public documentation portal
-served by a proprietary Furatena container image. Railway stores the private
-registry pull credential and does not expose the image source or credential to
-the deployer. Furatena is not published to PyPI for this product.
+**Original v1 decision (2026-07-14):** The first Furatena Railway marketplace
+product is a public documentation portal served by a proprietary Furatena
+container image. Railway stores the private registry pull credential and does
+not expose the image source or credential to the deployer.
 
-Adopter documentation remains outside the proprietary image in a public Git
+**Current decision (2026-08-05):** Furatena is MIT open source and publishes to
+PyPI. Railway templates should install from PyPI (or build from public source)
+and may earn marketplace kickbacks without a proprietary image boundary. A
+digest-pinned GHCR image remains optional, not the license or IP boundary.
+
+Adopter documentation remains outside the application image in a public Git
 repository created from a content-only starter. A Railway volume stores the
 resolved source checkout, staged generations, active frozen generation,
 last-known-good generation, manifests, and idempotency receipts. The application
@@ -294,8 +303,12 @@ probe receipts as release evidence.
 
 ### Publish Furatena to PyPI
 
-Rejected. Railway can distribute a private image without public package or
-source publication. PyPI adds an unnecessary distribution and support surface.
+**Superseded (2026-08-05).** Open-source distribution via PyPI Trusted
+Publishing is the accepted primary path. See
+[OSS_DISTRIBUTION_DECISION.md](OSS_DISTRIBUTION_DECISION.md) and
+[PYPI.md](PYPI.md). Railway templates should install from PyPI (or build from
+public source) and may still earn marketplace kickbacks without a proprietary
+image boundary.
 
 ### Bake adopter content into the private image
 

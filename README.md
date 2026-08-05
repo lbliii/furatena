@@ -12,11 +12,22 @@ Export to GitHub Pages or feed `/catalog.json` to agents from the same corpus.
 
 ## Quick start
 
+From a checkout:
+
 ```bash
 uv sync --group dev
 uv run fura init /tmp/my-docs --name "My Docs"
 uv run fura --app-root /tmp/my-docs check --content-only
 uv run fura --app-root /tmp/my-docs serve
+```
+
+After the package is published to PyPI ([PYPI.md](docs/PYPI.md)):
+
+```bash
+pip install furatena
+# or: uv tool install furatena
+fura init ./my-docs --name "My Docs"
+fura --app-root ./my-docs serve
 ```
 
 `uv run fura serve` is the canonical zero-install command from a checkout. `uv sync`
@@ -106,6 +117,8 @@ backpressure.
 - [Railway proprietary template architecture](docs/RAILWAY_TEMPLATE_ARCHITECTURE.md)
 - [Live SLOs and no-SSH operations](docs/LIVE_OPERATIONS.md)
 - [Compatibility and support policy](docs/COMPATIBILITY.md)
+- [Open-source distribution decision](docs/OSS_DISTRIBUTION_DECISION.md)
+- [PyPI publishing](docs/PYPI.md)
 - [Release and incident runbook](docs/RELEASING.md)
 - [CI lanes](docs/CI.md)
 - [Roadmap](docs/ROADMAP.md)
