@@ -39,8 +39,13 @@ def test_changelog_fragment_contract_and_release_preview() -> None:
     assert checker.has_release_note_intent(("src/furatena/catalog/models.py",)) is False
     assert checker.has_release_note_intent(("changelog.d/365.changed.md",)) is True
 
+    import tomllib
+
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
     completed = subprocess.run(
-        (sys.executable, "-m", "towncrier", "build", "--draft", "--version", "0.1.1"),
+        (sys.executable, "-m", "towncrier", "build", "--draft", "--version", version),
         cwd=ROOT,
         check=False,
         capture_output=True,
@@ -48,8 +53,9 @@ def test_changelog_fragment_contract_and_release_preview() -> None:
         timeout=20,
     )
     assert completed.returncode == 0, completed.stderr
-    assert "Added Towncrier release fragments" in completed.stdout
-    assert "private-repository releases" in completed.stdout
+    assert f"## [{version}]" in completed.stdout
+    assert "PYTHON_GIL=0" in completed.stdout
+    assert "pypa/gh-action-pypi-publish" in completed.stdout
 
 
 def test_raise_message_and_silent_exception_ratchets_pass() -> None:
