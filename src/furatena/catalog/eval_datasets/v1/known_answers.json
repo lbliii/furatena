@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "dataset_id": "furatena-known-answers",
-  "version": "1.1.14",
+  "version": "1.1.15",
   "description": "Representative prose, API, release, operations, negative, and access-boundary retrieval questions.",
   "corpora": [
     {
@@ -10,7 +10,7 @@
       "root": ".",
       "mount": "furatena",
       "url_prefix": "",
-      "revision": "sha256:057a9ca474afc7690c57e9f309e107ae54761d247d30dbcb8b938927a50c9b77",
+      "revision": "sha256:9eecb4c9bc865f2edf556738ef52d2a3cc702f965171a70e9efc364f3ee50957",
       "sources": [
         {
           "path": "content/furatena/docs/get-started/installation.md",
@@ -34,7 +34,7 @@
         },
         {
           "path": "content/furatena/docs/reference/integrator-operations.md",
-          "sha256": "334f17bb9e068d900fa41b0883028b72e3bb37ca8a36a9d55652aeaf96fe227c"
+          "sha256": "78eee861bce9f771a481a3d56f3c5cc9b9e7b380b5a7f9279565e1905f9634f1"
         },
         {
           "path": "content/furatena/releases/_index.md",
@@ -67,14 +67,22 @@
       "corpus": "furatena-dogfood",
       "query_class": "navigational",
       "query": "Where are the Furatena installation and environment setup steps?",
-      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "surfaces": [
+        "browser",
+        "dcp",
+        "sidecar",
+        "mcp"
+      ],
       "access": "public",
       "result_policy": "any_target",
       "targets": [
         {
           "node_id": "furatena:latest:docs/get-started/installation",
           "url": "/docs/get-started/installation/",
-          "sections": ["clone-and-sync", "verify-the-install"],
+          "sections": [
+            "clone-and-sync",
+            "verify-the-install"
+          ],
           "source_path": "content/furatena/docs/get-started/installation.md"
         }
       ],
@@ -82,7 +90,9 @@
         {
           "node_id": "furatena:latest:docs/get-started/quickstart",
           "url": "/docs/get-started/quickstart/",
-          "sections": ["start-the-server"],
+          "sections": [
+            "start-the-server"
+          ],
           "source_path": "content/furatena/docs/get-started/quickstart.md"
         }
       ]
@@ -92,14 +102,20 @@
       "corpus": "furatena-dogfood",
       "query_class": "troubleshooting",
       "query": "The deployed GitHub Pages site shows old pages or assets. What should I rebuild and verify?",
-      "surfaces": ["browser", "sidecar", "mcp"],
+      "surfaces": [
+        "browser",
+        "sidecar",
+        "mcp"
+      ],
       "access": "public",
       "result_policy": "any_target",
       "targets": [
         {
           "node_id": "furatena:latest:docs/get-started/first-github-pages-deploy",
           "url": "/docs/get-started/first-github-pages-deploy/",
-          "sections": ["the-deployed-site-shows-old-pages-or-assets"],
+          "sections": [
+            "the-deployed-site-shows-old-pages-or-assets"
+          ],
           "source_path": "content/furatena/docs/get-started/first-github-pages-deploy.md"
         }
       ],
@@ -107,7 +123,9 @@
         {
           "node_id": "furatena:latest:docs/operations/freeze-and-export",
           "url": "/docs/operations/freeze-and-export/",
-          "sections": ["export"],
+          "sections": [
+            "export"
+          ],
           "source_path": "content/furatena/docs/operations/freeze-and-export.md"
         }
       ]
@@ -117,14 +135,21 @@
       "corpus": "furatena-dogfood",
       "query_class": "factual",
       "query": "How do I verify known answers and private retrieval boundaries for MCP?",
-      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "surfaces": [
+        "browser",
+        "dcp",
+        "sidecar",
+        "mcp"
+      ],
       "access": "public",
       "result_policy": "any_target",
       "targets": [
         {
           "node_id": "furatena:latest:docs/operations/consume-agent-outputs",
           "url": "/docs/operations/consume-agent-outputs/",
-          "sections": ["5-verify-known-answers-and-boundaries"],
+          "sections": [
+            "5-verify-known-answers-and-boundaries"
+          ],
           "source_path": "content/furatena/docs/operations/consume-agent-outputs.md"
         }
       ],
@@ -135,14 +160,21 @@
       "corpus": "furatena-dogfood",
       "query_class": "cross_surface",
       "query": "Return the installation guide and verify-install section consistently across the browser, DCP, search sidecar, and MCP.",
-      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "surfaces": [
+        "browser",
+        "dcp",
+        "sidecar",
+        "mcp"
+      ],
       "access": "public",
       "result_policy": "any_target",
       "targets": [
         {
           "node_id": "furatena:latest:docs/get-started/installation",
           "url": "/docs/get-started/installation/",
-          "sections": ["verify-the-install"],
+          "sections": [
+            "verify-the-install"
+          ],
           "source_path": "content/furatena/docs/get-started/installation.md"
         }
       ],
@@ -153,7 +185,11 @@
       "corpus": "furatena-dogfood",
       "query_class": "factual",
       "query": "Which Python API defines access roles, subjects, and permission evaluation?",
-      "surfaces": ["dcp", "sidecar", "mcp"],
+      "surfaces": [
+        "dcp",
+        "sidecar",
+        "mcp"
+      ],
       "access": "public",
       "result_policy": "any_target",
       "targets": [
@@ -178,7 +214,12 @@
       "corpus": "furatena-dogfood",
       "query_class": "navigational",
       "query": "Where is the Furatena release history?",
-      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "surfaces": [
+        "browser",
+        "dcp",
+        "sidecar",
+        "mcp"
+      ],
       "access": "public",
       "result_policy": "any_target",
       "targets": [
@@ -196,7 +237,12 @@
       "corpus": "furatena-dogfood",
       "query_class": "negative",
       "query": "How do I configure the built-in Furatena hosted control-plane billing console?",
-      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "surfaces": [
+        "browser",
+        "dcp",
+        "sidecar",
+        "mcp"
+      ],
       "access": "public",
       "result_policy": "no_results",
       "targets": [],
@@ -207,14 +253,21 @@
       "corpus": "access-boundary-fixture",
       "query_class": "access_restricted",
       "query": "orion-cinder recovery sequence",
-      "surfaces": ["browser", "dcp", "sidecar", "mcp"],
+      "surfaces": [
+        "browser",
+        "dcp",
+        "sidecar",
+        "mcp"
+      ],
       "access": "admin",
       "result_policy": "excluded_public_included_trusted",
       "targets": [
         {
           "node_id": "eval-private:latest:incident-runbook",
           "url": "/private/incident-runbook/",
-          "sections": ["rotate-compromised-credentials"],
+          "sections": [
+            "rotate-compromised-credentials"
+          ],
           "source_path": "incident-runbook.md"
         }
       ],
