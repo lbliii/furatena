@@ -289,9 +289,118 @@
       var chrome = document.getElementById("fura-author-chrome");
       if (!chrome) return;
       chrome.setAttribute("data-author-connection", connectionState);
-      var status = chrome.querySelector("[data-author-connection-status] > span:last-child");
-      if (status) status.textContent = label;
+      chrome.querySelectorAll("[data-author-connection-status]").forEach(function (status) {
+        var text = status.querySelector(":scope > span:last-child");
+        if (text) text.textContent = label;
+      });
     }
+
+    function authorViewStorageKey() {
+      return "fura-author-view:" + (document.getElementById("fura-author-chrome")?.getAttribute("data-fura-author-slug") || "page");
+    }
+
+    function preferredAuthorView() {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get("author") === "workflow") return "workflow";
+      if (window.location.hash === "#fura-author-workflow") return "workflow";
+      try {
+        return sessionStorage.getItem(authorViewStorageKey()) || "read";
+      } catch (error) {
+        return "read";
+      }
+    }
+
+    function setAuthorView(view, options) {
+      var chrome = document.getElementById("fura-author-chrome");
+      if (!chrome) return;
+      var open = view === "workflow";
+      var tray = chrome.querySelector(".fura-author-tray");
+      var scrim = chrome.querySelector(".fura-author-tray__scrim");
+      var openButton = chrome.querySelector("[data-fura-author-open-workflow]");
+      chrome.setAttribute("data-fura-author-tray-open", open ? "true" : "false");
+      chrome.setAttribute("data-fura-author-view", open ? "workflow" : "read");
+      if (tray) {
+        tray.setAttribute("aria-hidden", open ? "false" : "true");
+        if (open && typeof tray.inert !== "undefined") {
+          tray.inert = false;
+        } else if (!open && typeof tray.inert !== "undefined") {
+          tray.inert = true;
+        }
+      }
+      if (scrim) {
+        scrim.hidden = !open || window.matchMedia("(min-width: 72rem)").matches;
+        scrim.tabIndex = open ? 0 : -1;
+      }
+      if (openButton) {
+        openButton.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      document.body.style.overflow = open && window.matchMedia("(max-width: 71.99rem)").matches ? "hidden" : "";
+      try {
+        sessionStorage.setItem(authorViewStorageKey(), open ? "workflow" : "read");
+      } catch (error) {
+        /* ignore */
+      }
+      if (open && options && options.focusTray) {
+        var closeButton = chrome.querySelector(".fura-author-tray [data-fura-author-close-workflow]");
+        if (closeButton && typeof closeButton.focus === "function") {
+          window.requestAnimationFrame(function () {
+            closeButton.focus({ preventScroll: true });
+          });
+        }
+      }
+      if (options && options.openFeedback && open) {
+        var feedbackDiff = chrome.querySelector(".fura-author-truth__feedback-diff");
+        if (feedbackDiff) feedbackDiff.open = true;
+        window.requestAnimationFrame(focusAuthorFeedback);
+      }
+    }
+
+    function setupAuthorViewToggle(forcedView, options) {
+      var chrome = document.getElementById("fura-author-chrome");
+      if (!chrome || chrome.dataset.furaAuthorViewBound) return;
+      chrome.dataset.furaAuthorViewBound = "1";
+      chrome.setAttribute("data-fura-author-enhanced", "true");
+      chrome.addEventListener("click", function (event) {
+        if (event.target.closest("[data-fura-author-open-workflow]")) {
+          event.preventDefault();
+          setAuthorView("workflow", { focusTray: true });
+          return;
+        }
+        if (event.target.closest("[data-fura-author-close-workflow]")) {
+          event.preventDefault();
+          setAuthorView("read");
+        }
+      });
+      if (!document.body.dataset.furaAuthorViewLinksBound) {
+        document.body.dataset.furaAuthorViewLinksBound = "1";
+        document.body.addEventListener("click", function (event) {
+          var link = event.target.closest("[data-fura-author-open-workflow-link]");
+          if (!link) return;
+          event.preventDefault();
+          setAuthorView("workflow", { focusTray: true });
+        });
+      }
+      if (!document.body.dataset.furaAuthorTrayEscapeBound) {
+        document.body.dataset.furaAuthorTrayEscapeBound = "1";
+        document.addEventListener("keydown", function (event) {
+          var activeChrome = document.getElementById("fura-author-chrome");
+          if (!activeChrome || activeChrome.getAttribute("data-fura-author-tray-open") !== "true") return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setAuthorView("read");
+            var openButton = activeChrome.querySelector("[data-fura-author-open-workflow]");
+            if (openButton && typeof openButton.focus === "function") {
+              openButton.focus({ preventScroll: true });
+            }
+          }
+        });
+      }
+      var pending = forcedView || window.__furaAuthorViewPending;
+      window.__furaAuthorViewPending = null;
+      setAuthorView(pending || preferredAuthorView(), options);
+    }
+
+    window.__furaSetAuthorView = setAuthorView;
 
     function focusAuthorFeedback() {
       var feedback = document.getElementById("fura-author-feedback");
@@ -308,6 +417,7 @@
         var step = trigger && trigger.closest && trigger.closest("[data-author-action]");
         var chrome = step && step.closest("#fura-author-chrome");
         if (!step || !chrome) return;
+        window.__furaAuthorViewPending = "workflow";
         step.setAttribute("data-author-job-state", "loading");
         chrome.setAttribute("aria-busy", "true");
         var job = step.querySelector(".fura-author-truth__job");
@@ -316,7 +426,7 @@
       document.body.addEventListener("htmx:afterSwap", function (event) {
         var target = event.detail && event.detail.target;
         if (target && target.id === "fura-author-chrome") {
-          window.requestAnimationFrame(focusAuthorFeedback);
+          setupAuthorViewToggle(null, { openFeedback: true });
         }
       });
       function handleAuthorResponseError(event) {
@@ -336,6 +446,8 @@
         target.replaceWith(replacement);
         if (ctx) ctx.swap = "none";
         setupAuthorReload();
+        setupAuthorViewToggle();
+        setAuthorView("workflow", { openFeedback: true });
         window.requestAnimationFrame(focusAuthorFeedback);
       }
       document.body.addEventListener("htmx:responseError", handleAuthorResponseError);
@@ -346,6 +458,7 @@
     }
 
     bindAuthorTruthSurface();
+    setupAuthorViewToggle();
     updateAuthorConnection("connecting", "Connecting live author updates");
 
     function authorMarker() {

@@ -727,9 +727,9 @@ def _production_surface_snapshots(
         search = _json_file(output_dir / "search.json")
         channels = _json_file(output_dir / "channels.json")
         tools = _json_file(output_dir / "tools.json")
-        llms_index = _text_file(output_dir / "llms.txt")
+        llms_index = _index_with_details(output_dir / "llms.txt", output_dir, "llms/*.txt")
         llms_full = _text_file(output_dir / "llms-full.txt")
-        sitemap = _text_file(output_dir / "sitemap.xml")
+        sitemap = _index_with_details(output_dir / "sitemap.xml", output_dir, "sitemaps/*.xml")
         graph_target = _find_record(graph.get("pages", ()), target.node_id)
         search_target = _find_record(search.get("entries", ()), target.node_id)
         structure_target = (
@@ -1105,6 +1105,24 @@ def _text_file(path: Path) -> str:
     if not path.is_file():
         raise ValueError(f"projection producer omitted required artifact: {path.name}")
     return path.read_text(encoding="utf-8")
+
+
+def _index_with_details(index_path: Path, output_dir: Path, detail_glob: str) -> str:
+    """Read a surface index alongside every per-mount detail file it references.
+
+    The sitemap and llms.txt surfaces are published as an index that points to
+    per-mount files (``sitemaps/<mount>.xml``, ``llms/<mount>.txt``). A page's
+    own URL and title only appear in the per-mount file, so a projection
+    presence check that read only the index would report every page as
+    ``unchanged`` and under-report the true publication impact.
+    """
+    parts = [_text_file(index_path)]
+    parts.extend(
+        path.read_text(encoding="utf-8")
+        for path in sorted(output_dir.rglob(detail_glob))
+        if path.is_file()
+    )
+    return "\n".join(parts)
 
 
 def _optional_text_file(path: Path) -> str | None:

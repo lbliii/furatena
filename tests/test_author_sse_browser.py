@@ -668,38 +668,50 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         chrome = page.locator("#fura-author-chrome")
         actions = page.locator("[data-chirp-page-actions]").first
         article = page.locator(".chirp-theme-docs-layout__article").first
-        details = chrome.locator(".fura-author-chrome__details")
-        details_panel = chrome.locator(".fura-author-chrome__details-panel")
         await chrome.wait_for()
 
-        assert await chrome.locator("[data-author-plane]").count() == 4
-        assert await chrome.locator("[data-author-action]").count() == 11
-        assert await chrome.locator('[data-author-plane="lifecycle"]').is_visible()
-        assert await chrome.locator('[data-author-plane="repository"]').is_visible()
-        assert await chrome.locator('[data-author-plane="artifact"]').is_visible()
-        assert await chrome.locator('[data-author-plane="deployment"]').is_visible()
-        assert await chrome.get_by_role("heading", name="State and actions").is_visible()
-        assert await chrome.locator('button[aria-disabled="true"]').count() >= 1
-        assert await details_panel.is_hidden()
+        assert await chrome.get_attribute("data-fura-author-tray-open") == "false"
+        assert await article.is_visible()
+        assert await chrome.locator("[data-fura-author-open-workflow]").is_visible()
+        assert await chrome.locator(".fura-author-tray").is_hidden()
 
-        initial_boxes = {
+        read_boxes = {
             "chrome": await chrome.bounding_box(),
             "actions": await actions.bounding_box(),
             "article": await article.bounding_box(),
         }
-        assert all(box is not None for box in initial_boxes.values())
-        assert initial_boxes["actions"] is not None
-        assert initial_boxes["chrome"] is not None
-        assert initial_boxes["article"] is not None
-        assert initial_boxes["chrome"]["y"] >= (
-            initial_boxes["actions"]["y"] + initial_boxes["actions"]["height"]
+        assert all(box is not None for box in read_boxes.values())
+        assert read_boxes["chrome"] is not None
+        assert read_boxes["actions"] is not None
+        assert read_boxes["article"] is not None
+        assert read_boxes["chrome"]["y"] >= (
+            read_boxes["actions"]["y"] + read_boxes["actions"]["height"]
         )
-        assert initial_boxes["article"]["y"] >= initial_boxes["chrome"]["y"]
+        assert read_boxes["article"]["y"] >= read_boxes["chrome"]["y"]
+
+        await chrome.locator("[data-fura-author-open-workflow]").click()
+        await page.wait_for_function(
+            "document.getElementById('fura-author-chrome')?.getAttribute('data-fura-author-tray-open') === 'true'"
+        )
+
+        details = chrome.locator(".fura-author-chrome__details")
+        details_panel = chrome.locator(".fura-author-chrome__details-panel")
+
+        assert await chrome.locator(".fura-author-tray").is_visible()
+        assert await article.is_visible()
+        assert await chrome.locator('[data-author-plane="lifecycle"]').is_visible()
+        assert await chrome.locator('[data-author-plane="repository"]').count() == 0
+        assert await chrome.locator("[data-author-action]").count() == 11
+        assert await chrome.get_by_role("heading", name="State and actions").is_visible()
+        assert await chrome.locator('button[aria-disabled="true"]').count() >= 1
+        assert await details_panel.is_hidden()
 
         await details.locator("summary").click()
         await details_panel.wait_for(state="visible")
 
-        confirmation = chrome.locator('[data-author-action="mark_draft"] details')
+        confirmation = chrome.locator(
+            '[data-author-action="mark_draft"] .fura-author-truth__confirm'
+        )
         confirmation_summary = confirmation.locator("summary")
         await confirmation_summary.focus()
         await confirmation_summary.press("Enter")
@@ -712,7 +724,7 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         details_box = await details_panel.bounding_box()
         assert chrome_box is not None
         assert details_box is not None
-        assert initial_boxes["actions"]["width"] <= viewport["width"]
+        assert read_boxes["actions"]["width"] <= viewport["width"]
         assert chrome_box["width"] <= viewport["width"]
         assert details_box["width"] <= chrome_box["width"]
         assert await page.evaluate("document.documentElement.scrollWidth") <= viewport["width"]
@@ -738,7 +750,12 @@ async def test_author_htmx_failure_keeps_status_focus_recovery_and_one_sse_owner
     try:
         await page.goto(f"{base_url}/docs/page/", wait_until="domcontentloaded")
         await page.wait_for_function("window.__furaAuthorReloadMode === 'sse'")
-        confirmation = page.locator('[data-author-action="mark_draft"] details')
+        await page.locator("[data-fura-author-open-workflow]").click()
+        await page.wait_for_function(
+            "document.getElementById('fura-author-chrome')?.getAttribute("
+            "'data-fura-author-tray-open') === 'true'"
+        )
+        confirmation = page.locator('[data-author-action="mark_draft"] .fura-author-truth__confirm')
         await confirmation.locator("summary").click()
         confirm = confirmation.get_by_role("button", name=re.compile("Confirm Mark draft"))
         await confirm.evaluate("button => { button.value = '0'; }")
@@ -786,13 +803,28 @@ async def test_author_truth_and_confirmation_remain_usable_without_javascript(
 
         chrome = page.locator("#fura-author-chrome")
         await chrome.wait_for()
-        assert await chrome.locator("[data-author-plane]").count() == 4
+        # Publication is not connected in this fixture, so only the lifecycle
+        # plane renders; the repository/artifact/deployment planes appear once a
+        # publication workflow is connected.
+        assert await chrome.locator("[data-author-plane]").count() == 1
         assert await chrome.locator("[data-author-action]").count() == 11
         assert (
             await chrome.locator('[data-author-action="mark_public"] button:disabled').count() == 1
         )
 
-        confirmation = chrome.locator('[data-author-action="mark_draft"] details')
+        # Without JavaScript the tray starts hidden and is revealed by navigating
+        # to its anchor (the "Open state and actions" link), keeping the workflow
+        # and confirmation actions reachable via native browser behaviour.
+        tray = chrome.locator(".fura-author-tray")
+        await tray.wait_for(state="hidden")
+        await page.goto(
+            f"{base_url}/docs/page/#fura-author-workflow", wait_until="domcontentloaded"
+        )
+        await tray.wait_for(state="visible")
+
+        confirmation = chrome.locator(
+            '[data-author-action="mark_draft"] .fura-author-truth__confirm'
+        )
         summary = confirmation.locator("summary")
         await summary.focus()
         await summary.press("Enter")

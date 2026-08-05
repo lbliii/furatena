@@ -1278,6 +1278,12 @@ class DocsApp:
             publication=publication,
             feedback=feedback,
         )
+        publication_plane_keys = frozenset({"repository", "artifact", "deployment"})
+        publication_connected = any(
+            str(plane.get("state")) != "unavailable"
+            for plane in truth["planes"]
+            if str(plane.get("key")) in publication_plane_keys
+        )
         return {
             "enabled": True,
             "node_id": node.node_id,
@@ -1303,6 +1309,7 @@ class DocsApp:
             "stale": stale_entries,
             "actions": action_urls,
             "truth": truth,
+            "publication_connected": publication_connected,
         }
 
     def _author_local_capabilities(
