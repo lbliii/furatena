@@ -1,10 +1,23 @@
-# Private-image release and incident runbook
+# Release and incident runbook
 
-Furatena's commercial artifact is a proprietary image in GitHub Container
-Registry (GHCR), not a PyPI package. `.github/workflows/private-image.yml`
-builds each candidate once, publishes it with an SBOM and provenance, scans the
-published digest, and proves that the exact digest can boot. Promotion and
-rollback always select an existing digest; they never rebuild it.
+Furatena's **primary distribution** is the open-source Python package on PyPI
+(`furatena`), published with Trusted Publishing when a GitHub Release is
+created. Operator steps for that path are in [PYPI.md](PYPI.md). The product
+decision is recorded in
+[OSS_DISTRIBUTION_DECISION.md](OSS_DISTRIBUTION_DECISION.md).
+
+An optional proprietary-era **GHCR private image** workflow remains for Railway
+experiments that still pin digests. It is not the license boundary and is not
+required for open-source adopters. Prefer PyPI installs in Railway templates
+going forward.
+
+## Private-image lifecycle (optional)
+
+Furatena can still publish a container image to GitHub Container Registry
+(GHCR) via `.github/workflows/private-image.yml`. That workflow builds each
+candidate once, publishes it with an SBOM and provenance, scans the published
+digest, and proves that the exact digest can boot. Promotion and rollback
+always select an existing digest; they never rebuild it.
 
 The public adopter content repository is a separate input. Publishing an image
 must not grant content-refresh authority, and refreshing content must not grant

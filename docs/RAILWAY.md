@@ -1,14 +1,18 @@
 # Railway deployment
 
-The commercial Furatena service runs as one private, digest-pinned GHCR image
-plus one Railway volume. Adopter-owned public Git content is fetched, validated,
-frozen, and selected independently of image publication. Furatena itself is not
-published to PyPI and the deployer receives neither source access nor an
-interactive source-modification path.
+Railway is the recommended **hosted live platform** for Furatena. Open-source
+installs come from PyPI (`furatena`); a Railway template can install that
+package (or build from public source) and earn marketplace kickbacks without a
+proprietary license boundary.
+
+An optional digest-pinned GHCR image path still exists for experiments that pin
+exact image subjects. Prefer PyPI-based templates for new adopter work. See
+[OSS_DISTRIBUTION_DECISION.md](OSS_DISTRIBUTION_DECISION.md) and
+[PYPI.md](PYPI.md).
 
 See [RAILWAY_TEMPLATE_ARCHITECTURE.md](RAILWAY_TEMPLATE_ARCHITECTURE.md) for
-the accepted architecture, [RELEASING.md](RELEASING.md) for image promotion and
-revocation, [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents,
+architecture notes, [RELEASING.md](RELEASING.md) for package and optional image
+operations, [LIVE_OPERATIONS.md](LIVE_OPERATIONS.md) for SLOs and incidents,
 and [RAILWAY_TEMPLATE_EXPERIMENT.md](RAILWAY_TEMPLATE_EXPERIMENT.md) for the
 privacy-safe 90-day marketplace experiment policy.
 

@@ -127,10 +127,11 @@ without rebuilding them. Rollback and replacement inputs resolve through their
 exact stable release records and must remain non-revoked, registry-available,
 and attested. Deprecation also proves that the named stable version owns its
 digest; emergency revocation retains that durable association even when the
-affected subject is unavailable. Furatena is not published to PyPI; the
-isolated wheel and sdist lane remains an internal packaging-integrity check. See
-[RELEASING.md](RELEASING.md) for registry setup, verification, promotion,
-rollback, revocation, and compromise procedures.
+affected subject is unavailable. The open-source package publishes to PyPI via
+Trusted Publishing ([PYPI.md](PYPI.md)); the isolated wheel and sdist lane
+remains the packaging-integrity check used by both CI and the release gate.
+See [RELEASING.md](RELEASING.md) for registry setup, verification, promotion,
+rollback, revocation, and compromise procedures for any remaining image path.
 
 The external production evidence workflow runs every six hours, keeps receipts
 for 30 days, and cancels a superseded probe. Five-minute availability sampling

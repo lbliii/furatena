@@ -1,0 +1,106 @@
+# Upload to PyPI when a GitHub release is published.
+#
+# Authentication uses PyPI Trusted Publishing (OIDC). No API token is stored
+# in this repository. Register the publisher at
+# https://pypi.org/manage/account/publishing/ with these exact values before
+# the first release, or after creating the project on the first pending
+# publish:
+#
+#   PyPI project name: furatena
+#   Owner:             lbliii
+#   Repository:        furatena
+#   Workflow name:     python-publish.yml
+#   Environment name:  pypi
+#
+# Create a GitHub Environment named `pypi` (Settings → Environments) and
+# restrict it to protected tags if releases should require review.
+#
+# Pattern shared with chirp, kida, murlocs, and milo-cli.
+
+name: Upload Python Package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_GIL: "0"
+
+jobs:
+  release-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install
+        run: uv sync --group dev
+
+      - name: Declared versions match the release tag
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pyproject="$(uv run python -c 'import tomllib, pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')"
+          package="$(uv run python -c 'import furatena; print(furatena.__version__)')"
+          if [ "$pyproject" != "$tag" ] || [ "$package" != "$tag" ]; then
+            echo "::error::version mismatch: tag=$tag pyproject=$pyproject furatena.__version__=$package"
+            exit 1
+          fi
+          echo "version $tag matches pyproject.toml and furatena.__version__"
+
+      - name: Package integrity gate
+        run: make ci-release
+
+  release-build:
+    runs-on: ubuntu-latest
+    needs: [release-gate]
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Build release distributions
+        run: uv build --clear --no-sources
+
+      - name: Check distribution metadata
+        run: uvx twine check dist/*
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+
+  pypi-publish:
+    runs-on: ubuntu-latest
+    needs: [release-build]
+    permissions:
+      id-token: write
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/furatena
+
+    steps:
+      - name: Retrieve release distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+
+      - name: Publish release distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
