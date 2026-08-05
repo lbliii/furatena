@@ -352,6 +352,18 @@ ci-agent:
 	$(UV_RUN) fura check --agent-only --json
 	$(PYTEST) tests/test_fura_cli_standalone.py -k "agent or mcp or evals"
 
+ci-public-safety:
+	$(PYTEST) \
+		tests/test_public_safety_proof_map.py \
+		tests/test_visibility_audit.py \
+		tests/test_public_projection.py \
+		tests/test_access_isolation.py \
+		tests/test_chirp_docs_rbac.py \
+		tests/test_retrieval_conformance.py \
+		tests/test_preview_security.py
+	$(PYTEST) tests/test_fura_cli_standalone.py \
+		-k "export_excludes or freeze_excludes or author_mode_indexes or visibility_leak"
+
 ci-pdf-proof:
 	mkdir -p $(PDF_PROOF_RESULTS)
 	FURA_BASE_URL=http://127.0.0.1 FURA_BASE_PATH=/ \

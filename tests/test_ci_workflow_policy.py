@@ -22,10 +22,17 @@ def test_pages_workflow_skips_expensive_lanes_on_draft_pull_requests() -> None:
     assert "converted_to_draft" in triggers["pull_request"]["types"]
     for lane in ("coverage", "browser", "release"):
         assert READY_PULL_REQUEST in workflow["jobs"][lane]["if"]
-    for lane in ("fast",):
+    for lane in ("fast", "public-safety"):
         assert "if" not in workflow["jobs"][lane]
     assert workflow["jobs"]["contract"]["needs"] == "fast"
+    assert workflow["jobs"]["public-safety"]["needs"] == "fast"
     assert "if" not in workflow["jobs"]["contract"]
+    public_safety_runs = [
+        step["run"]
+        for step in workflow["jobs"]["public-safety"]["steps"]
+        if isinstance(step.get("run"), str)
+    ]
+    assert any("make ci-public-safety" in run for run in public_safety_runs)
 
 
 def test_private_image_workflow_skips_pull_request_proof_on_drafts() -> None:
