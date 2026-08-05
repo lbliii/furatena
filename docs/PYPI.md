@@ -41,10 +41,23 @@ The PyPI project name `furatena` was unclaimed as of 2026-08-05.
 
 1. Ensure `pyproject.toml` `[project].version` and
    `src/furatena/__init__.py` `__version__` are identical.
-2. Land the version bump on `main` with a changelog fragment as required.
-3. Create and publish a GitHub Release whose tag is `v<version>` (for example
-   `v0.1.1`). The workflow strips a leading `v` and compares it to the declared
-   versions.
+2. Assemble notes and land them on `main`:
+
+   ```bash
+   VERSION=0.1.1 make changelog   # or omit VERSION to use pyproject
+   git add CHANGELOG.md changelog.d && git commit -m "Release notes for 0.1.1"
+   git push origin main
+   ```
+
+3. Create the GitHub Release (triggers `.github/workflows/python-publish.yml`):
+
+   ```bash
+   make gh-release
+   ```
+
+   This tags `v<version>` at `origin/main`, publishes the release from the
+   matching `CHANGELOG.md` section, and kicks Trusted Publishing — same pattern
+   as chirp/kida/milo-cli (`make gh-release`).
 4. Confirm the Actions run **Upload Python Package** succeeds and
    https://pypi.org/p/furatena shows the new version.
 5. Smoke the published package in a clean environment:

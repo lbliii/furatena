@@ -5,11 +5,11 @@ COVERAGE = $(FREE_THREADED) $(VENV_DIR)/bin/coverage
 PYTHON = $(FREE_THREADED) $(VENV_DIR)/bin/python
 PYTEST = $(UV_RUN) pytest -q --tb=short
 
-.PHONY: help install test lint format format-check hygiene changelog-draft ty-audit ty-ratchet benchmark shard-residency-benchmark link-reconciliation-benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
-	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release \
+.PHONY: help install test lint format format-check hygiene changelog changelog-draft ty-audit ty-ratchet benchmark shard-residency-benchmark link-reconciliation-benchmark author-benchmark retrieval-benchmark serve stop freeze export pages-build pdf-proof check clean \
+	fast contract coverage browser browser-smoke browser-authoring browser-responsive agent release gh-release \
 	ci-fast ci-contract ci-coverage ci-export ci-browser ci-browser-smoke \
 	ci-browser-authoring ci-browser-responsive ci-browser-full ci-browser-htmx4-preview \
-	ci-agent ci-pdf-proof ci-release
+	ci-agent ci-pdf-proof ci-public-safety ci-release
 
 CORE_COVERAGE_SOURCE = furatena.catalog.graph,furatena.catalog.graph_schema,furatena.catalog.access,furatena.catalog.export,furatena.catalog.loader
 CORE_COVERAGE_TESTS = \
@@ -47,6 +47,8 @@ help:
 	@echo "  make format-check verify Ruff 0.15.20 formatting"
 	@echo "  make hygiene      changelog and actionable-error hygiene gates"
 	@echo "  make changelog-draft preview unreleased Towncrier notes"
+	@echo "  make changelog    write Towncrier notes into CHANGELOG.md for VERSION"
+	@echo "  make gh-release   create GitHub release for pyproject version → PyPI workflow"
 	@echo "  make benchmark    index/freeze/query/search timing report"
 	@echo "  make shard-residency-benchmark  tiered 100-mount residency profile"
 	@echo "  make link-reconciliation-benchmark  incremental 400-shard link profile"
@@ -108,6 +110,53 @@ hygiene:
 
 changelog-draft:
 	$(UV_RUN) towncrier build --draft --version "$${VERSION:-NEXT}"
+
+# Assemble changelog.d fragments into CHANGELOG.md for VERSION (default: pyproject).
+changelog:
+	@VERSION="$${VERSION:-$$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')}"; \
+	$(UV_RUN) towncrier build --yes --version "$$VERSION"
+
+# Create GitHub release from the declared pyproject version; triggers python-publish.yml → PyPI.
+# Pattern shared with chirp/kida/milo-cli/patitas (Furatena uses Towncrier notes, not site/releases).
+gh-release:
+	@VERSION=$$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/'); \
+	PROJECT=$$(grep -m1 '^name = ' pyproject.toml | sed 's/name = "\(.*\)"/\1/'); \
+	TAG="v$$VERSION"; \
+	MODULE=$$($(UV_RUN) python -c 'import furatena; print(furatena.__version__)'); \
+	if [ -n "$$(git status --porcelain)" ]; then echo "Error: working tree is not clean."; exit 1; fi; \
+	if [ "$$MODULE" != "$$VERSION" ]; then echo "Error: furatena.__version__=$$MODULE but pyproject=$$VERSION"; exit 1; fi; \
+	if ! grep -q "^## \[$$VERSION\]" CHANGELOG.md; then \
+		echo "Error: CHANGELOG.md has no ## [$$VERSION] section. Run: VERSION=$$VERSION make changelog"; \
+		exit 1; \
+	fi; \
+	if gh release view "$$TAG" >/dev/null 2>&1; then echo "Error: release $$TAG already exists"; exit 1; fi; \
+	git fetch origin main --tags; \
+	LOCAL=$$(git rev-parse HEAD); \
+	REMOTE=$$(git rev-parse origin/main); \
+	if [ "$$LOCAL" != "$$REMOTE" ]; then \
+		echo "Error: HEAD must match origin/main before releasing."; \
+		echo "HEAD=$$LOCAL"; \
+		echo "origin/main=$$REMOTE"; \
+		exit 1; \
+	fi; \
+	REMOTE_TAG=$$(git ls-remote origin "refs/tags/$$TAG" | awk '{print $$1}'); \
+	if [ -n "$$REMOTE_TAG" ] && [ "$$REMOTE_TAG" != "$$LOCAL" ]; then \
+		echo "Error: remote $$TAG points at $$REMOTE_TAG, not $$LOCAL"; \
+		exit 1; \
+	fi; \
+	git tag -f "$$TAG" HEAD; \
+	if [ -z "$$REMOTE_TAG" ]; then git push origin "$$TAG"; fi; \
+	echo "Creating release $$TAG for $$PROJECT..."; \
+	awk -v ver="$$VERSION" ' \
+		$$0 ~ ("^## \\[" ver "\\]") {p=1; next} \
+		p && $$0 ~ /^## \\[/ {exit} \
+		p {print} \
+	' CHANGELOG.md | gh release create "$$TAG" \
+		--verify-tag \
+		--target main \
+		--title "$$PROJECT $$VERSION" \
+		-F -; \
+	echo "✓ GitHub release $$TAG created (PyPI publish will run via workflow)"
 
 ty-audit:
 	$(UV_RUN) python scripts/check_ty_diagnostics.py --report-only --json
