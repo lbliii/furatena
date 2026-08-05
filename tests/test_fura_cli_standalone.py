@@ -2142,13 +2142,11 @@ def test_author_new_status_and_publish_json_contract(tmp_path: Path, capsys) -> 
     assert inspect_data["complete"] is True
     assert inspect_data["plan"]["source_revision"] == status_data["source_revision"]
     surface_changes = {surface["id"]: surface["change"] for surface in inspect_data["surfaces"]}
-    assert {
-        change
-        for surface_id, change in surface_changes.items()
-        if surface_id not in {"sitemap", "llms_txt"}
-    } == {"added"}
-    assert surface_changes["sitemap"] == "unchanged"
-    assert surface_changes["llms_txt"] == "unchanged"
+    # Publishing a draft adds it to every public surface, including the sitemap
+    # and llms.txt (whose per-mount detail files carry the page's own entry).
+    assert set(surface_changes.values()) == {"added"}
+    assert surface_changes["sitemap"] == "added"
+    assert surface_changes["llms_txt"] == "added"
     assert inspect_data["privacy"]["status"] == "pass"
     assert target.read_bytes() == source_before_inspection
 
