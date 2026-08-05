@@ -442,9 +442,14 @@ class TestAuthorStaleRoute:
         assert "fura-author-chrome__pathline" in response.text
         assert "fura-author-chrome__details-panel" in response.text
         assert 'data-fura-author-output="included"' in response.text
-        assert response.text.count("data-author-plane=") == 4
-        for plane in ("lifecycle", "repository", "artifact", "deployment"):
-            assert f'data-author-plane="{plane}"' in response.text
+        assert 'data-fura-author-view="read"' in response.text
+        assert 'data-fura-author-open-workflow' in response.text
+        assert 'data-fura-author-open-workflow-link' in response.text
+        assert 'class="fura-author-chrome__workflow-panel"' in response.text
+        assert response.text.count("data-author-plane=") == 1
+        assert 'data-author-plane="lifecycle"' in response.text
+        assert 'data-author-plane="repository"' not in response.text
+        assert "publication workflow is connected" in response.text
         for label in (
             "Validate",
             "Inspect public output",
@@ -490,6 +495,8 @@ class TestAuthorStaleRoute:
         assert ".fura-author-truth__step-action" in css
         assert "@media (max-width: 480px)" in css
         assert ".fura-author-truth__planes," in css
+        assert '[data-fura-author-view="read"] .fura-author-chrome__workflow-panel' in css
+        assert '.chirp-theme-docs-layout[data-fura-author-view="workflow"]' in css
 
     def test_connected_publication_truth_renders_exact_service_records(
         self, tmp_path: Path
@@ -564,6 +571,7 @@ class TestAuthorStaleRoute:
         response = asyncio.run(TestClient(docs.create_app()).get("/docs/page/"))
 
         assert response.status == 200
+        assert response.text.count("data-author-plane=") == 4
         assert 'data-author-plane-state="merged"' in response.text
         assert 'data-author-plane-state="verified"' in response.text
         assert 'data-author-plane-state="healthy"' in response.text

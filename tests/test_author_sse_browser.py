@@ -668,33 +668,43 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         chrome = page.locator("#fura-author-chrome")
         actions = page.locator("[data-chirp-page-actions]").first
         article = page.locator(".chirp-theme-docs-layout__article").first
-        details = chrome.locator(".fura-author-chrome__details")
-        details_panel = chrome.locator(".fura-author-chrome__details-panel")
         await chrome.wait_for()
 
-        assert await chrome.locator("[data-author-plane]").count() == 4
-        assert await chrome.locator("[data-author-action]").count() == 11
-        assert await chrome.locator('[data-author-plane="lifecycle"]').is_visible()
-        assert await chrome.locator('[data-author-plane="repository"]').is_visible()
-        assert await chrome.locator('[data-author-plane="artifact"]').is_visible()
-        assert await chrome.locator('[data-author-plane="deployment"]').is_visible()
-        assert await chrome.get_by_role("heading", name="State and actions").is_visible()
-        assert await chrome.locator('button[aria-disabled="true"]').count() >= 1
-        assert await details_panel.is_hidden()
+        assert await chrome.get_attribute("data-fura-author-view") == "read"
+        assert await article.is_visible()
+        assert await chrome.locator("[data-fura-author-open-workflow]").is_visible()
+        assert await chrome.locator(".fura-author-chrome__workflow-panel").is_hidden()
 
-        initial_boxes = {
+        read_boxes = {
             "chrome": await chrome.bounding_box(),
             "actions": await actions.bounding_box(),
             "article": await article.bounding_box(),
         }
-        assert all(box is not None for box in initial_boxes.values())
-        assert initial_boxes["actions"] is not None
-        assert initial_boxes["chrome"] is not None
-        assert initial_boxes["article"] is not None
-        assert initial_boxes["chrome"]["y"] >= (
-            initial_boxes["actions"]["y"] + initial_boxes["actions"]["height"]
+        assert all(box is not None for box in read_boxes.values())
+        assert read_boxes["chrome"] is not None
+        assert read_boxes["actions"] is not None
+        assert read_boxes["article"] is not None
+        assert read_boxes["chrome"]["y"] >= (
+            read_boxes["actions"]["y"] + read_boxes["actions"]["height"]
         )
-        assert initial_boxes["article"]["y"] >= initial_boxes["chrome"]["y"]
+        assert read_boxes["article"]["y"] >= read_boxes["chrome"]["y"]
+
+        await chrome.locator("[data-fura-author-open-workflow]").click()
+        await page.wait_for_function(
+            "document.getElementById('fura-author-chrome')?.getAttribute('data-fura-author-view') === 'workflow'"
+        )
+
+        details = chrome.locator(".fura-author-chrome__details")
+        details_panel = chrome.locator(".fura-author-chrome__details-panel")
+
+        assert await chrome.locator("[data-author-plane]").count() == 1
+        assert await chrome.locator('[data-author-plane="lifecycle"]').is_visible()
+        assert await chrome.locator('[data-author-plane="repository"]').count() == 0
+        assert await chrome.locator("[data-author-action]").count() == 11
+        assert await chrome.get_by_role("heading", name="State and actions").is_visible()
+        assert await chrome.locator('button[aria-disabled="true"]').count() >= 1
+        assert await details_panel.is_hidden()
+        assert await article.is_hidden()
 
         await details.locator("summary").click()
         await details_panel.wait_for(state="visible")
@@ -712,7 +722,7 @@ async def test_author_mobile_layout_keeps_actions_and_content_non_overlapping(
         details_box = await details_panel.bounding_box()
         assert chrome_box is not None
         assert details_box is not None
-        assert initial_boxes["actions"]["width"] <= viewport["width"]
+        assert read_boxes["actions"]["width"] <= viewport["width"]
         assert chrome_box["width"] <= viewport["width"]
         assert details_box["width"] <= chrome_box["width"]
         assert await page.evaluate("document.documentElement.scrollWidth") <= viewport["width"]

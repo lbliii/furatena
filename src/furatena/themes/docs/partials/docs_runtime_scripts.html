@@ -289,9 +289,83 @@
       var chrome = document.getElementById("fura-author-chrome");
       if (!chrome) return;
       chrome.setAttribute("data-author-connection", connectionState);
-      var status = chrome.querySelector("[data-author-connection-status] > span:last-child");
-      if (status) status.textContent = label;
+      chrome.querySelectorAll("[data-author-connection-status]").forEach(function (status) {
+        var text = status.querySelector(":scope > span:last-child");
+        if (text) text.textContent = label;
+      });
     }
+
+    function authorViewStorageKey() {
+      return "fura-author-view:" + (document.getElementById("fura-author-chrome")?.getAttribute("data-fura-author-slug") || "page");
+    }
+
+    function preferredAuthorView() {
+      var params = new URLSearchParams(window.location.search);
+      if (params.get("author") === "workflow") return "workflow";
+      if (window.location.hash === "#fura-author-workflow") return "workflow";
+      try {
+        return sessionStorage.getItem(authorViewStorageKey()) || "read";
+      } catch (error) {
+        return "read";
+      }
+    }
+
+    function setAuthorView(view, options) {
+      var chrome = document.getElementById("fura-author-chrome");
+      if (!chrome) return;
+      var mode = view === "workflow" ? "workflow" : "read";
+      var layout = document.querySelector(".chirp-theme-docs-layout");
+      chrome.setAttribute("data-fura-author-view", mode);
+      if (layout) layout.setAttribute("data-fura-author-view", mode);
+      var openButton = chrome.querySelector("[data-fura-author-open-workflow]");
+      var backButton = chrome.querySelector("[data-fura-author-back-to-page]");
+      if (openButton) openButton.hidden = mode === "workflow";
+      if (backButton) backButton.hidden = mode !== "workflow";
+      try {
+        sessionStorage.setItem(authorViewStorageKey(), mode);
+      } catch (error) {
+        /* ignore */
+      }
+      if (options && options.scroll && mode === "workflow") {
+        chrome.scrollIntoView({ block: "start", behavior: "smooth" });
+      }
+      if (options && options.openFeedback && mode === "workflow") {
+        var feedbackDiff = chrome.querySelector(".fura-author-truth__feedback-diff");
+        if (feedbackDiff) feedbackDiff.open = true;
+        window.requestAnimationFrame(focusAuthorFeedback);
+      }
+    }
+
+    function setupAuthorViewToggle(forcedView, options) {
+      var chrome = document.getElementById("fura-author-chrome");
+      if (!chrome || chrome.dataset.furaAuthorViewBound) return;
+      chrome.dataset.furaAuthorViewBound = "1";
+      chrome.addEventListener("click", function (event) {
+        if (event.target.closest("[data-fura-author-open-workflow]")) {
+          event.preventDefault();
+          setAuthorView("workflow", { scroll: true });
+          return;
+        }
+        if (event.target.closest("[data-fura-author-back-to-page]")) {
+          event.preventDefault();
+          setAuthorView("read");
+        }
+      });
+      if (!document.body.dataset.furaAuthorViewLinksBound) {
+        document.body.dataset.furaAuthorViewLinksBound = "1";
+        document.body.addEventListener("click", function (event) {
+          var link = event.target.closest("[data-fura-author-open-workflow-link]");
+          if (!link) return;
+          event.preventDefault();
+          setAuthorView("workflow", { scroll: true });
+        });
+      }
+      var pending = forcedView || window.__furaAuthorViewPending;
+      window.__furaAuthorViewPending = null;
+      setAuthorView(pending || preferredAuthorView(), options);
+    }
+
+    window.__furaSetAuthorView = setAuthorView;
 
     function focusAuthorFeedback() {
       var feedback = document.getElementById("fura-author-feedback");
@@ -308,6 +382,7 @@
         var step = trigger && trigger.closest && trigger.closest("[data-author-action]");
         var chrome = step && step.closest("#fura-author-chrome");
         if (!step || !chrome) return;
+        window.__furaAuthorViewPending = "workflow";
         step.setAttribute("data-author-job-state", "loading");
         chrome.setAttribute("aria-busy", "true");
         var job = step.querySelector(".fura-author-truth__job");
@@ -316,7 +391,7 @@
       document.body.addEventListener("htmx:afterSwap", function (event) {
         var target = event.detail && event.detail.target;
         if (target && target.id === "fura-author-chrome") {
-          window.requestAnimationFrame(focusAuthorFeedback);
+          setupAuthorViewToggle(null, { openFeedback: true });
         }
       });
       function handleAuthorResponseError(event) {
@@ -336,6 +411,8 @@
         target.replaceWith(replacement);
         if (ctx) ctx.swap = "none";
         setupAuthorReload();
+        setupAuthorViewToggle();
+        setAuthorView("workflow", { openFeedback: true });
         window.requestAnimationFrame(focusAuthorFeedback);
       }
       document.body.addEventListener("htmx:responseError", handleAuthorResponseError);
@@ -346,6 +423,7 @@
     }
 
     bindAuthorTruthSurface();
+    setupAuthorViewToggle();
     updateAuthorConnection("connecting", "Connecting live author updates");
 
     function authorMarker() {

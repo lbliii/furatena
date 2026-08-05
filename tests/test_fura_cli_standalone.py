@@ -1595,7 +1595,9 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert "Copy source path" in author_payload["page"].text
     assert "Inspect public output" in author_payload["page"].text
     assert 'data-author-truth-schema="1"' in author_payload["page"].text
-    assert "Repository state is not connected" in author_payload["page"].text
+    assert 'data-fura-author-view="read"' in author_payload["page"].text
+    assert 'data-fura-author-open-workflow' in author_payload["page"].text
+    assert "publication workflow is connected" in author_payload["page"].text
     assert author_payload["page"].text.count('id="fura-author-sse"') == 1
     assert 'data-action="copy-source-path"' in author_payload["page"].text
     assert 'hx-target="#fura-author-chrome"' in author_payload["page"].text
