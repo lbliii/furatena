@@ -443,8 +443,8 @@ class TestAuthorStaleRoute:
         assert "fura-author-chrome__details-panel" in response.text
         assert 'data-fura-author-output="included"' in response.text
         assert 'data-fura-author-view="read"' in response.text
-        assert 'data-fura-author-open-workflow' in response.text
-        assert 'data-fura-author-open-workflow-link' in response.text
+        assert "data-fura-author-open-workflow" in response.text
+        assert "data-fura-author-open-workflow-link" in response.text
         assert 'class="fura-author-chrome__workflow-panel"' in response.text
         assert response.text.count("data-author-plane=") == 1
         assert 'data-author-plane="lifecycle"' in response.text
