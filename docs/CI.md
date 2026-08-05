@@ -9,6 +9,7 @@ for scheduling, not as enforced performance thresholds.
 | --- | --- | --- | --- | --- |
 | Fast | `make ci-fast` | Ruff 0.15.20 formatting and lint (including public return annotations), zero-diagnostic typed boundaries, owned ty diagnostic ratchets, steward-map integrity, and core catalog/config/theme unit tests | None beyond `make install` | ~30 seconds |
 | Contract | `make ci-contract` | Structured `fura check`, authorization, content, response-shape, template, CSP, and boost contracts | None beyond `make install` | ~60 seconds |
+| Public safety | `make ci-public-safety` | Visibility canaries, public-projection privacy, access isolation, RBAC, retrieval private/archived parity, preview HTML exclusion, export/freeze public-filter proofs, and the proof-map ratchet | None beyond `make install` | ~4 minutes |
 | Coverage | `make ci-coverage` | Branch coverage and per-module ratchets for graph, access, export, and loader foundations | None beyond `make install` | ~60 seconds |
 | Export | `make ci-export` | Static-export and DCP worker tests, a production-shaped Pages build, and an artifact URL crawl | None beyond `make install` | ~3 minutes |
 | Browser | `make ci-browser` | Complete real-browser search, navigation, authoring, and responsive regression tier | `uv run playwright install chromium` | ~90 seconds |
@@ -65,25 +66,26 @@ semantic changes and regenerate line-number-derived references before review.
 
 ## Branch gates and artifacts
 
-Pull requests always run the `fast` and `contract` jobs for early lint, unit,
-hypermedia, and diagnostic feedback. Draft pull requests stop there: coverage,
-browser, release, private-image, PDF, and Railway preview-controller work do
-not start until the pull request leaves draft state. Converting a pull request
-to draft publishes a removed preview report and skips queued preview work.
-Each pull request uses one workflow concurrency group keyed by PR number so a
-new push cancels superseded untrusted work without touching trusted main
-publication or image lifecycle runs. The contract lane waits for the fast lane
-on every event so a lint or unit failure does not start coverage, browser, or
-release work. The fast job classifies the complete
+Pull requests always run the `fast`, `contract`, and `public-safety` jobs for
+early lint, unit, hypermedia, diagnostic, and audience-safety feedback. Draft
+pull requests skip expensive lanes: coverage, browser, release, private-image,
+PDF, and Railway preview-controller work do not start until the pull request
+leaves draft state. Converting a pull request to draft publishes a removed
+preview report and skips queued preview work. Each pull request uses one
+workflow concurrency group keyed by PR number so a new push cancels superseded
+untrusted work without touching trusted main publication or image lifecycle
+runs. The contract and public-safety lanes wait for the fast lane on every
+event so a lint or unit failure does not start coverage, browser, release, or
+audience-proof work. The fast job classifies the complete
 base-to-head path diff—including additions, copies, modifications, renames,
 deletions, and type changes—and adds `coverage` for Python/test/coverage-policy
 changes, browser smoke for content/render/theme/browser changes, and `release`
 for source or packaging changes. `ready_for_review` uses the same diff
 contract as `synchronize`; diff resolution failures fail closed with an
-actionable diagnostic. Pushes to `main` and manual runs force all seven lanes, replace browser smoke
-with the full browser tier, and add the `export` and `agent` safety jobs.
-GitHub Pages deploys only after all seven jobs pass.
-
+actionable diagnostic. Pushes to `main` and manual runs force all eight
+primary lanes, replace browser smoke with the full browser tier, and add the
+`export` and `agent` safety jobs. GitHub Pages deploys only after the required
+jobs pass.
 Each job scopes the uv cache with its GitHub job name, so a cache or install
 failure identifies one owning lane. The export job alone uploads the Pages
 artifact, while the release job uploads a commit-named wheel/sdist artifact;
@@ -135,12 +137,20 @@ for 30 days, and cancels a superseded probe. Five-minute availability sampling
 belongs in a dedicated uptime service; GitHub Actions retains the slower,
 auditable artifact-integrity receipt and operational-issue routing.
 
+## Public-safety proof map
+
+Visibility and public-projection ownership across live, frozen, static, search,
+PDF, inventory, DCP, agent, MCP, CLI, preview, and develop surfaces is recorded
+in [PUBLIC_SAFETY_PROOF_MAP.md](PUBLIC_SAFETY_PROOF_MAP.md) (#583). Run
+`make ci-public-safety` for the focused allowed/forbidden audience lane; keep
+`make ci-export` as the Pages canary + URL artifact Protect.
+
 ## CI event brakes
 
 Wave 1 of the CI cost saga (#577) adds deterministic brakes so agent-heavy pull
 requests stop paying for obsolete or premature proof.
 
-| Event | Cheap lanes (`fast`, `contract`) | Expensive lanes | Preview / image / PDF |
+| Event | Cheap lanes (`fast`, `contract`, `public-safety`) | Expensive lanes | Preview / image / PDF |
 | --- | --- | --- | --- |
 | Draft open, sync, or push | Run | Skipped | Skipped |
 | Convert to draft | Run if triggered | Skipped | Preview report publishes `removed` |

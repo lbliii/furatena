@@ -86,6 +86,23 @@ jobs:
       - name: Contract lane
         run: make ci-contract
 
+  public-safety:
+    name: Public visibility and projection safety
+    needs: fast
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: astral-sh/setup-uv@v8.2.0
+        with:
+          python-version: "3.14t"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: ${{ github.job }}
+      - name: Install
+        run: uv sync --group dev
+      - name: Public-safety lane
+        run: make ci-public-safety
+
   coverage:
     name: Core coverage ratchets
     needs: fast
@@ -211,7 +228,7 @@ jobs:
   deploy:
     name: Deploy GitHub Pages
     if: github.event_name != 'pull_request'
-    needs: [fast, contract, coverage, export, browser, agent, release]
+    needs: [fast, contract, public-safety, coverage, export, browser, agent, release]
     runs-on: ubuntu-latest
     outputs:
       page_url: ${{ steps.deployment.outputs.page_url }}
