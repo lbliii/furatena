@@ -1085,9 +1085,11 @@ class DocCatalog:
             section_href = section.href or (
                 member_groups[0]["href"] if member_groups else page_items[0]["href"]
             )
-            section_active = active_url in section_urls or (
-                active_url is not None and active_url.startswith(section_href.rstrip("/") + "/")
-            )
+            # Match catalog_rail_items: only explicit page/section membership marks a
+            # journey open. Prefix matching on section_href breaks when multiple
+            # journeys share a URL hierarchy (e.g. Publish vs Operate under
+            # /docs/operations/).
+            section_active = active_url in section_urls
             children = (
                 member_groups[0]["children"]
                 if len(member_groups) == 1 and not page_items and section.id == member_ids[0]
