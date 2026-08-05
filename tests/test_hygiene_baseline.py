@@ -41,9 +41,9 @@ def test_changelog_fragment_contract_and_release_preview() -> None:
 
     import tomllib
 
-    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
-        "project"
-    ]["version"]
+    version = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
     completed = subprocess.run(
         (sys.executable, "-m", "towncrier", "build", "--draft", "--version", version),
         cwd=ROOT,
