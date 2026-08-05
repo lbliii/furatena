@@ -162,6 +162,7 @@ preserve room for additional pages without changing the public prefix.
 | `/inventories/{inventory_id}/objects.inv` | `binary` | One named Sphinx v2 inventory. Unknown ids return not found. |
 | `/llms-full.txt` | `text` | Full public corpus projection for LLM consumers. |
 | `/llms.txt` | `text` | Compact public page/API index and descriptions. |
+| `/llms/{mount_file}` | `text` | Per-mount llms detail file listing that mount's public pages; referenced by the `/llms.txt` index. |
 | `/meta.json` | `json` | Public site, channel, catalog, and agent-output metadata. |
 | `/objects.inv` | `binary` | Default Sphinx v2 reference inventory. |
 | `/preview-manifest.json` | `json` | Authenticated PR-only manifest binding the reviewed SHA and frozen fingerprint to Railway environment, deployment, domain, and readiness evidence. |
@@ -171,6 +172,7 @@ preserve room for additional pages without changing the public prefix.
 | `/search/semantic` | `json` | Query, hybrid ranking mode, count, and accessible result records. |
 | `/semantic.json` | `json` | Frozen semantic chunks and embedding/search metadata. |
 | `/sitemap.xml` | `xml` | Public canonical URLs only. |
+| `/sitemaps/{mount_file}` | `xml` | Per-mount sitemap of public canonical URLs; referenced by the `/sitemap.xml` index. |
 | `/structure.json` | `json` | Content-IR heading/directive structure keyed by public node. |
 | `/surface.json` | `json` | Product-surface manifest and linked machine-readable URLs. |
 | `/tools.json` | `json` | Agent tool descriptors, schemas, and API-operation discovery metadata. |
