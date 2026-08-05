@@ -148,8 +148,8 @@ gh-release:
 	if [ -z "$$REMOTE_TAG" ]; then git push origin "$$TAG"; fi; \
 	echo "Creating release $$TAG for $$PROJECT..."; \
 	awk -v ver="$$VERSION" ' \
-		$$0 ~ ("^## \\[" ver "\\]") {p=1; next} \
-		p && $$0 ~ /^## \\[/ {exit} \
+		index($$0, "## [" ver "]") == 1 {p=1; next} \
+		p && index($$0, "## [") == 1 {exit} \
 		p {print} \
 	' CHANGELOG.md | gh release create "$$TAG" \
 		--verify-tag \

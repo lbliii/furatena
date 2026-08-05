@@ -28,6 +28,13 @@ def test_python_publish_workflow_matches_trusted_publishing_pattern() -> None:
         "url": "https://pypi.org/p/furatena",
     }
 
+    # Gate/build need free-threaded Python; publish must not inherit PYTHON_GIL=0
+    # (pypa/gh-action-pypi-publish runs a non-free-threaded interpreter).
+    assert "env" not in workflow or "PYTHON_GIL" not in workflow.get("env", {})
+    assert jobs["release-gate"]["env"]["PYTHON_GIL"] == "0"
+    assert jobs["release-build"]["env"]["PYTHON_GIL"] == "0"
+    assert "PYTHON_GIL" not in jobs["pypi-publish"].get("env", {})
+
     assert "PYPI_TOKEN" not in source
     assert "pypa/gh-action-pypi-publish@release/v1" in source
     assert "make ci-release" in source

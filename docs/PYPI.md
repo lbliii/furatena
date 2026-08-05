@@ -78,7 +78,8 @@ fura --app-root ./my-docs serve
 ```
 
 Requires free-threaded CPython 3.14 (`3.14t`) with `PYTHON_GIL=0` for the
-supported runtime line.
+supported runtime line. The publish job itself does **not** set
+`PYTHON_GIL=0` — the PyPI upload action runs a non-free-threaded interpreter.
 
 ## Non-goals
 
