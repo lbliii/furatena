@@ -6941,7 +6941,7 @@
 
 .fura-author-truth__planes {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
   gap: 0.5rem;
   min-width: 0;
 }
@@ -7427,16 +7427,23 @@
   box-shadow: -18px 0 48px color-mix(in srgb, var(--chirpui-bg) 34%, transparent);
   transform: translateX(calc(100% + 1rem));
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   transition:
     opacity 180ms ease,
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 220ms;
 }
 
 .fura-author-chrome[data-fura-author-tray-open="true"] .fura-author-tray {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   transform: translateX(0);
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s;
 }
 
 .fura-author-chrome[data-fura-author-tray-open="true"] .fura-author-tray__scrim {
@@ -7444,8 +7451,18 @@
   pointer-events: auto;
 }
 
-.fura-author-chrome[data-fura-author-tray-open="true"] .fura-author-tray__scrim[hidden] {
-  display: block;
+/*
+ * Progressive enhancement fallback: without JavaScript the tray can only be
+ * revealed by navigating to its anchor (the "Open state and actions" link),
+ * so :target keeps the workflow and confirmation actions reachable. Once the
+ * script marks the chrome enhanced, JS owns the open/close state and this
+ * fallback is suppressed to avoid fighting the data attribute.
+ */
+.fura-author-chrome:not([data-fura-author-enhanced="true"]) .fura-author-tray:target {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 .fura-author-tray__header {

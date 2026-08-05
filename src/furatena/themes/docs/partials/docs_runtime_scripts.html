@@ -359,6 +359,7 @@
       var chrome = document.getElementById("fura-author-chrome");
       if (!chrome || chrome.dataset.furaAuthorViewBound) return;
       chrome.dataset.furaAuthorViewBound = "1";
+      chrome.setAttribute("data-fura-author-enhanced", "true");
       chrome.addEventListener("click", function (event) {
         if (event.target.closest("[data-fura-author-open-workflow]")) {
           event.preventDefault();
