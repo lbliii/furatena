@@ -44,8 +44,8 @@ The PyPI project name `furatena` was unclaimed as of 2026-08-05.
 2. Assemble notes and land them on `main`:
 
    ```bash
-   VERSION=0.1.1 make changelog   # or omit VERSION to use pyproject
-   git add CHANGELOG.md changelog.d && git commit -m "Release notes for 0.1.1"
+   VERSION=0.1.2 make changelog   # or omit VERSION to use pyproject
+   git add CHANGELOG.md changelog.d && git commit -m "Release notes for 0.1.2"
    git push origin main
    ```
 
