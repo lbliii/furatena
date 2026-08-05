@@ -14,8 +14,11 @@ build/
 app/frozen/
 app/public/
 app/.preview/
-app/.docs-cache/
-app/.docs-cache-test/
+.docs-cache/
+.docs-cache-test/
+
+# Agent / workspace scratch (Conductor, local serve PIDs)
+.context/
 
 # Test / tooling
 .pytest_cache/
