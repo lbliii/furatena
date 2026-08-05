@@ -38,9 +38,7 @@ def test_python_publish_workflow_matches_trusted_publishing_pattern() -> None:
 
 def test_pypi_runbook_documents_trusted_publisher_registration() -> None:
     docs = (REPO / "docs" / "PYPI.md").read_text(encoding="utf-8")
-    decision = (REPO / "docs" / "OSS_DISTRIBUTION_DECISION.md").read_text(
-        encoding="utf-8"
-    )
+    decision = (REPO / "docs" / "OSS_DISTRIBUTION_DECISION.md").read_text(encoding="utf-8")
 
     assert "Trusted Publishing" in docs
     assert "python-publish.yml" in docs
