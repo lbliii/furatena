@@ -114,7 +114,16 @@ exit codes in both terminal and JSON modes.
 
 `fura migrate --apply-safe [PATH ...] --json` creates canonical `.md` siblings only for deterministic, parse-clean MDX conversions with no unmapped JSX and no conflicting target. Sources are never removed and existing targets are never overwritten. `--dry-run` previews the same decisions without writing. Manual items emit `fura.migration.remediation.manual` and warning exit code `1`.
 
-`fura init --starter minimal|api-portal|multi-mount` creates a maintained standalone repository profile. Every profile includes an exact dependency on the generating Furatena release, CPython `3.14` compatibility, a `3.14t`/`PYTHON_GIL=0` GitHub workflow, documented audience and first edit, and clone-to-check-to-freeze-to-export commands. The API portal adds a lint-clean OpenAPI projection; the multi-mount profile adds independently rooted product, SDK, and operations mounts.
+`fura init --starter minimal|api-portal|multi-mount|governed-preview` creates a
+maintained standalone repository profile. Every profile includes an exact
+dependency on the generating Furatena release, CPython `3.14` compatibility, a
+`3.14t`/`PYTHON_GIL=0` GitHub workflow, friendly starter content under the
+packaged `docs` presentation layout with the Lagoon skin by default,
+starter-specific `site.home` and `site.navigation`, branding assets, documented
+audience and first edit, and serve-first plus check/freeze/export commands.
+`--skin none` selects the restrained `vanilla` layout instead. The API portal
+adds a lint-clean OpenAPI projection; the multi-mount profile adds independently
+rooted product, SDK, and operations mounts.
 
 `fura docs-inventory --json` derives public CLI commands, routes, config fields,
 MCP tools/resources, sidecars, diagnostic rule ids, and deployment profiles from

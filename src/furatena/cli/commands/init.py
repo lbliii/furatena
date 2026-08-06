@@ -14,9 +14,10 @@ from furatena.cli.commands._shared import CommandModule
 from furatena.cli.contracts import CommandResult, command_name
 
 STARTERS = ("minimal", "api-portal", "multi-mount", "governed-preview")
+SKINS = ("none", "lagoon")
 
 
-def _repository_files(starter: str, name: str) -> dict[str, str]:
+def _repository_files(starter: str, name: str, *, skin: str) -> dict[str, str]:
     project_slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "furatena"
     audiences = {
         "minimal": "A small repo-owned documentation site with the shortest path to static output.",
@@ -30,6 +31,26 @@ def _repository_files(starter: str, name: str) -> dict[str, str]:
         "multi-mount": "content/product/docs/get-started.md, content/sdk/docs/sdk-quickstart.md, or content/operations/docs/runbook.md",
         "governed-preview": "content/docs/get-started.md and the preview policy in README.md",
     }
+    lagoon_note = (
+        ""
+        if skin == "lagoon"
+        else dedent(
+            """\
+
+            ## Packaged docs layout + Lagoon
+
+            This scaffold uses the restrained `vanilla` layout. For the full docs
+            chrome and Lagoon skin, re-init with `--skin lagoon` or set in `docs.yaml`:
+
+            ```yaml
+            presentation:
+              layout: docs
+              skin: lagoon
+              trusted_capabilities: [scripts]
+            ```
+            """
+        )
+    )
     files = {
         "pyproject.toml": dedent(
             f"""\
@@ -90,20 +111,29 @@ def _repository_files(starter: str, name: str) -> dict[str, str]:
 
             **Audience:** {audiences[starter]}
 
-            ## From clone to export
+            ## Edit and preview
 
             ```bash
             uv python install 3.14t
             uv sync
+            PYTHON_GIL=0 uv run fura serve
+            ```
+
+            Open the printed URL, then edit `{first_edits[starter]}`.
+
+            ## Check, freeze, and export
+
+            ```bash
             PYTHON_GIL=0 uv run fura check --content-only --warnings-as-errors
             PYTHON_GIL=0 uv run fura freeze
             PYTHON_GIL=0 uv run fura export --base-path ""
             ```
 
-            Edit `{first_edits[starter]}` first. The deployable site is written to
-            `public/`; `frozen/` contains the portable catalog and agent sidecars.
+            The deployable site is written to `public/`; `frozen/` contains the portable
+            catalog and agent sidecars.
             """
-        ),
+        )
+        + lagoon_note,
     }
     if starter == "governed-preview":
         files.update(_governed_preview_repository_files())
@@ -286,6 +316,232 @@ def _governed_preview_repository_files() -> dict[str, str]:
     }
 
 
+def _presentation_block(*, skin: str) -> str:
+    if skin == "lagoon":
+        return dedent(
+            """\
+            presentation:
+              layout: docs
+              skin: lagoon
+              trusted_capabilities: [scripts]
+            """
+        )
+    # Skinless minimal path: packaged vanilla layout (self-contained CSS).
+    return dedent(
+        """\
+        presentation:
+          layout: vanilla
+        """
+    )
+
+
+def _docs_yaml(
+    name: str,
+    *,
+    skin: str,
+    get_started_href: str,
+    docs_href: str,
+    nav_links: tuple[tuple[str, str, str, str], ...],
+) -> str:
+    link_yaml = "\n".join(
+        (
+            f"        - href: {href}\n"
+            f"          label: {label}\n"
+            f"          blurb: {blurb}\n"
+            f"          icon: {icon}"
+        )
+        for href, label, blurb, icon in nav_links
+    )
+    site_name = json.dumps(name)
+    return (
+        _presentation_block(skin=skin) + "\n" + f"site:\n"
+        f"  name: {site_name}\n"
+        f"  tagline: Live documentation from markdown\n"
+        f"  description: Write markdown. Get a fast, searchable docs site with static and agent exports.\n"
+        f"  home:\n"
+        f"    cta_primary:\n"
+        f"      label: Get started\n"
+        f"      href: {get_started_href}\n"
+        f"    cta_secondary:\n"
+        f"      label: Browse docs\n"
+        f"      href: {docs_href}\n"
+        f"    hero_points:\n"
+        f"      - Edit markdown and see it live\n"
+        f"      - Search and static export from the same corpus\n"
+        f"      - Agent-readable catalog sidecars included\n"
+        f"  navigation:\n"
+        f"    documentation:\n"
+        f"      menu_label: Documentation\n"
+        f"      dropdown_href: {docs_href}\n"
+        f"      overview:\n"
+        f"        href: {docs_href}\n"
+        f"        kicker: Explore\n"
+        f"        title: Documentation\n"
+        f"        blurb: Guides and reference for {site_name[1:-1]}.\n"
+        f"      links:\n"
+        f"{link_yaml}\n"
+        f"    develop:\n"
+        f"      menu_label: Develop\n"
+        f"      dropdown_href: /develop/\n"
+        f"      overview:\n"
+        f"        href: /develop/\n"
+        f"        kicker: Build\n"
+        f"        title: Developer tools\n"
+        f"        blurb: Structured outputs for search, references, and AI tools.\n"
+        f"      links:\n"
+        f"        - href: /develop/\n"
+        f"          label: Develop overview\n"
+        f"          blurb: Browse catalog exports and agent-readable sidecars.\n"
+        f"          icon: code\n"
+        f"\n"
+        f"mounts: mounts.yaml\n"
+    )
+
+
+def _branding_files(name: str) -> dict[str, str]:
+    return {
+        "theme/assets/branding/favicon.svg": dedent(
+            """\
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+              <rect width="64" height="64" rx="12" fill="#111827"/>
+              <path d="M18 44V20h30v6H26v6h18v6H26v6z" fill="#f8fafc"/>
+            </svg>
+            """
+        ),
+        "theme/assets/branding/site.webmanifest": (
+            f'{{"name":{json.dumps(name)},"short_name":{json.dumps(name)},'
+            '"icons":[],"theme_color":"#111827","background_color":"#ffffff",'
+            '"display":"standalone"}\n'
+        ),
+    }
+
+
+def _friendly_content(name: str) -> dict[str, str]:
+    return {
+        "mounts.yaml": dedent(
+            """\
+            mounts:
+              - id: docs
+                label: Documentation
+                content_root: content
+                default: true
+                extensions: [".md", ".mdx", ".html"]
+                format_map:
+                  ".md": patitas-markdown
+                  ".mdx": mdx
+                  ".html": html
+            """
+        ),
+        "content/_index.md": dedent(
+            f"""\
+            ---
+            title: Welcome to {name}
+            description: A friendly starter site you can reshape into your product docs.
+            layout: home
+            ---
+
+            # Welcome to {name}
+
+            Your docs site is live. Start with the [Get started](/docs/get-started/)
+            guide, then replace these pages with your real product content.
+            """
+        ),
+        "content/docs/_index.md": dedent(
+            """\
+            ---
+            title: Documentation
+            description: Guides for adopting and shipping with your product.
+            weight: 10
+            ---
+
+            # Documentation
+
+            - [Get started](/docs/get-started/) — edit your first page while the server runs
+            - [Write a guide](/docs/guides/write-a-guide/) — structure topics readers can scan
+            - [Front matter](/docs/reference/frontmatter/) — title, description, weight, and layout
+            """
+        ),
+        "content/docs/get-started.md": dedent(
+            """\
+            ---
+            title: Get started
+            description: From empty folder to a live docs page.
+            weight: 20
+            ---
+
+            # Get started
+
+            You already ran `fura serve` — this page is proof it worked.
+
+            ## Edit this page
+
+            Open `content/docs/get-started.md`, change a sentence, and save. In author
+            mode the open page reloads without a full rebuild.
+
+            ## Next steps
+
+            1. Replace the home page copy in `content/_index.md`
+            2. Add a guide under `content/docs/guides/`
+            3. Run `fura check`, then `fura freeze` and `fura export` when you are ready to publish
+            """
+        ),
+        "content/docs/guides/_index.md": dedent(
+            """\
+            ---
+            title: Guides
+            description: How-to topics for common reader jobs.
+            weight: 30
+            ---
+
+            # Guides
+
+            Start with [Write a guide](/docs/guides/write-a-guide/).
+            """
+        ),
+        "content/docs/guides/write-a-guide.md": dedent(
+            """\
+            ---
+            title: Write a guide
+            description: Keep each page one job, one outcome.
+            weight: 10
+            ---
+
+            # Write a guide
+
+            Give each guide a single reader job. Link to related reference pages instead
+            of duplicating them.
+            """
+        ),
+        "content/docs/reference/_index.md": dedent(
+            """\
+            ---
+            title: Reference
+            description: Stable fields and contracts.
+            weight: 40
+            ---
+
+            # Reference
+
+            See [Front matter](/docs/reference/frontmatter/) for common page fields.
+            """
+        ),
+        "content/docs/reference/frontmatter.md": dedent(
+            """\
+            ---
+            title: Front matter
+            description: Title, description, weight, and layout fields.
+            weight: 10
+            ---
+
+            # Front matter
+
+            Use YAML front matter for `title`, `description`, `weight`, and optional
+            `layout` (for example `home` on the site root).
+            """
+        ),
+    }
+
+
 def _api_portal_files(name: str) -> dict[str, str]:
     return {
         "config/autodoc.yaml": dedent(
@@ -347,22 +603,28 @@ def _api_portal_files(name: str) -> dict[str, str]:
         "content/docs/get-started.md": dedent(
             """\
             ---
-            title: Start with the API portal
+            title: Get started
             description: Edit a guide and an OpenAPI operation from one repository.
             weight: 20
             ---
 
-            # Start with the API portal
+            # Get started
 
-            Edit this guide, then edit `specs/openapi.yaml`. Furatena projects the
-            OpenAPI operations into `/api/rest/`, search, static output, and agent
-            sidecars from the same source contract.
+            You already ran `fura serve` — this page is proof it worked.
+
+            ## Edit the portal
+
+            1. Change a sentence in this guide (`content/docs/get-started.md`)
+            2. Edit an operation in `specs/openapi.yaml`
+
+            Furatena projects OpenAPI operations into `/api/rest/`, search, static
+            output, and agent sidecars from the same source contract.
             """
         ),
     }
 
 
-def _multi_mount_files() -> dict[str, str]:
+def _multi_mount_files(name: str) -> dict[str, str]:
     return {
         "mounts.yaml": dedent(
             """\
@@ -385,16 +647,18 @@ def _multi_mount_files() -> dict[str, str]:
             """
         ),
         "content/product/_index.md": dedent(
-            """\
+            f"""\
             ---
-            title: Product documentation
+            title: Welcome to {name}
             description: Product guides from the default mount.
             layout: home
             ---
 
-            # Product documentation
+            # Welcome to {name}
 
-            Start with the product guide, then follow the SDK and operations mounts.
+            Start with the [Product quickstart](/docs/get-started/), then follow the
+            [SDK quickstart](/sdk/docs/sdk-quickstart/) and
+            [operations runbook](/operations/docs/runbook/).
             """
         ),
         "content/product/docs/_index.md": dedent(
@@ -402,9 +666,12 @@ def _multi_mount_files() -> dict[str, str]:
             ---
             title: Product guides
             description: Adopt and use the product.
+            weight: 10
             ---
 
             # Product guides
+
+            - [Product quickstart](/docs/get-started/) — first successful product workflow
             """
         ),
         "content/product/docs/get-started.md": dedent(
@@ -412,9 +679,12 @@ def _multi_mount_files() -> dict[str, str]:
             ---
             title: Product quickstart
             description: First successful product workflow.
+            weight: 20
             ---
 
             # Product quickstart
+
+            You already ran `fura serve` — this page is proof the default mount works.
 
             Continue with the [SDK quickstart](/sdk/docs/sdk-quickstart/) or the
             [operations runbook](/operations/docs/runbook/).
@@ -428,6 +698,8 @@ def _multi_mount_files() -> dict[str, str]:
             ---
 
             # SDK documentation
+
+            Start with the [SDK quickstart](/sdk/docs/sdk-quickstart/).
             """
         ),
         "content/sdk/docs/sdk-quickstart.md": dedent(
@@ -439,7 +711,8 @@ def _multi_mount_files() -> dict[str, str]:
 
             # SDK quickstart
 
-            This page is owned by the `sdk` mount and publishes below `/sdk/`.
+            This page is owned by the `sdk` mount and publishes below `/sdk/`. Edit
+            `content/sdk/docs/sdk-quickstart.md` to reshape it for your product.
             """
         ),
         "content/operations/_index.md": dedent(
@@ -450,6 +723,8 @@ def _multi_mount_files() -> dict[str, str]:
             ---
 
             # Operations
+
+            Start with the [service runbook](/operations/docs/runbook/).
             """
         ),
         "content/operations/docs/runbook.md": dedent(
@@ -468,399 +743,85 @@ def _multi_mount_files() -> dict[str, str]:
     }
 
 
+def _shared_nav_links() -> tuple[tuple[str, str, str, str], ...]:
+    return (
+        (
+            "/docs/get-started/",
+            "Get started",
+            "Edit your first page while the local server runs.",
+            "book-open",
+        ),
+        (
+            "/docs/guides/",
+            "Guides",
+            "How-to topics for common reader jobs.",
+            "pencil",
+        ),
+        (
+            "/docs/reference/",
+            "Reference",
+            "Stable fields such as front matter and layout.",
+            "code",
+        ),
+    )
+
+
+def _multi_mount_nav_links() -> tuple[tuple[str, str, str, str], ...]:
+    return (
+        (
+            "/docs/get-started/",
+            "Product quickstart",
+            "First successful product workflow on the default mount.",
+            "book-open",
+        ),
+        (
+            "/sdk/docs/sdk-quickstart/",
+            "SDK quickstart",
+            "Install and call the SDK from an independent mount.",
+            "code",
+        ),
+        (
+            "/operations/docs/runbook/",
+            "Operations runbook",
+            "Verify and recover the documentation service.",
+            "rocket",
+        ),
+    )
+
+
 def _run_init(args: argparse.Namespace) -> CommandResult:
     app_root = Path(args.directory).expanduser().resolve()
     force = args.force
+    skin = str(args.skin)
 
-    files = {
-        "docs.yaml": dedent(
-            f"""\
-            shell: shell.html
+    if args.starter == "multi-mount":
+        files = {
+            "docs.yaml": _docs_yaml(
+                args.name,
+                skin=skin,
+                get_started_href="/docs/get-started/",
+                docs_href="/docs/",
+                nav_links=_multi_mount_nav_links(),
+            ),
+            **_multi_mount_files(args.name),
+            **_branding_files(args.name),
+        }
+    else:
+        files = {
+            "docs.yaml": _docs_yaml(
+                args.name,
+                skin=skin,
+                get_started_href="/docs/get-started/",
+                docs_href="/docs/",
+                nav_links=_shared_nav_links(),
+            ),
+            **_friendly_content(args.name),
+            **_branding_files(args.name),
+        }
+        if args.starter == "api-portal":
+            files.update(_api_portal_files(args.name))
 
-            views:
-              doc: views/doc.html
-              doc_list: views/doc_list.html
-              page: views/page.html
-              home: views/home.html
-              collection: views/collection.html
-              api_reference: views/api_reference.html
-              default: views/doc.html
-
-            site:
-              name: {args.name}
-              tagline: Live documentation from markdown
-              description: Write markdown. Get a fast, searchable docs site with static and agent exports.
-
-            theme:
-              use: lagoon
-              id: furatena
-              effects:
-                code: flat
-                cards: flat
-                hero: wash
-
-            mounts: mounts.yaml
-            """
-        ),
-        "mounts.yaml": dedent(
-            """\
-            mounts:
-              - id: docs
-                label: Documentation
-                content_root: content
-                default: true
-                extensions: [".md", ".mdx", ".html"]
-                format_map:
-                  ".md": patitas-markdown
-                  ".mdx": mdx
-                  ".html": html
-            """
-        ),
-        "content/_index.md": dedent(
-            f"""\
-            ---
-            title: {args.name}
-            description: Live documentation from markdown.
-            layout: home
-            ---
-
-            # {args.name}
-
-            Start editing `content/docs/get-started.md`.
-            """
-        ),
-        "content/docs/_index.md": dedent(
-            """\
-            ---
-            title: Documentation
-            description: Guides and reference.
-            weight: 10
-            ---
-
-            # Documentation
-
-            Browse the docs.
-            """
-        ),
-        "content/docs/get-started.md": dedent(
-            """\
-            ---
-            title: Get started
-            description: Your first Furatena page.
-            weight: 20
-            ---
-
-            # Get started
-
-            Run the local docs server:
-
-            ```bash
-            fura serve
-            ```
-            """
-        ),
-        "theme/shell.html": dedent(
-            """\
-            {% extends "layouts/fura_shell.html" %}
-
-            {% block title %}{% if node %}{{ node.title }}{% else %}{{ site_name | default('Furatena') }}{% end %}{% end %}
-
-            {% block head %}
-            {% if fura_form_proof() %}
-            <meta name="csrf-token" content="{{ fura_form_proof() }}">
-            {% end %}
-            {% for href in docs_stylesheets() %}
-            <link rel="stylesheet" href="{{ href }}">
-            {% end %}
-            {% include "partials/head_meta.html" %}
-            {% end %}
-
-            {% block content %}
-            {% block page_root %}{% end %}
-            {% end %}
-
-            {% block body_after %}
-            <script nonce="{{ csp_nonce() }}">
-            document.body.addEventListener("htmx:configRequest", function(event) {
-              var meta = document.querySelector('meta[name="csrf-token"]');
-              if (meta) { event.detail.headers["X-CSRF-Token"] = meta.content; }
-            });
-            </script>
-            {% end %}
-            """
-        ),
-        "theme/views/doc.html": dedent(
-            """\
-            {% extends "shell.html" %}
-
-            {% block page_root %}
-            <main id="page-root" class="chirp-theme-docs-layout" data-fura-surface="catalog">
-            {% block page_root_inner %}
-            {% block page_content %}
-              <article>
-                <h1>{{ node.title }}</h1>
-                {% if node.description %}<p>{{ node.description }}</p>{% end %}
-                {% include "partials/author_chrome.html" %}
-                {{ node | doc_body }}
-              </article>
-            {% end %}
-            {% end %}
-            </main>
-            {% end %}
-
-            {% block sse_scope %}
-            {% include "partials/author_sse.html" %}
-            {% end %}
-            """
-        ),
-        "theme/views/doc_list.html": dedent(
-            """\
-            {% extends "views/doc.html" %}
-            """
-        ),
-        "theme/views/changelog.html": dedent(
-            """\
-            {% extends "views/doc.html" %}
-            """
-        ),
-        "theme/views/collection.html": dedent(
-            """\
-            {% extends "views/doc.html" %}
-            """
-        ),
-        "theme/views/api_reference.html": dedent(
-            """\
-            {% extends "views/doc.html" %}
-            """
-        ),
-        "theme/views/page.html": dedent(
-            """\
-            {% extends "views/doc.html" %}
-            """
-        ),
-        "theme/views/home.html": dedent(
-            """\
-            {% extends "views/doc.html" %}
-            """
-        ),
-        "theme/views/portal.html": dedent(
-            """\
-            {% extends "shell.html" %}
-
-            {% block page_root %}
-            <main id="page-root" class="chirp-theme-docs-layout" data-fura-surface="app">
-              <h1>{{ site_name | default('Documentation') }}</h1>
-              <ul>
-                {% for mount in mounts %}
-                <li><a href="{{ mount.href }}">{{ mount.label }}</a></li>
-                {% end %}
-              </ul>
-            </main>
-            {% end %}
-            """
-        ),
-        "theme/views/author_studio.html": dedent(
-            """\
-            {% extends "shell.html" %}
-
-            {% block page_root %}
-            {% block author_studio_workspace %}
-            <main id="author-studio-workspace"
-                  class="chirp-theme-author-studio__workspace"
-                  data-author-studio-mode="{{ author_studio.mode }}"
-                  data-author-studio-ok="{{ 'true' if author_studio.ok else 'false' }}"
-                  data-author-studio-provenance="{{ author_studio.source_provenance }}"
-                  hx-disinherit="hx-select hx-target hx-swap">
-              <header class="chirp-theme-author-studio__header">
-                <div>
-                  <p>{{ author_studio.visibility }}</p>
-                  <h1>{{ author_studio.title }}</h1>
-                  {% if author_studio.source_path %}<code>{{ author_studio.source_path }}</code>{% end %}
-                </div>
-                <button form="author-studio-form" type="submit">
-                  {% if author_studio.mode == "create" %}Create draft{% else %}Save source{% end %}
-                </button>
-              </header>
-
-              {% if author_studio.saved %}
-              <p data-author-studio-saved="true">Saved</p>
-              {% end %}
-
-              {% if author_studio.diagnostics %}
-              <section aria-label="Save diagnostics">
-                {% for diagnostic in author_studio.diagnostics %}
-                <article data-rule-id="{{ diagnostic.rule_id }}" data-severity="{{ diagnostic.severity }}">
-                  <strong>{{ diagnostic.severity }}</strong>
-                  <span>{{ diagnostic.message }}</span>
-                  {% if diagnostic.next_action %}<small>{{ diagnostic.next_action }}</small>{% end %}
-                </article>
-                {% end %}
-              </section>
-              {% end %}
-
-              <div class="chirp-theme-author-studio__split">
-                <form id="author-studio-form"
-                      method="post"
-                      action="{{ author_studio.save_url }}"
-                      hx-post="{{ author_studio.save_url }}"
-                      hx-target="#author-studio-workspace"
-                      hx-swap="outerHTML">
-                  {{ csrf_field() }}
-                  <input type="hidden" name="slug" value="{{ author_studio.slug }}">
-                  <input type="hidden" name="mode" value="{{ author_studio.mode }}">
-                  <input type="hidden" name="title" value="{{ author_studio.title }}">
-                  <input type="hidden" name="source_revision" value="{{ author_studio.source_revision | default('') }}">
-                  <label for="author-studio-source">Source</label>
-                  <textarea id="author-studio-source"
-                            name="source"
-                            spellcheck="false"
-                            data-source-path="{{ author_studio.source_path }}"
-                            data-has-patitas-ast="{{ 'true' if author_studio.has_ast else 'false' }}">{{ author_studio.source_text }}</textarea>
-                </form>
-                <section aria-label="Rendered preview">
-                  {% if author_studio.preview_html %}
-                  {{ author_studio.preview_html }}
-                  {% else %}
-                  <h1>{{ author_studio.title }}</h1>
-                  {% end %}
-                </section>
-              </div>
-
-              {% if author_studio.source_regions %}
-              <ol aria-label="Source regions">
-                {% for region in author_studio.source_regions %}
-                <li data-source-line="{{ region.line }}"
-                    data-heading-depth="{{ region.depth }}"
-                    data-preview-anchor="{{ region.anchor }}">
-                  <span>{{ region.heading }}</span>
-                  <code>L{{ region.line }}</code>
-                </li>
-                {% end %}
-              </ol>
-              {% end %}
-            </main>
-            {% end %}
-            {% end %}
-            """
-        ),
-        "theme/views/author_dashboard.html": dedent(
-            """\
-            {% extends "shell.html" %}
-
-            {% block page_root %}
-            <main id="author-dashboard"
-                  class="chirp-theme-author-dashboard__workspace"
-                  data-author-dashboard
-                  data-author-dashboard-errors="{{ author_dashboard.summary.error_count }}"
-                  data-author-dashboard-warnings="{{ author_dashboard.summary.warning_count }}">
-              <header>
-                <p>Local authoring</p>
-                <h1>Author dashboard</h1>
-                <p>Import, freshness, and lint status for this local docs workspace.</p>
-                <a href="/docs/_author/dashboard?json=1">JSON</a>
-              </header>
-              <section aria-label="Author workspace summary">
-                <p>Mounts: {{ author_dashboard.summary.mount_count }}</p>
-                <p>Pages: {{ author_dashboard.summary.page_count }}</p>
-                <p>Blocking errors: {{ author_dashboard.summary.error_count }}</p>
-              </section>
-              {% if author_dashboard.blocking %}
-              <section aria-label="Top blocking errors">
-                <h2>Top blocking errors</h2>
-                {% for item in author_dashboard.blocking %}
-                <article data-severity="{{ item.severity }}">
-                  <strong>{{ item.source_path }}{% if item.line %}:{{ item.line }}{% end %}</strong>
-                  <span>{{ item.message }}</span>
-                  {% if item.studio_url %}<a href="{{ item.studio_url }}">Open</a>{% end %}
-                </article>
-                {% end %}
-              </section>
-              {% end %}
-              <section aria-label="Mounted sources">
-                {% for mount in author_dashboard.mounts %}
-                <article data-mount-id="{{ mount.id }}" data-mount-status="{{ mount.status }}">
-                  <h2>{{ mount.label }}</h2>
-                  <p>{{ mount.source_root }}</p>
-                  <p>{{ mount.page_count }} page(s)</p>
-                  <p>{{ mount.error_count }} error(s) / {{ mount.warning_count }} warning(s)</p>
-                  {% for item in mount.formats %}
-                  <span data-source-format="{{ item.format }}">{{ item.format }} {{ item.count }}</span>
-                  {% end %}
-                </article>
-                {% end %}
-              </section>
-            </main>
-            {% end %}
-            """
-        ),
-        "theme/views/develop.html": dedent(
-            """\
-            {% extends "shell.html" %}
-
-            {% block page_root %}
-            <main id="page-root" class="chirp-theme-docs-layout" data-fura-surface="app">
-              <h1>Develop</h1>
-              <ul>
-                {% for item in develop_exports %}
-                <li><a href="{{ item.preview_href }}">{{ item.label }}</a></li>
-                {% end %}
-              </ul>
-            </main>
-            {% end %}
-            """
-        ),
-        "theme/views/develop_export.html": dedent(
-            """\
-            {% extends "shell.html" %}
-
-            {% block page_root %}
-            <main id="page-root" class="chirp-theme-docs-layout" data-fura-surface="app">
-              <h1>{{ develop_export.label }}</h1>
-              <pre><code>{{ develop_sample }}</code></pre>
-            </main>
-            {% end %}
-            """
-        ),
-        "theme/search.html": dedent(
-            """\
-            {% extends "shell.html" %}
-
-            {% block page_root %}
-            <main id="page-root" class="chirp-theme-docs-layout" data-fura-surface="catalog">
-              <h1>Search</h1>
-              {% block search_results %}
-              {% include "partials/search_results.html" %}
-              {% end %}
-            </main>
-            {% end %}
-            """
-        ),
-        "theme/assets/branding/favicon.svg": dedent(
-            """\
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-              <rect width="64" height="64" rx="12" fill="#111827"/>
-              <path d="M18 44V20h30v6H26v6h18v6H26v6z" fill="#f8fafc"/>
-            </svg>
-            """
-        ),
-        "theme/assets/branding/site.webmanifest": dedent(
-            f"""\
-            {{"name":"{args.name}","short_name":"{args.name}","icons":[],"theme_color":"#111827","background_color":"#ffffff","display":"standalone"}}
-            """
-        ),
-    }
-
-    files.update(_repository_files(args.starter, args.name))
-    if args.starter == "api-portal":
-        files.update(_api_portal_files(args.name))
-    elif args.starter == "multi-mount":
-        for path in (
-            "content/_index.md",
-            "content/docs/_index.md",
-            "content/docs/get-started.md",
-        ):
-            files.pop(path)
-        files.update(_multi_mount_files())
+    files.update(_repository_files(args.starter, args.name, skin=skin))
 
     written: list[Path] = []
     for rel, body in files.items():
@@ -882,6 +843,7 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
                 "skipped_existing": True,
                 "force": bool(force),
                 "starter": args.starter,
+                "skin": skin,
             },
             terminal_lines=(
                 f"no files written — {app_root} already has a Furatena scaffold (use --force)",
@@ -898,6 +860,7 @@ def _run_init(args: argparse.Namespace) -> CommandResult:
             "count": len(written),
             "force": bool(force),
             "starter": args.starter,
+            "skin": skin,
         },
         terminal_lines=(summary, *(f"  {path.relative_to(app_root)}" for path in written)),
     )
@@ -917,6 +880,12 @@ def configure(sub: Any) -> None:
         choices=STARTERS,
         default="minimal",
         help="Maintained repository profile (default: minimal)",
+    )
+    init.add_argument(
+        "--skin",
+        choices=SKINS,
+        default="lagoon",
+        help="Presentation skin (default: lagoon on the docs layout; none selects vanilla)",
     )
     init.add_argument("--force", action="store_true", help="Overwrite scaffold files")
     init.add_argument("--json", action="store_true", help="Emit the standard command result JSON")

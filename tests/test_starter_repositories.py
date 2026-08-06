@@ -105,7 +105,7 @@ def test_starter_generation_is_safe_under_free_threading(tmp_path: Path) -> None
 
     assert len(results) == 36
     assert {starter for starter, _ in results} == set(starters)
-    assert all(count >= 25 for _, count in results)
+    assert all(count >= 14 for _, count in results)
 
 
 def test_governed_preview_starter_has_secure_reference_integration(tmp_path: Path) -> None:

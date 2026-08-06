@@ -63,7 +63,7 @@ RECIPES: tuple[Recipe, ...] = (
                 id="scaffold",
                 title="Scaffold the app",
                 command='fura init <APP_ROOT> --name "<SITE_NAME>" --json',
-                purpose="Create docs.yaml, mounts.yaml, starter content, and theme files.",
+                purpose="Create docs.yaml, mounts.yaml, friendly starter content, and branding assets.",
             ),
             RecipeStep(
                 id="validate",
