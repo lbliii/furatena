@@ -151,6 +151,40 @@ def test_app_shell_components_are_typed_and_calls_validate() -> None:
         assert type_issues == [], template_name
 
 
+def test_marketing_components_are_typed_and_home_calls_validate() -> None:
+    env = _app_environment(APP_ROOT / "docs.yaml")
+    component_source = (
+        APP_ROOT / "theme" / "templates" / "components" / "marketing.html"
+    ).read_text(encoding="utf-8")
+    assert "chirpui-" not in component_source
+    metadata = env.get_template("components/marketing.html").def_metadata()
+    assert {param.name: param.annotation for param in metadata["marketing_container"].params} == {
+        "max_width": "str",
+        "extra_class": "str",
+    }
+    assert metadata["marketing_container"].has_default_slot is True
+    assert {param.name: param.annotation for param in metadata["marketing_button"].params} == {
+        "label": "str",
+        "href": "str",
+        "variant": "str",
+    }
+    assert metadata["marketing_surface"].has_default_slot is True
+    assert {param.name: param.annotation for param in metadata["marketing_page_hero"].params} == {
+        "eyebrow": "str",
+        "title": "str",
+        "description": "str",
+    }
+
+    for template_name in (
+        "components/marketing.html",
+        "views/home.html",
+        "views/marketing_page.html",
+    ):
+        signature_issues, type_issues = _static_call_issues(env, template_name)
+        assert signature_issues == [], template_name
+        assert type_issues == [], template_name
+
+
 def test_theme_shadow_can_replace_framework_component_without_wrapper_fork(tmp_path: Path) -> None:
     shutil.copytree(APP_ROOT / "theme", tmp_path / "theme")
     write_minimal_docs_yaml(tmp_path / "docs.yaml")
@@ -158,7 +192,7 @@ def test_theme_shadow_can_replace_framework_component_without_wrapper_fork(tmp_p
     content.mkdir()
     write_mounts_yaml(tmp_path / "mounts.yaml", content)
     component = tmp_path / "theme" / "templates" / "components" / "directive_callout.html"
-    component.parent.mkdir(parents=True)
+    component.parent.mkdir(parents=True, exist_ok=True)
     component.write_text(
         """{% def directive_callout(title: str | None = none, variant: str = \"info\", kind: str = \"admonition\", modifier: str = \"\", extra_class: str = \"\") %}
 <aside data-shadow-component=\"{{ kind }}\">{% slot content %}</aside>

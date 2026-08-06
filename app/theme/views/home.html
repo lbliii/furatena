@@ -1,8 +1,5 @@
 {% extends "layouts/docs_app.html" %}
-{% from "chirpui/button.html" import btn %}
-{% from "chirpui/layout.html" import container, stack as layout_stack, cluster %}
-{% from "chirpui/cta_band.html" import cta_band %}
-{% from "chirpui/surface.html" import surface %}
+{% from "components/marketing.html" import marketing_button, marketing_cluster, marketing_container, marketing_cta_band, marketing_stack, marketing_surface %}
 {% from "partials/shell_nav_mega.html" import shell_mega_item %}
 
 {% block app_content %}
@@ -18,8 +15,8 @@
 {% let cta = home | get("cta") %}
 
 <div class="chirp-theme-home" aria-label="{{ home.aria_label }}">
-  {% call container(max_width="72rem") %}
-    {% call layout_stack(gap="xl", cls="chirp-theme-home__flow") %}
+  {% call marketing_container(max_width="80rem") %}
+    {% call marketing_stack(gap="xl", extra_class="chirp-theme-home__flow") %}
 
       <section class="chirp-theme-home__hero" aria-label="{{ site_name }} landing">
         <header class="chirp-theme-home__hero-copy">
@@ -30,8 +27,8 @@
           </p>
           <h1 class="chirp-theme-home__hero-title">{{ node.title }}</h1>
           <p class="chirp-theme-home__hero-lede">{{ node.description }}</p>
-          {% call cluster(gap="sm", cls="chirp-theme-home__actions") %}
-            {{ btn(home.cta_primary.label, href=home.cta_primary.href, variant="primary") }}
+          {% call marketing_cluster(gap="sm", extra_class="chirp-theme-home__actions") %}
+            {{ marketing_button(home.cta_primary.label, home.cta_primary.href) }}
             <a class="chirp-theme-home__hero-link" href="{{ home.cta_secondary.href }}"{{ route_link_attrs(home.cta_secondary.href) | html_attrs }}>
               {{ home.cta_secondary.label }}
             </a>
@@ -45,7 +42,7 @@
           {% end %}
         </header>
 
-        {% call surface(variant="glass", cls="chirp-theme-home__hero-panel") %}
+        {% call marketing_surface(variant="glass", extra_class="chirp-theme-home__hero-panel") %}
           <div class="chirp-theme-home__product-visual" aria-label="{{ visual.aria_label }}">
             <div class="chirp-theme-home__visual-topbar" aria-hidden="true">
               <span></span><span></span><span class="chirp-theme-home__live-dot"></span>
@@ -221,7 +218,7 @@
       {% if explore %}
       <nav class="chirp-theme-home__explore" aria-label="{{ explore.title }}">
         <p class="chirp-theme-home__explore-title">{{ explore.title }}</p>
-        {% call cluster(gap="sm", cls="chirp-theme-home__explore-links") %}
+        {% call marketing_cluster(gap="sm", extra_class="chirp-theme-home__explore-links") %}
           {% for link in explore.links %}
           <a class="chirp-theme-home__explore-link" href="{{ link.href }}"{{ route_link_attrs(link.href) | html_attrs }}>{{ link.label }}</a>
           {% end %}
@@ -284,8 +281,8 @@
       {% end %}
 
       {% if cta %}
-      {% call surface(variant="gradient-subtle", cls="chirp-theme-home__panel chirp-theme-home__cta-panel") %}
-        {{ cta_band(cta.title, body=cta.body, primary_label=home.cta_primary.label, primary_href=home.cta_primary.href, secondary_label=cta.secondary.label, secondary_href=cta.secondary.href, variant="accent") }}
+      {% call marketing_surface(variant="gradient-subtle", extra_class="chirp-theme-home__panel chirp-theme-home__cta-panel") %}
+        {{ marketing_cta_band(cta.title, cta.body, home.cta_primary.label, home.cta_primary.href, cta.secondary.label, cta.secondary.href) }}
       {% end %}
       {% end %}
 

@@ -38,7 +38,7 @@
   }
 
   .chirp-theme-home a:focus-visible,
-  .chirp-theme-home .chirpui-btn:focus-visible,
+  .chirp-theme-home .fura-marketing-button:focus-visible,
   .chirp-theme-home .chirpui-index-card:focus-visible {
     outline: 2px solid var(--chirpui-accent);
     outline-offset: var(--chirp-home-focus-offset);
@@ -115,7 +115,7 @@
       );
   }
 
-  .chirp-theme-home__hero-panel.chirpui-surface--glass {
+  .chirp-theme-home__hero-panel.fura-marketing-surface--glass {
     backdrop-filter: blur(14px);
   }
 
@@ -130,8 +130,7 @@
     margin-inline-end: 0.35rem;
   }
 
-  .chirp-theme-home__panel.chirpui-surface--glass,
-  .chirp-theme-home__panel.chirpui-surface--frosted {
+  .chirp-theme-home__panel.fura-marketing-surface--gradient-subtle {
     border-color: color-mix(in srgb, var(--chirpui-accent) 14%, var(--chirpui-border));
     box-shadow:
       var(--chirpui-elevation-theme-sm),
@@ -698,7 +697,7 @@
   @media (min-width: 60rem) {
     .chirp-theme-home__hero {
       display: grid;
-      grid-template-columns: minmax(0, 0.618fr) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
       align-items: center;
       gap: var(--chirp-home-space-5);
       padding-block: var(--chirp-home-space-5) var(--chirp-home-space-3);
@@ -707,6 +706,11 @@
     .chirp-theme-home__hero-copy {
       margin-inline: 0;
       text-align: left;
+    }
+
+    .chirp-theme-home__hero-title {
+      max-width: none;
+      font-size: clamp(3.25rem, 5.2vw, 4.5rem);
     }
 
     .chirp-theme-home__hero-title,

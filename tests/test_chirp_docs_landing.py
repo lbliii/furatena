@@ -39,7 +39,9 @@ class TestLandingSurface:
         assert "/docs-theme/local/styles.css" in html
         assert "chirp-theme-home__hero-title" in html
         assert "chirp-theme-home__hero-panel" in html
-        assert "chirpui-surface--glass" in html
+        assert "fura-marketing-container" in html
+        assert "fura-marketing-surface--glass" in html
+        assert "chirpui-surface--glass" not in html
         assert "chirp-theme-home__product-visual" in html
         assert "chirp-theme-home__live-dot" in html
         assert "chirp-theme-home__hero-link" in html
@@ -49,8 +51,18 @@ class TestLandingSurface:
         assert "Inspect what the control plane produces" in html
         assert "chirp-theme-page__content" not in html
         assert "chirp-theme-home__metric-cards" in html
-        assert "chirpui-cta-band" in html
+        assert "fura-marketing-cta-band" in html
         assert "chirpui-stepper" not in html
+
+    def test_landing_uses_owned_kida_marketing_components(self) -> None:
+        home_view = (APP_ROOT / "theme" / "views" / "home.html").read_text(encoding="utf-8")
+        marketing_view = (APP_ROOT / "theme" / "views" / "marketing_page.html").read_text(
+            encoding="utf-8"
+        )
+        assert '{% from "chirpui/' not in home_view
+        assert '{% from "chirpui/' not in marketing_view
+        assert '{% from "components/marketing.html"' in home_view
+        assert '{% from "components/marketing.html"' in marketing_view
 
     def test_home_includes_mobile_shell_nav(self, docs_client) -> None:
         import asyncio

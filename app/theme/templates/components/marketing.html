@@ -1,0 +1,60 @@
+{#
+  Furatena-owned marketing primitives.
+
+  These typed components deliberately live in the app theme so a project can
+  shadow one component without forking a view. Callers do not import or depend
+  on Chirp UI macros or styling hooks.
+#}
+
+{% def marketing_container(max_width: str = "72rem", extra_class: str = "") %}
+<div class="fura-marketing-container{{ " " ~ extra_class if extra_class else "" }}" style="--fura-marketing-container-max: {{ max_width }}">
+  {% slot %}
+</div>
+{% end %}
+
+{% def marketing_stack(gap: str = "xl", extra_class: str = "") %}
+<div class="fura-marketing-stack fura-marketing-stack--{{ gap }}{{ " " ~ extra_class if extra_class else "" }}">
+  {% slot %}
+</div>
+{% end %}
+
+{% def marketing_cluster(gap: str = "sm", extra_class: str = "") %}
+<div class="fura-marketing-cluster fura-marketing-cluster--{{ gap }}{{ " " ~ extra_class if extra_class else "" }}">
+  {% slot %}
+</div>
+{% end %}
+
+{% def marketing_button(label: str, href: str, variant: str = "primary") %}
+<a class="fura-marketing-button fura-marketing-button--{{ variant }}" href="{{ href }}"{{ route_link_attrs(href) | html_attrs }}>{{ label }}</a>
+{% end %}
+
+{% def marketing_surface(variant: str = "default", extra_class: str = "") %}
+<section class="fura-marketing-surface fura-marketing-surface--{{ variant }}{{ " " ~ extra_class if extra_class else "" }}">
+  {% slot %}
+</section>
+{% end %}
+
+{% def marketing_cta_band(title: str, body: str, primary_label: str, primary_href: str, secondary_label: str, secondary_href: str) %}
+<div class="fura-marketing-cta-band fura-marketing-cta-band--accent">
+  <div class="fura-marketing-cta-band__copy">
+    <h2>{{ title }}</h2>
+    <p>{{ body }}</p>
+  </div>
+  <div class="fura-marketing-cta-band__actions">
+    {{ marketing_button(primary_label, primary_href) }}
+    {{ marketing_button(secondary_label, secondary_href, variant="secondary") }}
+  </div>
+</div>
+{% end %}
+
+{% def marketing_page_hero(eyebrow: str, title: str, description: str = "") %}
+<header class="fura-marketing-page-hero chirp-theme-page__header">
+  <div class="fura-marketing-page-hero__inner">
+    <p class="fura-marketing-page-hero__eyebrow">{{ eyebrow }}</p>
+    <h1 class="fura-marketing-page-hero__title">{{ title }}</h1>
+    {% if description %}
+    <p class="fura-marketing-page-hero__subtitle">{{ description }}</p>
+    {% end %}
+  </div>
+</header>
+{% end %}

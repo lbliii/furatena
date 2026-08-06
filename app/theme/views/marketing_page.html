@@ -1,20 +1,12 @@
 {% extends "layouts/docs_app.html" %}
-{% from "chirpui/layout.html" import container, stack %}
+{% from "components/marketing.html" import marketing_container, marketing_page_hero, marketing_stack %}
 
 {% block app_content %}
 <div class="chirp-theme-page">
-{% call container(max_width="72rem") %}
-{% call stack(gap="xl") %}
+{% call marketing_container() %}
+{% call marketing_stack(gap="xl") %}
   <article class="chirp-theme-page__article">
-    <header class="chirpui-hero chirpui-hero--page chirp-theme-page__header">
-      <div class="chirpui-hero__inner">
-        <p class="chirpui-hero__eyebrow">{{ site_name }} · Content control plane</p>
-        <h1 class="chirpui-hero__title">{{ node.title }}</h1>
-        {% if node.description %}
-        <p class="chirpui-hero__subtitle">{{ node.description }}</p>
-        {% end %}
-      </div>
-    </header>
+    {{ marketing_page_hero(site_name ~ " · Content control plane", node.title, node.description | default("")) }}
 
     <div class="prose chirp-theme-docs-layout__content">
       {{ node | doc_body | boost_doc_links }}
