@@ -278,7 +278,7 @@ def test_author_source_revision_rejects_unrelated_concurrent_change(tmp_path: Pa
         "docs/get-started",
         mounts=mounts,
         subject=subject,
-        source_text=snapshot.replace("Run the local docs server:", "Edited stale snapshot:"),
+        source_text=snapshot.replace("You already ran `fura serve`", "Edited stale snapshot:"),
         expected_revision=read.source_revision,
         confirmed=True,
     )
@@ -299,7 +299,7 @@ def test_author_source_revision_rejects_unrelated_concurrent_change(tmp_path: Pa
     assert missing.diagnostics[0].rule_id == "fura.author.conflict"
     assert missing.current_revision == _source_revision(target)
 
-    merged = concurrent.replace("Run the local docs server:", "Merged author edit:")
+    merged = concurrent.replace("You already ran `fura serve`", "Merged author edit:")
     saved = author_save_source(
         "docs/get-started",
         mounts=mounts,
@@ -391,7 +391,7 @@ def test_mcp_revision_rejects_change_to_edited_span(tmp_path: Path) -> None:
     revision = read["structuredContent"]["source_revision"]
     target = app_root / "content" / "docs" / "get-started.md"
     concurrent = target.read_text(encoding="utf-8").replace(
-        "Run the local docs server:",
+        "You already ran `fura serve`",
         "Changed by another MCP client:",
     )
     target.write_text(concurrent, encoding="utf-8")
@@ -400,7 +400,7 @@ def test_mcp_revision_rejects_change_to_edited_span(tmp_path: Path) -> None:
         "author_apply_edit",
         {
             "target": "docs/get-started",
-            "old_text": "Run the local docs server:",
+            "old_text": "You already ran `fura serve`",
             "new_text": "Stale MCP edit:",
             "source_revision": revision,
             "dry_run": False,

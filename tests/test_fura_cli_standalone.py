@@ -1636,7 +1636,9 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     assert 'sse-swap="author-invalidate"' in author_payload["page"].text
     assert 'hx-disinherit="hx-target hx-swap"' in author_payload["page"].text
     assert 'hx-swap="none"' in author_payload["page"].text
-    assert 'hx-trigger="sse:author-invalidate"' in author_payload["page"].text
+    # Packaged docs layout owns reload in docs_runtime_scripts (no HTMX sse trigger button).
+    assert 'hx-trigger="sse:author-invalidate"' not in author_payload["page"].text
+    assert "setupAuthorReload" in author_payload["page"].text
     assert "HX-Docs-Author-Reload" in author_payload["page"].text
     assert author_payload["boosted_page"].status == 200
     assert "data-fura-author-chrome" in author_payload["boosted_page"].text
@@ -1764,7 +1766,7 @@ def test_author_page_chrome_routes_and_status_model(tmp_path: Path) -> None:
     target = app_root / "content" / "docs" / "get-started.md"
     target.write_text(
         target.read_text(encoding="utf-8").replace(
-            "Run the local docs server:",
+            "You already ran `fura serve`",
             "Run the local author preview:",
         ),
         encoding="utf-8",
@@ -1851,7 +1853,7 @@ def test_author_dashboard_lists_mount_status_and_lint_drilldown(tmp_path: Path) 
     target = app_root / "content" / "docs" / "get-started.md"
     target.write_text(
         target.read_text(encoding="utf-8").replace(
-            "Run the local docs server:",
+            "You already ran `fura serve`",
             "Run the local author dashboard:",
         ),
         encoding="utf-8",
@@ -1929,7 +1931,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
 
     target = app_root / "content" / "docs" / "get-started.md"
     original = target.read_text(encoding="utf-8")
-    edited = original.replace("Run the local docs server:", "Updated in studio.")
+    edited = original.replace("You already ran `fura serve`", "Updated in studio.")
 
     async def _exercise_author() -> dict[str, object]:
         studio = await author_client.get("/docs/_author/studio?slug=docs/get-started")
@@ -2012,7 +2014,7 @@ def test_author_studio_save_create_and_route_gating(tmp_path: Path) -> None:
     assert 'id="author-studio-workspace"' in payload["studio"].text
     assert 'name="source"' in payload["studio"].text
     assert 'name="_csrf_token"' in payload["studio"].text
-    assert "Run the local docs server:" in payload["studio"].text
+    assert "You already ran `fura serve`" in payload["studio"].text
     assert payload["missing_csrf"].status == 403
     assert json.loads(payload["missing_csrf"].text)["diagnostics"][0]["rule_id"] == (
         "fura.author.csrf"
@@ -2436,7 +2438,7 @@ def test_author_edit_json_contract_and_confirmation_gate(tmp_path: Path, capsys)
     target = app_root / "content" / "docs" / "get-started.md"
     original = target.read_text(encoding="utf-8") + "\nRepeat marker.\nRepeat marker.\n"
     target.write_text(original, encoding="utf-8")
-    old_text = "Run the local docs server:"
+    old_text = "You already ran `fura serve`"
     new_text = "Run the local author preview:"
 
     main(
