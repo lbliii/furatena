@@ -943,6 +943,132 @@
     gap: var(--chirp-theme-home-rhythm);
   }
 
+  /* Furatena-owned Kida composition primitives for marketing surfaces. */
+  .fura-marketing-container {
+    width: min(100% - 2rem, var(--fura-marketing-container-max, 72rem));
+    margin-inline: auto;
+  }
+
+  .fura-marketing-stack {
+    display: grid;
+  }
+
+  .fura-marketing-stack--xl {
+    gap: var(--chirp-theme-home-rhythm);
+  }
+
+  .fura-marketing-cluster {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .fura-marketing-cluster--sm {
+    gap: 0.5rem;
+  }
+
+  .fura-marketing-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: var(--color-primary);
+    color: var(--color-bg);
+    font-family: var(--font-family-sans);
+    font-size: var(--text-sm);
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+  }
+
+  .fura-marketing-button:hover,
+  .fura-marketing-button:focus-visible {
+    background: color-mix(in srgb, var(--color-primary) 84%, var(--color-text-primary));
+    color: var(--color-bg);
+  }
+
+  .fura-marketing-button:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
+  .fura-marketing-button--secondary {
+    border-color: color-mix(in srgb, var(--color-primary) 38%, var(--color-border));
+    background: transparent;
+    color: var(--color-text-primary);
+  }
+
+  .fura-marketing-button--secondary:hover,
+  .fura-marketing-button--secondary:focus-visible {
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-text-primary);
+  }
+
+  .fura-marketing-surface {
+    box-sizing: border-box;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-elevated);
+  }
+
+  .fura-marketing-surface--glass {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
+    background: color-mix(in srgb, var(--color-bg-elevated) 80%, transparent);
+    backdrop-filter: blur(14px);
+  }
+
+  .fura-marketing-surface--gradient-subtle {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-elevated)), var(--color-bg-elevated) 52%, color-mix(in srgb, var(--color-accent) 10%, var(--color-bg-elevated)));
+  }
+
+  .fura-marketing-cta-band {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    padding: clamp(1.35rem, 3vw, 2.25rem);
+  }
+
+  .fura-marketing-cta-band__copy {
+    max-width: 42rem;
+  }
+
+  .fura-marketing-cta-band__copy h2,
+  .fura-marketing-cta-band__copy p {
+    margin: 0;
+  }
+
+  .fura-marketing-cta-band__copy h2 {
+    color: var(--color-text-primary);
+    font-family: var(--font-display);
+    font-size: clamp(1.65rem, 3vw, 2.35rem);
+    line-height: 1.05;
+  }
+
+  .fura-marketing-cta-band__copy p {
+    margin-top: 0.7rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  .fura-marketing-cta-band__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  @media (max-width: 42rem) {
+    .fura-marketing-cta-band {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
   .chirp-theme-home__hero-copy {
     display: grid;
     gap: clamp(1rem, 2.2vw, 1.45rem);
@@ -988,6 +1114,9 @@
     line-height: 0.98;
     letter-spacing: -0.042em;
     text-wrap: balance;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
     margin-inline: auto;
     max-width: 18ch;
   }
@@ -1036,6 +1165,40 @@
     width: 100%;
     max-width: 62rem;
     margin-inline: auto;
+  }
+
+  @media (min-width: 64rem) {
+    .chirp-theme-home__hero {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      align-items: center;
+      gap: clamp(2.5rem, 5vw, 5rem);
+    }
+
+    .chirp-theme-home__hero-copy {
+      max-width: none;
+      margin-inline: 0;
+      text-align: start;
+    }
+
+    .chirp-theme-home__hero-title {
+      max-width: none;
+      margin-inline: 0;
+      font-size: clamp(3.25rem, 5.2vw, 4.5rem);
+    }
+
+    .chirp-theme-home__hero-lede {
+      margin-inline: 0;
+    }
+
+    .chirp-theme-home__hero-copy .chirp-theme-home__actions {
+      justify-content: flex-start;
+    }
+
+    .chirp-theme-home__hero-panel {
+      max-width: none;
+      margin-inline: 0;
+    }
   }
 
   .chirp-theme-home__section {
@@ -2416,7 +2579,8 @@
     background: var(--chirpui-accent);
   }
 
-  .chirp-theme-page__header .chirpui-hero__inner {
+  .chirp-theme-page__header .chirpui-hero__inner,
+  .chirp-theme-page__header .fura-marketing-page-hero__inner {
     display: grid;
     gap: 0.35rem;
     margin: 0;
@@ -2425,19 +2589,22 @@
   }
 
   .chirp-theme-page__header .chirpui-hero__eyebrow,
+  .chirp-theme-page__header .fura-marketing-page-hero__eyebrow,
   .chirp-theme-page__header .chirpui-hero__content,
   .chirp-theme-page__header .chirpui-hero__footer {
     margin: 0;
   }
 
-  .chirp-theme-page__header .chirpui-hero__title {
+  .chirp-theme-page__header .chirpui-hero__title,
+  .chirp-theme-page__header .fura-marketing-page-hero__title {
     margin: 0;
     font-family: var(--font-display);
     font-size: clamp(1.9rem, 2.4vw, 2.75rem);
     letter-spacing: 0;
   }
 
-  .chirp-theme-page__header .chirpui-hero__subtitle {
+  .chirp-theme-page__header .chirpui-hero__subtitle,
+  .chirp-theme-page__header .fura-marketing-page-hero__subtitle {
     max-width: 72ch;
     margin: 0;
     font-size: clamp(0.95rem, 0.42vw + 0.86rem, 1.08rem);
